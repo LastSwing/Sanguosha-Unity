@@ -333,8 +333,8 @@ namespace SanguoshaServer.Game
             player.Hp = new_hp;
             BroadcastProperty(player, "Hp");
 
-            //List<string> arg = new List<string> { player.Name, recover_num.ToString(), "0" };
-            //DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
+            List<string> arg = new List<string> { player.Name, recover_num.ToString(), "0" };
+            DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
 
             if (set_emotion) SetEmotion(player, "recover");
 
@@ -4505,8 +4505,8 @@ namespace SanguoshaServer.Game
             victim.Hp -= lose;
             BroadcastProperty(victim, "Hp");
 
-            //List<string> arg = new List<string> { victim.Name, (-lose).ToString(), "-1" };
-            //DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
+            List<string> arg = new List<string> { victim.Name, (-lose).ToString(), "-1" };
+            DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
 
             room_thread.Trigger(TriggerEvent.PostHpReduced, this, victim, ref data);
             room_thread.Trigger(TriggerEvent.HpLost, this, victim, ref data);
@@ -4565,7 +4565,7 @@ namespace SanguoshaServer.Game
             victim.Hp = new_hp;
             BroadcastProperty(victim, "Hp");
 
-            List<string> arg = new List<string> { victim.Name, (-damage.Damage).ToString(), damage.Nature.ToString() };
+            List<string> arg = new List<string> { victim.Name, (-damage.Damage).ToString(), ((int)damage.Nature).ToString() };
             DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
         }
 
@@ -4616,7 +4616,6 @@ namespace SanguoshaServer.Game
                 }
                 if (damage_data.Chain && damage_data.Nature != DamageStruct.DamageNature.Normal)
                 {
-                    OutPut("do chained animate " + damage_data.To.Name);
                     DoChainedAnimation(damage_data.To, damage_data.Nature);
                     Thread.Sleep(600);
                 }
