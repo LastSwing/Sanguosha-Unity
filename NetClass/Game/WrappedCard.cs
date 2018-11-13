@@ -1,0 +1,304 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace CommonClass.Game
+{
+    #region
+    //包装卡，仅仅将卡牌信息封装，不具备任何功能
+    //实际花色和点数以及功能实现依赖于运行的Room和Name对应的FunctionCard
+    //Room在卡牌实际执行时会将其重新封装成正确的属性
+    #endregion
+    public class WrappedCard
+    {
+        public enum CardSuit
+        {
+            Spade, Club, Heart, Diamond, NoSuitBlack, NoSuitRed, NoSuit, SuitToBeDecided = -1
+        };
+        public enum CardColor
+        {
+            Red, Black, Colorless
+        };
+
+        public string Name { get; private set; }
+        public int Number { get; private set; } = 0;
+        public CardSuit Suit { get; private set; } = CardSuit.NoSuit;
+        public bool ExtraTarget
+        {
+            get => _extraTarget;
+            set
+            {
+                _extraTarget = value;
+                if (Id > -1)
+                    Modified = true;
+            }
+        }
+        public bool DistanceLimited
+        {
+            get => _distanceLimited;
+            set
+            {
+                _distanceLimited = value;
+                if (Id > -1)
+                    Modified = true;
+            }
+        }
+        public int Id { set; get; }
+        public List<int> SubCards { get; private set; } = new List<int>();
+        public string UserString { get; set; } = null;
+        public string SkillPosition { get; set; } = null;
+        public bool CanRecast { get; set; } = false;
+        public bool Transferable { get; set; } = false;
+        public bool Mute { get; set; } = false;
+        public string Skill { get => _skill; set => _skill = value; }
+        public string ShowSkill { get; set; } = null;
+        public List<string> Flags { get; set; } = new List<string>();
+        public bool Modified { get; set; } = false;
+
+        private bool _extraTarget = true;
+        private bool _distanceLimited = true;
+        private string _skill;
+
+        public string GetSkillName() => !string.IsNullOrEmpty(_skill) && _skill.StartsWith("_") ? _skill.Substring(1) : _skill;
+
+        public void AddSubCard(WrappedCard card)
+        {
+            if (card.Id >= 0 && !SubCards.Contains(card.Id))
+                SubCards.Add(card.Id);
+        }
+        public void AddSubCard(int id)
+        {
+            if (id >= 0 && !SubCards.Contains(id))
+                SubCards.Add(id);
+        }
+
+        public void AddSubCards(List<WrappedCard> cards)
+        {
+            foreach (WrappedCard card in cards)
+                AddSubCard(card);
+        }
+        public void AddSubCards(List<int> ids)
+        {
+            foreach (int id in ids)
+                AddSubCard(id);
+        }
+
+        public void ClearSubCards()
+        {
+            SubCards.Clear();
+        }
+
+        //just use for Json, do not use for create
+        public WrappedCard()
+        {
+        }
+        public WrappedCard(string name)
+        {
+            Name = name;
+            Id = -1;
+        }
+        public WrappedCard(string name, int id, CardSuit suit, int number, bool can_recast = false, bool transferable = false)
+        {
+            Name = name;
+            Id = id;
+            if (id > -1)
+                SubCards = new List<int> { id };
+            this.Suit = suit;
+            this.Number = number;
+            CanRecast = can_recast;
+            Transferable = transferable;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is WrappedCard other)
+            {
+                return Name == other.Name && Id == other.Id && Suit == other.Suit && Number == other.Number && Skill == other.Skill
+                    && ShowSkill == other.ShowSkill && UserString == other.UserString && DistanceLimited == other.DistanceLimited && ExtraTarget == other.ExtraTarget
+                    && CanRecast == other.CanRecast && Transferable == other.Transferable && SubCards.SequenceEqual(other.SubCards);
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return Name.GetHashCode() * Id.GetHashCode() * Suit.GetHashCode() * Number.GetHashCode()
+                * SubCards.GetHashCode() * Skill.GetHashCode() * ShowSkill.GetHashCode() * UserString.GetHashCode();
+        }
+
+
+        //当卡牌的功能改变时，如红颜或当作延时锦囊使用
+        public void TakeOver(WrappedCard card)
+        {
+            if (SubCards.Count != 1)
+                return;
+
+            SubCards = card.SubCards;
+            Modified = true;
+            Name = card.Name;
+            Number = card.Number;
+            Suit = card.Suit;
+            CanRecast = card.CanRecast;
+            Transferable = card.CanRecast;
+            Skill = card.Skill;
+            ShowSkill = card.ShowSkill;
+            UserString = card.UserString;
+            Flags = card.Flags;
+            DistanceLimited = card.DistanceLimited;
+            ExtraTarget = card.ExtraTarget;
+        }
+
+        public void SetFlags(string flag)
+        {
+            string symbol_c = "-";
+            if (string.IsNullOrEmpty(flag))
+                return;
+            else if (flag == ".")
+                Flags.Clear();
+            else if (flag.StartsWith(symbol_c))
+            {
+                string copy = flag.Substring(1);
+                Flags.Remove(copy);
+            }
+            else if (!Flags.Contains(flag))
+                Flags.Add(flag);
+        }
+
+        public bool HasFlag(string flag)
+        {
+            return Flags.Contains(flag);
+        }
+
+        public void ClearFlags()
+        {
+            Flags.Clear();
+        }
+
+        public int GetEffectiveId()
+        {
+            if (SubCards.Count > 0)
+                return SubCards[0];
+            else
+                return Id;
+        }
+
+        public static CardColor GetColor(CardSuit suit)
+        {
+            switch (suit)
+            {
+                case CardSuit.Spade:
+                case CardSuit.Club:
+                case CardSuit.NoSuitBlack:
+                    return CardColor.Black;
+                case CardSuit.Heart:
+                case CardSuit.Diamond:
+                case CardSuit.NoSuitRed:
+                    return CardColor.Red;
+                default:
+                    return CardColor.Colorless;
+            }
+        }
+
+        public string SubcardString()
+        {
+            if (SubCards.Count == 0)
+                return ".";
+
+            List<string> str = new List<string>();
+            foreach (int subcard in SubCards)
+                str.Add(subcard.ToString());
+
+            return string.Join("+", str);
+        }
+
+        public static string GetSuitString(CardSuit suit)
+        {
+            switch (suit)
+            {
+                case CardSuit.Spade: return "spade";
+                case CardSuit.Heart: return "heart";
+                case CardSuit.Club: return "club";
+                case CardSuit.Diamond: return "diamond";
+                case CardSuit.NoSuitBlack: return "no_suit_black";
+                case CardSuit.NoSuitRed: return "no_suit_red";
+                default: return "no_suit";
+            }
+        }
+
+        public static string GetNumberString(int number)
+        {
+            if (number == 10)
+                return "10";
+            else
+            {
+                string number_string = "-A23456789-JQK";
+                return number_string.Substring(number, 1);
+            }
+        }
+
+        public static bool IsRed(CardSuit suit)
+        {
+            return GetColor(suit) == CardColor.Red;
+        }
+
+        public static bool IsBlack(CardSuit suit)
+        {
+            return GetColor(suit) == CardColor.Black;
+        }
+
+        public static CardSuit GetSuit(string suit)
+        {
+            switch (suit)
+            {
+                case "spade":
+                    return CardSuit.Spade;
+                case "club":
+                    return CardSuit.Club;
+                case "heart":
+                    return CardSuit.Heart;
+                case "diamond":
+                    return CardSuit.Diamond;
+                case "no_suit_red":
+                    return CardSuit.NoSuitRed;
+                case "no_suit_black":
+                    return CardSuit.NoSuitBlack;
+                default:
+                    return CardSuit.NoSuit;
+            }
+        }
+
+        public static int GetNumber(string number_string)
+        {
+            int number = 0;
+            if (number_string == "A")
+                number = 1;
+            else if (number_string == "J")
+                number = 11;
+            else if (number_string == "Q")
+                number = 12;
+            else if (number_string == "K")
+                number = 13;
+            else
+            {
+                if (int.TryParse(number_string, out int result))
+                    return result;
+                else
+                    return 0;
+            }
+
+            return number;
+        }
+
+        public void SetSuit(CardSuit suit)
+        {
+            this.Suit = suit;
+        }
+
+        public void SetNumber(int number)
+        {
+            this.Number = number;
+        }
+
+    }
+}
