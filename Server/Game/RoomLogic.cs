@@ -383,6 +383,12 @@ namespace SanguoshaServer.Game
 
             return false;
         }
+
+        public static bool CanTransform(Player player)
+        {
+            return !string.IsNullOrEmpty(player.General2) && !player.General2.Contains("sujiang") && !player.IsDuanchang(false) && player.CanShowGeneral("hd");
+        }
+
         public static bool PlayerHasShownSkill(Room room, Player player, string skill)
         {
             return PlayerHasShownSkill(room, player, Engine.GetSkill(skill));
@@ -569,6 +575,7 @@ namespace SanguoshaServer.Game
         {
             GeneralSkin result = new GeneralSkin();
             Skill skill = Engine.GetSkill(skill_name);
+
             if (skill != null)
             {
                 if (!string.IsNullOrEmpty(position))

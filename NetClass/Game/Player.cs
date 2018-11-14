@@ -844,7 +844,7 @@ namespace CommonClass.Game
             tag["Qinggang"] = qinggang;
         }
 
-        static Dictionary<string, PlayerRole> role_map = new Dictionary<string, PlayerRole> {
+        static readonly Dictionary<string, PlayerRole> role_map = new Dictionary<string, PlayerRole> {
             { "lord", PlayerRole.Lord },
             { "loyalist", PlayerRole.Loyalist },
             { "rebel", PlayerRole.Rebel },

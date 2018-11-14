@@ -231,8 +231,6 @@ namespace SanguoshaServer.Scenario
                 }
 
                 room.BroadcastSkillInvoke(card_use.From, card_use.Card);
-
-                //room.OutPut(card_use.Card.Name + " get  " + card_use.Card.GetSkillName() + ", " + card_use.Card.Skill);
                 if (!string.IsNullOrEmpty(card_use.Card.Skill) && card_use.Card.GetSkillName() == card_use.Card.Skill
                     && card_use.IsOwnerUse && RoomLogic.PlayerHasSkill(room, card_use.From, card_use.Card.Skill))
                     room.NotifySkillInvoked(card_use.From, card_use.Card.Skill);

@@ -1278,6 +1278,72 @@ namespace SanguoshaServer.Game
             }
         }
 
+        public void TransformDeputyGeneral(Player player)
+        {
+            if (!RoomLogic.CanTransform(player)) return;
+
+            ShowGeneral(player, false);
+
+            List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
+            List<string> available = new List<string>();
+            foreach (string name in Generals)
+                if (!name.StartsWith("lord_") && !used_general.Contains(name) && Engine.GetGeneral(name).Kingdom == player.Kingdom)
+                    available.Add(name);
+            if (available.Count == 0) return;
+
+            Shuffle.shuffle<string>(ref available);
+            string general_name = available[0];
+
+            HandleUsedGeneral("-" + player.ActualGeneral2);
+            HandleUsedGeneral(general_name);
+
+            RemoveGeneral(player, false);
+            object void_data = null;
+            List <TriggerSkill> game_start = new List<TriggerSkill>();
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false)) {
+                Skill skill = Engine.GetSkill(skill_name);
+                if (skill is TriggerSkill tr && tr.TriggerEvents.Contains(TriggerEvent.GameStart))
+                    if (tr.Triggerable(TriggerEvent.GameStart, this, player, ref void_data).Count > 0)
+                        game_start.Add(tr);
+
+                AddPlayerSkill(player, skill_name, false);
+            }
+
+            ChangePlayerGeneral2(player, "anjiang");
+            player.ActualGeneral2 = general_name;
+            NotifyProperty(GetClient(player), player, "ActualGeneral2");
+
+            names[1] = general_name;
+            player.General2Showed = false;
+            BroadcastProperty(player, "General2Showed");
+
+            //if (player.IsAutoPreshow())
+            //    player.SetSkillsPreshowed("d");
+            NotifyPlayerPreshow(player, "d");
+
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false)) {
+                Skill skill = Engine.GetSkill(skill_name);
+                if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
+                {
+                    player.SetMark(skill.LimitMark, 1);
+                    List<string> arg = new List<string> {player.Name, skill.LimitMark, "1" };
+                    DoNotify(GetClient(player), CommandType.S_COMMAND_SET_MARK, arg);
+                }
+            }
+
+            foreach (TriggerSkill skill in game_start) {
+                TriggerStruct trigger = new TriggerStruct(skill.Name, player)
+                {
+                    SkillPosition = "deputy"
+                };
+                TriggerStruct result = skill.Cost(TriggerEvent.GameStart, this, player, ref void_data, player, trigger);
+                if (!string.IsNullOrEmpty(result.SkillName) && result.SkillName == skill.Name)
+                    skill.Effect(TriggerEvent.GameStart, this, player, ref void_data, player, trigger);
+            }
+
+            ShowGeneral(player, false);
+        }
+
         public bool NotifyMoveCards(bool isLostPhase, List<CardsMoveStruct> cards_moves, bool forceVisible, List<Player> players = null)
         {
             if (players == null) players = Players;
@@ -1388,21 +1454,9 @@ namespace SanguoshaServer.Game
             if (general_name.Contains("+"))
             {
                 string[] names = general_name.Split('+');
-                foreach (Player player in list)
-                {
-                    if (names.Contains(player.General1) || names.Contains(player.Name))
-                        return player;
-                }
-                return null;
+                return list.Find(t => names.Contains(t.General1) || names.Contains(t.Name));
             }
-
-            foreach (Player player in list)
-            {
-                if (player.General1 == general_name || player.Name == general_name)
-                    return player;
-            }
-
-            return null;
+            return list.Find(t => t.General1 == general_name || t.Name == general_name);
         }
 
         private List<CardsMoveStruct> _separateMoves(List<CardsMoveOneTimeStruct> moveOneTimes)
@@ -3198,8 +3252,9 @@ namespace SanguoshaServer.Game
                 if (player.General2Showed)
                     player.PlayerGender = Engine.GetGeneral(player.General2).GeneralGender;
                 else
-                    player.PlayerGender = Player.Gender.Sexless;
+                    player.PlayerGender = Gender.Sexless;
             }
+            BroadcastProperty(player, "PlayerGender");
 
             FilterCards(player, player.GetCards("he"), true);
         }
@@ -3222,9 +3277,10 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    player.PlayerGender = Player.Gender.Sexless;
+                    player.PlayerGender = Gender.Sexless;
                 }
             }
+            BroadcastProperty(player, "PlayerGender");
 
             FilterCards(player, player.GetCards("he"), true);
         }
@@ -3277,7 +3333,6 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-
                 foreach (Client p in m_clients)
                     if (p != GetClient(player))
                         NotifyProperty(p, player, "HeadSkinId");
@@ -3492,24 +3547,18 @@ namespace SanguoshaServer.Game
                     }
                 }
             }
-            //if (type == 1)
-            //{
-            //    QStringList q;
-            //    if (canShowGeneral("h")) q << "GameRule_AskForGeneralShowHead";
-            //    if (canShowGeneral("d")) q << "GameRule_AskForGeneralShowDeputy";
-            //    SPlayerDataMap map;
-            //    map.insert(this, q);
-            //    QString name;
-            //    if (q.length() > 1)
-            //    {
-            //        name = room->askForTriggerOrder(this, "GameRule:ShowGeneral", map, false);
-            //        name.remove(Name + ":");
-            //    }
-            //    else
-            //        name = q.first();
-            //    showGeneral(name == "GameRule_AskForGeneralShowHead" ? true : false, true, true, false);
-            //    result = true;
-            //}
+            if (type == 1)
+            {
+                List<TriggerStruct> q = new List<TriggerStruct>();
+                if (player.CanShowGeneral("h"))
+                    q.Add(new TriggerStruct("GameRule_AskForGeneralShowHead", player));
+                if (player.CanShowGeneral("d"))
+                    q.Add(new TriggerStruct("GameRule_AskForGeneralShowDeputy", player));
+
+                TriggerStruct name = AskForSkillTrigger(player, "GameRule:ShowGeneral", q, false, null, false);
+                ShowGeneral(player, name.SkillName == "GameRule_AskForGeneralShowHead" ? true : false, true, true, false);
+                result = true;
+            }
             return result;
         }
 

@@ -54,7 +54,7 @@ namespace SanguoshaServer.Game
             return type_id == CardType.TypeTrick && !(this is DelayedTrick);
         }
 
-        public virtual bool TargetFixed() => target_fixed;
+        public virtual bool TargetFixed(WrappedCard card) => target_fixed;
 
         public virtual bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
@@ -66,7 +66,7 @@ namespace SanguoshaServer.Game
 
         public virtual bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return !TargetFixed() && targets.Count() == 0 && to_select != Self && Engine.IsProhibited(room, Self, to_select, card, targets) == null;
+            return !TargetFixed(card) && targets.Count() == 0 && to_select != Self && Engine.IsProhibited(room, Self, to_select, card, targets) == null;
         }
 
         public virtual bool ExtratargetFilter(Room room, List<Player> selected, Player to_select, Player Self, WrappedCard card)
@@ -135,7 +135,7 @@ namespace SanguoshaServer.Game
                 To = new List<string>(),
                 Card_str = RoomLogic.CardToString(room, card_use.Card)
             };
-            if (!TargetFixed() || card_use.To.Count > 1 || !card_use.To.Contains(card_use.From))
+            if (!TargetFixed(card_use.Card) || card_use.To.Count > 1 || !card_use.To.Contains(card_use.From))
                 log.SetTos(card_use.To);
 
 
@@ -519,7 +519,7 @@ namespace SanguoshaServer.Game
         public override string GetSubtype() => "single_target_trick";
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return !TargetFixed() && Engine.IsProhibited(room, Self, to_select, card, targets) == null;
+            return !TargetFixed(card) && Engine.IsProhibited(room, Self, to_select, card, targets) == null;
         }
     }
 

@@ -1425,7 +1425,7 @@ namespace SanguoshaServer
                 return;
             }
             FunctionCard fcard = Engine.GetFunctionCard(viewas_card.Name);
-            if (!skill_invoke && fcard?.TargetFixed() == true && pending_skill != null && !m_do_request
+            if (!skill_invoke && fcard?.TargetFixed(viewas_card) == true && pending_skill != null && !m_do_request
                     && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0) && viewas_card.SubCards.Count == 0)
             {
                 selected_targets.Clear();
@@ -1674,7 +1674,7 @@ namespace SanguoshaServer
 
                     List<string> targetNames = new List<string>();
                     FunctionCard fcard = Engine.GetFunctionCard(viewas_card.Name);
-                    if (fcard?.TargetFixed() == false)
+                    if (fcard?.TargetFixed(viewas_card) == false)
                     {
                         foreach (Player target in selected_targets)
                             targetNames.Add(target.Name);
@@ -1960,19 +1960,21 @@ namespace SanguoshaServer
         {
             if (selected_cards.ContainsKey(player))
             {
-                foreach (WrappedCard selected in selected_cards[player])
-                {
-                    if (!RoomLogic.IsVirtualCard(room, selected))
-                    {
-                        if (selected.Id == card.Id)
-                            return selected;
-                    }
-                    else
-                    {
-                        if (selected.Equals(card))
-                            return selected;
-                    }
-                }
+                return selected_cards[player].Find(t => (!RoomLogic.IsVirtualCard(room, t) && t.Id == card.Id || t.Equals(card)));
+
+                //foreach (WrappedCard selected in selected_cards[player])
+                //{
+                //    if (!RoomLogic.IsVirtualCard(room, selected))
+                //    {
+                //        if (selected.Id == card.Id)
+                //            return selected;
+                //    }
+                //    else
+                //    {
+                //        if (selected.Equals(card))
+                //            return selected;
+                //    }
+                //}
             }
             return null;
         }
@@ -2049,7 +2051,7 @@ namespace SanguoshaServer
                     if (player != null && viewas_card != null && target != null && (available_targets.Contains(target) || selected_targets.Contains(target)))
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(viewas_card.Name);
-                        if (!fcard.TargetFixed())
+                        if (!fcard.TargetFixed(viewas_card))
                         {
                             success = true;
                             double_click = true;
@@ -2099,7 +2101,7 @@ namespace SanguoshaServer
                 if (player != null && viewas_card != null && target != null && (available_targets.Contains(target) || selected_targets.Contains(target)))
                 {
                     FunctionCard fcard = Engine.GetFunctionCard(viewas_card.Name);
-                    if (!fcard.TargetFixed())
+                    if (!fcard.TargetFixed(viewas_card))
                     {
                         success = true;
                         TargetClicked(player, target);
@@ -2265,7 +2267,8 @@ namespace SanguoshaServer
                     else
                     {
                         bool check_targetfix = true;
-                        if ((ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse) && !fcard.TargetFixed() && !fcard.CanRecast(room, player, result))
+                        if ((ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse)
+                            && !fcard.TargetFixed(result) && !fcard.CanRecast(room, player, result))
                             check_targetfix = false;
 
                         if (check_targetfix)
