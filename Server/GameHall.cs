@@ -32,6 +32,13 @@ namespace SanguoshaServer
 
             new Engine();
         }
+        public Room GetRoom(int room_id)
+        {
+            if (RId2Room.ContainsKey(room_id))
+                return RId2Room[room_id];
+
+            return null;
+        }
 
         #region 客户端首次对话时
         public void OnConnected(MsgPackSession session) {
@@ -282,9 +289,10 @@ namespace SanguoshaServer
                     break;
                 case protocol.Message2Room:
                     message.Description = PacketDescription.Room2Cient;
-                    if (RId2Room.ContainsKey(sourcer.GameRoom))
+                    Room room = GetRoom(sourcer.GameRoom);
+                    if (room != null)
                     {
-                        Room room = RId2Room[sourcer.GameRoom];
+                        
                         if (!room.GameStarted || !room.Setting.SpeakForbidden)
                         {
                             foreach (Client dest in room.Clients)
@@ -405,6 +413,7 @@ namespace SanguoshaServer
                     Room room = new Room(this, room_id, client, setting);
                     RId2Room.Add(room_id, room);
                     room.BroadcastRoom += BroadCastRoom;
+                    room.RemoveRoom += RemoveRoom;
                 }
                 else
                 {
@@ -455,11 +464,33 @@ namespace SanguoshaServer
             }
         }
 
-        public void RemoveRoom(Room room)
+        public void RemoveRoom(Room room, Client host, List<Client> clients)
         {
             lock (this)
             {
                 room.BroadcastRoom -= BroadCastRoom;
+                room.RemoveRoom -= RemoveRoom;
+
+                OutPut("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+
+                if (host != null)
+                {
+                    CreateRoom(host, room.Setting);
+                    int id = host.GameRoom;
+
+                    OutPut(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
+
+                    if (id > 0 && id != room.RoomId)
+                    {
+                        Room new_room = GetRoom(id);
+                        foreach (Client client in clients)
+                        {
+                            if (client.UserID < 0 || client == host) continue;
+                            new_room.OnClientRequestInter(client, id, room.Setting.PassWord);
+                        }
+                    }
+                }
+
                 RId2Room.Remove(room.RoomId);
                 if (Room2Thread.ContainsKey(room))
                 {
@@ -469,7 +500,7 @@ namespace SanguoshaServer
                     thread = null;
                 }
                 RoomList.Instance().RemoveRoom(room.RoomId);
-                int id = room.RoomId;
+                int room_id = room.RoomId;
                 room = null;
 
                 MyData data = new MyData
@@ -478,7 +509,7 @@ namespace SanguoshaServer
                     Protocol = protocol.UPdateRoomList,
                     Body = new List<string>
                     {
-                        id.ToString()
+                        room_id.ToString()
                     }
                 };
                 foreach (Client client in UId2ClientTable.Values)

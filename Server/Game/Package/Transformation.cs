@@ -1087,10 +1087,12 @@ namespace SanguoshaServer.Game
                     card = use.Card;
                 else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp)
                     card = resp.Card;
-
-                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard != null && fcard.TypeID != CardType.TypeSkill)
-                    room.SetPlayerMark(player, "jili", player.GetMark("jili") + 1);
+                if (card != null)
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(card?.Name);
+                    if (fcard.TypeID != CardType.TypeSkill)
+                        room.SetPlayerMark(player, "jili", player.GetMark("jili") + 1);
+                }
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)

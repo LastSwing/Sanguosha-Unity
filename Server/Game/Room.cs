@@ -21,9 +21,11 @@ using static SanguoshaServer.Game.Skill;
 namespace SanguoshaServer.Game
 {
     public delegate void BroadcastRoomDelegate(Room room);
+    public delegate void RemoveRoomDelegate(Room room, Client host, List<Client> clients);
     public class Room
     {
         public event BroadcastRoomDelegate BroadcastRoom;
+        public event RemoveRoomDelegate RemoveRoom;
         public Client Host => host;
         public Player Current => current;
         public List<Player> AlivePlayers => m_alivePlayers;
@@ -66,7 +68,7 @@ namespace SanguoshaServer.Game
         private List<string> generals = new List<string>();
         private List<string> skills = new List<string>();
         private Queue<DamageStruct> m_damageStack = new Queue<DamageStruct>();
-        private bool game_started, game_finished;
+        private bool game_started, game_finished, create_new;
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -281,7 +283,6 @@ namespace SanguoshaServer.Game
         {
             List<string> all_roles = new List<string>();
             foreach (Player player in m_players) {
-                all_roles.Add(player.Role);
                 if (player.HandcardNum > 0)
                 {
                     player.SetTag("last_handcards", player.HandCards);
@@ -299,7 +300,10 @@ namespace SanguoshaServer.Game
             List<string> arg = new List<string> { winner, JsonUntity.Object2Json(all_roles) };
             DoBroadcastNotify(CommandType.S_COMMAND_GAME_OVER, arg);
 
+            create_new = true;
             //记录游戏结果
+
+
             StopGame();
         }
 
@@ -1959,7 +1963,7 @@ namespace SanguoshaServer.Game
             {
                 Description = PacketDescription.Room2Cient,
                 Protocol = protocol.JoinRoom,
-                Body = new List<string> { host.UserID.ToString(), JsonUntity.Object2Json<GameSetting>(setting), game_started.ToString() }
+                Body = new List<string> { host.UserID.ToString(), JsonUntity.Object2Json(setting), game_started.ToString() }
             };
             client.SendSwitchReply(data);
         }
@@ -2129,23 +2133,28 @@ namespace SanguoshaServer.Game
 
         private void StopGame()
         {
+            timer.Elapsed -= Timer1_Elapsed;
+
+            OutPut("stop game2 " + Thread.CurrentThread.ManagedThreadId.ToString());
+
+            foreach (Client client in m_clients)
+            {
+                client.GameRoom = -1;
+                client.Disconnected -= OnClientDisconnected;
+                client.LeaveRoom -= OnClientLeave;
+                client.GetReady -= OnClientReady;
+                client.GameControl -= ProcessClientPacket;
+            }
+            
+            OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
+            RemoveRoom?.Invoke(this, create_new ? host : null, m_clients);
+
             if (thread != null)
             {
                 thread.Abort();
                 thread = null;
             }
             room_thread = null;
-
-            timer.Elapsed -= Timer1_Elapsed;
-            foreach (Client client in m_clients)
-            {
-                client.Disconnected -= OnClientDisconnected;
-                client.LeaveRoom -= OnClientLeave;
-                client.GetReady -= OnClientReady;
-                client.GameControl -= ProcessClientPacket;
-            }
-
-            hall.RemoveRoom(this);
         }
 
         private async void WaitForClear(int id)

@@ -221,7 +221,6 @@ namespace SanguoshaServer.Game
         }
         public override void OnUse(Room room, CardUseStruct card_use)
         {
-            room.OutPut(string.Format("show {0},{1}", card_use.Card.UserString, card_use.Card.SkillPosition));
             room.ShowSkill(card_use.From, card_use.Card.UserString, card_use.Card.SkillPosition);
         }
     }
@@ -236,12 +235,9 @@ namespace SanguoshaServer.Game
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is DamageStruct damage)
+            if (base.Triggerable(player, room) && data is DamageStruct damage && damage.Card != null)
             {
                 WrappedCard card = damage.Card;
-                if (card != null)
-                    return new TriggerStruct();
-
                 List<int> table_cardids = room.GetCardIdsOnTable(card);
                 List<int> ids = card.SubCards;
 

@@ -535,25 +535,26 @@ namespace SanguoshaServer.Scenario
             foreach (string skill in player.GetSkills(true, false))
             {
                 Skill real_skill = Engine.GetSkill(skill);
-                if (real_skill == null || !(real_skill is BattleArraySkill)) continue;
-                BattleArraySkill baskill = (BattleArraySkill)real_skill;
-                if (!room.AskForSkillInvoke(player, Name)) return new TriggerStruct();
-                room.ShowGeneral(player, RoomLogic.InPlayerHeadSkills(player, skill));
-                baskill.SummonFriends(room, player);
-                break;
+                if (real_skill != null && real_skill is BattleArraySkill baskill && room.AskForSkillInvoke(player, Name))
+                {
+                    room.ShowGeneral(player, RoomLogic.InPlayerHeadSkills(player, skill));
+                    baskill.SummonFriends(room, player);
+                    break;
+                }
             }
             return new TriggerStruct();
         }
 
         public override TriggerStruct Triggerable(TriggerEvent trigger_event, Room room, Player player, ref object data, Player target)
         {
-            if (player.Phase != PlayerPhase.Start) return new TriggerStruct();
-            if (room.AliveCount() < 4) return new TriggerStruct();
-            foreach (string skill in player.GetSkills(true, false))
+            if (player.Phase == PlayerPhase.Start && room.AliveCount() >= 4)
             {
-                Skill real_skill = Engine.GetSkill(skill);
-                if (real_skill != null && real_skill is BattleArraySkill)
-                    return ((BattleArraySkill)real_skill).ViewAsSkill.IsEnabledAtPlay(room, player) ? new TriggerStruct(Name, player) : new TriggerStruct();
+                foreach (string skill in player.GetSkills(true, false))
+                {
+                    Skill real_skill = Engine.GetSkill(skill);
+                    if (real_skill != null && real_skill is BattleArraySkill baskill)
+                        return baskill.ViewAsSkill.IsEnabledAtPlay(room, player) ? new TriggerStruct(Name, player) : new TriggerStruct();
+                }
             }
             return new TriggerStruct();
         }
