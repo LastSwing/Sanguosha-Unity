@@ -2149,12 +2149,12 @@ namespace SanguoshaServer.Game
             OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
             RemoveRoom?.Invoke(this, create_new ? host : null, m_clients);
 
+            room_thread = null;
             if (thread != null)
             {
                 thread.Abort();
                 thread = null;
             }
-            room_thread = null;
         }
 
         private async void WaitForClear(int id)
@@ -3613,7 +3613,7 @@ namespace SanguoshaServer.Game
         public void DoSuperLightbox(Player player, string general, string head, string skillName)
         {
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(this, player, skillName, head);
-            DoAnimate(AnimateType.S_ANIMATE_LIGHTBOX, string.Format("skill={0}:{1}", gsk.General, gsk.SkinId), skillName);
+            DoAnimate(AnimateType.S_ANIMATE_LIGHTBOX, JsonUntity.Object2Json(gsk), skillName);
             Thread.Sleep(4000);
         }
         public void DoAnimate(AnimateType type, string arg1 = null, string arg2 = null, List<Player> players = null)
@@ -3629,8 +3629,8 @@ namespace SanguoshaServer.Game
             List<string> arg = new List<string>
             {
                 type.ToString(),
-                arg1.ToString(),
-                arg2.ToString()
+                arg1,
+                arg2
             };
             DoBroadcastNotify(receivers, CommandType.S_COMMAND_ANIMATE, arg);
         }
@@ -3646,16 +3646,18 @@ namespace SanguoshaServer.Game
             if (target == null)
             {
                 List<string> names = new List<string>();
-                foreach (Player p in RoomLogic.GetFormation(this, player))
+                List<Player> players = RoomLogic.GetFormation(this, player);
+                SortByActionOrder(ref players);
+                foreach (Player p in players)
                     names.Add(p.Name);
                 if (names.Count > 1)
-                    DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, string.Join("+", names));
+                    DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, JsonUntity.Object2Json(names));
             }
             else
             {
                 foreach (Player p in GetOtherPlayers(player))
                     if (RoomLogic.InSiegeRelation(this, p, player, target))
-                        DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, string.Format("{0}+{1}", p.Name, player.Name));
+                        DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, JsonUntity.Object2Json(new List<string> { player.Name, p.Name }));
             }
         }
         
