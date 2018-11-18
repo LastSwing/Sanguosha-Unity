@@ -400,6 +400,9 @@ namespace SanguoshaServer.Game
             if (player.HeadAcquiredSkills.Contains(skill.Name) || player.DeputyAcquiredSkills.Contains(skill.Name))
                 return Engine.Invalid(room, player, skill.Name) == null;
 
+            if (skill is ArmorSkill || skill is WeaponSkill || skill is TreasureSkill)
+                return true;
+
             if (skill is TriggerSkill tr_skill)
             {
                 if (tr_skill != null && tr_skill.Global)

@@ -4,19 +4,18 @@ using CommonClassLibrary;
 using SanguoshaServer.AI;
 using SanguoshaServer.Scenario;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using static CommonClass.Game.Player;
-using static CommonClass.Game.WrappedCard;
 using static SanguoshaServer.Game.FunctionCard;
 using static SanguoshaServer.Game.Skill;
+using CommandType = CommonClassLibrary.CommandType;
 
 namespace SanguoshaServer.Game
 {
@@ -2455,13 +2454,13 @@ namespace SanguoshaServer.Game
             interactions[CommandType.S_COMMAND_SURRENDER] = new Action<Client, List<string>>(ProcessRequestSurrender);
             interactions[CommandType.S_COMMAND_CHEAT] = new Action<Client, List<string>>(ProcessRequestCheat);
             interactions[CommandType.S_COMMAND_PRESHOW] = new Action<Client, List<string>>(ProcessRequestPreshow);
+            interactions[CommandType.S_COMMAND_CHANGE_SKIN] = new Action<Client, List<string>>(ChangeSkinCommand);
 
             // Client notifications
             callbacks[CommandType.S_COMMAND_GAME_START] = new Action<Client, List<string>>(GameStart);
             callbacks[CommandType.S_COMMAND_ADD_ROBOT] = new Action<Client, List<string>>(AddRobotCommand);
             callbacks[CommandType.S_COMMAND_FILL_ROBOTS] = new Action<Client, List<string>>(FillRobotsCommand);
             callbacks[CommandType.S_COMMAND_TRUST] = new Action<Client, List<string>>(TrustCommand);
-            callbacks[CommandType.S_COMMAND_CHANGE_SKIN] = new Action<Client, List<string>>(ChangeSkinCommand);
 
             // handle reply
             replies[CommandType.S_COMMAND_NULLIFICATION] = new Action<Client>(OnRaceReply);
@@ -2643,9 +2642,45 @@ namespace SanguoshaServer.Game
             }
         }
 
-        private void ChangeSkinCommand(Client arg1, List<string> arg2)
+        private void ChangeSkinCommand(Client client, List<string> args)
         {
-            throw new NotImplementedException();
+            if (args.Count != 3) return;
+            Player who = FindPlayer(args[0]);
+            int skin_id = int.Parse(args[1]);
+            bool is_head = bool.Parse(args[2]);
+            if (who.ClientId != client.UserID) return;
+
+            string name = is_head ? who.ActualGeneral1 : who.ActualGeneral2;
+            DataRow[] datas = Engine.GetGeneralSkin(name, Setting.GameMode);
+            bool check = false;
+            foreach (DataRow data in datas)
+            {
+                if (data["skin_id"].ToString() == args[1])
+                {
+                    check = true;
+                    break;
+                }
+            }
+            if (!check) return;
+
+            string propertyName;
+            if (is_head)
+            {
+                who.HeadSkinId = skin_id;
+                propertyName = "HeadSkinId";
+            }
+            else
+            {
+                who.DeputySkinId = skin_id;
+                propertyName = "DeputySkinId";
+            }
+
+            bool show = is_head ? who.General1Showed : who.General2Showed;
+
+            foreach (Client target in m_clients) {
+                if (client != target && !show) continue;
+                NotifyProperty(target, who, propertyName);
+            }
         }
 
         private void TrustCommand(Client arg1, List<string> arg2)
@@ -5077,7 +5112,7 @@ namespace SanguoshaServer.Game
                 if (skill_owner == null) skill_owner = invoker;
                 TriggerSkill trskill = Engine.GetTriggerSkill(skill.SkillName);
                 if (trskill != null && (RoomLogic.PlayerHasShownSkill(this, skill_owner, trskill) || trskill.Global)
-                        && (trskill.SkillFrequency == Skill.Frequency.Compulsory || trskill.SkillFrequency == Skill.Frequency.Wake))
+                        && (trskill.SkillFrequency == Frequency.Compulsory || trskill.SkillFrequency == Frequency.Wake))
                 {
                     optional = false;
                     can_skip = false;

@@ -21,6 +21,7 @@ namespace SanguoshaServer.Game
         private static Dictionary<int, WrappedCard> wrapped_cards = new Dictionary<int, WrappedCard>();
         private static Dictionary<string, GameScenario> scenarios = new Dictionary<string, GameScenario>();
         private static DataTable general_skills;
+        private static DataTable general_skin;
         
         private static DataSet card_table = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
@@ -143,10 +144,11 @@ namespace SanguoshaServer.Game
             File.Delete("gamedata/skills.json");
             File.AppendAllText("gamedata/skills.json", JsonUntity.DataSet2Json(skills_ds));
         }
+        
 
-        //生成客户端的数据文件
         private void LoatOthers()
         {
+            //武将称号
             string sql = "select * from title";
             DataTable dt = DB.GetData(sql, false);
             DataSet ds = new DataSet();
@@ -154,6 +156,15 @@ namespace SanguoshaServer.Game
 
             File.Delete("gamedata/titles.json");
             File.AppendAllText("gamedata/titles.json", JsonUntity.DataSet2Json(ds));
+
+            //皮肤信息
+            sql = "select * from general_skin";
+            general_skin = DB.GetData(sql, false);
+            ds = new DataSet();
+            ds.Tables.Add(general_skin);
+
+            File.Delete("gamedata/skin.json");
+            File.AppendAllText("gamedata/skin.json", JsonUntity.DataSet2Json(ds));
         }
 
         private void LoadTranslations()
@@ -886,6 +897,11 @@ namespace SanguoshaServer.Game
                 default:
                     return "careerist";
             }
+        }
+
+        public static DataRow[] GetGeneralSkin(string name, string mode)
+        {
+            return general_skin.Select(string.Format("general_name = '{0}' and mode = '{1}'", name, mode));
         }
     }
 }
