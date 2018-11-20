@@ -408,7 +408,8 @@ namespace SanguoshaServer.Game
         public void AttachSkillToPlayer(Player player, string skill_name)
         {
             player.AcquireSkill(skill_name);
-            DoBroadcastNotify(CommandType.S_COMMAND_ATTACH_SKILL, new List<string> { player.Name, skill_name });
+            //DoBroadcastNotify(CommandType.S_COMMAND_ATTACH_SKILL, new List<string> { player.Name, skill_name });
+            DoNotify(GetClient(player), CommandType.S_COMMAND_ATTACH_SKILL, new List<string> { player.Name, skill_name });
         }
 
         public void DetachSkillFromPlayer(Player player, string skill_name, bool is_equip = false, bool acquire_only = false, bool head = true)
@@ -856,7 +857,7 @@ namespace SanguoshaServer.Game
 
             List<CardsMoveOneTimeStruct> moveOneTimes = _mergeMoves(cards_moves);
             int index = 0;
-            foreach (CardsMoveOneTimeStruct _moveOneTime in moveOneTimes)
+            foreach (CardsMoveOneTimeStruct _moveOneTime in new List<CardsMoveOneTimeStruct>(moveOneTimes))
             {
                 if (_moveOneTime.Card_ids.Count == 0)
                 {
@@ -884,19 +885,20 @@ namespace SanguoshaServer.Game
             }
 
             cards_moves = _separateMoves(moveOneTimes);
+
             NotifyMoveCards(true, cards_moves, forceMoveVisible);
             List<CardsMoveStruct> origin = new List<CardsMoveStruct>(cards_moves);
-
+            
             List<Place> final_places = new List<Place>();
-            List<Player> move_tos = new List<Player>();
+            List<string> move_tos = new List<string>();
             for (int i = 0; i < cards_moves.Count; i++)
             {
                 CardsMoveStruct cards_move = cards_moves[i];
                 final_places.Add(cards_move.To_place);
-                move_tos.Add(FindPlayer(cards_move.To, true));
-
+                move_tos.Add(cards_move.To);
                 cards_move.To_place = Place.PlaceTable;
                 cards_move.To = null;
+                cards_moves[i] = cards_move;
             }
 
             for (int i = 0; i < cards_moves.Count; i++)
@@ -949,8 +951,9 @@ namespace SanguoshaServer.Game
             for (int i = 0; i < cards_moves.Count; i++)
             {
                 CardsMoveStruct cards_move = cards_moves[i];
-                cards_move.To = move_tos[i].Name;
+                cards_move.To = move_tos[i];
                 cards_move.To_place = final_places[i];
+                cards_moves[i] = cards_move;
             }
 
             if (enforceOrigin)
@@ -958,11 +961,13 @@ namespace SanguoshaServer.Game
                 for (int i = 0; i < cards_moves.Count; i++)
                 {
                     CardsMoveStruct cards_move = cards_moves[i];
-                    if (!string.IsNullOrEmpty(cards_move.To) &&  !FindPlayer(cards_move.To, true).Alive)
+                    Player to = FindPlayer(cards_move.To);
+                    if (to == null)
                     {
                         cards_move.To = null;
                         cards_move.To_place = Place.DiscardPile;
                     }
+                    cards_moves[i] = cards_move;
                 }
             }
 
@@ -970,11 +975,12 @@ namespace SanguoshaServer.Game
             {
                 CardsMoveStruct cards_move = cards_moves[i];
                 cards_move.From_place = Place.PlaceTable;
+                cards_moves[i] = cards_move;
             }
 
             moveOneTimes = _mergeMoves(cards_moves);
             index = 0;
-            foreach (CardsMoveOneTimeStruct moveOneTime in moveOneTimes)
+            foreach (CardsMoveOneTimeStruct moveOneTime in new List<CardsMoveOneTimeStruct>(moveOneTimes))
             {
                 if (moveOneTime.Card_ids.Count == 0)
                 {
@@ -1000,9 +1006,10 @@ namespace SanguoshaServer.Game
                 UpdateCardsOnGet(move);
 
             List<CardsMoveStruct> origin_x = new List<CardsMoveStruct>();
-            foreach (CardsMoveStruct m in origin) {
+            foreach (CardsMoveStruct m in origin)
+            {
                 CardsMoveStruct m_x = m;
-                m_x.Card_ids.Clear();
+                m_x.Card_ids = new List<int>();
                 m_x.To = null;
                 m_x.To_place = Place.DiscardPile;
                 foreach (int id in m.Card_ids) {
@@ -1496,8 +1503,8 @@ namespace SanguoshaServer.Game
 
                 CardsMoveStruct card_move = new CardsMoveStruct
                 {
-                    From = cls.From != null ? cls.From.Name : string.Empty,
-                    To = cls.To != null ? cls.To.Name : string.Empty,
+                    From = cls.From?.Name,
+                    To = cls.To?.Name,
                     From_place = cls.From_place,
                     To_place = cls.To_place,
                     From_pile_name = cls.From_pile_name,
@@ -1505,8 +1512,8 @@ namespace SanguoshaServer.Game
                     Open = cls.Open,
                     Card_ids = ids[index],
                     Reason = cls.Reason,
-                    Origin_from = cls.From != null ? cls.From.Name : string.Empty,
-                    Origin_to = cls.To != null ? cls.To.Name : string.Empty,
+                    Origin_from = cls.From?.Name,
+                    Origin_to = cls.To?.Name,
                     Origin_from_place = cls.From_place,
                     Origin_to_place = cls.To_place,
                     Origin_from_pile_name = cls.From_pile_name,
@@ -2517,9 +2524,9 @@ namespace SanguoshaServer.Game
             }
 
             //加载武将
-            generals = Engine.GetGenerals(Setting.GeneralPackage);
+            generals = Engine.GetGenerals(Setting.GeneralPackage, false);
             //加载本局游戏技能
-            foreach (string general in generals)
+            foreach (string general in Engine.GetGenerals(Setting.GeneralPackage))
             {
                 foreach (string skill in Engine.GetGeneralSkills(general, Setting.GameMode))
                 {
@@ -5817,6 +5824,7 @@ namespace SanguoshaServer.Game
                 {
                     if (player.Alive)
                     {
+                        DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
                         Activate(player, out card_use);
                         return;
                     }

@@ -28,6 +28,7 @@ namespace SanguoshaServer.Package
             };
             cards = new List<FunctionCard>
             {
+                new TransferCard(),
                 new WoodenOxCard(),
                 new JadeSealCard(),
 
@@ -1154,6 +1155,32 @@ namespace SanguoshaServer.Game
             {
                 room.LoseHp(effect.To);
             }
+        }
+    }
+
+    public class TransferCard : SkillCard
+    {
+        public TransferCard() : base("TransferCard")
+        {
+            will_throw = false;
+        }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (targets.Count == 0 && to_select != Self)
+            {
+                if (!Self.HasShownOneGeneral())
+                    return !to_select.HasShownOneGeneral();
+                return !to_select.HasShownOneGeneral() || !RoomLogic.IsFriendWith(room, to_select, Self);
+            }
+            return false;
+        }
+        public override void OnEffect(Room room, CardEffectStruct effect)
+        {
+            bool draw = effect.To.HasShownOneGeneral();
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, effect.From.Name, effect.To.Name, "transfer", null);
+            room.ObtainCard(effect.To, effect.Card, reason);
+            if (draw)
+                room.DrawCards(effect.From, 1, "transfer");
         }
     }
     #endregion

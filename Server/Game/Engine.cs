@@ -331,57 +331,39 @@ namespace SanguoshaServer.Game
                 string name = row["general_name"].ToString();
                 string kingdom = row["kingdom"].ToString();
                 int double_max_hp = int.Parse(row["HP"].ToString());
-                bool hegemony_lord = Boolean.Parse(row["hegemony_lord"].ToString());
-                bool classic_lord = Boolean.Parse(row["classic_lord"].ToString());
-                bool male = Boolean.Parse(row["sex"].ToString());
-                bool hidden = Boolean.Parse(row["hidden"].ToString());
+                bool hegemony_lord = bool.Parse(row["hegemony_lord"].ToString());
+                bool classic_lord = bool.Parse(row["classic_lord"].ToString());
+                bool male = bool.Parse(row["sex"].ToString());
+                bool hidden = bool.Parse(row["hidden"].ToString());
+                int hp_adjust = int.Parse(row["adjust_hp"].ToString());
                 //string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false
 
-                generals.Add(name, new General(name, kingdom, classic_lord, hegemony_lord, double_max_hp, male, hidden));
+                General general = new General(name, kingdom, classic_lord, hegemony_lord, double_max_hp, male, hidden);
+                if (hp_adjust > 0)
+                    general.Head_max_hp_adjusted_value = - hp_adjust;
+                else
+                    general.Deputy_max_hp_adjusted_value = hp_adjust;
+
+                generals.Add(name, general);
                 string companion = row["companion"].ToString();
                 if (!string.IsNullOrEmpty(companion))
                     generals[name].Companions.AddRange(companion.Split(','));
             }
 
             //国战模式
-            foreach (string pack in game_modes["Hegemony"].GeneralPackage)
+            foreach (string mode in game_modes.Keys)
             {
-                DataRow[] rows = table.Select("hegemony_package = '" + pack + "'");
-                List<string> general_names = new List<string>();
-                foreach (DataRow row in rows)
+                foreach (string pack in game_modes[mode].GeneralPackage)
                 {
-                    general_names.Add(row["general_name"].ToString());
-                }
-                //File.AppendAllText("gamedata/result.json", string.Format("{0}:{1}", pack, general_names.Count));
-                pack_generals[pack] = general_names;                //按卡牌包给武将分类
-            }
-
-            //身份模式
-            if (game_modes.ContainsKey("Classic"))
-            {
-                foreach (string pack in game_modes["Classic"].GeneralPackage)
-                {
-                    DataRow[] rows = table.Select("classic_package = '" + pack + "'");
+                    DataRow[] rows = table.Select("package = '" + pack + "'");
                     List<string> general_names = new List<string>();
                     foreach (DataRow row in rows)
                     {
                         general_names.Add(row["general_name"].ToString());
                     }
+                    //File.AppendAllText("gamedata/result.json", string.Format("{0}:{1}", pack, general_names.Count));
                     pack_generals[pack] = general_names;                //按卡牌包给武将分类
                 }
-            }
-
-            //其他模式
-            foreach (string pack in game_modes.Keys)
-            {
-                if (pack == "Hegemony" || pack == "Classic") continue;
-                DataRow[] rows = table.Select("scenario = '" + pack + "'");
-                List<string> general_names = new List<string>();
-                foreach (DataRow row in rows)
-                {
-                    general_names.Add(row["general_name"].ToString());
-                }
-                pack_generals[pack] = general_names;                //按卡牌包给武将分类
             }
 
             File.Delete("gamedata/generals.json");
@@ -446,7 +428,7 @@ namespace SanguoshaServer.Game
         #endregion
 
         #region 武将相关
-        public static List<string> GetGenerals(List<string> packages)
+        public static List<string> GetGenerals(List<string> packages, bool include_hidden = true)
         {
             List<string> generals = new List<string>();
             foreach (string key in pack_generals.Keys)
@@ -456,7 +438,7 @@ namespace SanguoshaServer.Game
                     foreach (string name in pack_generals[key])
                     {
                         General general = GetGeneral(name);
-                        if (general != null && !general.Hidden)
+                        if (general != null && (include_hidden || !general.Hidden))
                             generals.Add(general.Name);
                     }
                 }

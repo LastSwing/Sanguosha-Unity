@@ -562,9 +562,9 @@ namespace CommonClass.Game
 
         public void AcquireSkill(string skill_name, bool head = true)
         {
-            if (head)
+            if (head && !HeadAcquiredSkills.Contains(skill_name))
                 HeadAcquiredSkills.Add(skill_name);
-            else
+            else if (!head && !DeputyAcquiredSkills.Contains(skill_name))
                 DeputyAcquiredSkills.Add(skill_name);
         }
 

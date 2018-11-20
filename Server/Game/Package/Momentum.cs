@@ -555,10 +555,12 @@ namespace SanguoshaServer.Game
             if (!string.IsNullOrEmpty(card_use.Card.SkillPosition))
                 head = card_use.Card.SkillPosition == "head" ? true : false;
             card_use.From.SetMark("cunsi", 1);
+            int skin_id = card_use.Card.SkillPosition == "head" ? card_use.From.HeadSkinId : card_use.From.DeputySkinId;
             room.RemoveGeneral(card_use.From, head);
 
             Player target = card_use.To[0];
             room.AcquireSkill(target, "yongjue");
+            target.SetTag("yongjue_position", skin_id);
             room.SetPlayerMark(target, "@yongjue", 1);
             if (target != card_use.From)
                 room.DrawCards(target, 2);
@@ -686,7 +688,8 @@ namespace SanguoshaServer.Game
                     };
                     room.SendLog(log);
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, owner.Name, player.Name);
-                    room.BroadcastSkillInvoke(Name, owner, info.SkillPosition);
+                    //fix sound path
+                    room.BroadcastSkillInvoke(Name, "male", -1, "mifuren", (int)owner.GetTag("yongjue_position"));
                     if (owner != player)
                         room.NotifySkillInvoked(owner, Name);
 
@@ -1484,7 +1487,7 @@ namespace SanguoshaServer.Game
             wd.AddSubCard(card);
             wd.ShowSkill = Name;
             wd.Skill = Name;
-            return card;
+            return wd;
         }
     }
 }

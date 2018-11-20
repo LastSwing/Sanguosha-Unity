@@ -232,7 +232,6 @@ namespace SanguoshaServer.Scenario
                 player.ClientId = client.UserID;
                 client.SetPlayer(room_players[i]);
             }
-
         }
 
         public override bool IsFriendWith(Room room, Player player, Player other)
@@ -392,7 +391,7 @@ namespace SanguoshaServer.Scenario
             foreach (string first in _candidates) {
                 Dictionary<string, double> result = CalculateDeputyValue(room, first, _candidates);
                 foreach (string key in result.Keys)
-                    points.Add(key, result[key]);
+                    points[key] = result[key];
             }
 
             return points;
@@ -406,7 +405,7 @@ namespace SanguoshaServer.Scenario
             foreach (string second in candidates) {
                 if (this.points.ContainsKey(string.Format("{0}+{1}", first, second)))
                 {
-                    points.Add(string.Format("{0}+{1}", first, second), this.points[string.Format("{0}+{1}", first, second)]);
+                    points[string.Format("{0}+{1}", first, second)] = this.points[string.Format("{0}+{1}", first, second)];
                     continue;
                 }
 
@@ -414,8 +413,8 @@ namespace SanguoshaServer.Scenario
                 DataRow[] rows1 = pair_value.Select(string.Format("general1 = '{0}' and general2 = '{1}'", first, second));
                 if (rows1.Length > 0)
                 {
-                    this.points.Add(string.Format("{0}+{1}", first, second), int.Parse(rows1[0]["value1"].ToString()));
-                    points.Add(string.Format("{0}+{1}", first, second), int.Parse(rows1[0]["value1"].ToString()));
+                    this.points[string.Format("{0}+{1}", first, second)] = int.Parse(rows1[0]["value1"].ToString());
+                    points[string.Format("{0}+{1}", first, second)] = int.Parse(rows1[0]["value1"].ToString());
                 }
                 else {
                     General general1 = Engine.GetGeneral(first);

@@ -13,7 +13,7 @@ namespace SanguoshaServer.Package
     {
         public Transformation() : base("Transformation")
         {
-            skills = new List<Game.Skill>
+            skills = new List<Skill>
             {
                 new Zhiyu(),
                 new Qice(),
@@ -1652,7 +1652,7 @@ namespace SanguoshaServer.Game
             List<int> gets = new List<int>(), drops = new List<int>();
 
             foreach (int id in card_ids) {
-                if (Engine.GetFunctionCard(room.GetCard(card_use.Card.GetEffectiveId()).Name).TypeID == type)
+                if (Engine.GetFunctionCard(room.GetCard(id).Name).TypeID == type)
                     gets.Add(id);
                 else
                     drops.Add(id);
@@ -1787,9 +1787,11 @@ namespace SanguoshaServer.Game
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
             Player sunquan = RoomLogic.GetLord(room, player.Kingdom);
-            if (sunquan != null && RoomLogic.PlayerHasShownSkill(room, sunquan, "jiahe") && RoomLogic.WillBeFriendWith(room, player, sunquan))
-                return false;
-            return !player.HasUsed("FlameMapCard") && player.CanShowGeneral(null);
+            if (sunquan != null && RoomLogic.PlayerHasShownSkill(room, sunquan, "jiahe") && RoomLogic.WillBeFriendWith(room, player, sunquan)
+                && !player.HasUsed("FlameMapCard") && player.CanShowGeneral(null))
+                return true;
+
+            return false;
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
@@ -2029,13 +2031,18 @@ namespace SanguoshaServer.Game
         {
             if (player == null)
                 return new TriggerStruct();
+            
             if (triggerEvent == TriggerEvent.GeneralShown && player.General1Showed)
             {
                 if (base.Triggerable(player, room))
                 {
                     foreach (Player p in room.AlivePlayers)
-                    if (RoomLogic.WillBeFriendWith(room, p, player))
-                        room.AttachSkillToPlayer(p, "flamemap");
+                    {
+                        if (RoomLogic.WillBeFriendWith(room, p, player))
+                        {
+                            room.AttachSkillToPlayer(p, "flamemap");
+                        }
+                    }
                 }
                 else
                 {

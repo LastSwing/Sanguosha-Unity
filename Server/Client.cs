@@ -1155,7 +1155,10 @@ namespace SanguoshaServer
                         {
                             if (card.Transferable)
                             {
-                                WrappedCard transfer = new WrappedCard("TransferCard");
+                                WrappedCard transfer = new WrappedCard("TransferCard")
+                                {
+                                    Mute = true
+                                };
                                 transfer.AddSubCard(card.Id);
                                 available_cards[player.Name].Add(transfer);
                             }
@@ -1621,10 +1624,12 @@ namespace SanguoshaServer
                 args.AvailableCards[name] = new List<string>();
                 foreach (WrappedCard card in available_cards[name])
                 {
-                    if (!guhuo_cards.Contains(card))
-                        args.AvailableCards[name].Add(card.Id.ToString());
-                    else
+                    if (guhuo_cards.Contains(card))
                         args.AvailableCards[name].Add(card.Name);
+                    else if (card.Name == "TransferCard")
+                        args.AvailableCards[name].Add(RoomLogic.CardToString(room, card));
+                    else
+                        args.AvailableCards[name].Add(card.Id.ToString());
 
                 }
             }
@@ -1960,20 +1965,6 @@ namespace SanguoshaServer
             if (selected_cards.ContainsKey(player))
             {
                 return selected_cards[player].Find(t => (!RoomLogic.IsVirtualCard(room, t) && t.Id == card.Id || t.Equals(card)));
-
-                //foreach (WrappedCard selected in selected_cards[player])
-                //{
-                //    if (!RoomLogic.IsVirtualCard(room, selected))
-                //    {
-                //        if (selected.Id == card.Id)
-                //            return selected;
-                //    }
-                //    else
-                //    {
-                //        if (selected.Equals(card))
-                //            return selected;
-                //    }
-                //}
             }
             return null;
         }
@@ -2004,6 +1995,10 @@ namespace SanguoshaServer
                             break;
                         }
                     }
+                }
+                else if (card.Name == "TransferCard" && available_cards.ContainsKey(args[1]))
+                {
+                    card = available_cards[args[1]].Find(t => t.Name == "TransferCard" && t.GetEffectiveId() == card.GetEffectiveId());
                 }
 
                 if (player != null && card != null && (pending_skill == null || skill_owner == player)

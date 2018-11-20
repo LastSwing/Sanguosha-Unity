@@ -4443,7 +4443,7 @@ public Shenzhi() : base("shenzhi")
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             room.SetPlayerMark(card_use.From, "@arise", 0);
-            room.BroadcastSkillInvoke("xiongyi", card_use.From, card_use.Card.Skill);
+            room.BroadcastSkillInvoke("xiongyi", card_use.From, card_use.Card.SkillPosition);
             room.DoSuperLightbox(card_use.From, "mateng", card_use.Card.SkillPosition, "xiongyi");
             base.OnUse(room, card_use);
         }
