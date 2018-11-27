@@ -1325,7 +1325,7 @@ namespace SanguoshaServer.Game
             if (room.AskForSkillInvoke(player, Name, data))
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                room.DoSuperLightbox(player, "lord_liubei", info.SkillPosition, Name);
+                room.DoSuperLightbox(player, info.SkillPosition, Name);
                 room.SetPlayerMark(player, limit_mark, 0);
                 return info;
             }

@@ -138,7 +138,7 @@ namespace SanguoshaServer
 
         #region 处理客户端请求
         public void OnRequesting(MsgPackSession session, BinaryRequestInfo requestInfo) {
-            Client client = (Client)Session2ClientTable[session];
+            Client client = Session2ClientTable[session];
 
             MyData data = PacketTranslator.Unpack(requestInfo.Body);
 
@@ -151,12 +151,12 @@ namespace SanguoshaServer
                 return;
             }
 
-            if ((PacketDescription)data.Description == PacketDescription.Client2Hall)
+            if (data.Description == PacketDescription.Client2Hall)
             {
                 switch (request)
                 {
                     case TransferType.TypeLogin:                          //登录相关
-                        switch ((protocol)data.Protocol) {
+                        switch (data.Protocol) {
                             case protocol.Login:
                                 client.CheckUserName(data);
                                 break;
@@ -182,7 +182,7 @@ namespace SanguoshaServer
                         OutPut("对聊天大厅无效的请求");
                         break; ;
                 }
-            } else if ((PacketDescription)data.Description == PacketDescription.Client2Room)
+            } else if (data.Description == PacketDescription.Client2Room)
             {
                 switch (request)
                 {

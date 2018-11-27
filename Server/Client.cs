@@ -284,9 +284,9 @@ namespace SanguoshaServer
                     UId = int.Parse(dt.Rows[0]["uid"].ToString()),
                     NickName = dt.Rows[0]["NickName"].ToString(),
                     Right = user_right,
-                    Image1 = int.Parse(dt.Rows[0]["Image1"].ToString()),
-                    Image2 = int.Parse(dt.Rows[0]["Image2"].ToString()),
-                    Image3 = int.Parse(dt.Rows[0]["Image3"].ToString()),
+                    Avatar = int.Parse(dt.Rows[0]["avatar"].ToString()),
+                    Frame = int.Parse(dt.Rows[0]["frame"].ToString()),
+                    Bg = int.Parse(dt.Rows[0]["bg"].ToString()),
                     GamePlay = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
                     Win = int.Parse(dt.Rows[0]["Win"].ToString()),
                     Lose = int.Parse(dt.Rows[0]["Lose"].ToString()),
@@ -300,8 +300,7 @@ namespace SanguoshaServer
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    //Body = PacketTranslator.ParseProfile(profile)
-                    Body = new List<string> { JsonUntity.Object2Json<Profile>(profile) }
+                    Body = new List<string> { JsonUntity.Object2Json(profile) }
                 };
 
                 SendProfileReply(data);
@@ -400,13 +399,46 @@ namespace SanguoshaServer
 
         //更新个人信息
         public void UpDateProfile(MyData data) {
-            switch ((protocol)data.Protocol) {
+            switch (data.Protocol) {
                 case protocol.NickName:
                     InsertNewProfile(data.Body[0]);
+                    break;
+                case protocol.UserProfile:
+                    Profile profile = JsonUntity.Json2Object<Profile>(data.Body[0]);
+                    UpDateProfile(profile);
                     break;
                 default:
                     return;
             }
+        }
+
+        private void UpDateProfile(Profile profile)
+        {
+            if (profile.UId == this.profile.UId && Engine.CheckShwoAvailable(profile) && CheckTitle(profile.Title))
+            {
+                this.profile.Avatar = profile.Avatar;
+                this.profile.Title = profile.Title;
+                this.profile.Frame = profile.Frame;
+                this.profile.Bg = profile.Bg;
+
+                string new_sql = string.Format("update  profile set avatar = {0}, frame = {1}, bg = {2}, Title_id = {3} where uid = {4}",
+                    profile.Avatar, profile.Frame, profile.Bg, profile.Title, profile.UId);
+                DB.UpdateData(new_sql);
+
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.UserProfile,
+                    Body = new List<string> { JsonUntity.Object2Json(profile) }
+                };
+
+                SendProfileReply(data);
+            }
+        }
+
+        private bool CheckTitle(int id)
+        {
+            return true;
         }
         #endregion
 
@@ -2339,7 +2371,24 @@ namespace SanguoshaServer
                         if (viewas_card == null || card.Name != viewas_card.Name)
                             selected_targets.Clear();
 
-                        viewas_card = card;
+                        //国战鏖战模式对桃做特殊判断
+                        if (room.BloodBattle && card.Name == "Peach")
+                        {
+                            WrappedCard slash = new WrappedCard("Slash");
+                            slash.AddSubCard(card);
+                            slash = RoomLogic.ParseUseCard(room, slash);
+                            if (Engine.GetFunctionCard("Slash").IsAvailable(room, player, slash))
+                                viewas_card = slash;
+                            else
+                            {
+                                WrappedCard jink = new WrappedCard("Jink");
+                                jink.AddSubCard(card);
+                                jink = RoomLogic.ParseUseCard(room, jink);
+                                viewas_card = jink;
+                            }
+                        }
+                        else
+                            viewas_card = card;
                         EnableTargets(player);
                     }
                 }

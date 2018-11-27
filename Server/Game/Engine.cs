@@ -22,7 +22,10 @@ namespace SanguoshaServer.Game
         private static Dictionary<string, GameScenario> scenarios = new Dictionary<string, GameScenario>();
         private static DataTable general_skills;
         private static DataTable general_skin;
-        
+        private static DataTable show_avatar;
+        private static DataTable show_frame;
+        private static DataTable show_bg;
+
         private static DataSet card_table = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
         private static Dictionary<string, List<int>> package_card_ids = new Dictionary<string, List<int>>();
@@ -165,6 +168,27 @@ namespace SanguoshaServer.Game
 
             File.Delete("gamedata/skin.json");
             File.AppendAllText("gamedata/skin.json", JsonUntity.DataSet2Json(ds));
+
+            //三国秀
+            sql = "select * from show_avatar";
+            show_avatar = DB.GetData(sql, false);
+            show_avatar.TableName = "avatar";
+
+            sql = "select * from show_frame";
+            show_frame = DB.GetData(sql, false);
+            show_frame.TableName = "frame";
+
+            sql = "select * from show_bg";
+            show_bg = DB.GetData(sql, false);
+            show_bg.TableName = "bg";
+
+            ds = new DataSet();
+            ds.Tables.Add(show_avatar);
+            ds.Tables.Add(show_frame);
+            ds.Tables.Add(show_bg);
+
+            File.Delete("gamedata/show.json");
+            File.AppendAllText("gamedata/show.json", JsonUntity.DataSet2Json(ds));
         }
 
         private void LoadTranslations()
@@ -251,10 +275,10 @@ namespace SanguoshaServer.Game
             {
                 string name = row["name"].ToString();
                 int id = int.Parse(row["id"].ToString());
-                CardSuit suit = WrappedCard.GetSuit(row["suit"].ToString());
+                CardSuit suit = GetSuit(row["suit"].ToString());
                 int number = int.Parse(row["number"].ToString());
-                bool can_recast = Boolean.Parse(row["can_recast"].ToString());
-                bool transferable = Boolean.Parse(row["transferable"].ToString());
+                bool can_recast = bool.Parse(row["can_recast"].ToString());
+                bool transferable = bool.Parse(row["transferable"].ToString());
                 //public WrappedCard(string name, int id, CardSuit suit, int number, bool can_recast = false, bool transferable = false)
 
                 wrapped_cards.Add(id, new WrappedCard(name, id, suit, number, can_recast, transferable));
@@ -827,12 +851,7 @@ namespace SanguoshaServer.Game
             ExpPattern p = (ExpPattern)GetPattern(pattern);
             return p.Match(player, room, card);
         }
-
-        public static bool MatchExpPatternType(string pattern, WrappedCard card)
-        {
-            ExpPattern p = (ExpPattern)GetPattern(pattern);
-            return p.Match(card);
-        }
+        
         public static HandlingMethod GetCardHandlingMethod(string method_name)
         {
             if (method_name == "use")
@@ -884,6 +903,13 @@ namespace SanguoshaServer.Game
         public static DataRow[] GetGeneralSkin(string name, string mode)
         {
             return general_skin.Select(string.Format("general_name = '{0}' and mode = '{1}'", name, mode));
+        }
+
+        public static bool CheckShwoAvailable(CommonClassLibrary.Profile profile)
+        {
+             return show_avatar.Select("id = " + profile.Avatar).Length > 0
+                && show_frame.Select("id = " + profile.Frame).Length > 0
+                && show_bg.Select("id = " + profile.Bg).Length > 0;
         }
     }
 }

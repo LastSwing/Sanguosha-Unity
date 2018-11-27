@@ -1190,7 +1190,7 @@ namespace SanguoshaServer.Game
             List<Player> list = new List<Player>();
             foreach (Player player in room.GetAllPlayers())
             {
-                if (RoomLogic.PlayerHasSkill(room, player, skill_name))
+                if (PlayerHasSkill(room, player, skill_name))
                     list.Add(player);
             }
             return list;

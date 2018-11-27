@@ -59,15 +59,16 @@ namespace SanguoshaServer.Game
 
                 List<string> or_names = new List<string>();
                 foreach (string or_name in card_types) {
-                    List<string> names = new List<string>();
-                    names.Add(Engine.GetPattern(card_type).GetPatternString());
+                    List<string> names = new List<string>
+                    {
+                        Engine.GetPattern(card_type).GetPatternString()
+                    };
                     foreach (string _name in or_name.Split('+')) {
                         string name = _name;
                         if (name.StartsWith("^"))
                             name = name.Substring(1);
 
-                        int id;
-                        if (int.TryParse(name, out id) || name == "0")
+                        if (int.TryParse(name, out int id) || name == "0")
                             names.Add(_name);
                     }
                     or_names.Add(string.Join("+", names));
@@ -111,10 +112,11 @@ namespace SanguoshaServer.Game
                             positive = false;
                             name = name.Substring(1);
                         }
-                       int id;
-                        if (Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true
-                            || ("%" + card.Name == name)
-                            || (int.TryParse(name, out id) && card.GetEffectiveId() == id))
+                        //国战鏖战模式对桃特殊判断
+                        bool name_match = room.BloodBattle && card.Name == "Peach" && !RoomLogic.IsVirtualCard(room, card)
+                            ? name == "Slash" || name == "Jink" || name == "%Slash" || name == "%Jink"
+                            : Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true || ("%" + card.Name == name);
+                        if (name_match || (int.TryParse(name, out int id) && card.GetEffectiveId() == id))
                             checkpoint = positive;
                         else
                             checkpoint = !positive;
@@ -162,7 +164,6 @@ namespace SanguoshaServer.Game
                     break;
                 }
 
-                int id;
                 if (number.Contains('~'))
                 {
                     string[] num_params = number.Split('~');
@@ -178,7 +179,7 @@ namespace SanguoshaServer.Game
 
                     if (from <= cdn && cdn <= to) checkpoint = true;
                 }
-                else if (int.TryParse(number,out id) && id == cdn)
+                else if (int.TryParse(number, out int id) && id == cdn)
                 {
                     checkpoint = true;
                 }
@@ -252,14 +253,6 @@ namespace SanguoshaServer.Game
             return checkpoint;
         }
 
-        public bool Match(WrappedCard card)
-        {
-            foreach (string one_exp in exp.Split('#'))
-                if (MatchType(card, one_exp)) return true;
-
-            return false;
-        }
-
         private bool MatchType(WrappedCard card, string exp)
         {
             string[] factors = exp.Split('|');
@@ -282,8 +275,7 @@ namespace SanguoshaServer.Game
                             positive = false;
                             name = name.Substring(1);
                         }
-                        int result;
-                        if (int.TryParse(name, out result))                                   //if the card match type or name, viewasskill should be actived
+                        if (int.TryParse(name, out int result))                                   //if the card match type or name, viewasskill should be actived
                             checkpoint = true;
                         else if (Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true
                                 || ("%" + card.Name == name))

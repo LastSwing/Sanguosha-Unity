@@ -1175,7 +1175,7 @@ namespace SanguoshaServer.Game
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
             {
                 WrappedCard card = new WrappedCard("SupplyShortage");
-                if (Engine.MatchExpPatternType(pattern, card)) return true;
+                if (Engine.MatchExpPattern(room, pattern, player, card)) return true;
             }
             return false;
         }
@@ -2639,7 +2639,7 @@ namespace SanguoshaServer.Game
             if (room.AskForSkillInvoke(pangtong, Name, data, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, pangtong, info.SkillPosition);
-                room.DoSuperLightbox(pangtong, "pangtong", info.SkillPosition, Name);
+                room.DoSuperLightbox(pangtong, info.SkillPosition, Name);
                 pangtong.SetMark("@nirvana", 0);
                 return info;
             }
@@ -3340,7 +3340,7 @@ public Shenzhi() : base("shenzhi")
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE && player.Phase == PlayerPhase.NotActive
                     && fcard.IsAvailable(room, player, peach))
             {
-                return Engine.MatchExpPatternType(pattern, peach);
+                return Engine.MatchExpPattern(room, pattern, player, peach);
             }
 
             return false;
@@ -3918,7 +3918,7 @@ public Shenzhi() : base("shenzhi")
         {
             room.SetPlayerMark(card_use.From, "@chaos", 0);
             room.BroadcastSkillInvoke("luanwu", card_use.From, card_use.Card.Skill);
-            room.DoSuperLightbox(card_use.From, "jiaxu", card_use.Card.SkillPosition, "luanwu");
+            room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "luanwu");
 
             room.SortByActionOrder(ref card_use);
             base.OnUse(room, card_use);
@@ -4444,7 +4444,7 @@ public Shenzhi() : base("shenzhi")
         {
             room.SetPlayerMark(card_use.From, "@arise", 0);
             room.BroadcastSkillInvoke("xiongyi", card_use.From, card_use.Card.SkillPosition);
-            room.DoSuperLightbox(card_use.From, "mateng", card_use.Card.SkillPosition, "xiongyi");
+            room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "xiongyi");
             base.OnUse(room, card_use);
         }
         public override void Use(Room room, CardUseStruct card_use)
@@ -5257,7 +5257,7 @@ public Shenzhi() : base("shenzhi")
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
             {
                 WrappedCard card = new WrappedCard("Dismantlement");
-                if (Engine.MatchExpPatternType(pattern, card)) return true;
+                if (Engine.MatchExpPattern(room, pattern, player, card)) return true;
             }
             return false;
         }
@@ -5650,7 +5650,7 @@ public Shenzhi() : base("shenzhi")
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
             {
                 WrappedCard card = new WrappedCard("Indulgence");
-                if (Engine.MatchExpPatternType(pattern, card)) return true;
+                if (Engine.MatchExpPattern(room, pattern, player, card)) return true;
             }
             return false;
         }
@@ -5969,7 +5969,7 @@ public Shenzhi() : base("shenzhi")
                 else
                 {
                     to.SetFlags("YinghunTarget");
-                    List<string> descriptions = new List<string> { "@yinghun::" + to.Name, " @d1tx:::" + x.ToString(), "@dxt1:::" + x.ToString() };
+                    List<string> descriptions = new List<string> { "#yinghun::" + to.Name, " @d1tx:::" + x.ToString(), "@dxt1:::" + x.ToString() };
                     string choice = room.AskForChoice(sunjian, "yinghun",  "d1tx+dxt1", descriptions);
                     to.SetFlags("-YinghunTarget");
                     if (choice.Contains("d1tx"))

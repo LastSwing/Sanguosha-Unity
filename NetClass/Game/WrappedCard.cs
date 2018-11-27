@@ -140,7 +140,7 @@ namespace CommonClass.Game
             Number = card.Number;
             Suit = card.Suit;
             CanRecast = card.CanRecast;
-            Transferable = card.CanRecast;
+            Transferable = card.Transferable;
             Skill = card.Skill;
             ShowSkill = card.ShowSkill;
             UserString = card.UserString;

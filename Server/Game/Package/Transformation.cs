@@ -636,7 +636,7 @@ namespace SanguoshaServer.Game
         {
             room.SetPlayerMark(card_use.From, "@xiong", 0);
             room.BroadcastSkillInvoke("xiongsuan", card_use.From, card_use.Card.SkillPosition);
-            room.DoSuperLightbox(card_use.From, "liguo", card_use.Card.SkillPosition, "xiongsuan");
+            room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "xiongsuan");
             base.OnUse(room, card_use);
         }
         public override void Use(Room room, CardUseStruct card_use)
@@ -667,7 +667,7 @@ namespace SanguoshaServer.Game
                     if (skills.Count > 0)
                     {
                         skills.Add("cancel");
-                        answer = room.AskForChoice(card_use.From, "xiongsuan%to:" + target.Name, string.Join("+", skills));
+                        answer = room.AskForChoice(card_use.From, "xiongsuan", string.Join("+", skills), new List<string> { "#xiongsuan::" + target.Name });
                     }
                     if (answer != "cancel")
                     {
@@ -1343,7 +1343,7 @@ namespace SanguoshaServer.Game
         {
             room.SetPlayerMark(card_use.From, "@yong", 0);
             room.BroadcastSkillInvoke("yongjin", card_use.From, card_use.Card.SkillPosition);
-            room.DoSuperLightbox(card_use.From, "lingtong", card_use.Card.SkillPosition, "yongjin");
+            room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "yongjin");
             base.OnUse(room, card_use);
         }
         public override void Use(Room room, CardUseStruct card_use)

@@ -817,19 +817,23 @@ namespace SanguoshaServer.Scenario
                         if (!room.ContainsTag("TheFirstToShowRewarded"))
                         {
                             room.SetTag("TheFirstToShowRewarded", true);
-                            room.SetPlayerMark(player, "FirstShowReward", 1);
+                            room.SetPlayerMark(player, "@pioneer", 1);
+                            room.AttachSkillToPlayer(player, "pioneer");
                         }
                         if (player.Alive && player.HasShownAllGenerals())
                         {
                             if (player.GetMark("CompanionEffect") > 0)
                             {
                                 room.RemovePlayerMark(player, "CompanionEffect");
-                                room.SetPlayerMark(player, "CompanionEffectReward", 1);
+                                room.DoSuperLightbox(player, string.Empty, "companion");
+                                room.SetPlayerMark(player, "@companion", 1);
+                                room.AttachSkillToPlayer(player, "companion");
                             }
                             if (player.GetMark("HalfMaxHpLeft") > 0)
                             {
                                 room.RemovePlayerMark(player, "HalfMaxHpLeft");
-                                room.SetPlayerMark(player, "HalfMaxHpLeftReward", 1);
+                                room.SetPlayerMark(player, "@megatama", 1);
+                                room.AttachSkillToPlayer(player, "megatama");
                             }
                         }
                         CheckBigKingdoms(room);

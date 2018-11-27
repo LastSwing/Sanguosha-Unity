@@ -41,6 +41,7 @@ namespace SanguoshaServer.Game
         public List<string> UsedGeneral => used_general;
         public List<int> DiscardPile => m_discardPile;
         public bool Finished => game_finished;
+        public bool BloodBattle { set; get; }
 
         private Thread thread;
         private RoomThread room_thread;
@@ -58,6 +59,7 @@ namespace SanguoshaServer.Game
         private Dictionary<string, object> tag = new Dictionary<string, object>();
 
         private int _m_lastMovementId;
+        private int round_count;
         private List<Player> m_players = new List<Player>(), m_alivePlayers = new List<Player>();
         private List<Client> m_clients = new List<Client>();
         private List<Client> m_watcher = new List<Client>();
@@ -72,6 +74,7 @@ namespace SanguoshaServer.Game
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
         private bool _m_raceStarted;
+
         private Player _m_raceWinner;
         //private Client _m_raceClientWinner;
         private Player _m_AIraceWinner;
@@ -2150,6 +2153,7 @@ namespace SanguoshaServer.Game
                 client.LeaveRoom -= OnClientLeave;
                 client.GetReady -= OnClientReady;
                 client.GameControl -= ProcessClientPacket;
+                client.ClearPlayers();
             }
             
             OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
@@ -2560,10 +2564,7 @@ namespace SanguoshaServer.Game
                 Client client = hall.GetClient(player.ClientId);
                 players.Add(JsonUntity.Object2Json<Player>(player));
                 player_client.Add(player, client);
-                if (client.Status == Client.GameStatus.bot)
-                {
-                    player_ai.Add(player, new TrustedAI(player));
-                }
+                player_ai.Add(player, new TrustedAI(this, player));
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_ARRANGE_SEATS, players);
@@ -2712,9 +2713,9 @@ namespace SanguoshaServer.Game
                     Profile profile = new Profile
                     {
                         NickName = string.Format("女装ZY {0}号", Math.Abs(bot_id)),
-                        Image1 = 1,
-                        Image2 = 1,
-                        Image3 = 1,
+                        Avatar = 100156,
+                        Frame = 200156,
+                        Bg = 300156,
                         UId = bot_id,
                         Title = 0,
                     };
@@ -2888,7 +2889,8 @@ namespace SanguoshaServer.Game
 
         public TrustedAI GetAI(Player player)
         {
-            if (player_ai.ContainsKey(player))
+            Client client = hall.GetClient(player.ClientId);
+            if (client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || (player.Status == "trust"))
                 return player_ai[player];
 
             return null;
@@ -3384,9 +3386,12 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-                foreach (Client p in m_clients)
-                    if (p != GetClient(player))
-                        NotifyProperty(p, player, "HeadSkinId");
+                if (player.HeadSkinId > 0)
+                {
+                    foreach (Client p in m_clients)
+                        if (p != GetClient(player))
+                            NotifyProperty(p, player, "HeadSkinId");
+                }
 
                 if (!player.General2Showed)
                 {
@@ -3452,9 +3457,12 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-                foreach (Client p in m_clients)
-                    if (p != GetClient(player))
-                        NotifyProperty(p, player, "DeputySkinId");
+                if (player.DeputySkinId > 0)
+                {
+                    foreach (Client p in m_clients)
+                        if (p != GetClient(player))
+                            NotifyProperty(p, player, "DeputySkinId");
+                }
 
                 if (!player.General1Showed)
                 {
@@ -3652,11 +3660,11 @@ namespace SanguoshaServer.Game
             return next_p;
         }
 
-        public void DoSuperLightbox(Player player, string general, string head, string skillName)
+        public void DoSuperLightbox(Player player, string head, string skillName)
         {
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(this, player, skillName, head);
             DoAnimate(AnimateType.S_ANIMATE_LIGHTBOX, JsonUntity.Object2Json(gsk), skillName);
-            Thread.Sleep(4000);
+            Thread.Sleep(1500);
         }
         public void DoAnimate(AnimateType type, string arg1 = null, string arg2 = null, List<Player> players = null)
         {
@@ -4029,12 +4037,12 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(player);
             if (ai != null)
             {
-                //invoked = ai->askForSkillInvoke(skill_name, data);
-                //if (skill_name.endsWith("!"))
-                //    invoked = false;
-                //const Skill* skill = Sanguosha->getSkill(skill_name);
-                //if (invoked && !(skill && skill->getFrequency() != Skill::NotFrequent))
-                //    thread->delay();
+                invoked = ai.AskForSkillInvoke(skill_name, data);
+                if (skill_name.EndsWith("!"))
+                    invoked = false;
+                Skill skill = Engine.GetSkill(skill_name);
+                if (invoked && !(skill != null && skill.SkillFrequency != Frequency.NotFrequent))
+                    Thread.Sleep(400);
             }
             else
             {
@@ -4110,8 +4118,8 @@ namespace SanguoshaServer.Game
                 TrustedAI ai = GetAI(player);
                 if (ai != null)
                 {
-                    //answer = ai->askForChoice(skillname, choices, data);
-                    //thread->delay();
+                    answer = ai.AskForChoice(skillname, choices, data);
+                    Thread.Sleep(400);
                 }
                 else
                 {
@@ -4183,8 +4191,8 @@ namespace SanguoshaServer.Game
                     }
                     else if (ai != null)
                     {
-                        //if (ai->askForSkillInvoke("userdefine:changetolord", QVariant())
-                        //    player->changeToLord();
+                        if (ai.AskForSkillInvoke("userdefine:changetolord", null))
+                            player.ActualGeneral1 = "lord_" + player.ActualGeneral1;
                     }
                 }
 
@@ -4224,7 +4232,6 @@ namespace SanguoshaServer.Game
                         {
                             player.ActualGeneral1 = "lord_" + player.ActualGeneral1;
                             NotifyProperty(client, player, "ActualGeneral1");
-
                         }
                     }
                 }
@@ -4895,11 +4902,11 @@ namespace SanguoshaServer.Game
                     TrustedAI ai = GetAI(player);
                     if (ai != null)
                     {
-                        //card = ai->askForCard(pattern, prompt, data);
-                        //if (card && card->isKindOf("DummyCard") && card->subcardsLength() == 1)
-                        //    card = getCard(card->getEffectiveId());
-                        //if (card && player->isCardLimited(card, method)) card = nullptr;
-                        //if (card) thread->delay();
+                        card = ai.AskForCard(pattern, prompt, data);
+                        if (card != null && card.Name == "DummyCard" && card.SubCards.Count == 1)
+                            card = GetCard(card.GetEffectiveId());
+                        if (card != null && RoomLogic.IsCardLimited(this, player, card, method)) card = null;
+                        if (card != null) Thread.Sleep(400);
                     }
                     else
                     {
@@ -5268,25 +5275,25 @@ namespace SanguoshaServer.Game
                 if (ai != null)
                 {
                     //Temporary method to keep compatible with existing AI system
-                    //QStringList alls;
-                    //foreach (const TriggerStruct &skill, skills)
-                    //alls << skill.skill_name;
+                    List<string> alls = new List<string>();
+                    foreach (TriggerStruct skill in skills)
+                    alls.Add(skill.SkillName);
 
-                    //if (optional)
-                    //    alls << "cancel";
+                    if (optional)
+                        alls.Add("cancel");
 
-                    //const QString reply = ai->askForChoice(reason, alls.join("+"), data);
-                    //if (reply != "cancel")
-                    //{
-                    //    foreach (const TriggerStruct &skill, all_skills) {
-                    //        if (skill.skill_name == reply)
-                    //        {
-                    //            answer = skill;
-                    //            break;
-                    //        }
-                    //    }
-                    //}
-                    //thread->delay();
+                    string reply = ai.AskForChoice(reason, string.Join("+", alls), data);
+                    if (reply != "cancel")
+                    {
+                        foreach (TriggerStruct skill in all_skills) {
+                            if (skill.SkillName == reply)
+                            {
+                                answer = skill;
+                                break;
+                            }
+                        }
+                    }
+                    Thread.Sleep(400);
                 }
                 else
                 {
@@ -5542,7 +5549,7 @@ namespace SanguoshaServer.Game
 
                     if (card_num < min_num && jilei_list.Count > 0)
                     {
-                        List<string> gongxinArgs = new List<string> { player.Name, reason, JsonUntity.Object2Json(jilei_list) };
+                        List<string> gongxinArgs = new List<string> { player.Name, JsonUntity.Object2Json(jilei_list), reason };
 
                         //foreach (int cardId in jilei_list) {
                         //    //WrappedCard *card = Sanguosha->getWrappedCard(cardId);
@@ -5576,9 +5583,9 @@ namespace SanguoshaServer.Game
             List<int> to_discard = new List<int>();
             if (ai != null)
             {
-                //to_discard = ai->askForDiscard(reason, discard_num, min_num, optional, include_equip);
-                //if (optional && !to_discard.isEmpty())
-                //    thread->delay();
+                to_discard = ai.AskForDiscard(reason, discard_num, min_num, optional, include_equip);
+                if (optional && to_discard.Count > 0)
+                    Thread.Sleep(400);
             }
             else
             {
@@ -5636,11 +5643,11 @@ namespace SanguoshaServer.Game
             if (include_equip)
                 all_cards.AddRange(RoomLogic.GetPlayerEquips(this, player));
 
-            Shuffle.shuffle<WrappedCard>(ref all_cards);
+            Shuffle.shuffle(ref all_cards);
 
             for (int i = 0; i < all_cards.Count; i++)
             {
-                if (!reserved_discard.Contains(all_cards[i].Id) && (!is_discard || !RoomLogic.IsJilei(this, player, all_cards[i])))
+                if (!to_discard.Contains(all_cards[i].Id) && (!is_discard || !RoomLogic.IsJilei(this, player, all_cards[i])))
                     to_discard.Add(all_cards[i].Id);
                 if (to_discard.Count == discard_num)
                     break;
@@ -5796,14 +5803,16 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(player);
             if (ai != null)
             {
-                //QElapsedTimer timer;
-                //timer.start();
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                float remainTime = 600;
+                card_use.From = player;
+                ai.Activate(ref card_use);
+                sw.Stop();
+                remainTime -= sw.ElapsedMilliseconds;
 
-                //card_use.from = player;
-                //ai->activate(card_use);
-
-                //qint64 diff = Config.AIDelay - timer.elapsed();
-                //if (diff > 0) thread->delay(diff);
+                if (remainTime > 0)
+                    Thread.Sleep((int)remainTime);
             }
             else
             {
@@ -5937,8 +5946,8 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(player);
             if (ai != null)
             {
-                //card = ai->askForSinglePeach(dying);
-                //repliedPlayer = player;
+                card = ai.AskForSinglePeach(dying);
+                repliedPlayer = player;
             }
             else
             {
@@ -6179,8 +6188,8 @@ namespace SanguoshaServer.Game
                 TrustedAI ai = GetAI(player);
                 if (ai != null)
                 {
-                    //thread->delay();
-                    //card_id = ai->askForAG(card_ids, refusable, reason);
+                    Thread.Sleep(400);
+                    card_id = ai.AskForAG(card_ids, refusable, reason);
                 }
                 else
                 {
@@ -6259,14 +6268,13 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(player);
             if (ai != null)
             {
-                //string answer = ai->askForUseCard(pattern, prompt, method);
-                //if (answer != ".")
-                //{
-                //    isCardUsed = true;
-                //    card_use.from = player;
-                //    card_use.parse(answer, this);
-                //    thread->delay();
-                //}
+                CardUseStruct answer = ai.AskForUseCard(pattern, prompt, method);
+                if (answer.Card != null)
+                {
+                    isCardUsed = true;
+                    card_use = answer;
+                    Thread.Sleep(400);
+                }
             }
             else
             {
@@ -6426,7 +6434,7 @@ namespace SanguoshaServer.Game
             Dictionary<Player, WrappedCard> ai_cards = new Dictionary<Player, WrappedCard>();
             foreach (Player player in validAiPlayers) {
                 TrustedAI ai = GetAI(player);
-                //ai_cards[player] = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
+                ai_cards[player] = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
             }
             _m_AIraceWinner = null;
             List<Player> ais = new List<Player>(ai_cards.Keys);
@@ -6618,7 +6626,7 @@ namespace SanguoshaServer.Game
                 if (ai != null)
                 {
                     Thread.Sleep(500);
-                    //card_id = ai->askForCardChosen(who, flags_copy, reason.split("%").at(0), method, disabled_ids_copy);
+                    card_id = ai.AskForCardChosen(who, flags_copy, reason.Split('%')[0], method, disabled_ids_copy);
                     if (card_id == -1)
                     {
                         List <int> cards = who.GetCards(flags_copy);
@@ -6750,7 +6758,7 @@ namespace SanguoshaServer.Game
                 TrustedAI ai = GetAI(player);
                 if (ai != null)
                 {
-                    //card_id = ai.AskForCardShow(requestor, reason, data);
+                    card_id = ai.AskForCardShow(requestor, reason, data).Id;
                 }
                 else
                 {
@@ -6883,9 +6891,9 @@ namespace SanguoshaServer.Game
             List<Player> result = new List<Player>();
             if (ai != null)
             {
-                //result = ai->askForPlayersChosen(getAlivePlayers(), skillName, 1, 0);
-                //if (!result.isEmpty())
-                //    thread->delay();
+                result = ai.AskForPlayersChosen(m_alivePlayers, skillName, 1, 0);
+                if (result.Count > 0)
+                    Thread.Sleep(400);
             }
             else
             {
@@ -6945,9 +6953,11 @@ namespace SanguoshaServer.Game
                 TrustedAI ai = GetAI(player);
                 if (ai != null)
                 {
-                    //choice = ai->askForPlayersChosen(targets, skillName, 1, optional ? 0 : 1).first();
-                    //if (choice && notify_skill)
-                    //    thread->delay();
+                    List<Player> result = ai.AskForPlayersChosen(targets, skillName, 1, optional ? 0 : 1);
+                    if (result.Count > 0)
+                        choice = result[0];
+                    if (choice != null && notify_skill)
+                        Thread.Sleep(400);
                 }
                 else
                 {
@@ -7017,9 +7027,9 @@ namespace SanguoshaServer.Game
             List<Player> result = new List<Player>();
             if (ai != null)
             {
-                //result = ai->askForPlayersChosen(targets, skillName, max_num, min_num);
-                //if (!result.isEmpty() && notify_skill)
-                //    thread->delay();
+                result = ai.AskForPlayersChosen(targets, skillName, max_num, min_num);
+                if (result.Count > 0 && notify_skill)
+                    Thread.Sleep(400);
             }
             else
             {
@@ -7121,19 +7131,19 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(player);
             if (ai != null && !string.IsNullOrEmpty(skill_name))
             {
-                //QStringList general = ai->askForChoice(skill_name.split(":").first(), generals.join("+"), data).split("+");
-                //thread->delay();
-                //bool check = true;
-                //if (!single_result && general.length() != 2) check = false;
-                //if (single_result && general.length() != 1) check = false;
-                //foreach (QString name, general) {
-                //    if (!generals.contains(name))
-                //    {
-                //        check = false;
-                //        break;
-                //    }
-                //}
-                //if (check) default_choice = general.join("+");
+                List<string> general = new List<string>(ai.AskForChoice(skill_name.Split(':')[0], string.Join("+", generals), data).Split('+'));
+                Thread.Sleep(400);
+                bool check = true;
+                if (!single_result && general.Count != 2) check = false;
+                if (single_result && general.Count != 1) check = false;
+                foreach (string name in general) {
+                    if (!generals.Contains(name))
+                    {
+                        check = false;
+                        break;
+                    }
+                }
+                if (check) default_choice = string.Join("+", general);
             }
             else
             {
@@ -7374,7 +7384,7 @@ namespace SanguoshaServer.Game
                 BroadcastProperty(player, "ActualGeneral1");
                 BroadcastProperty(player, "General1Showed");
 
-                List<string> arg = new List<string> {GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, false.ToString(), false.ToString() };
+                List<string> arg = new List<string> {GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, false.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 player.HeadSkinId = 0;
                 foreach (Client p in m_clients)
@@ -7405,7 +7415,7 @@ namespace SanguoshaServer.Game
                 BroadcastProperty(player, "ActualGeneral2");
                 BroadcastProperty(player, "General2Showed");
 
-                List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, true.ToString(), false.ToString() };
+                List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, true.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 player.DeputySkinId = 0;
                 foreach (Client p in m_clients)
@@ -7542,7 +7552,7 @@ namespace SanguoshaServer.Game
                 if (ai != null)
                 {
                     int card_id = -1;
-                    Player who = null;// = ai->askForYiji(cards, skill_name, ref card_id);
+                    Player who = ai.AskForYiji(cards, skill_name, ref card_id);
                     if (who != null)
                         break;
                     else
@@ -7660,7 +7670,7 @@ namespace SanguoshaServer.Game
             if (ai != null)
             {
                 player.SetFlags("Global_AIDiscardExchanging");
-                //to_exchange = ai->askForExchange(reason, new_pattern, exchange_num, min_num, _expand_pile);
+                to_exchange = ai.AskForExchange(reason, new_pattern, exchange_num, min_num, _expand_pile);
                 player.SetFlags("-Global_AIDiscardExchanging");
                 if (min_num == 0 && to_exchange.Count > 0)
                     Thread.Sleep(500);
@@ -7917,8 +7927,7 @@ namespace SanguoshaServer.Game
                 ai = GetAI(from);
                 if (ai != null)
                 {
-                    from_card = GetCard(GetRandomHandCard(from));
-                    //from_card = ai->askForPindian(from, reason);
+                    from_card = ai.AskForPindian(from, reason);
                 }
                 else
                     players.Add(from);
@@ -7934,8 +7943,7 @@ namespace SanguoshaServer.Game
                     ai = GetAI(to[index]);
                     if (ai != null)
                     {
-                        to_cards[index] = GetRandomHandCard(to[index]);
-                        //to_cards[i] = ai->askForPindian(from, reason)->getEffectiveId();
+                        to_cards[index] = ai.AskForPindian(from, reason).Id;
                     }
                     else
                         players.Add(to[index]);
@@ -8122,7 +8130,7 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(zhuge);
             if (ai != null)
             {
-                AskForMoveCardsStruct map = new AskForMoveCardsStruct();// = ai->askForMoveCards(upcards, downcards, skillName, pattern, min_num, max_num);
+                AskForMoveCardsStruct map = ai.AskForMoveCards(upcards, downcards, skillName, min_num, max_num);
                 top_cards = map.Top;
                 bottom_cards = map.Bottom;
                 List<int> reserved = new List<int>(top_cards);
@@ -8132,7 +8140,7 @@ namespace SanguoshaServer.Game
                 if (length_equal && result_equal && bottom_cards.Count >= min_num && (bottom_cards.Count <= max_num || max_num == 0))
                     success = true;
 
-                bool isTrustAI = true;// = zhuge->getState() == "trust";
+                bool isTrustAI = zhuge.Status == "trust";
                 if (isTrustAI)
                 {
                     stepArgs[1] = string.Empty;
@@ -8452,32 +8460,29 @@ namespace SanguoshaServer.Game
             TrustedAI ai = GetAI(shenlvmeng);
             if (ai != null)
             {
-                //bool isTrustAI = shenlvmeng->getState() == "trust";
-                //if (isTrustAI)
-                //{
-                //    JsonArray gongxinArgs;
-                //    gongxinArgs << target->objectName();
-                //    gongxinArgs << false;
-                //    gongxinArgs << JsonUtils::toJsonArray(target->handCards());
-                //    doNotify(shenlvmeng->getClient(), S_COMMAND_SHOW_ALL_CARDS, gongxinArgs);
-                //}
+                bool isTrustAI = shenlvmeng.Status == "trust";
+                if (isTrustAI)
+                {
+                    List<string> gongxinArgs = new List<string> { target.Name, JsonUntity.Object2Json(target.HandCards), skill_name };
+                    DoNotify(GetClient(shenlvmeng), CommandType.S_COMMAND_SHOW_CARD, gongxinArgs);
+                }
 
-                //QList<int> hearts;
-                //foreach (int id, target->handCards()) {
-                //    if (getCard(id)->getSuit() == Card::Heart)
-                //        hearts << id;
-                //}
-                //if (enabled_ids.isEmpty())
-                //{
-                //    shenlvmeng->tag.remove(skill_name);
-                //    return -1;
-                //}
-                //card_id = ai->askForAG(enabled_ids, true, skill_name);
-                //if (card_id == -1)
-                //{
-                //    shenlvmeng->tag.remove(skill_name);
-                //    return -1;
-                //}
+                List<int> hearts = new List<int>();
+                foreach (int id in target.HandCards) {
+                    if (GetCard(id).Suit == WrappedCard.CardSuit.Heart)
+                        hearts.Add(id);
+                }
+                if (enabled_ids.Count == 0)
+                {
+                    shenlvmeng.RemoveTag(skill_name);
+                    return -1;
+                }
+                card_id = ai.AskForAG(enabled_ids, true, skill_name);
+                if (card_id == -1)
+                {
+                    shenlvmeng.RemoveTag(skill_name);
+                    return -1;
+                }
             }
             else
             {
@@ -8495,6 +8500,26 @@ namespace SanguoshaServer.Game
 
             DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
             return card_id; // Do remember to remove the tag later!
+        }
+
+        public void NewRound()
+        {
+            round_count++;
+            DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { round_count.ToString() });
+
+            //进入鏖战模式判断
+            if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)            {                bool check = true;                foreach (Player p in AlivePlayers)
+                {
+                    if (RoomLogic.GetPlayerNumWithSameKingdom(this, p) > 1)
+                    {
+                        check = false;
+                        break;
+                    }
+                }                if (check)
+                {
+                    BloodBattle = true;
+                    DoBroadcastNotify(CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
+                }            }
         }
     }
 }

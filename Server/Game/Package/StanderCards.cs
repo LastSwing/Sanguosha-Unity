@@ -29,7 +29,11 @@ namespace SanguoshaServer.Package
                 new TribladeSkill(),
                 new VineSkill(),
                 new SilverLionSkill(),
-                new HorseSkill()
+                new HorseSkill(),
+                new Companion(),
+                new Megatama(),
+                new MegatamaMax(),
+                new Pioneer()
             };
             cards = new List<FunctionCard>
             {
@@ -82,7 +86,11 @@ namespace SanguoshaServer.Package
                 new DefensiveHorse("Zhuahuangfeidian"),
                 new OffensiveHorse("Chitu"),
                 new OffensiveHorse("Dayuan"),
-                new OffensiveHorse("Zixing")
+                new OffensiveHorse("Zixing"),
+
+                new MegatamaCard(),
+                new CompanionCard(),
+                new PioneerCard(),
             };
         }
     }
@@ -505,17 +513,36 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             if (!base.IsAvailable(room, player, card)) return false;
-            if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+            //鏖战模式特殊判断
+            if (room.BloodBattle && !RoomLogic.IsVirtualCard(room, card))
             {
-                Player dying = room.GetRoomState().GetCurrentAskforPeachPlayer();
-                if (dying != null)
+                WrappedCard slash = new WrappedCard("Slash");
+                slash.AddSubCard(card);
+                slash = RoomLogic.ParseUseCard(room, card);
+                if (Engine.GetFunctionCard("Slash").IsAvailable(room, player, slash))
+                    return true;
+                else
                 {
-                    return RoomLogic.IsProhibited(room, player, dying, card) == null;
+                    WrappedCard jink = new WrappedCard("Jink");
+                    jink.AddSubCard(card);
+                    jink = RoomLogic.ParseUseCard(room, card);
+                    return Engine.GetFunctionCard("Jink").IsAvailable(room, player, jink);
                 }
             }
+            else
+            {
+                if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+                {
+                    Player dying = room.GetRoomState().GetCurrentAskforPeachPlayer();
+                    if (dying != null)
+                    {
+                        return RoomLogic.IsProhibited(room, player, dying, card) == null;
+                    }
+                }
 
-            return RoomLogic.IsProhibited(room, player, player, card) == null && player.IsWounded()
-                && room.GetRoomState().GetCurrentCardUseReason() != CardUseReason.CARD_USE_REASON_RESPONSE;
+                return RoomLogic.IsProhibited(room, player, player, card) == null && player.IsWounded()
+                    && room.GetRoomState().GetCurrentCardUseReason() != CardUseReason.CARD_USE_REASON_RESPONSE;
+            }
         }
     }
     public class Analeptic : BasicCard
@@ -1151,7 +1178,7 @@ namespace SanguoshaServer.Game
                         To = to
                     };
                     object _data = trickEffect;
-                    List<string> des = new List<string> { string.Format("@HegNullification:::{0}", trick.Name), "@single:" + to.Name, string.Format("@all:{0}::{1}", to.Name, to.Kingdom) };
+                    List<string> des = new List<string> { string.Format("HegNullification:::{0}", trick.Name), "single:" + to.Name, string.Format("all:{0}::{1}", to.Name, to.Kingdom) };
                     string heg_nullification_selection = room.AskForChoice(player, "HegNullification", "single+all", des, _data);
 
                     if (heg_nullification_selection.Contains("all"))
@@ -2375,6 +2402,298 @@ namespace SanguoshaServer.Game
             }
 
             return correct;
+        }
+    }
+
+    public class CompanionCard : SkillCard
+    {
+        public CompanionCard() : base("CompanionCard")
+        {
+            target_fixed = true;
+        }
+        public override WrappedCard Validate(Room room, CardUseStruct use)
+        {
+            room.SetPlayerMark(use.From, "@companion", 0);
+            room.DetachSkillFromPlayer(use.From, "companion");
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, use.From.Name, null, use.Card.Skill, null)
+            {
+                CardString = RoomLogic.CardToString(room, use.Card),
+                General = RoomLogic.GetGeneralSkin(room, use.From, "companion", "head")
+            };
+            //show virtual card on table
+            CardsMoveStruct move = new CardsMoveStruct(-1, use.From, Place.PlaceTable, reason)
+            {
+                From_place = Place.PlaceUnknown,
+                From = use.From.Name,
+                Is_last_handcard = false,
+            };
+            room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, use.Card), move);
+
+            WrappedCard peach = new WrappedCard("Peach")
+            {
+                Skill = "_comapnion"
+            };
+            FunctionCard fcard = Engine.GetFunctionCard(peach.Name);
+            string choice = "draw";
+            if (fcard.IsAvailable(room, use.From, peach))
+            {
+                choice += "+peach";
+            }
+            string result = room.AskForChoice(use.From, "companion", choice);
+            if (result == "draw")
+                return use.Card;
+            else
+            {
+                return peach;
+            }
+        }
+        public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
+        {
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            {
+                CardString = RoomLogic.CardToString(room, card),
+                General = RoomLogic.GetGeneralSkin(room, player, "companion", "head")
+            };
+            //show virtual card on table
+            CardsMoveStruct move = new CardsMoveStruct(-1, player, Place.PlaceTable, reason)
+            {
+                From_place = Place.PlaceUnknown,
+                From = player.Name,
+                Is_last_handcard = false,
+            };
+            room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+
+            room.SetPlayerMark(player, "@companion", 0);
+            room.DetachSkillFromPlayer(player, "companion");
+            WrappedCard peach = new WrappedCard("Peach")
+            {
+                Skill = "_comapnion"
+            };
+            return peach;
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            room.DrawCards(card_use.From, 2, "comapnion");
+        }
+    }
+    public class Companion : ZeroCardViewAsSkill
+    {
+        public Companion() : base("companion")
+        {
+        }
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            if (invoker.GetMark("@companion") > 0)
+            {
+                if (reason == CardUseReason.CARD_USE_REASON_PLAY)
+                    return true;
+                else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+                {
+                    WrappedCard peach = new WrappedCard("Peach");
+                    FunctionCard fcard = Engine.GetFunctionCard(peach.Name);
+                    if (fcard.IsAvailable(room, invoker, peach) && Engine.MatchExpPattern(room, pattern, invoker, peach))
+                        return true;
+                }
+            }
+            return false;
+        }
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            WrappedCard card = new WrappedCard("CompanionCard")
+            {
+                Skill = Name
+            };
+            return card;
+        }
+    }
+    public class MegatamaCard : SkillCard
+    {
+        public MegatamaCard() : base("MegatamaCard")
+        {
+            target_fixed = true;
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            WrappedCard card = card_use.Card;
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            {
+                CardString = RoomLogic.CardToString(room, card),
+                General = RoomLogic.GetGeneralSkin(room, player, "magatama", "head")
+            };
+            //show virtual card on table
+            CardsMoveStruct move = new CardsMoveStruct(-1, player, Place.PlaceTable, reason)
+            {
+                From_place = Place.PlaceUnknown,
+                From = player.Name,
+                Is_last_handcard = false,
+            };
+            room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+            room.SetPlayerMark(player, "@megatama", 0);
+            room.DetachSkillFromPlayer(player, "megatama");
+            if (player.Phase == PlayerPhase.Play)
+                room.DrawCards(player, 1, "megatama");
+            else
+                player.SetFlags("megatama");
+        }
+    }
+    public class MegatamaVS : ZeroCardViewAsSkill
+    {
+        public MegatamaVS() : base("megatama")
+        {
+        }
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            if (invoker.GetMark("@megatama") > 0)
+            {
+                if (reason == CardUseReason.CARD_USE_REASON_PLAY)
+                    return true;
+                else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == "@@megatama")
+                    return true;
+            }
+
+            return false;
+        }
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            WrappedCard card = new WrappedCard("MegatamaCard")
+            {
+                Skill = Name
+            };
+            return card;
+        }
+    }
+    public class Megatama : PhaseChangeSkill
+    {
+        public Megatama() : base("megatama")
+        {
+            global = true;
+            view_as_skill = new MegatamaVS();
+        }
+        public override int GetPriority()
+        {
+            return -1;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player != null && player.GetMark("@megatama") > 0 && RoomLogic.GetMaxCards(room, player) < player.HandcardNum
+                && player.Phase == PlayerPhase.Discard)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.AskForUseCard(player, "@@megatama", "@megatama-max");
+            return new TriggerStruct();
+        }
+        public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
+        {
+            return false;
+        }
+    }
+    public class MegatamaMax : MaxCardsSkill
+    {
+        public MegatamaMax() : base("megatama-max")
+        {
+        }
+        public override int GetExtra(Room room, Player target)
+        {
+            if (target.HasFlag("megatama"))
+                return 2;
+
+            return 0;
+        }
+    }
+
+    public class PioneerCard : SkillCard
+    {
+        public PioneerCard() : base("PioneerCard")
+        {
+            target_fixed = true;
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            WrappedCard card = card_use.Card;
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            {
+                CardString = RoomLogic.CardToString(room, card),
+                General = RoomLogic.GetGeneralSkin(room, player, "pioneer", "head")
+            };
+            //show virtual card on table
+            CardsMoveStruct move = new CardsMoveStruct(-1, player, Place.PlaceTable, reason)
+            {
+                From_place = Place.PlaceUnknown,
+                From = player.Name,
+                Is_last_handcard = false,
+            };
+            room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+
+            room.SetPlayerMark(player, "@pioneer", 0);
+            room.DetachSkillFromPlayer(player, "pioneer");
+            if (player.HandcardNum < 4)
+                room.DrawCards(player, 4 - player.HandcardNum, "pioneer");
+
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (!p.HasShownAllGenerals())
+                    targets.Add(p);
+            }
+            if (targets.Count > 0)
+            {
+                Player target = room.AskForPlayerChosen(player, targets, "pioneer", "@pioneer", true);
+                if (target != null)
+                {
+                    List<string> choices = new List<string>();
+                    if (!target.General1Showed)
+                        choices.Add("head_general");
+                    if (!string.IsNullOrEmpty(target.General2) && !target.General2Showed)
+                        choices.Add("deputy_general");
+                    
+                    string choice = room.AskForChoice(player, Name, string.Join("+", choices), null, target);
+                    string general = choice == "head_general" ? target.ActualGeneral1 : target.ActualGeneral2;
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "$KnownBothViewGeneral",
+                        From = target.Name,
+                        To = new List<string> { target.Name },
+                        Arg = choice,
+                        Arg2 = general
+                    };
+                    room.SendLog(log, player);
+                    room.ViewGenerals(player, new List<string> { general }, Name);
+                }
+            }
+        }
+    }
+    public class Pioneer : ZeroCardViewAsSkill
+    {
+        public Pioneer() : base("pioneer")
+        {
+        }
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            if (invoker.GetMark("@pioneer") > 0 && reason == CardUseReason.CARD_USE_REASON_PLAY)
+            {
+                if (invoker.HandcardNum < 4)
+                    return true;
+
+                foreach (Player p in room.GetOtherPlayers(invoker))
+                    if (!p.HasShownAllGenerals())
+                        return true;
+            }
+
+            return false;
+        }
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            WrappedCard card = new WrappedCard("PioneerCard")
+            {
+                Skill = Name
+            };
+            return card;
         }
     }
 

@@ -89,11 +89,22 @@ namespace SanguoshaServer.Game
 
         protected virtual void ActionNormal()//(GameRule* game_rule)
         {
-            //Q_UNUSED(game_rule);
+            Player starter = room.Current;
+            bool new_round = false;
             while (true) {
+                if (new_round)
+                    room.NewRound();
+                new_round = false;
                 Trigger(TriggerEvent.TurnStart, room, room.Current);
                 if (room.Finished) break;
-                Player regular_next = room.GetNextAlive(room.Current, 1, false);
+
+                Player regular_next = room.Current;
+                while (regular_next == room.Current || !regular_next.Alive)
+                {
+                    regular_next = room.GetNext(regular_next, false);
+                    if (regular_next == starter)
+                        new_round = true;
+                }
 
                 while (room.ContainsTag("ExtraTurnList") && room.GetTag("ExtraTurnList") is List<Player> extraTurnList)
                 {

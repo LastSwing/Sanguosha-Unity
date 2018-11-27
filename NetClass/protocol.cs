@@ -190,6 +190,7 @@ namespace CommonClassLibrary
         S_COMMAND_EXCHANGE_KNOWN_CARDS, // For Dimeng only
         S_COMMAND_SET_KNOWN_CARDS,
         S_COMMAND_UPDATE_PILE,
+        S_COMMAND_UPDATE_ROUND,
         S_COMMAND_RESET_PILE,
         S_COMMAND_UPDATE_STATE_ITEM,
         S_COMMAND_SPEAK,
@@ -213,7 +214,7 @@ namespace CommonClassLibrary
         S_COMMAND_USE_VIRTUAL_CARD,
         S_COMMAND_ARRANGE_SEATS,
         S_COMMAND_WARN,
-        S_COMMAND_SIGNUP,
+        S_COMMAND_GAMEMODE_BLOODBATTLE,
         S_COMMAND_DISABLE_SHOW,
         S_COMMAND_TRIGGER_ORDER,
         S_COMMAND_CHANGE_SKIN,
@@ -323,9 +324,9 @@ namespace CommonClassLibrary
         public int UId { get; set; }
         public string NickName { get; set; }
         public int Right { set; get; }
-        public int Image1 { get; set; }
-        public int Image2 { get; set; }
-        public int Image3 { get; set; }
+        public int Avatar { get; set; }
+        public int Frame { get; set; }
+        public int Bg { get; set; }
         public int GamePlay { get; set; }
         public int Lose { get; set; }
         public int Win { get; set; }

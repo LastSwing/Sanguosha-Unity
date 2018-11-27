@@ -546,7 +546,7 @@ namespace SanguoshaServer.Game
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             room.BroadcastSkillInvoke("cunsi", card_use.From, card_use.Card.SkillPosition);
-            room.DoSuperLightbox(card_use.From, "mifuren", card_use.Card.SkillPosition, "cunsi");
+            room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "cunsi");
             base.OnUse(room, card_use);
         }
         public override void Use(Room room, CardUseStruct card_use)
@@ -594,6 +594,9 @@ namespace SanguoshaServer.Game
         public override bool CanPreShow() => false;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
+            List<Player> owners = RoomLogic.FindPlayersBySkillName(room, Name);
+            if (owners.Count == 0) return;
+
             if (triggerEvent == TriggerEvent.CardUsed || triggerEvent == TriggerEvent.CardResponded)
             {
                 Player from = null;
@@ -611,10 +614,9 @@ namespace SanguoshaServer.Game
                     from = player;
                     card = resp.Card;
                 }
-                if (from != null && card != null && from.Phase == Player.PlayerPhase.Play && from.GetMark(Name) == 0 && is_use)
+                if (from != null && card != null && from.Phase == PlayerPhase.Play && from.GetMark(Name) == 0 && is_use)
                 {
                     FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-
                     if (!(fcard is SkillCard))
                         from.AddMark(Name);
                     if (fcard is Slash && card.SubCards.Count > 0)
@@ -624,7 +626,7 @@ namespace SanguoshaServer.Game
                     }
                 }
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == Player.PlayerPhase.Play)
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play)
             {
                 player.SetMark(Name, 0);
                 player.SetFlags("-" + Name);
@@ -634,7 +636,6 @@ namespace SanguoshaServer.Game
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                List<Player> owners = RoomLogic.FindPlayersBySkillName(room, Name);
                 if (move.From != null && move.From.HasFlag(Name) && move.From.ContainsTag("yongjue_ids") && move.Reason.CardString == (string)move.From.GetTag("yongjue_ids")
                     && ((move.Reason.Reason & CardMoveReason.MoveReason.S_MASK_BASIC_REASON) == CardMoveReason.MoveReason.S_REASON_USE)
                     && move.From_places.Contains(Place.PlaceTable) && move.To_place == Place.DiscardPile)
@@ -645,15 +646,21 @@ namespace SanguoshaServer.Game
                         bool ok = true;
                         List<int> ids = new List<int>(card.SubCards);
                         foreach (int id in ids)
+                        {
                             if (room.GetCardPlace(id) != Place.DiscardPile)
+                            {
                                 ok = false;
+                                break;
+                            }
+                        }
 
+                        List<Player> owners = RoomLogic.FindPlayersBySkillName(room, Name);
                         if (ok)
                         {
                             foreach (Player p in owners)
                             {
-                                if (RoomLogic.IsFriendWith(room, p, player))
-                                    return new TriggerStruct(Name, player);
+                                if (RoomLogic.IsFriendWith(room, p, move.From))
+                                    return new TriggerStruct(Name, move.From);
                             }
                         }
                     }
@@ -989,7 +996,7 @@ namespace SanguoshaServer.Game
             if (room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                room.DoSuperLightbox(player, "dongzhuo", info.SkillPosition, Name);
+                room.DoSuperLightbox(player, info.SkillPosition, Name);
                 return info;
             }
 
@@ -1028,7 +1035,7 @@ namespace SanguoshaServer.Game
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.BroadcastSkillInvoke(Name, player);
-            room.DoSuperLightbox(player, "dongzhuo", info.SkillPosition, Name);
+            room.DoSuperLightbox(player, info.SkillPosition, Name);
             room.NotifySkillInvoked(player, Name);
             return info;
         }
@@ -1392,11 +1399,9 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                bool ok = false;
                 int card_id = (int)player.GetTag("hongfa_prevent");
                 player.RemoveTag("hongfa_prevent");
-
-                if (ok && card_id != -1)
+                if (card_id != -1)
                 {
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_PILE, null, Name, null);
                     List<int> ids = new List<int> { card_id };
