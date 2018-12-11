@@ -251,7 +251,6 @@ namespace SanguoshaServer.Scenario
                 }
 
                 List<Player> targets = card_use.To;
-
                 List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
                     (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();                    //for serval purpose, such as AI
                 use_list.Add(card_use);

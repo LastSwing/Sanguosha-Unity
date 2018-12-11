@@ -23,8 +23,6 @@ namespace SanguoshaServer.Game
     public delegate void RemoveRoomDelegate(Room room, Client host, List<Client> clients);
     public class Room
     {
-        public event BroadcastRoomDelegate BroadcastRoom;
-        public event RemoveRoomDelegate RemoveRoom;
         public Client Host => host;
         public Player Current => current;
         public List<Player> AlivePlayers => m_alivePlayers;
@@ -42,6 +40,8 @@ namespace SanguoshaServer.Game
         public List<int> DiscardPile => m_discardPile;
         public bool Finished => game_finished;
         public bool BloodBattle { set; get; }
+        public List<int> DrawPile => m_drawPile;
+        public List<TrustedAI> AIs => new List<TrustedAI>(player_ai.Values);
 
         private Thread thread;
         private RoomThread room_thread;
@@ -321,7 +321,10 @@ namespace SanguoshaServer.Game
 
         public WrappedCard GetCard(int id)
         {
-            return m_cards[id];
+            if (m_cards.ContainsKey(id))
+                return m_cards[id];
+
+            return null;
         }
         public void Recover(Player player, RecoverStruct recover_struct, bool set_emotion = false)
         {
@@ -922,11 +925,9 @@ namespace SanguoshaServer.Game
                             break;
                         case Place.DrawPile:
                             RemoveFromDrawPile(card_id);
-                            //m_drawPile->removeOne(card_id);
                             break;
                         case Place.DrawPileBottom:
                             RemoveFromDrawPile(card_id);
-                            //m_drawPile->removeOne(card_id);
                             break;
                         case Place.PlaceSpecial:
                             table_cards.Remove(card_id);
@@ -1958,7 +1959,7 @@ namespace SanguoshaServer.Game
             }
 
             //通知hall更新信息
-            BroadcastRoom?.Invoke(this);
+            hall.BroadCastRoom(this);
 
             OutPut(string.Format("添加玩家的线程为{0} room id 为{1}", Thread.CurrentThread.ManagedThreadId, room_id));
         }
@@ -2157,7 +2158,7 @@ namespace SanguoshaServer.Game
             }
             
             OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
-            RemoveRoom?.Invoke(this, create_new ? host : null, m_clients);
+            hall.RemoveRoom(this, create_new ? host : null, m_clients);
 
             room_thread = null;
             if (thread != null)
@@ -2297,7 +2298,7 @@ namespace SanguoshaServer.Game
             if (_m_raceStarted && _m_raceWinner == null)
             {
                 bool check = false;
-                if (client.ClientReply.Count > 1)
+                if (client.ClientReply != null && client.ClientReply.Count > 1)
                 {
                     Player player = FindPlayer(client.ClientReply[0]);
                     WrappedCard card = RoomLogic.ParseCard(this, client.ClientReply[1]);
@@ -2326,7 +2327,7 @@ namespace SanguoshaServer.Game
 
             {
                 List<string> clientReply = player.ClientReply;
-                if (!bool.TryParse(clientReply[0], out bool succesful) || !succesful)
+                if (clientReply == null || clientReply.Count == 0 || !bool.TryParse(clientReply[0], out bool succesful) || !succesful)
                 {
                     check = false;
                 }
@@ -2466,12 +2467,12 @@ namespace SanguoshaServer.Game
             interactions[CommandType.S_COMMAND_CHEAT] = new Action<Client, List<string>>(ProcessRequestCheat);
             interactions[CommandType.S_COMMAND_PRESHOW] = new Action<Client, List<string>>(ProcessRequestPreshow);
             interactions[CommandType.S_COMMAND_CHANGE_SKIN] = new Action<Client, List<string>>(ChangeSkinCommand);
+            interactions[CommandType.S_COMMAND_TRUST] = new Action<Client, List<string>>(TrustCommand);
 
             // Client notifications
             callbacks[CommandType.S_COMMAND_GAME_START] = new Action<Client, List<string>>(GameStart);
             callbacks[CommandType.S_COMMAND_ADD_ROBOT] = new Action<Client, List<string>>(AddRobotCommand);
             callbacks[CommandType.S_COMMAND_FILL_ROBOTS] = new Action<Client, List<string>>(FillRobotsCommand);
-            callbacks[CommandType.S_COMMAND_TRUST] = new Action<Client, List<string>>(TrustCommand);
 
             // handle reply
             replies[CommandType.S_COMMAND_NULLIFICATION] = new Action<Client>(OnRaceReply);
@@ -2562,9 +2563,19 @@ namespace SanguoshaServer.Game
             foreach (Player player in m_players)
             {
                 Client client = hall.GetClient(player.ClientId);
-                players.Add(JsonUntity.Object2Json<Player>(player));
+                if (client.Status == Client.GameStatus.online)
+                {
+                    player.Status = "online";
+                    player_ai.Add(player, new TrustedAI(this, player));
+                }
+                else if (client.Status == Client.GameStatus.bot)
+                {
+                    player.Status = "bot";
+                    player_ai.Add(player, new SmartAI(this, player));
+                }
+
+                players.Add(JsonUntity.Object2Json(player));
                 player_client.Add(player, client);
-                player_ai.Add(player, new TrustedAI(this, player));
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_ARRANGE_SEATS, players);
@@ -2691,9 +2702,33 @@ namespace SanguoshaServer.Game
             }
         }
 
-        private void TrustCommand(Client arg1, List<string> arg2)
+        private void TrustCommand(Client client, List<string> arg)
         {
-            throw new NotImplementedException();
+            lock (this)
+            {
+                if (client.Status == Client.GameStatus.online)
+                {
+                    bool trust = false;
+
+                    foreach (Player p in client.GetPlayers()) {
+                        if (!trust && p.Status == "online")
+                            trust = true;
+                        p.Status = trust ? "trust" : "online";
+                        BroadcastProperty(p, "Status");
+                    }
+                    DoNotify(client, CommandType.S_COMMAND_TRUST, new List<string>());
+                    if (trust && client.IsWaitingReply)
+                    {
+                        OutPut("do reply");
+
+                        MyData data = new MyData
+                        {
+                            Body = new List<string> { client.ExpectedReplyCommand.ToString() }
+                        };
+                        ProcessClientReply(client, data);
+                    }
+                }
+            }
         }
 
         private void FillRobotsCommand(Client arg1, List<string> arg2)
@@ -2887,10 +2922,10 @@ namespace SanguoshaServer.Game
             return null;
         }
 
-        public TrustedAI GetAI(Player player)
+        public TrustedAI GetAI(Player player, bool ai = false)
         {
             Client client = hall.GetClient(player.ClientId);
-            if (client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || (player.Status == "trust"))
+            if (ai || client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || (player.Status == "trust"))
                 return player_ai[player];
 
             return null;
@@ -4526,6 +4561,8 @@ namespace SanguoshaServer.Game
             if (killer != null)
                 array.Add(killer.Name);
             DoBroadcastNotify(CommandType.S_COMMAND_KILL_PLAYER, array);
+
+            Thread.Sleep(1500);
 
             room_thread.Trigger(TriggerEvent.GameOverJudge, this, victim, ref data);
             room_thread.Trigger(TriggerEvent.Death, this, victim, ref data);
@@ -8508,18 +8545,23 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { round_count.ToString() });
 
             //进入鏖战模式判断
-            if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)            {                bool check = true;                foreach (Player p in AlivePlayers)
+            if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)
+            {
+                bool check = true;
+                foreach (Player p in AlivePlayers)
                 {
                     if (RoomLogic.GetPlayerNumWithSameKingdom(this, p) > 1)
                     {
                         check = false;
                         break;
                     }
-                }                if (check)
+                }
+                if (check)
                 {
                     BloodBattle = true;
                     DoBroadcastNotify(CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
-                }            }
+                }
+            }
         }
     }
 }

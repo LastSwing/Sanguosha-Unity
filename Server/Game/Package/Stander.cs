@@ -3919,7 +3919,7 @@ public Shenzhi() : base("shenzhi")
             room.SetPlayerMark(card_use.From, "@chaos", 0);
             room.BroadcastSkillInvoke("luanwu", card_use.From, card_use.Card.Skill);
             room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "luanwu");
-
+            card_use.To = room.GetOtherPlayers(card_use.From);
             room.SortByActionOrder(ref card_use);
             base.OnUse(room, card_use);
         }
@@ -4866,7 +4866,7 @@ public Shenzhi() : base("shenzhi")
             else tianfeng.RemoveTag("sijian_target");
             return new TriggerStruct();
         }
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player tianfeng, ref object data, Player ask_who, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player tianfeng, TriggerStruct info)
         {
             Player to = room.FindPlayer((string)tianfeng.GetTag("sijian_target"));
             tianfeng.RemoveTag("sijian_target");

@@ -1,5 +1,6 @@
 ﻿using CommonClass;
 using CommonClass.Game;
+using SanguoshaServer.AI;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
@@ -450,11 +451,8 @@ namespace SanguoshaServer.Game
                     break;
             } while (skills.Count != triggerable_tested.Count);
 
-            if (target != null)
-            {
-                //foreach (AI* ai, room->ais)
-                //    ai->Event(triggerEvent, target, data);
-            }
+            foreach (TrustedAI ai in room.AIs)
+                ai.Event(triggerEvent, target, data);
 
             // pop event stack
             //event_stack.pop_back();

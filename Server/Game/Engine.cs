@@ -9,6 +9,7 @@ using static CommonClass.Game.WrappedCard;
 using SanguoshaServer.Scenario;
 using SanguoshaServer.Package;
 using static SanguoshaServer.Game.FunctionCard;
+using SanguoshaServer.AI;
 
 namespace SanguoshaServer.Game
 {
@@ -26,7 +27,7 @@ namespace SanguoshaServer.Game
         private static DataTable show_frame;
         private static DataTable show_bg;
 
-        private static DataSet card_table = new DataSet();
+        private static DataSet ai_values = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
         private static Dictionary<string, List<int>> package_card_ids = new Dictionary<string, List<int>>();
 
@@ -73,6 +74,9 @@ namespace SanguoshaServer.Game
 
             //读取技能
             LoadScenario();
+
+            //读取AI基本数据
+            LoadAIValues();
 
             LoatOthers();
         }
@@ -148,6 +152,33 @@ namespace SanguoshaServer.Game
             File.AppendAllText("gamedata/skills.json", JsonUntity.DataSet2Json(skills_ds));
         }
         
+        private void LoadAIValues()
+        {
+            string sql = "select * from ai_basic_card_value";
+            DataTable dt = DB.GetData(sql, false);
+            dt.TableName = "card_values";
+            ai_values.Tables.Add(dt);
+
+            sql = "select * from ai_skill_coop_value";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "skill_coop_value";
+            ai_values.Tables.Add(dt);
+
+            sql = "select * from ai_skill_pair_value";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "skill_pair_value";
+            ai_values.Tables.Add(dt);
+
+            sql = "select * from ai_skill_value";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "skill_value";
+            ai_values.Tables.Add(dt);
+
+            sql = "select * from ai_skill_classify";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "skill_classify";
+            ai_values.Tables.Add(dt);
+        }
 
         private void LoatOthers()
         {
@@ -165,6 +196,12 @@ namespace SanguoshaServer.Game
             general_skin = DB.GetData(sql, false);
             ds = new DataSet();
             ds.Tables.Add(general_skin);
+
+            //技能台词
+            sql = "select * from general_lines";
+            DataTable lines = DB.GetData(sql, false);
+            lines.TableName = "lines";
+            ds.Tables.Add(lines);
 
             File.Delete("gamedata/skin.json");
             File.AppendAllText("gamedata/skin.json", JsonUntity.DataSet2Json(ds));
@@ -283,7 +320,7 @@ namespace SanguoshaServer.Game
 
                 wrapped_cards.Add(id, new WrappedCard(name, id, suit, number, can_recast, transferable));
             }
-
+            DataSet card_table = new DataSet();
             foreach (string name in game_modes.Keys)
             {
                 DataTable new_table = table.Clone();
@@ -298,7 +335,7 @@ namespace SanguoshaServer.Game
                     ids.Add(int.Parse(row["id"].ToString()));
                 }
                 mode_card_ids.Add(name, ids);                        //按模式给卡牌id分类
-                //card_table.Add(name, new_table);                //按模式给卡牌信息分类
+                                                                //按模式给卡牌信息分类
                 card_table.Tables.Add(new_table);
             }
             foreach (GameMode mode in game_modes.Values)
@@ -617,7 +654,7 @@ namespace SanguoshaServer.Game
             else
                 return null;
         }
-        public static List<TriggerSkill> GetGlobalTriggerSkills() => global_trigger_skills;
+
         public static List<TriggerSkill> GetPublicTriggerSkills() => public_trigger_skills;
         public static List<Skill> GetEquipTriggerSkills(List<string> packs)
         {
@@ -761,6 +798,41 @@ namespace SanguoshaServer.Game
 
             return false;
         }
+        public static List<SkillEvent> GetSkillEvents()
+        {
+            return new List<SkillEvent>();
+        }
+
+        public static List<TriggerSkill> GetGlobalTriggerSkills() => global_trigger_skills;
+
+        public static List<UseCard> GetCardUsages()
+        {
+            return new List<UseCard>();
+        }
+        public static Dictionary<string, double> GetSkillPairAdjust()
+        {
+            Dictionary<string, double> result = new Dictionary<string, double>();
+            foreach (DataRow row in ai_values.Tables["skill_pair_value"].Rows)
+                result.Add(row["skills"].ToString(), double.Parse(row["value"].ToString()));
+
+            return result;
+        }
+
+        public static double GetSkillValue(string skill)
+        {
+            return 0;
+        }
+
+        public static SkillEvent GetSkillEvent(string skill)
+        {
+            return null;
+        }
+
+        public static UseCard GetCardUsage(string class_name)
+        {
+            return null;
+        }
+
         public static int CorrectDistance(Room room, Player from, Player to, WrappedCard card = null)
         {
             int correct = 0;
@@ -902,7 +974,7 @@ namespace SanguoshaServer.Game
 
         public static DataRow[] GetGeneralSkin(string name, string mode)
         {
-            return general_skin.Select(string.Format("general_name = '{0}' and mode = '{1}'", name, mode));
+            return general_skin.Select(string.Format("general_name = '{0}' and (mode = '{1}' or mode = '')", name, mode));
         }
 
         public static bool CheckShwoAvailable(CommonClassLibrary.Profile profile)
@@ -911,5 +983,41 @@ namespace SanguoshaServer.Game
                 && show_frame.Select("id = " + profile.Frame).Length > 0
                 && show_bg.Select("id = " + profile.Bg).Length > 0;
         }
+
+        #region AI数据
+        public static Dictionary<string, double> GetSkillCoopAdjust()
+        {
+            Dictionary<string, double> result = new Dictionary<string, double>();
+            foreach (DataRow data in ai_values.Tables["skill_coop_value"].Rows)
+                result[data["skills"].ToString()] = double.Parse(data["value"].ToString());
+
+            return result;
+        }
+        public static double GetCardUseValue(string name)
+        {
+            Dictionary<string, double> result = new Dictionary<string, double>();
+            DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
+            if (rows.Length > 0) return double.Parse(rows[0]["use_value"].ToString());
+
+            return 0;
+        }
+        public static double GetCardKeepValue(string name)
+        {
+            Dictionary<string, double> result = new Dictionary<string, double>();
+            DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
+            if (rows.Length > 0) return double.Parse(rows[0]["keep_value"].ToString());
+
+            return 0;
+        }
+
+        public static string GetSkills(string classify)
+        {
+            DataRow[] rows = ai_values.Tables["skill_classify"].Select(string.Format("type = '{0}'", classify));
+            if (rows.Length > 0) return rows[0]["skills"].ToString();
+
+            return string.Empty;
+        }
+        #endregion
+
     }
 }

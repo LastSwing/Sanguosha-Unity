@@ -17,7 +17,7 @@ namespace SanguoshaServer.Package
                 new HalberdSkill(),
                 new HalberdTM(),
                 new HalberdTrigger(),
-                new BreastplateSkill(),
+                new BreastPlateSkill(),
                 new IronArmorSkill(),
                 new WoodenOxSkill(),
                 new WoodenOxTriggerSkill(),
@@ -277,9 +277,9 @@ namespace SanguoshaServer.Game
     {
         public BreastPlate() : base("BreastPlate") { }
     }
-    public class BreastplateSkill : ArmorSkill
+    public class BreastPlateSkill : ArmorSkill
     {
-        public BreastplateSkill() : base("Breastplate")
+        public BreastPlateSkill() : base("BreastPlate")
         {
             events.Add(TriggerEvent.DamageInflicted);
             frequency = Frequency.Compulsory;
@@ -440,7 +440,7 @@ namespace SanguoshaServer.Game
 
                 if (count > 0) return new TriggerStruct(Name, player);
             }
-            else if (player.GetPile("wooden_ox").Count == 0)
+            else if (player.GetPile("wooden_ox").Count > 0)
             {
                 for (int i = 0; i < move.Card_ids.Count; i++)
                 {

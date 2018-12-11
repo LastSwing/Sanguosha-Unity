@@ -332,10 +332,10 @@ namespace SanguoshaServer.Scenario
         private DataTable pair_value;
         public GeneralSelctor()
         {
-            string sql = "select * from general_value";
+            string sql = "select * from ai_general_value";
             general_value = DB.GetData(sql, false);
 
-            sql = "select * from pair_value";
+            sql = "select * from ai_pair_value";
             pair_value = DB.GetData(sql, false);
         }
 

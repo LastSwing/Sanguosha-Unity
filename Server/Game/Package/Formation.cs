@@ -1177,20 +1177,20 @@ namespace SanguoshaServer.Game
 
                 if (triggerEvent == TriggerEvent.CardsMoveOneTime)
                 {
-                    if (move.To_place == Place.DiscardPile || (move.To_place == Place.PlaceEquip && move.To != player))
-                        return new TriggerStruct(Name, player);
+                    if (move.To_place == Place.DiscardPile || (move.To_place == Place.PlaceEquip && move.To != move.From))
+                        return new TriggerStruct(Name, move.From);
                 }
                 else if (triggerEvent == TriggerEvent.BeforeCardsMove)
                 {
-                    if ((move.From == player && (move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceHand ||
+                    if ((move.From != null && (move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceHand ||
                                                 move.From_places[move.Card_ids.IndexOf(fldfid)] ==  Place.PlaceEquip))
-                                                && (move.To != player || (move.To_place != Place.PlaceHand && move.To_place != Place.PlaceEquip)))
+                                                && (move.To != move.From || (move.To_place != Place.PlaceHand && move.To_place != Place.PlaceEquip)))
                     {
                         if (move.From_places[move.Card_ids.IndexOf(fldfid)] ==  Place.PlaceHand && move.To_place == Place.PlaceTable &&
                                 move.Reason.Reason ==  CardMoveReason.MoveReason.S_REASON_USE && move.Reason.CardString == RoomLogic.CardToString(room, room.GetCard(fldfid)))
                             return new TriggerStruct();
 
-                        return new TriggerStruct(Name, player);
+                        return new TriggerStruct(Name, move.From);
                     }
                 }
             }

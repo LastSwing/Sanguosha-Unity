@@ -20,7 +20,6 @@ namespace SanguoshaServer
         private Dictionary<Room, Thread> Room2Thread;
         private Form1 form;
         private int room_serial = 0;
-        
 
         public GameHall(Form1 form)
         {
@@ -354,7 +353,7 @@ namespace SanguoshaServer
                         client.RequestLeaveRoom();
                     break;
                 case protocol.UpdateRoom:
-                    client.RequstReady(Boolean.Parse(data.Body[0]));
+                    client.RequstReady(bool.Parse(data.Body[0]));
                     break;
                 case protocol.KickOff:
                     room = RId2Room.ContainsKey(client.GameRoom) ? RId2Room[client.GameRoom] : null;
@@ -412,8 +411,6 @@ namespace SanguoshaServer
                     int room_id = ++room_serial;
                     Room room = new Room(this, room_id, client, setting);
                     RId2Room.Add(room_id, room);
-                    room.BroadcastRoom += BroadCastRoom;
-                    room.RemoveRoom += RemoveRoom;
                 }
                 else
                 {
@@ -436,7 +433,7 @@ namespace SanguoshaServer
         }
 
         //广播状态更改了的room
-        private void BroadCastRoom(Room room)
+        public void BroadCastRoom(Room room)
         {
             lock (this)
             {
@@ -468,9 +465,6 @@ namespace SanguoshaServer
         {
             lock (this)
             {
-                room.BroadcastRoom -= BroadCastRoom;
-                room.RemoveRoom -= RemoveRoom;
-
                 OutPut("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
 
                 if (host != null)

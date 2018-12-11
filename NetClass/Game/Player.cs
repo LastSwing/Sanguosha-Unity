@@ -396,7 +396,7 @@ namespace CommonClass.Game
 
         public int GetMark(string mark)
         {
-            if (Marks.ContainsKey(mark))
+            if (!string.IsNullOrEmpty(mark) && Marks.ContainsKey(mark))
                 return Marks[mark];
             return 0;
         }

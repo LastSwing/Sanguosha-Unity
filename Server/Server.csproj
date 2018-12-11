@@ -76,6 +76,8 @@
   <ItemGroup>
     <Compile Include="Client.cs" />
     <Compile Include="Game\AI\AI.cs" />
+    <Compile Include="Game\AI\AICore.cs" />
+    <Compile Include="Game\AI\HegemonyAI.cs" />
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
     <Compile Include="Game\FunctionCard.cs" />
