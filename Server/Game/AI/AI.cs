@@ -1822,8 +1822,8 @@ namespace SanguoshaServer.AI
                     return false;
                 else
                 {
-                    if (judge.IsGood() && (IsEnemy(who) && GetDamageScore(damage).Score < 5 || (!IsFriend(who) && IsGoodSreadStarter(damage)))) return true;
-                    if (judge.IsBad() && IsFriend(who) && (GetDamageScore(damage).Score < 5 || IsGoodSreadStarter(damage, false))) return true;
+                    if (judge.IsGood() && (IsEnemy(who) && GetDamageScore(damage).Score < 5 || (!IsFriend(who) && IsGoodSpreadStarter(damage)))) return true;
+                    if (judge.IsBad() && IsFriend(who) && (GetDamageScore(damage).Score < 5 || IsGoodSpreadStarter(damage, false))) return true;
                 }
             }
             else if (reason == "Indulgence")
@@ -2168,12 +2168,12 @@ namespace SanguoshaServer.AI
                         if (IsFriend(target) && target.Chained && chain && score.Damage.Damage > 0)
                             use_value -= 10;
 
-                        if (IsGoodSreadStarter(score.Damage) && score.Info != "miss" && score.Rate > 0.5 && !chain)
+                        if (IsGoodSpreadStarter(score.Damage) && score.Info != "miss" && score.Rate > 0.5 && !chain)
                         {
                             chain = true;
                             use_value += 6;
                         }
-                        else if (!IsGoodSreadStarter(score.Damage) && score.Damage.Damage > 0 && !chain
+                        else if (!IsGoodSpreadStarter(score.Damage) && score.Damage.Damage > 0 && !chain
                                  && target.Chained && score.Info != "miss" && score.Damage.Nature != DamageStruct.DamageNature.Normal)
                         {
                             chain = true;
@@ -2586,12 +2586,12 @@ namespace SanguoshaServer.AI
             return scores[scores.Count - 1];
         }
 
-        public bool IsGoodSreadStarter(DamageStruct damage, bool for_self = true)
+        public bool IsGoodSpreadStarter(DamageStruct damage, bool for_self = true)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal)
                 return false;
 
-            List<Player> players = GetSreadTargets(damage);
+            List<Player> players = GetSpreadTargets(damage);
             double good = 0;
             double bad = 0;
             foreach (Player p in players)
@@ -2673,7 +2673,7 @@ namespace SanguoshaServer.AI
                 return bad > good;
         }
 
-        public List<Player> GetSreadTargets(DamageStruct damage)
+        public List<Player> GetSpreadTargets(DamageStruct damage)
         {
             List<Player> players = new List<Player>();
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal)
@@ -2692,9 +2692,9 @@ namespace SanguoshaServer.AI
             if (damage.Damage == 0) return false;
 
             double adjust = 0;
-            if (IsGoodSreadStarter(damage))
+            if (IsGoodSpreadStarter(damage))
                 adjust = 6;
-            else if (IsGoodSreadStarter(damage, false))
+            else if (IsGoodSpreadStarter(damage, false))
                 adjust = -6;
             if (IsFriend(damage.To) && adjust + adjust_vlaue + GetDamageScore(damage).Score < 4) return false;
             if (IsEnemy(damage.To) && adjust + adjust_vlaue + GetDamageScore(damage).Score < -4) return false;
@@ -2879,7 +2879,7 @@ namespace SanguoshaServer.AI
                 DamageStruct _damage = damage;
                 _damage.To = p;
                 _damage.Damage = DamageEffect(_damage);
-                if (_damage.Damage > 0 && (!CanResist(p, _damage.Damage) || IsFriend(p, jiaozhu)) && (IsFriend(p) || IsGoodSreadStarter(_damage, false)))
+                if (_damage.Damage > 0 && (!CanResist(p, _damage.Damage) || IsFriend(p, jiaozhu)) && (IsFriend(p) || IsGoodSpreadStarter(_damage, false)))
                 {
                     Player wizzard = GetWizzardRaceWinner("leiji", p);
                     if (wizzard == null || !IsFriend(wizzard) && !IsFriend(jiaozhu, p) && !IsFriend(wizzard, p))
@@ -2905,7 +2905,7 @@ namespace SanguoshaServer.AI
                 DamageStruct _damage = damage;
                 _damage.To = p;
                 _damage.Damage = DamageEffect(_damage);
-                if (_damage.Damage > 1 && !CanResist(p, _damage.Damage) && IsEnemy(p) && !IsGoodSreadStarter(_damage, false))
+                if (_damage.Damage > 1 && !CanResist(p, _damage.Damage) && IsEnemy(p) && !IsGoodSpreadStarter(_damage, false))
                 {
                     Player wizzard = GetWizzardRaceWinner("leiji", p);
                     if (wizzard != null && IsFriend(wizzard))
@@ -2952,6 +2952,241 @@ namespace SanguoshaServer.AI
         private List<string> kingdoms = new List<string> {"wei", "shu", "wu", "qun" };
         public virtual void Event(TriggerEvent triggerEvent, Player player, object data)
         {
+        }
+
+        public void FilterSkillCard(ref List<WrappedCard> cards)
+        {
+            foreach (string skill in room.Skills)
+            {
+                if (RoomLogic.PlayerHasSkill(room, self, skill) || (skill == "shuangxiong" && (self.HasFlag("shuangxiong_head") || self.HasFlag("shuangxiong_deputy"))))
+                {
+                    SkillEvent e = Engine.GetSkillEvent(skill);
+                    if (e != null)
+                    {
+                        WrappedCard card = e.GetTurnUse(this, self);
+                        if (card != null)
+                            cards.Add(card);
+                    }
+                }
+            }
+
+            SkillEvent transfer = Engine.GetSkillEvent("transfer");
+            {
+                if (transfer != null)
+                {
+                    WrappedCard card = transfer.GetTurnUse(this, self);
+                    if (card != null)
+                        cards.Add(card);
+                }
+            }
+        }
+
+        protected bool weapon_use;
+        protected int predicted_range;
+        protected int slash_avail;
+        public virtual List<WrappedCard> GetTurnUse()
+        {
+            List<WrappedCard> cards = new List<WrappedCard>(), result = new List<WrappedCard>();
+            foreach (WrappedCard card in RoomLogic.GetPlayerHandcards(room, self))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (fcard.IsAvailable(room, self, card))
+                    cards.Add(card);
+            }
+            foreach (int id in self.GetHandPile())
+            {
+                WrappedCard card = room.GetCard(id);
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (fcard.IsAvailable(room, self, card))
+                    cards.Add(card);
+            }
+
+            WrappedCard slash = new WrappedCard("Slash");
+            int slashAvail = 1 + Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, self, slash);
+            predicted_range = RoomLogic.GetAttackRange(room, self);
+            FilterSkillCard(ref cards);
+
+            if (self.HasWeapon("CrossBow"))
+                slashAvail = 100;
+            slash_avail = slashAvail;
+
+            List<WrappedCard> slashes = new List<WrappedCard>();
+
+            foreach (WrappedCard card in cards)
+            {
+                UseCard e = Engine.GetCardUsage(card.Name);
+                if (e != null)
+                {
+                    CardUseStruct use = new CardUseStruct();
+                    use.IsDummy = true;
+                    e.Use(this, self, ref use, card);
+                    if (use.Card != null)
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                        if (fcard is Slash)
+                        {
+                            slashes.Add(use.Card);
+                            if (use.Card.HasFlag("AIGlobal_KillOff"))
+                                break;
+                        }
+                        else
+                        {
+                            if (self.HasFlag("InfinityAttackRange") || self.GetMark("InfinityAttackRange") > 0)
+                                predicted_range = 10000;
+                            else if (fcard is Weapon weapon)
+                            {
+                                predicted_range = weapon.Range;
+                                weapon_use = true;
+                            }
+                            else
+                                predicted_range = 1;
+
+                            if (fcard is CrossBow)
+                            {
+                                slashAvail = 100;
+                                slash_avail = slashAvail;
+                            }
+                            result.Add(use.Card);
+                        }
+
+                        if (GetDynamicUsePriority(use.Card) >= 9)
+                            break;
+                    }
+                }
+            }
+            if (slashAvail > 0 && slashes.Count > 0)
+            {
+                SortByUseValue(ref slashes);
+                result.AddRange(slashes);
+            }
+
+            return result;
+        }
+        public virtual double GetUsePriority(WrappedCard card)
+        {
+            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            double v = 0;
+            if (fcard is EquipCard)
+            {
+                if (HasSkill(Engine.GetSkills("lose_equip_skill")))
+                    return 15;
+                else if (fcard is Armor && !self.GetArmor())
+                    v = Engine.GetCardPriority(card.Name) + 5.2;
+                else if (fcard is Weapon && !self.GetWeapon())
+                    v = Engine.GetCardPriority(card.Name) + 3;
+                else if (fcard is DefensiveHorse && !self.GetDefensiveHorse())
+                    v = 5.8;
+                else if (fcard is OffensiveHorse && !self.GetOffensiveHorse())
+                    v = 5.5;
+                else if (fcard is Treasure && !self.GetTreasure())
+                {
+                    v = 5.6;
+                    if (fcard is JadeSeal) v += 0.1;
+                }
+                return v;
+            }
+            v = Engine.GetCardPriority(card.Name);
+            return AdjustUsePriority(card, v);
+        }
+        public virtual double AdjustUsePriority(WrappedCard card, double value)
+        {
+            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            if (fcard is SkillCard) return value;
+
+            if (fcard is Slash)
+            {
+                if (card.Skill == "Spear")
+                    value -= 0.1f;
+                if (WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)))
+                    value -= 0.05f;
+                if (card.Name != "Slash")
+                {
+                    if (slash_avail == 1)
+                    {
+                        value += 0.05;
+                        if (fcard is FireSlash)
+                        {
+                            foreach (Player enemy in enemies[self])
+                            {
+                                if (HasArmorEffect(enemy, "Vine") || enemy.GetMark("@gale") > 0)
+                                {
+                                    value += 0.07f;
+                                    break;
+                                }
+                            }
+                        }
+                        else if (fcard is ThunderSlash)
+                        {
+                            foreach (Player enemy in enemies[self])
+                            {
+                                if (enemy.GetMark("@fog") > 0)
+                                {
+                                    value += 0.07;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    else
+                        value -= 0.05f;
+                }
+                if (HasSkill("jiang") && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)))
+                    value += 0.21;
+                if (slash_avail == 1)
+                {
+                    value += Math.Min(0.5, Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, self, card) * 0.1);
+                    double point = 0;
+                    foreach (Player p in room.GetOtherPlayers(self))
+                        if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, self, p, card))
+                            point += 1;
+
+                    value += Math.Min(point * 0.05, 0.5);
+                }
+            }
+
+            if (self.GetHandPile().Contains(card.GetEffectiveId()))
+                value += 0.1;
+            value += (13 - RoomLogic.GetCardNumber(room, card)) / 10000;
+
+            return value;
+        }
+
+        public double GetDynamicUsePriority(WrappedCard card)
+        {
+            if (card == null) return 0;
+            if (card.HasFlag("AIGlobal_KillOff")) return 15;
+            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            if (fcard is Slash)
+            {
+                foreach (Player p in friends[self])
+                    if (RoomLogic.PlayerHasShownSkill(room, p, "yongjue") && RoomLogic.IsFriendWith(room, self, p))
+                        return 12;
+            }
+            else if (fcard is AmazingGrace)
+            {
+                Player zhugeliang = RoomLogic.FindPlayerBySkillName(room, "kongcheng");
+                if (zhugeliang != null && IsEnemy(zhugeliang) && zhugeliang.IsKongcheng())
+                    return Math.Max(Engine.GetCardPriority("Slash"), Engine.GetCardPriority("Duel")) + 0.1f;
+            }
+            else if (fcard is Peach && RoomLogic.PlayerHasSkill(room, self, "kuanggu")) return 1.01;
+            else if (fcard is DelayedTrick && !string.IsNullOrEmpty(card.Skill))
+            {
+                return Engine.GetCardPriority(card.Name) - 0.01;
+            }
+            else if (fcard is Duel)
+            {
+                if (HasCrossbowEffect(self) || RoomLogic.CanSlashWithoutCrossBow(room, self)
+                        || Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, self, new WrappedCard("Slash")) > 0
+                        || self.HasUsed("FenxunCard"))
+                    return Engine.GetCardPriority("Slash") - 0.1f;
+            }
+            else if (fcard is AwaitExhausted && HasSkill("guose|duanliang"))
+                return 0;
+
+            double value = GetUsePriority(card);
+
+
+            return value;
         }
         public virtual void Activate(ref CardUseStruct card_use)
         {

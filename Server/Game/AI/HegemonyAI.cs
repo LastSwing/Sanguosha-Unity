@@ -234,7 +234,7 @@ namespace SanguoshaServer.AI
                 }
                 else if (choices[0] == "cardShow")
                 {
-                    int id = int.Parse(choices[choices.Count - 1].Substring(1, choices[choices.Count - 1].Length - 1));
+                    int id = int.Parse(choices[choices.Count - 1].Substring(1, choices[choices.Count - 1].Length - 2));
                     if (!public_handcards[player].Contains(id)) public_handcards[player].Add(id);
                     if (!private_handcards[player].Contains(id)) private_handcards[player].Add(id);
                 }

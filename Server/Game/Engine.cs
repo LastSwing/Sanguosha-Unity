@@ -1009,6 +1009,14 @@ namespace SanguoshaServer.Game
 
             return 0;
         }
+        public static double GetCardPriority(string name)
+        {
+            Dictionary<string, double> result = new Dictionary<string, double>();
+            DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
+            if (rows.Length > 0) return double.Parse(rows[0]["priority"].ToString());
+
+            return 0;
+        }
 
         public static string GetSkills(string classify)
         {

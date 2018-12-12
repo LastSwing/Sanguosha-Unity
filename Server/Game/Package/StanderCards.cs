@@ -1408,7 +1408,7 @@ namespace SanguoshaServer.Game
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             int total_num = 1 + Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card);
-            if (targets.Count >= total_num || !base.TargetFilter(room, targets, to_select, Self, card))
+            if (targets.Count >= total_num || !base.TargetFilter(room, targets, to_select, Self, card) || to_select.IsKongcheng())
                 return false;
 
             if (to_select == Self)

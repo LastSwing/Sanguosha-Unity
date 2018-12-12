@@ -51,12 +51,12 @@ namespace SanguoshaServer.Game
             return CanSlash(room, slasher, other, null, rangefix, others);
         }
 
-        public static bool CanSlashWithoutCrossBow(Room room, Player player, WrappedCard slash)
+        public static bool CanSlashWithoutCrossBow(Room room, Player player, WrappedCard slash = null)
         {
-            WrappedCard newslash = new WrappedCard("Slash");
+            WrappedCard newslash = slash ?? new WrappedCard("Slash");
             int slash_count = player.GetSlashCount();
             int valid_slash_count = 1;
-            valid_slash_count += Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash);
+            valid_slash_count += Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, newslash);
 
             return slash_count < valid_slash_count;
 
