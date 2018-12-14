@@ -2063,6 +2063,7 @@ namespace SanguoshaServer.Game
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
+            pattern = Engine.GetPattern(pattern).GetPatternString();
             return pattern == "Jink" || pattern == "Slash";
         }
         public override WrappedCard ViewAs(Room room, WrappedCard originalCard, Player player)
@@ -3114,7 +3115,11 @@ namespace SanguoshaServer.Game
             
             if (room.AskForCard(use.From, ".Basic", "@xiangle-discard:" + liushan.Name, liushan) == null)
             {
-                use.NullifiedList.Add(liushan.Name);
+                if (use.NullifiedList != null)
+                    use.NullifiedList.Add(liushan.Name);
+                else
+                    use.NullifiedList = new List<string> { liushan.Name };
+
                 data = use;
             }
 

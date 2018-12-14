@@ -195,9 +195,8 @@ namespace SanguoshaServer.AI
                     e.OnEvent(this, triggerEvent, player, data);
             }
 
-            if (triggerEvent == TriggerEvent.ChoiceMade)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
-                string str = data.ToString();
                 foreach (SkillEvent e in Engine.GetSkillEvents())
                     foreach (string key in e.Key)
                         if (str.Contains(key))
@@ -975,7 +974,7 @@ namespace SanguoshaServer.AI
             //todo : ajust hatred
         }
         //更新玩家关系
-        public void UpdatePlayerRelation(Player from, Player to, bool friendly)
+        public override void UpdatePlayerRelation(Player from, Player to, bool friendly)
         {
             if ((from == to) || (from.HasShownOneGeneral() && to.HasShownOneGeneral())) return;
 
@@ -1067,7 +1066,7 @@ namespace SanguoshaServer.AI
             UpdatePlayers();
         }
         //更新玩家身份的倾向
-        public void UpdatePlayerIntention(Player player, string kingdom, int intention)
+        public override void UpdatePlayerIntention(Player player, string kingdom, int intention)
         {
             if (intention >= 100)
                 id_tendency[player] = kingdom;
@@ -1076,10 +1075,34 @@ namespace SanguoshaServer.AI
 
             UpdatePlayers();
         }
-        //更新仇恨值
-        public void UpdatePlayerHatred(Player to, double hatred)
+
+        //服务器操作响应
+        public override void Activate(ref CardUseStruct card_use)
         {
-            players_hatred[to] += hatred;
+            to_use = GetTurnUse();
+
+            to_use.Sort((x, y) => { return GetDynamicUsePriority(x) > GetDynamicUsePriority(y) ? -1 : 1; });
+
+            foreach (WrappedCard card in to_use)
+            {
+                if (!RoomLogic.IsCardLimited(room, self, card, FunctionCard.HandlingMethod.MethodUse)
+                    || (card.CanRecast && !RoomLogic.IsCardLimited(room, self, card, FunctionCard.HandlingMethod.MethodRecast)))
+                {
+                    string class_name = card.Name.Contains("Slash") ? "Slash" : card.Name;
+                    UseCard use = Engine.GetCardUsage(class_name);
+                    if (use != null)
+                    {
+                        use.Use(this, self, ref card_use, card);
+                        if (card_use.Card != null)
+                        {
+                            to_use.Clear();
+                            return;
+                        }
+                    }
+                }
+            }
+
+            to_use.Clear();
         }
     }
 }

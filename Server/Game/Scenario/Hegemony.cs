@@ -238,11 +238,10 @@ namespace SanguoshaServer.Scenario
         {
             if (player == null || other == null)
                 return false;
-            if (!player.HasShownOneGeneral() || !other.HasShownOneGeneral())
-                return false;
-
             if (other == player)
                 return true;
+            if (!player.HasShownOneGeneral() || !other.HasShownOneGeneral())
+                return false;
 
             if (player.Role == "careerist" || other.Role == "careerist")
                 return false;

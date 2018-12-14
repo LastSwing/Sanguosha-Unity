@@ -9,8 +9,11 @@ namespace SanguoshaServer.AI
     public class AIPackage
     {
         public string Name { private set; get; }
-        public List<SkillEvent> Events { get; private set; }
-        public List<UseCard> UseCards { get; private set; }
+        public List<SkillEvent> Events => events;
+        public List<UseCard> UseCards => use_cards;
+
+        protected List<UseCard> use_cards = new List<UseCard>();
+        protected List<SkillEvent> events = new List<SkillEvent>();
         public AIPackage(string name)
         {
             Name = name;
@@ -163,7 +166,8 @@ namespace SanguoshaServer.AI
     public class UseCard
     {
         public string Name { get; private set; }
-        public List<string> Key { private set; get; }
+        public List<string> Key => key;
+        protected List<string> key = new List<string>();
         public UseCard(string class_name)
         {
             Name = class_name;

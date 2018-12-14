@@ -530,7 +530,7 @@ namespace SanguoshaServer.Game
         public virtual bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
             if (!string.IsNullOrEmpty(response_pattern))
-                return pattern == response_pattern;
+                return Engine.GetPattern(pattern).GetPatternString() == Engine.GetPattern(response_pattern).GetPatternString();
             return false;
         }
         public virtual bool IsEnabledAtNullification(Room room, Player player)

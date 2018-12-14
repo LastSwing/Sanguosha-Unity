@@ -45,21 +45,20 @@ namespace CommonClass.Game
         }
         public int Id { set; get; }
         public List<int> SubCards { get; private set; } = new List<int>();
-        public string UserString { get; set; } = null;
-        public string SkillPosition { get; set; } = null;
+        public string UserString { get; set; } = string.Empty;
+        public string SkillPosition { get; set; } = string.Empty;
         public bool CanRecast { get; set; } = false;
         public bool Transferable { get; set; } = false;
         public bool Mute { get; set; } = false;
-        public string Skill { get => _skill; set => _skill = value; }
-        public string ShowSkill { get; set; } = null;
+        public string Skill { get; set; } = string.Empty;
+        public string ShowSkill { get; set; } = string.Empty;
         public List<string> Flags { get; set; } = new List<string>();
         public bool Modified { get; set; } = false;
 
         private bool _extraTarget = true;
         private bool _distanceLimited = true;
-        private string _skill;
 
-        public string GetSkillName() => !string.IsNullOrEmpty(_skill) && _skill.StartsWith("_") ? _skill.Substring(1) : _skill;
+        public string GetSkillName() => !string.IsNullOrEmpty(Skill) && Skill.StartsWith("_") ? Skill.Substring(1) : Skill;
 
         public void AddSubCard(WrappedCard card)
         {

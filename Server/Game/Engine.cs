@@ -30,12 +30,12 @@ namespace SanguoshaServer.Game
         private static DataSet ai_values = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
         private static Dictionary<string, List<int>> package_card_ids = new Dictionary<string, List<int>>();
-
         private static Dictionary<string, General> generals = new Dictionary<string, General>();
         private static Dictionary<string, List<string>> pack_generals = new Dictionary<string, List<string>>();
-
         private static Dictionary<string, List<string>> related_skills = new Dictionary<string, List<string>>();
         private static Dictionary<string, List<string>> convert_pairs = new Dictionary<string, List<string>>();
+        private static Dictionary<string, SkillEvent> ai_skill_event = new Dictionary<string, SkillEvent>();
+        private static Dictionary<string, UseCard> ai_card_event = new Dictionary<string, UseCard>();
 
         private static List<ProhibitSkill> prohibit_skills = new List<ProhibitSkill>();
         private static List<FixCardSkill> fixcard_skills = new List<FixCardSkill>();
@@ -126,6 +126,35 @@ namespace SanguoshaServer.Game
                             else
                                 pack_equip_triggerskills[package] = new List<TriggerSkill> { trigger };
                         }
+                    }
+                }
+                //创建AI
+                foreach (string package in mode.GeneralPackage)
+                {
+                    //反射创建
+                    Type t = Type.GetType(string.Format("SanguoshaServer.AI.{0}AI", package));
+                    if (t != null)
+                    {
+                        AIPackage pack = (AIPackage)Activator.CreateInstance(t);
+                        foreach (SkillEvent e in pack.Events)
+                            ai_skill_event[e.Name] = e;
+
+                        foreach (UseCard e in pack.UseCards)
+                            ai_card_event[e.Name] = e;
+                    }
+                }
+                foreach (string package in mode.CardPackage)
+                {
+                    //反射创建
+                    Type t = Type.GetType(string.Format("SanguoshaServer.AI.{0}AI", package));
+                    if (t != null)
+                    {
+                        AIPackage pack = (AIPackage)Activator.CreateInstance(t);
+                        foreach (SkillEvent e in pack.Events)
+                            ai_skill_event[e.Name] = e;
+
+                        foreach (UseCard e in pack.UseCards)
+                            ai_card_event[e.Name] = e;
                     }
                 }
             }
@@ -800,14 +829,14 @@ namespace SanguoshaServer.Game
         }
         public static List<SkillEvent> GetSkillEvents()
         {
-            return new List<SkillEvent>();
+            return new List<SkillEvent>(ai_skill_event.Values);
         }
 
         public static List<TriggerSkill> GetGlobalTriggerSkills() => global_trigger_skills;
 
         public static List<UseCard> GetCardUsages()
         {
-            return new List<UseCard>();
+            return new List<UseCard>(ai_card_event.Values);
         }
         public static Dictionary<string, double> GetSkillPairAdjust()
         {
@@ -820,16 +849,26 @@ namespace SanguoshaServer.Game
 
         public static double GetSkillValue(string skill)
         {
+            DataRow[] rows = ai_values.Tables["skill_value"].Select(string.Format("skill_name = '{0}'", skill));
+            if (rows.Length > 0)
+                return double.Parse(rows[0]["value"].ToString());
+
             return 0;
         }
 
         public static SkillEvent GetSkillEvent(string skill)
         {
+            if (ai_skill_event.ContainsKey(skill))
+                return ai_skill_event[skill];
+
             return null;
         }
 
         public static UseCard GetCardUsage(string class_name)
         {
+            if (ai_card_event.ContainsKey(class_name))
+                return ai_card_event[class_name];
+
             return null;
         }
 
