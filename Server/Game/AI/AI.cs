@@ -15,6 +15,8 @@ namespace SanguoshaServer.AI
 
         protected Player self;
         protected Room room;
+        protected Dictionary<string, SkillEvent> skill_events = new Dictionary<string, SkillEvent>();
+        protected Dictionary<string, UseCard> card_events = new Dictionary<string, UseCard>();
         protected string process;
         protected bool show_immediately;
         protected bool skill_invoke_postpond;
@@ -563,11 +565,8 @@ namespace SanguoshaServer.AI
 
         public bool CanResist(Player player, int damage)
         {
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null && e.CanResist(this, damage)) return true;
-            }
+            foreach (SkillEvent e in skill_events.Values)
+                if (e.CanResist(this, damage)) return true;
 
             if (HasArmorEffect(player, "BreastPlate") && damage >= player.Hp) return true;
 
@@ -1336,11 +1335,8 @@ namespace SanguoshaServer.AI
         {
             Player to = damage.To;
             Player from = damage.From;
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null) e.DamageEffect(this, ref damage);
-            }
+            foreach (SkillEvent e in skill_events.Values)
+                e.DamageEffect(this, ref damage);
 
             if (damage.Card != null)
             {
@@ -1520,7 +1516,7 @@ namespace SanguoshaServer.AI
             if (GetOverflow(player) < handcard_count)
                 basic -= (handcard_count - GetOverflow(player)) / handcard_count * handcard_ajust;
 
-            foreach (SkillEvent e in Engine.GetSkillEvents())
+            foreach (SkillEvent e in skill_events.Values)
                 basic += e.CardValue(this, player, card, true, place);
 
             return basic;
@@ -2529,11 +2525,8 @@ namespace SanguoshaServer.AI
 
         public bool IsCancelTarget(WrappedCard card, Player to, Player from)
         {
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null && e.IsCancelTarget(this, card, from, to)) return true;
-            }
+            foreach (SkillEvent e in skill_events.Values)
+                if (e.IsCancelTarget(this, card, from, to)) return true;
 
             if (HasArmorEffect(to, "IronArmor") && (card.Name == "FireSlash" || card.Name == "FireAttack" || card.Name == "BurningCamps"))
                 return true;
@@ -2543,11 +2536,8 @@ namespace SanguoshaServer.AI
 
         public bool IsCardEffect(WrappedCard card, Player to, Player from)
         {
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null && !e.IsCardEffect(this, card, from, to)) return false;
-            }
+            foreach (SkillEvent e in skill_events.Values)
+                if (!e.IsCardEffect(this, card, from, to)) return false;
 
             UseCard ev = Engine.GetCardUsage(card.Name);
             if (ev != null && !ev.IsCardEffect(this, card, from, to)) return false;
@@ -2592,10 +2582,9 @@ namespace SanguoshaServer.AI
                     if (CanResist(to, damage.Damage)) result_score.Score = 4;
                     if (IsFriend(to)) value = -value;
 
-                    foreach (string skill in room.Skills)
+                    foreach (SkillEvent e in skill_events.Values)
                     {
-                        SkillEvent e = Engine.GetSkillEvent(skill);
-                        if (e != null && e.Name != damage.Reason)
+                        if (e.Name != damage.Reason)
                             value += e.GetDamageScore(this, damage).Score;
                     }
 
@@ -2788,9 +2777,9 @@ namespace SanguoshaServer.AI
                     return true;
             }
 
-            foreach (SkillEvent e in Engine.GetSkillEvents())
+            foreach (SkillEvent e in skill_events.Values)
                 if (e.RetrialCardMatch(this, retrialer, judge_who, reason, id))
-                return true;
+                    return true;
 
             return false;
         }
@@ -3300,7 +3289,7 @@ namespace SanguoshaServer.AI
         public virtual WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive) => null;
         public virtual int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids) => -1;
         public virtual List<int> AskForCardsChosen(List<Player> targets, string flags, string reason, int min, int max, List<int> disabled_ids) => new List<int>();
-        public virtual WrappedCard AskForCard(string pattern, string prompt, object data)
+        public virtual WrappedCard AskForCard(string reason, string pattern, string prompt, object data)
         {
             if (!pattern.Contains("slash") && !pattern.Contains("jink") && !pattern.Contains("peach") && !pattern.Contains("analeptic"))
                 return null;
@@ -3372,8 +3361,14 @@ namespace SanguoshaServer.AI
         }
         public virtual WrappedCard AskForSinglePeach(Player dying)
         {
-            if (RoomLogic.IsFriendWith(room, self, dying))
-                return AskForCard(room.GetRoomState().GetCurrentCardUsePattern(self), null, null);
+            if (self == dying)
+            {
+                WrappedCard ana = AskForCard(null, "analeptic", null, null);
+                if (ana != null)
+                    return ana;
+                else
+                    return AskForCard(null, "peach", null, null);
+            }
 
             return null;
         }

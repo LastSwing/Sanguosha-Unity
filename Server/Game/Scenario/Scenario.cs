@@ -681,7 +681,7 @@ namespace SanguoshaServer.Scenario
                             break;
                         if (effect.Jink_num == 1)
                         {
-                            CardResponseStruct resp = room.AskForCard(effect.To, "jink", "slash-jink:" + slasher, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                            CardResponseStruct resp = room.AskForCard(effect.To, "Slash", "jink", "slash-jink:" + slasher, data, HandlingMethod.MethodUse, null, effect.From, false, false);
                             room.SlashResult(effect, room.IsJinkEffected(effect.To, resp) ? resp.Card : null);
                         }
                         else
@@ -690,7 +690,7 @@ namespace SanguoshaServer.Scenario
                             for (int i = effect.Jink_num; i > 0; i--)
                             {
                                 string prompt = string.Format("@multi-jink{0}:{1}::{2}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i);
-                                CardResponseStruct resp = room.AskForCard(effect.To, "jink", prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                                CardResponseStruct resp = room.AskForCard(effect.To, "Slash", "jink", prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
                                 if (!room.IsJinkEffected(effect.To, resp))
                                 {
                                     //delete jink;

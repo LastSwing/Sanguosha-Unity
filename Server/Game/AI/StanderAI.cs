@@ -175,4 +175,39 @@ namespace SanguoshaServer.AI
             use = ai.FindSlashandTarget(player);
         }
     }
+
+    public class FireSlashAI : UseCard
+    {
+        public FireSlashAI() : base("FireSlash")
+        {
+        }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage)
+        {
+            if (damage.From != null && damage.From.Alive)
+                damage.Damage += damage.From.GetMark("drank");
+        }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            use = ai.FindSlashandTarget(player);
+        }
+    }
+    public class ThunderSlashAI : UseCard
+    {
+        public ThunderSlashAI() : base("ThunderSlash")
+        {
+        }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage)
+        {
+            if (damage.From != null && damage.From.Alive)
+                damage.Damage += damage.From.GetMark("drank");
+        }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            use = ai.FindSlashandTarget(player);
+        }
+    }
 }

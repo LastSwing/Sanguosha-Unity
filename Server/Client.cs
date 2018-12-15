@@ -1189,6 +1189,7 @@ namespace SanguoshaServer
                             {
                                 WrappedCard transfer = new WrappedCard("TransferCard")
                                 {
+                                    Skill = "transfer",
                                     Mute = true
                                 };
                                 transfer.AddSubCard(card.Id);
@@ -1736,7 +1737,7 @@ namespace SanguoshaServer
                 }
                 else if (type == CommandType.S_COMMAND_SKILL_YIJI && viewas_card != null)
                 {
-                    packet.Add(JsonUntity.Object2Json(JsonUntity.IntList2StringList(viewas_card.SubCards)));
+                    packet.Add(JsonUntity.Object2Json(viewas_card.SubCards));
                     packet.Add(selected_targets[0].Name);
                 }
                 else if (type == CommandType.S_COMMAND_CHOOSE_EXTRA_TARGET && selected_targets.Count > 0)
@@ -2377,7 +2378,8 @@ namespace SanguoshaServer
                             WrappedCard slash = new WrappedCard("Slash");
                             slash.AddSubCard(card);
                             slash = RoomLogic.ParseUseCard(room, slash);
-                            if (Engine.GetFunctionCard("Slash").IsAvailable(room, player, slash))
+                            if (Engine.MatchExpPattern(room, room.GetRoomState().GetCurrentCardUsePattern(player), player, slash)
+                                && Engine.GetFunctionCard("Slash").IsAvailable(room, player, slash))
                                 viewas_card = slash;
                             else
                             {

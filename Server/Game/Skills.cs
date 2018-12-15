@@ -396,7 +396,7 @@ namespace SanguoshaServer.Game
         public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;
-            return target.HasArmor(Name);
+            return RoomLogic.HasArmorEffect(room, target, Name);
         }
         public virtual TriggerStruct Cost(Room room, ref object data, TriggerStruct info)
         {
@@ -850,9 +850,12 @@ namespace SanguoshaServer.Game
 
     public class YijiCard : SkillCard
     {
-
         public YijiCard() : base("YijiCard")
         {
+        }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && card.UserString.Split('+').Contains(to_select.Name);
         }
         public override void Use(Room room, CardUseStruct card_use)
         {

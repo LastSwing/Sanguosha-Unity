@@ -719,7 +719,7 @@ namespace SanguoshaServer.Game
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "savage_assault");
-            WrappedCard slash = room.AskForCard(effect.To, "Slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard slash = room.AskForCard(effect.To, Name, "Slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (slash != null)
             {
@@ -750,7 +750,7 @@ namespace SanguoshaServer.Game
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "archery_attack");
-            WrappedCard jink = room.AskForCard(effect.To, "Jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard jink = room.AskForCard(effect.To, Name, "Jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (jink != null && jink.Skill != "EightDiagram")
                 room.SetEmotion(effect.To, "jink");
@@ -952,7 +952,7 @@ namespace SanguoshaServer.Game
                 int count = counts[first];
                 while (count > 0)
                 {
-                    WrappedCard slash = room.AskForCard(first, "Slash", string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
+                    WrappedCard slash = room.AskForCard(first, Name, "slash", string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
                     count--;
                     if (slash == null)
                     {
@@ -1429,7 +1429,7 @@ namespace SanguoshaServer.Game
             string prompt = string.Format("@fire-attack:{0}::{1}", effect.To.Name, suit_str);
             if (effect.From.Alive)
             {
-                WrappedCard card_to_throw = room.AskForCard(effect.From, pattern, prompt, effect);
+                WrappedCard card_to_throw = room.AskForCard(effect.From, Name, pattern, prompt, effect);
                 if (card_to_throw != null)
                 {
                     room.Damage(new DamageStruct(effect.Card, effect.From, effect.To, 1, DamageStruct.DamageNature.Fire));
@@ -1836,7 +1836,7 @@ namespace SanguoshaServer.Game
 
             WrappedCard card = null;
             if (player.GetCardCount(true) >= 3) // Need 2 more cards except from the weapon itself
-                card = room.AskForCard(player, "@@Axe", "@Axe:" + effect.To.Name, data, Name);
+                card = room.AskForCard(player, Name, "@@Axe", "@Axe:" + effect.To.Name, data, Name);
             if (card != null)
             {
                 room.SetEmotion(player, "axe");
@@ -1956,11 +1956,13 @@ namespace SanguoshaServer.Game
             {
                 Pattern = ".|red",
                 Good = true,
+                PlayAnimation = true,
                 Reason = Name,
                 Who = player
             };
 
             room.Judge(ref judge);
+            Thread.Sleep(500);
             if (armor_id != -1)
                 room.SetCardFlag(armor_id, "-using");
 

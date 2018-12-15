@@ -13,6 +13,20 @@ namespace SanguoshaServer.AI
         private List<string> kingdoms = new List<string> { "wei", "shu", "wu", "qun" };
         public SmartAI(Room room, Player player) : base(room, player)
         {
+            foreach (string skill in room.Skills)
+            {
+                SkillEvent e = Engine.GetSkillEvent(skill);
+                if (e != null)
+                    skill_events[skill] = e;
+            }
+
+            foreach (int id in room.DrawPile)
+            {
+                WrappedCard card = room.GetCard(id);
+                SkillEvent e = Engine.GetSkillEvent(card.Name);
+                if (e != null)
+                    skill_events[card.Name] = e;
+            }
         }
         public override void Event(TriggerEvent triggerEvent, Player player, object data)
         {
@@ -197,7 +211,7 @@ namespace SanguoshaServer.AI
 
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
-                foreach (SkillEvent e in Engine.GetSkillEvents())
+                foreach (SkillEvent e in skill_events.Values)
                     foreach (string key in e.Key)
                         if (str.Contains(key))
                             e.OnEvent(this, triggerEvent, player, data);
@@ -1103,6 +1117,14 @@ namespace SanguoshaServer.AI
             }
 
             to_use.Clear();
+        }
+
+        public override WrappedCard AskForSinglePeach(Player dying)
+        {
+            if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
+                return AskForCard(null, room.GetRoomState().GetCurrentCardUsePattern(self), null, null);
+
+            return base.AskForSinglePeach(dying);
         }
     }
 }

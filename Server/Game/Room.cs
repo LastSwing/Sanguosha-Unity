@@ -4869,21 +4869,21 @@ namespace SanguoshaServer.Game
             }
         }
 
-        public WrappedCard AskForCard(Player player, string pattern, string prompt, object data, string skill_name)
+        public WrappedCard AskForCard(Player player, string reason, string pattern, string prompt, object data, string skill_name)
         {
-            return AskForCard(player, pattern, prompt, data, HandlingMethod.MethodDiscard, null, false, skill_name, false);
+            return AskForCard(player, reason, pattern, prompt, data, HandlingMethod.MethodDiscard, null, false, skill_name, false);
         }
 
-        public WrappedCard AskForCard(Player player, string pattern, string prompt,
+        public WrappedCard AskForCard(Player player, string reason, string pattern, string prompt,
             object data = null, HandlingMethod method = HandlingMethod.MethodDiscard, Player to = null, bool isRetrial = false,
             string _skill_name = null, bool isProvision = false)
         {
-            return AskForCard(player, pattern, prompt, data, method, _skill_name, to, isRetrial, isProvision).Card;
+            return AskForCard(player, reason, pattern, prompt, data, method, _skill_name, to, isRetrial, isProvision).Card;
         }
 
         private WrappedCard provided = null;
         private bool has_provided;
-        public CardResponseStruct AskForCard(Player player, string _pattern, string prompt, object data, HandlingMethod method,
+        public CardResponseStruct AskForCard(Player player, string reason, string _pattern, string prompt, object data, HandlingMethod method,
             string _skill_name, Player to, bool isRetrial, bool isProvision)
         {
             CardResponseStruct resp = new CardResponseStruct();
@@ -4892,16 +4892,16 @@ namespace SanguoshaServer.Game
 
 
             WrappedCard card = null;
-            CardUseStruct.CardUseReason reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE;
+            CardUseStruct.CardUseReason use_reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE;
             if (method == HandlingMethod.MethodResponse || pattern.StartsWith("@@"))
-                reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE;
+                use_reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE;
             else if (method == HandlingMethod.MethodUse)
-                reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE;
-            _m_roomState.SetCurrentCardUseReason(reason);
+                use_reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE;
+            _m_roomState.SetCurrentCardUseReason(use_reason);
             _m_roomState.SetCurrentCardUsePattern(pattern);
             _m_roomState.SetCurrentCardResponsePrompt(prompt);
 
-            List<string> asked = new List<string> { pattern, prompt };
+            List<string> asked = new List<string> { pattern, prompt, reason };
             object asked_data = asked;
             if ((method == HandlingMethod.MethodUse || method == HandlingMethod.MethodResponse) && !isRetrial)
                 room_thread.Trigger(TriggerEvent.CardAsked, this, player, ref asked_data);
@@ -4925,7 +4925,7 @@ namespace SanguoshaServer.Game
                     Thread.Sleep(300);
 
                     _m_roomState.SetCurrentResponseID(response_id);
-                    _m_roomState.SetCurrentCardUseReason(reason);
+                    _m_roomState.SetCurrentCardUseReason(use_reason);
                     _m_roomState.SetCurrentCardUsePattern(pattern);
                     _m_roomState.SetCurrentCardResponsePrompt(prompt);
                     if (!_pattern.StartsWith("@") && _pattern.Contains(":"))
@@ -4939,7 +4939,7 @@ namespace SanguoshaServer.Game
                     TrustedAI ai = GetAI(player);
                     if (ai != null)
                     {
-                        card = ai.AskForCard(pattern, prompt, data);
+                        card = ai.AskForCard(reason, pattern, prompt, data);
                         if (card != null && card.Name == "DummyCard" && card.SubCards.Count == 1)
                             card = GetCard(card.GetEffectiveId());
                         if (card != null && RoomLogic.IsCardLimited(this, player, card, method)) card = null;
@@ -5834,7 +5834,7 @@ namespace SanguoshaServer.Game
 
             NotifyMoveFocus(player, CommandType.S_COMMAND_PLAY_CARD);
 
-            _m_roomState.SetCurrentCardUsePattern(null);
+            _m_roomState.SetCurrentCardUsePattern(".");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY);
 
             TrustedAI ai = GetAI(player);
@@ -7563,7 +7563,7 @@ namespace SanguoshaServer.Game
         {
             if (max_num == -1)
                 max_num = cards.Count;
-            if (players == null) players = new List<Player>();
+            players = players ?? new List<Player>();
             if (players.Count == 0)
                 players = GetOtherPlayers(guojia);
             if (cards.Count == 0 || max_num == 0)
@@ -7666,9 +7666,7 @@ namespace SanguoshaServer.Game
             }
 
             guojia.SetFlags("Global_GongxinOperator");
-            //foreach (int id, dummy_card.getSubcards())
-            foreach (int id in to_move)
-                MoveCardTo(GetCard(id), target, Place.PlaceHand, reason, visible);
+            MoveCardsAtomic(new CardsMoveStruct(to_move, target, Place.PlaceHand, reason), visible);
 
             guojia.SetFlags("-Global_GongxinOperator");
 

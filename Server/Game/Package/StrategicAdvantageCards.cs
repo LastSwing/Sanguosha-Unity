@@ -1057,7 +1057,7 @@ namespace SanguoshaServer.Game
     }
     public class ThreatenEmperorSkill : TriggerSkill
     {
-        public ThreatenEmperorSkill() : base("threaten_emperor")
+        public ThreatenEmperorSkill() : base("ThreatenEmperor")
         {
             events.Add(TriggerEvent.EventPhaseChanging);
             global = true;
@@ -1078,7 +1078,7 @@ namespace SanguoshaServer.Game
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             ask_who.RemoveMark("ThreatenEmperorExtraTurn");
-            if (room.AskForCard(ask_who, "..", "@threaten_emperor", data, Name) != null)
+            if (room.AskForCard(ask_who, Name, "..", "@threaten_emperor", data, Name) != null)
                 return info;
             return new TriggerStruct();
         }
@@ -1137,7 +1137,7 @@ namespace SanguoshaServer.Game
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            if (room.AskForCard(effect.To, "EquipCard", "@imperial_order-equip") != null)
+            if (room.AskForCard(effect.To, Name, "EquipCard", "@imperial_order-equip") != null)
                 return;
             List<string> choices = new List<string>();
             if (!effect.To.HasShownAllGenerals()

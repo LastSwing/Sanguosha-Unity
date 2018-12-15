@@ -1225,7 +1225,7 @@ namespace SanguoshaServer.Game
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player skill_target, ref object data, Player ask_who, TriggerStruct info)
         {
             room.SendCompulsoryTriggerLog(ask_who, Name, true);
-            if (room.AskForCard(skill_target, ".|.|.|equipped!", "@fengshi-discard:" + ask_who.Name) == null)
+            if (room.AskForCard(skill_target, Name, ".|.|.|equipped!", "@fengshi-discard:" + ask_who.Name) == null)
             {
                 List<int> equips_candiscard = new List<int>();
                 foreach (int e in skill_target.GetEquips())
