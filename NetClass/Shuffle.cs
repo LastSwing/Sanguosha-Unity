@@ -7,6 +7,7 @@ namespace CommonClass
     {
         public static void shuffle<T>(ref List<T> list)
         {
+            if (list.Count == 0) return;
             Random rand = new Random(Guid.NewGuid().GetHashCode());
             List<T> newList = new List<T>();//儲存結果的集合
             foreach (T item in list)

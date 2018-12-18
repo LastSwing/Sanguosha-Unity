@@ -10,7 +10,7 @@ namespace SanguoshaServer.AI
 
     public class SmartAI : TrustedAI
     {
-        private List<string> kingdoms = new List<string> { "wei", "shu", "wu", "qun" };
+        private readonly List<string> kingdoms = new List<string> { "wei", "shu", "wu", "qun" };
         public SmartAI(Room room, Player player) : base(room, player)
         {
             foreach (string skill in room.Skills)
@@ -211,21 +211,18 @@ namespace SanguoshaServer.AI
 
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
+                List<string> choices = new List<string>(str.Split(':'));
                 foreach (SkillEvent e in skill_events.Values)
-                    foreach (string key in e.Key)
-                        if (str.Contains(key))
+                        if (e.Key.Contains(choices[0]))
                             e.OnEvent(this, triggerEvent, player, data);
 
                 foreach (UseCard e in Engine.GetCardUsages())
-                    foreach (string key in e.Key)
-                        if (str.Contains(key))
-                            e.OnEvent(this, triggerEvent, player, data);
+                    if (e.Key.Contains(choices[0]))
+                        e.OnEvent(this, triggerEvent, player, data);
 
-                List<string> choices = new List<string>(str.Split(':'));
                 if (choices[0] == "viewCards")
                 {
                     List<int> ids = new List<int>(player.HandCards);
-
                     if (choices[choices.Count - 1] == "all")
                     {
                         public_handcards[player] = ids;
@@ -380,7 +377,7 @@ namespace SanguoshaServer.AI
             friends.Clear();
             enemies.Clear();
             priority_enemies.Clear();
-            friends_noself.Clear();
+            FriendNoSelf.Clear();
 
             CountPlayers();
             UpdateGameProcess();
@@ -416,7 +413,7 @@ namespace SanguoshaServer.AI
             List<Player> players = enemies[self];
             CompareByLevel(ref players);
 
-            friends_noself = friends[self];
+            FriendNoSelf = friends[self];
             friends[self].RemoveAll(t => t == self);
 
             string most = process_public.Split('>')[0];
@@ -1122,7 +1119,18 @@ namespace SanguoshaServer.AI
         public override WrappedCard AskForSinglePeach(Player dying)
         {
             if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
-                return AskForCard(null, room.GetRoomState().GetCurrentCardUsePattern(self), null, null);
+            {
+                if (self == dying)
+                {
+                    List<WrappedCard> peaches = GetCards("Peach", self);
+                    FunctionCard f_peach = Engine.GetFunctionCard("Peach");
+                    foreach (WrappedCard card in peaches)
+                    {
+                        if (f_peach.IsAvailable(room, self, card))
+                            return card;
+                    }
+                }
+            }
 
             return base.AskForSinglePeach(dying);
         }

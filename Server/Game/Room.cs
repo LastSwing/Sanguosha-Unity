@@ -3161,7 +3161,7 @@ namespace SanguoshaServer.Game
             if (_m_AIraceWinner != null)
             {
                 time = 0;
-                if (Setting.ControlTime == 0)
+                if (Setting.NullTime == 0)
                 {
                     time = 5000 - 800;
                 }
@@ -3180,7 +3180,7 @@ namespace SanguoshaServer.Game
         public Player GetRaceResult(List<Client> players, CommandType command, float timeOut)
         {
 
-            if (timeOut != 0 || Setting.ControlTime != 0)
+            if (timeOut != 0 || Setting.NullTime != 0)
             {
                 StartWaitingReply(timeOut);
             }
@@ -4962,7 +4962,7 @@ namespace SanguoshaServer.Game
 
                 if (card == null)
                 {
-                    object decisionData = string.Format("cardResponded:{0}:{1}:_nil_", pattern, prompt);
+                    object decisionData = string.Format("cardResponded:{0}:{1}:{2}:_nil_", reason, pattern, prompt);
                     room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
                     return resp;
                 }
@@ -4990,7 +4990,7 @@ namespace SanguoshaServer.Game
                     isHandcard = false;
                 }
 
-                object decisionData = string.Format("cardResponded:{0}:{1}:_{2}_", pattern, prompt , RoomLogic.CardToString(this, card));
+                object decisionData = string.Format("cardResponded:{0}:{1}:{2}:_{3}_", reason, pattern, prompt , RoomLogic.CardToString(this, card));
                 room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
 
                 List<int> move_result = new List<int>();
@@ -5817,11 +5817,7 @@ namespace SanguoshaServer.Game
             //tryPause();
             Thread.Sleep(300);
 
-            card_use = new CardUseStruct()
-            {
-                IsOwnerUse = true,
-                AddHistory = true
-            };
+            card_use = new CardUseStruct(null, player, new List<Player>(), true);
             if (player.HasFlag("Global_PlayPhaseTerminated"))
             {
                 player.SetFlags("-Global_PlayPhaseTerminated");
@@ -5843,7 +5839,6 @@ namespace SanguoshaServer.Game
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 float remainTime = 600;
-                card_use.From = player;
                 ai.Activate(ref card_use);
                 sw.Stop();
                 remainTime -= sw.ElapsedMilliseconds;
@@ -6471,7 +6466,9 @@ namespace SanguoshaServer.Game
             Dictionary<Player, WrappedCard> ai_cards = new Dictionary<Player, WrappedCard>();
             foreach (Player player in validAiPlayers) {
                 TrustedAI ai = GetAI(player);
-                ai_cards[player] = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
+                WrappedCard nulli = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
+                if (nulli != null)
+                    ai_cards[player] = nulli;
             }
             _m_AIraceWinner = null;
             List<Player> ais = new List<Player>(ai_cards.Keys);
@@ -8537,10 +8534,13 @@ namespace SanguoshaServer.Game
             return card_id; // Do remember to remove the tag later!
         }
 
-        public void NewRound()
+        public void BeforeTurnStart(bool new_round)
         {
-            round_count++;
-            DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { round_count.ToString() });
+            if (new_round)
+            {
+                round_count++;
+                DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { round_count.ToString() });
+            }
 
             //进入鏖战模式判断
             if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)

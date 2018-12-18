@@ -1178,11 +1178,13 @@ namespace SanguoshaServer.Game
                         To = to
                     };
                     object _data = trickEffect;
-                    List<string> des = new List<string> { string.Format("HegNullification:::{0}", trick.Name), "single:" + to.Name, string.Format("all:{0}::{1}", to.Name, to.Kingdom) };
+                    List<string> des = new List<string> { string.Format("@HegNullification:::{0}",
+                        trick.Name), "@HegNullification-single:" + to.Name,
+                        string.Format("@HegNullification-all:{0}::{1}", to.Name, to.Kingdom) };
                     string heg_nullification_selection = room.AskForChoice(player, "HegNullification", "single+all", des, _data);
 
                     if (heg_nullification_selection.Contains("all"))
-                        room.SetTag("nullificatonType", true);
+                        room.SetTag("NullificatonType", true);
                     else
                         tos.Clear();
                 }
@@ -2654,7 +2656,7 @@ namespace SanguoshaServer.Game
                     if (!string.IsNullOrEmpty(target.General2) && !target.General2Showed)
                         choices.Add("deputy_general");
                     
-                    string choice = room.AskForChoice(player, Name, string.Join("+", choices), null, target);
+                    string choice = room.AskForChoice(player, "pioneer", string.Join("+", choices), null, target);
                     string general = choice == "head_general" ? target.ActualGeneral1 : target.ActualGeneral2;
                     LogMessage log = new LogMessage
                     {
@@ -2665,7 +2667,7 @@ namespace SanguoshaServer.Game
                         Arg2 = general
                     };
                     room.SendLog(log, player);
-                    room.ViewGenerals(player, new List<string> { general }, Name);
+                    room.ViewGenerals(player, new List<string> { general }, "pioneer");
                 }
             }
         }

@@ -267,7 +267,7 @@ namespace SanguoshaServer.Game
                     if (!nullified_list.Contains(targets[i].Name) && !all_nullified)
                         players.Add(targets[i]);
                 }
-                //room.SetTag("targets" + room.CardToString(card), players);
+                room.SetTag("targets" + RoomLogic.CardToString(room, card), players);
                 effect.StackPlayers = players;
 
                 room.CardEffect(effect);

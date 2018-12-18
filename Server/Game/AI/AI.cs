@@ -12,6 +12,8 @@ namespace SanguoshaServer.AI
     {
         public Dictionary<Player, List<string>> PlayerKnown { set; get; } = new Dictionary<Player, List<string>>();
         public Room Room => room;
+        public List<Player> FriendNoSelf = new List<Player>();
+        public Player Self => self;
 
         protected Player self;
         protected Room room;
@@ -24,7 +26,7 @@ namespace SanguoshaServer.AI
 
         protected Dictionary<Player, List<Player>> friends = new Dictionary<Player, List<Player>>();
         protected Dictionary<Player, List<Player>> enemies = new Dictionary<Player, List<Player>>();
-        protected List<Player> friends_noself = new List<Player>();
+
         protected List<Player> priority_enemies = new List<Player>();
 
         protected Dictionary<Player, string> id_tendency = new Dictionary<Player, string>();
@@ -54,6 +56,28 @@ namespace SanguoshaServer.AI
         protected Dictionary<Player, string> pre_disable = new Dictionary<Player, string>();
         protected Dictionary<Player, List<string>> card_lack = new Dictionary<Player, List<string>>();
         protected WrappedCard pre_drink;
+
+        public static readonly string MasochismSkill = Engine.GetSkills("masochism_skill");
+        public static readonly string LoseEquipSkill = Engine.GetSkills("lose_equip_skill");
+        public static readonly string MasochismGood = Engine.GetSkills("masochism_good");
+        public static readonly string NeedKongchengSkill = Engine.GetSkills("need_kongcheng");
+        public static readonly string DefenseSkill = Engine.GetSkills("defense_skill");
+        public static readonly string UsefullSkill = Engine.GetSkills("usefull_skill");
+        public static readonly string DrawcardSkill = Engine.GetSkills("drawcard_skill");
+        public static readonly string AttackSkill = Engine.GetSkills("attack_skill");
+        public static readonly string WizardHarmSkill = Engine.GetSkills("wizard_harm_skill");
+        public static readonly string PrioritySkill = Engine.GetSkills("priority_skill");
+        public static readonly string SaveSkill = Engine.GetSkills("save_skill");
+        public static readonly string ExclusiveSkill = Engine.GetSkills("exclusive_skill");
+        public static readonly string ActiveCardneedSkill = Engine.GetSkills("Active_cardneed_skill");
+        public static readonly string CardneedSkill = Engine.GetSkills("cardneed_skill");
+        public static readonly string NotActiveCardneedSkill = Engine.GetSkills("notActive_cardneed_skill");
+        public static readonly string DrawpeachAkill = Engine.GetSkills("drawpeach_skill");
+        public static readonly string RecoverSkill = Engine.GetSkills("recover_skill");
+        public static readonly string UseLionSkill = Engine.GetSkills("use_lion_skill");
+        public static readonly string NeedEquipSkill = Engine.GetSkills("need_equip_skill");
+        public static readonly string JudgeReason = Engine.GetSkills("judge_reason");
+        public static readonly string WizzardSkill = Engine.GetSkills("wizzard_skill");
 
         //others
         CardUseStruct ai_AOE_data;
@@ -215,22 +239,12 @@ namespace SanguoshaServer.AI
         }
         public List<Player> GetEnemies(Player player)
         {
-            List<Player> players = room.GetOtherPlayers(self);
-            List<Player> enemies = new List<Player>();
-            foreach (Player p in players)
-                if (IsEnemy(p, player)) enemies.Add(p);
-
-            return enemies;
+            return enemies[player];
         }
 
         public List<Player> GetFriends(Player player)
         {
-            List<Player> players = room.GetOtherPlayers(self);
-            List<Player> friends = new List<Player>();
-            foreach (Player p in players)
-                if (IsFriend(p, player)) friends.Add(p);
-
-            return friends;
+            return friends[player];
         }
         public List<string> GetPossibleId(Player who)
         {
@@ -319,8 +333,8 @@ namespace SanguoshaServer.AI
             else
             {
                 foreach (int id in private_handcards[who])
-            if (!ids.Contains(id))
-                    ids .Add(id);
+                    if (!ids.Contains(id))
+                        ids.Add(id);
 
                 ids.AddRange(who.GetHandPile(false));
                 ids.AddRange(wooden_cards[who]);
@@ -415,8 +429,9 @@ namespace SanguoshaServer.AI
             return result;
         }
 
-        public int GetKnownCardsNums(string pattern, string flags, Player player, Player from)
+        public int GetKnownCardsNums(string pattern, string flags, Player player, Player from = null)
         {
+            from = from ?? self;
             int hand = 0;
             int eq = 0;
             if (flags.Contains("e"))
@@ -439,6 +454,9 @@ namespace SanguoshaServer.AI
                         if (IsCard(id, pattern, player, self))
                             hands.Add(id);
 
+                    foreach (int id in GetKnownHandPileCards(player))
+                        if (IsCard(id, pattern, player, self))
+                            hands.Add(id);
                 }
                 else
                 {
@@ -451,8 +469,9 @@ namespace SanguoshaServer.AI
             return hand + eq;
         }
 
-        public bool IsCard(int id, string pattern, Player player, Player from)
+        public bool IsCard(int id, string pattern, Player player, Player from = null)
         {
+            from = from ?? self;
             List <WrappedCard> result = new List<WrappedCard>();
             WrappedCard card = room.GetCard(id);
             if (card.Name == "Peach" && room.BloodBattle)
@@ -1669,7 +1688,7 @@ namespace SanguoshaServer.AI
                 {
                     double card_value = card_values[card];
                     card_value -= CaculateSameClass(card.Name, class_names);
-                    if (card_value > best_value)
+                    if (card_value >= best_value)
                     {
                         best = card;
                         best_value = card_value;
@@ -1756,8 +1775,8 @@ namespace SanguoshaServer.AI
                     return false;
 
             if (n > 1)
-                if ((player.Phase < PlayerPhase.Discard && (HasSkill(Engine.GetSkills("Active_cardneed"), player) || HasCrossbowEffect(player)))
-                    || (player.Phase == PlayerPhase.NotActive && HasSkill(Engine.GetSkills("notActive_cardneed"), player)))
+                if ((player.Phase < PlayerPhase.Discard && (HasSkill(ActiveCardneedSkill, player) || HasCrossbowEffect(player)))
+                    || (player.Phase == PlayerPhase.NotActive && HasSkill(NotActiveCardneedSkill, player)))
                     return false;
 
             if (HasSkill("jushou", player) && player.Phase <= PlayerPhase.Finish) return false;
@@ -1792,7 +1811,7 @@ namespace SanguoshaServer.AI
             if (peach_num > self.GetLostHp())
             {
                 bool weak = false;
-                foreach (Player p in friends_noself)
+                foreach (Player p in FriendNoSelf)
                     if (IsWeak(p)) weak = true;
                 if (!weak) return false;
             }
@@ -2996,7 +3015,7 @@ namespace SanguoshaServer.AI
         {
             return card_lack[who].Contains(flag);
         }
-        private List<string> kingdoms = new List<string> {"wei", "shu", "wu", "qun" };
+        private readonly List<string> kingdoms = new List<string> {"wei", "shu", "wu", "qun" };
         public virtual void Event(TriggerEvent triggerEvent, Player player, object data)
         {
         }
@@ -3130,7 +3149,7 @@ namespace SanguoshaServer.AI
             double v = 0;
             if (fcard is EquipCard)
             {
-                if (HasSkill(Engine.GetSkills("lose_equip_skill")))
+                if (HasSkill(LoseEquipSkill))
                     return 15;
                 else if (fcard is Armor && !self.GetArmor())
                     v = Engine.GetCardPriority(card.Name) + 5.2;
@@ -3248,6 +3267,22 @@ namespace SanguoshaServer.AI
             double value = GetUsePriority(card);
             return value;
         }
+
+        public virtual bool HasLoseHandcardEffective(Player player = null)
+        {
+            player = player ?? self;
+            if (HasSkill("lianying", player)) return true;
+            if (player.Phase == PlayerPhase.NotActive)
+            {
+                foreach (Player p in GetFriends(player))
+                {
+                    if (HasSkill("shoucheng", p) && RoomLogic.IsFriendWith(room, p, player))
+                        return true;
+                }
+            }
+
+            return false;
+        }
         public virtual void Activate(ref CardUseStruct card_use)
         {
         }
@@ -3314,7 +3349,7 @@ namespace SanguoshaServer.AI
                 WrappedCard slash = new WrappedCard("Slash");
                 slash.AddSubCard(result);
                 slash = RoomLogic.ParseUseCard(room, slash);
-                if (Engine.GetFunctionCard("Slash").IsAvailable(room, self, slash))
+                if (Engine.MatchExpPattern(room, pattern, self, slash))
                     return slash;
                 else
                 {
@@ -3363,11 +3398,24 @@ namespace SanguoshaServer.AI
         {
             if (self == dying)
             {
-                WrappedCard ana = AskForCard(null, "analeptic", null, null);
-                if (ana != null)
-                    return ana;
-                else
-                    return AskForCard(null, "peach", null, null);
+                List<WrappedCard> cards = RoomLogic.GetPlayerHandcards(room, self);
+                List<int> piles = self.GetHandPile();
+                foreach (int id in piles)
+                    cards.Add(room.GetCard(id));
+
+                FunctionCard f_ana = Engine.GetFunctionCard("Analeptic");
+                FunctionCard f_peach = Engine.GetFunctionCard("Peach");
+                foreach (WrappedCard card in cards)
+                {
+                    if (card.Name == "Analeptic" && f_ana.IsAvailable(room, self, card))
+                        return card;
+                }
+
+                foreach (WrappedCard card in cards)
+                {
+                    if (card.Name == "Peach" && f_peach.IsAvailable(room, self, card))
+                        return card;
+                }
             }
 
             return null;

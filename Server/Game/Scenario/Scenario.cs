@@ -85,6 +85,7 @@ namespace SanguoshaServer.Scenario
 
             //游戏开始动画
             room.DoBroadcastNotify(CommandType.S_COMMAND_GAME_START, new List<string>());
+            Thread.Sleep(2000);
         }
         protected virtual void OnTurnStart(Room room, Player target, ref object data)
         {

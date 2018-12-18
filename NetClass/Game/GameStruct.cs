@@ -754,20 +754,24 @@ namespace CommonClass.Game
         public float GetCommandTimeout(CommonClassLibrary.CommandType command, ProcessInstanceType instance)
         {
             float timeOut = 0;
-            if (instance == ProcessInstanceType.S_SERVER_INSTANCE)
-                timeOut += 1500;
 
-            if (ControlTime == 0)
-                return 0;
-            else if (command == CommonClassLibrary.CommandType.S_COMMAND_CHOOSE_GENERAL)
-                timeOut += ControlTime * 1500;
-            else if (command == CommonClassLibrary.CommandType.S_COMMAND_SKILL_MOVECARDS
-                || command == CommonClassLibrary.CommandType.S_COMMAND_ARRANGE_GENERAL)
-                timeOut += ControlTime * 2000;
-            else if (command == CommonClassLibrary.CommandType.S_COMMAND_NULLIFICATION)
-                timeOut += NullTime * 1000;
+            if (command == CommonClassLibrary.CommandType.S_COMMAND_NULLIFICATION)
+            {
+                timeOut = NullTime * 1000;
+            }
             else
-                timeOut += ControlTime * 1000;
+            {
+                if (command == CommonClassLibrary.CommandType.S_COMMAND_CHOOSE_GENERAL)
+                    timeOut = ControlTime * 1500;
+                else if (command == CommonClassLibrary.CommandType.S_COMMAND_SKILL_MOVECARDS
+                    || command == CommonClassLibrary.CommandType.S_COMMAND_ARRANGE_GENERAL)
+                    timeOut = ControlTime * 2000;
+                else
+                    timeOut = ControlTime * 1000;
+            }
+
+            if (timeOut > 0 && instance == ProcessInstanceType.S_SERVER_INSTANCE)
+                timeOut += 1500;
 
             return timeOut;
         }

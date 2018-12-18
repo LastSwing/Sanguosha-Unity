@@ -93,8 +93,7 @@ namespace SanguoshaServer.Game
             Player starter = room.Current;
             bool new_round = false;
             while (true) {
-                if (new_round)
-                    room.NewRound();
+                    room.BeforeTurnStart(new_round);
                 new_round = false;
                 Trigger(TriggerEvent.TurnStart, room, room.Current);
                 if (room.Finished) break;

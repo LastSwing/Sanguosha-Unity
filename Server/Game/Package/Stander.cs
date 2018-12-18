@@ -1583,7 +1583,7 @@ namespace SanguoshaServer.Game
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForCard(ask_who, ".Basic", "@xiaoguo", null, Name) != null)
+            if (room.AskForCard(ask_who, Name, ".Basic", "@xiaoguo", null, Name) != null)
             {
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
@@ -1595,7 +1595,7 @@ namespace SanguoshaServer.Game
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
-            if (room.AskForCard(player, ".Equip", "@xiaoguo-discard", null) == null)
+            if (room.AskForCard(player, Name, ".Equip", "@xiaoguo-discard", null) == null)
             {
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
                 room.Damage(new DamageStruct("xiaoguo", ask_who, player));
@@ -3908,8 +3908,8 @@ namespace SanguoshaServer.Game
         }
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            if (card?.Name == "Peach" && room.Current != null && room.Current.Phase != PlayerPhase.NotActive && RoomLogic.PlayerHasShownSkill(room, room.Current, "wansha")
-                && room.Current != from)
+            if (card.Name == "Peach" && room.Current != null && room.Current.Phase != PlayerPhase.NotActive && RoomLogic.PlayerHasShownSkill(room, room.Current, "wansha")
+                && room.Current != from && !from.HasFlag("Global_Dying"))
                 return true;
 
             return false;
@@ -3924,7 +3924,7 @@ namespace SanguoshaServer.Game
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             room.SetPlayerMark(card_use.From, "@chaos", 0);
-            room.BroadcastSkillInvoke("luanwu", card_use.From, card_use.Card.Skill);
+            room.BroadcastSkillInvoke("luanwu", card_use.From, card_use.Card.SkillPosition);
             room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "luanwu");
             card_use.To = room.GetOtherPlayers(card_use.From);
             room.SortByActionOrder(ref card_use);
