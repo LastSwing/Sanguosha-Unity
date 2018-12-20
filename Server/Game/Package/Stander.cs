@@ -1583,8 +1583,11 @@ namespace SanguoshaServer.Game
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForCard(ask_who, Name, ".Basic", "@xiaoguo", null, Name) != null)
+            List<int> ints = new List<int>(room.AskForExchange(ask_who, Name, 1, 0, "@xiaoguo", null, "BasicCard!", info.SkillPosition));
+            if (ints.Count == 1)
             {
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null);
+                room.ThrowCard(ref ints, reason, ask_who, null, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
@@ -2712,7 +2715,7 @@ namespace SanguoshaServer.Game
             };
 
             room.Judge(ref judge);
-
+            Thread.Sleep(400);
             if (judge.IsGood())
             {
                 WrappedCard jink = new WrappedCard("Jink")
@@ -4031,14 +4034,17 @@ namespace SanguoshaServer.Game
             if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                List<Player> targets = new List<Player>();
-                foreach (Player p in targets)
+                if (fcard is Slash)
                 {
-                    if (!p.IsNude() && p.Alive && RoomLogic.CanDiscard(room, player, p, "he"))
-                        targets.Add(p);
+                    List<Player> targets = new List<Player>();
+                    foreach (Player p in use.To)
+                    {
+                        if (!p.IsNude() && p.Alive && RoomLogic.CanDiscard(room, player, p, "he"))
+                            targets.Add(p);
+                    }
+                    if (targets.Count > 0)
+                        return new TriggerStruct(Name, player, targets);
                 }
-                if (targets.Count > 0)
-                    return new TriggerStruct(Name, player, targets);
             }
             return new TriggerStruct();
         }

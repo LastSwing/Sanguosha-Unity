@@ -113,7 +113,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (move.To != null && move.To_place == Player.Place.PlaceHand)
+                if (to != null && move.To_place == Player.Place.PlaceHand)
                 {
                     foreach (int id in move.Card_ids)
                     {
@@ -123,26 +123,32 @@ namespace SanguoshaServer.AI
                                 || move.From_places[index] == Player.Place.PlaceEquip || move.From_places[index] == Player.Place.PlaceDelayedTrick
                                 || move.From_places[index] == Player.Place.DiscardPile || move.From_places[index] == Player.Place.PlaceTable)
                         {
-                            public_handcards[move.To].Add(id);
-                            private_handcards[move.To].Add(id);
+                            public_handcards[to].Add(id);
+                            private_handcards[to].Add(id);
+                            ClearCardLack(to, id);
                         }
                         else if (open)
                         {
-                            private_handcards[move.To].Add(id);
+                            private_handcards[to].Add(id);
+                            ClearCardLack(to, id);
+                        }
+                        else
+                        {
+                            ClearCardLack(to);
                         }
                     }
                 }
 
-                if (move.To != null && move.To_place == Player.Place.PlaceSpecial && move.To_pile_name == "wooden_ox")
+                if (to != null && move.To_place == Player.Place.PlaceSpecial && move.To_pile_name == "wooden_ox")
                 {
                     foreach (int id in move.Card_ids)
                     {
                         if (open)
-                            wooden_cards[move.To].Add(id);
+                            wooden_cards[to].Add(id);
                     }
                 }
 
-                if (move.From != null && move.From_places.Contains(Player.Place.PlaceHand))
+                if (from != null && move.From_places.Contains(Player.Place.PlaceHand))
                 {
                     foreach (int id in move.Card_ids)
                     {
@@ -150,21 +156,21 @@ namespace SanguoshaServer.AI
                                 || move.To_place == Player.Place.PlaceDelayedTrick || move.To_place == Player.Place.DiscardPile
                                 || move.To_place == Player.Place.PlaceTable)
                         {
-                            public_handcards[move.From].RemoveAll(t => t == id);
-                            private_handcards[move.From].RemoveAll(t => t == id);
+                            public_handcards[from].RemoveAll(t => t == id);
+                            private_handcards[from].RemoveAll(t => t == id);
                         }
                         else
                         {
-                            public_handcards[move.From].Clear();
+                            public_handcards[from].Clear();
                             if (open)
-                                private_handcards[move.From].RemoveAll(t => t == id);
+                                private_handcards[from].RemoveAll(t => t == id);
                             else
-                                private_handcards[move.From].Clear();
+                                private_handcards[from].Clear();
                         }
                     }
                 }
 
-                if (move.From != null && move.From_places.Contains(Player.Place.PlaceSpecial) && move.From_pile_names.Contains("wooden_ox"))
+                if (from != null && move.From_places.Contains(Player.Place.PlaceSpecial) && move.From_pile_names.Contains("wooden_ox"))
                 {
                     foreach (int id in move.Card_ids)
                     {
@@ -699,7 +705,7 @@ namespace SanguoshaServer.AI
             else if (kingdom_value[high2low[0]] >= kingdom_value[high2low[1]] && kingdom_value[high2low[1]] > 0)
                 process = high2low[0] + ">" + string.Join("+", others);
 
-            room.OutPut(self.Name + " : " + process + " as " + string.Join(":", message));
+            //room.OutPut(self.Name + " : " + process + " as " + string.Join(":", message));
 
             foreach (Player p in anjiangs_public)
             {
@@ -761,7 +767,7 @@ namespace SanguoshaServer.AI
             else if (kingdom_value_public[high2low[0]] >= kingdom_value_public[high2low[1]] && kingdom_value_public[high2low[1]] > 0)
                 process_public = high2low[0] + ">";
 
-            room.OutPut(self.Name + " : " + process_public + " public as " + string.Join(":", message));
+            //room.OutPut(self.Name + " : " + process_public + " public as " + string.Join(":", message));
         }
         //统计在场国籍数量
         public void CountPlayers()
@@ -785,7 +791,7 @@ namespace SanguoshaServer.AI
                 if (IsKnown(self, p, "h") && Engine.GetGeneral(p.ActualGeneral1).IsLord())
                 {    //find lord
                     string kingdom = Engine.GetGeneral(p.ActualGeneral1).Kingdom;
-                    lords.Add(kingdom, p);
+                    lords[kingdom] = p;
                     id_tendency[p] = kingdom;
                 }
 
@@ -984,6 +990,7 @@ namespace SanguoshaServer.AI
             }
             //todo : ajust hatred
         }
+
         //更新玩家关系
         public override void UpdatePlayerRelation(Player from, Player to, bool friendly)
         {
@@ -1120,7 +1127,7 @@ namespace SanguoshaServer.AI
         {
             if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
             {
-                if (self == dying)
+                if (self != dying)
                 {
                     List<WrappedCard> peaches = GetCards("Peach", self);
                     FunctionCard f_peach = Engine.GetFunctionCard("Peach");
@@ -1133,6 +1140,19 @@ namespace SanguoshaServer.AI
             }
 
             return base.AskForSinglePeach(dying);
+        }
+
+        public override string AskForChoice(string skill_name, string choice, object data)
+        {
+            UseCard card = Engine.GetCardUsage(skill_name);
+            if (card != null)
+                return card.OnChoice(this, self, choice, data);
+
+            SkillEvent skill = Engine.GetSkillEvent(skill_name);
+            if (skill != null)
+                return skill.OnChoice(this, self, choice, data);
+
+            return base.AskForChoice(skill_name, choice, data);
         }
     }
 }

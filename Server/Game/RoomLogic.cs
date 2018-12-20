@@ -34,14 +34,13 @@ namespace SanguoshaServer.Game
             if (other == slasher || !other.Alive)
                 return false;
 
-            WrappedCard newslash = new WrappedCard("Slash");
+            slash = slash ?? new WrappedCard("Slash");
 
-            if (RoomLogic.IsProhibited(room, slasher, other, slash ?? newslash, others) != null) return false;
+            if (IsProhibited(room, slasher, other, slash, others) != null) return false;
 
             if (DistanceTo(room, slasher, other, slash) == -1) return false;
 
-            if (slash != null && !slash.DistanceLimited
-                    || Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, slasher, other, slash ?? newslash)) return true;
+            if (!slash.DistanceLimited || Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, slasher, other, slash)) return true;
 
             return InMyAttackRange(room, slasher, other, slash, rangefix);
         }
@@ -91,18 +90,16 @@ namespace SanguoshaServer.Game
         }
         public static bool InMyAttackRange(Room room, Player from, Player other, WrappedCard card = null, int range_fix = 0)
         {
-            if (DistanceTo(room, from, other) == -1)
+            if (DistanceTo(room, from, other, card) == -1)
                 return false;
             List<string> in_attack_range_players = from.ContainsTag("in_my_attack_range") ? (List<string>)from.GetTag("in_my_attack_range") : new List<string>();
             if (in_attack_range_players.Contains(other.Name)) // for DIY Skills
                 return true;
 
             bool inclue_weapon = from.Weapon.Key != -1;
-            if (card != null && inclue_weapon)
+            if (card != null && inclue_weapon && card.SubCards.Contains(from.Weapon.Key))
             {
-                List<int> ids = card.SubCards;
-                if (ids.Contains(from.Weapon.Key))
-                    inclue_weapon = false;
+                inclue_weapon = false;
             }
 
             return DistanceTo(room, from, other, card) <= GetAttackRange(room, from, inclue_weapon, range_fix);

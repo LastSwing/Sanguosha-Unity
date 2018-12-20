@@ -898,15 +898,15 @@ namespace SanguoshaServer.Game
 
     public class Horse : EquipCard
     {
-        public int Correct => correct;
-        private int correct;
+        public int Correct { get; protected set; }
+
         public Horse(string name, int correct) : base(name)
         {
-            this.correct = correct;
+            Correct = correct;
         }
         public override Location EquipLocation()
         {
-            if (correct > 0)
+            if (Correct > 0)
                 return Location.DefensiveHorseLocation;
             else
                 return Location.OffensiveHorseLocation;

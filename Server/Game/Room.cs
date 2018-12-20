@@ -1961,7 +1961,7 @@ namespace SanguoshaServer.Game
             //通知hall更新信息
             hall.BroadCastRoom(this);
 
-            OutPut(string.Format("添加玩家的线程为{0} room id 为{1}", Thread.CurrentThread.ManagedThreadId, room_id));
+            //OutPut(string.Format("添加玩家的线程为{0} room id 为{1}", Thread.CurrentThread.ManagedThreadId, room_id));
         }
 
         //通知客户端转跳场景
@@ -2005,32 +2005,7 @@ namespace SanguoshaServer.Game
                         StopGame();
                     else
                     {
-                        m_clients.Remove(client);
-                        client.Disconnected -= OnClientDisconnected;
-                        client.LeaveRoom -= OnClientLeave;
-                        client.GetReady -= OnClientReady;
-                        client.GameControl -= ProcessClientPacket;
-
-                        foreach (int index in seat2clients.Keys)
-                        {
-                            if (seat2clients[index] == client)
-                            {
-                                seat2clients[index] = null;
-                                break;
-                            }
-                        }
-
-                        if (client == host)
-                        {
-                            foreach (Client other in m_clients)
-                            {
-                                if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
-                                {
-                                    host = other;
-                                    break;
-                                }
-                            }
-                        }
+                        RomoveClientOnGamePlay(client);
 
                         //通知room中的其他玩家
                         UpdateClientsInfo();
@@ -2045,6 +2020,15 @@ namespace SanguoshaServer.Game
                         return;
                     }
                     //将room_id写入数据库进行记录
+
+                    foreach (Player p in client.GetPlayers())
+                    {
+                        p.Status = "offline";
+                        BroadcastProperty(p, "Status");
+                    }
+                    RomoveClientOnGamePlay(client);
+
+                    UpdateClientsInfo();
                 }
             }
         }
@@ -2073,32 +2057,7 @@ namespace SanguoshaServer.Game
                         StopGame();
                         return;
                     }
-
-                    foreach (int index in seat2clients.Keys)
-                    {
-                        if (seat2clients[index] == client)
-                        {
-                            seat2clients[index] = null;
-                            break;
-                        }
-                    }
-                    m_clients.Remove(client);
-                    client.Disconnected -= OnClientDisconnected;
-                    client.LeaveRoom -= OnClientLeave;
-                    client.GetReady -= OnClientReady;
-                    client.GameControl -= ProcessClientPacket;
-
-                    if (client == host)
-                    {
-                        foreach (Client other in m_clients)
-                        {
-                            if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
-                            {
-                                host = other;
-                                break;
-                            }
-                        }
-                    }
+                    RomoveClientOnGamePlay(client);
 
                     //通知room中的其他玩家
                     UpdateClientsInfo();
@@ -2114,6 +2073,14 @@ namespace SanguoshaServer.Game
 
                     //将room_id写入数据库进行记录
                     //游戏继续
+                    foreach (Player p in client.GetPlayers())
+                    {
+                        p.Status = "escape";
+                        BroadcastProperty(p, "Status");
+                    }
+                    RomoveClientOnGamePlay(client);
+
+                    UpdateClientsInfo();
                 }
 
                 if (kicked)
@@ -2136,6 +2103,47 @@ namespace SanguoshaServer.Game
                         //一分钟内禁止进入
                         banned_clients.Add(client.UserID);
                         WaitForClear(client.UserID);
+                    }
+                }
+            }
+        }
+
+        private void RomoveClientOnGamePlay(Client client)
+        {
+            if (client.IsWaitingReply)
+            {
+                OutPut("do reply");
+
+                MyData data = new MyData
+                {
+                    Body = new List<string> { client.ExpectedReplyCommand.ToString() }
+                };
+                ProcessClientReply(client, data);
+            }
+
+            foreach (int index in seat2clients.Keys)
+            {
+                if (seat2clients[index] == client)
+                {
+                    seat2clients[index] = null;
+                    break;
+                }
+            }
+
+            m_clients.Remove(client);
+            client.Disconnected -= OnClientDisconnected;
+            client.LeaveRoom -= OnClientLeave;
+            client.GetReady -= OnClientReady;
+            client.GameControl -= ProcessClientPacket;
+
+            if (client == host)
+            {
+                foreach (Client other in m_clients)
+                {
+                    if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
+                    {
+                        host = other;
+                        break;
                     }
                 }
             }
@@ -2591,7 +2599,7 @@ namespace SanguoshaServer.Game
             foreach (int id in pile1)
                 m_cards.Add(id, Engine.CloneCard(Engine.GetRealCard(id)));
 
-            DoBroadcastNotify(CommandType.S_COMMAND_INIT_CARDS, new List<string> { JsonUntity.Object2Json<List<int>>(pile1) });
+            DoBroadcastNotify(CommandType.S_COMMAND_INIT_CARDS, new List<string> { JsonUntity.Object2Json(pile1) });
 
             foreach (int card_id in m_drawPile)
                 SetCardMapping(card_id, null, Place.DrawPile);
@@ -2925,7 +2933,7 @@ namespace SanguoshaServer.Game
         public TrustedAI GetAI(Player player, bool ai = false)
         {
             Client client = hall.GetClient(player.ClientId);
-            if (ai || client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || (player.Status == "trust"))
+            if (ai || client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || player.Status == "trust" || player.Status == "escape")
                 return player_ai[player];
 
             return null;
@@ -2936,8 +2944,9 @@ namespace SanguoshaServer.Game
         public bool DoNotify(Client client, CommandType command, List<string> message_body)
         {
             if (client == null) return false;
-            message_body.Insert(0, command.ToString());
-            client.SendRoomNotify(message_body);
+            List<string> _message = new List<string>(message_body);
+            _message.Insert(0, command.ToString());
+            client.SendRoomNotify(_message);
             return true;
         }
 
@@ -3327,7 +3336,7 @@ namespace SanguoshaServer.Game
         public void ChangePlayerGeneral(Player player, string new_general)
         {
             player.General1 = new_general;
-            List<Client> players = m_clients;
+            List<Client> players = new List<Client>(m_clients);
             if (new_general == "anjiang") players.Remove(GetClient(player));
 
             foreach (Client p in players)
@@ -3350,7 +3359,7 @@ namespace SanguoshaServer.Game
         public void ChangePlayerGeneral2(Player player, string new_general)
         {
             player.General2 = new_general;
-            List<Client> players = m_clients;
+            List<Client> players = new List<Client>(m_clients);
             if (new_general == "anjiang") players.Remove(GetClient(player));
 
             foreach (Client p in players)
@@ -3367,8 +3376,8 @@ namespace SanguoshaServer.Game
                 {
                     player.PlayerGender = Gender.Sexless;
                 }
+                BroadcastProperty(player, "PlayerGender");
             }
-            BroadcastProperty(player, "PlayerGender");
 
             FilterCards(player, player.GetCards("he"), true);
         }
@@ -3541,14 +3550,12 @@ namespace SanguoshaServer.Game
                 return;
 
             List<Client> except_client = new List<Client>();
-            if (except != null)
+            except = except ?? new List<Player>();
+            foreach (Player p in except)
             {
-                foreach (Player p in except)
-                {
-                    Client client = GetClient(p);
-                    if (client != null)
-                        except_client.Add(client);
-                }
+                Client client = GetClient(p);
+                if (client != null)
+                    except_client.Add(client);
             }
 
             //QVariant arg = log.toVariant(this);
@@ -4135,7 +4142,6 @@ namespace SanguoshaServer.Game
 
         public string AskForChoice(Player player, string skill_name, string choices, List<string> descriptions = null, object data = null)
         {
-
             List<string> validChoices = new List<string>();
             foreach (string choice in choices.Split('|'))
                 validChoices.AddRange(choice.Split('+'));
@@ -4281,7 +4287,7 @@ namespace SanguoshaServer.Game
             List<Client> players = new List<Client>();
             foreach (Client player in m_clients) {
                 player.CommandArgs = new List<string>();
-                if (player.Status != Client.GameStatus.bot)
+                if (GetAI(player.GetPlayers()[0]) == null)
                 {
                     players.Add(player);
                     player_luckcard[player] = 3;
@@ -5111,7 +5117,8 @@ namespace SanguoshaServer.Game
                         CardUseStruct card_use = new CardUseStruct
                         {
                             Card = card,
-                            From = player
+                            From = player,
+                            Reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
                         };
                         if (to != null) card_use.To = new List<Player> { to };
                         object data2 = card_use;
@@ -5701,6 +5708,7 @@ namespace SanguoshaServer.Game
                 if (Engine.MatchExpPattern(this, pattern, player, c))
                     all_cards.Add(c);
             }
+            expand_pile = expand_pile ?? string.Empty;
             foreach (string pile in expand_pile.Split(',')) {
                 foreach (int id in player.GetPile(pile))
                     all_cards.Add(GetCard(id));
@@ -5830,7 +5838,7 @@ namespace SanguoshaServer.Game
 
             NotifyMoveFocus(player, CommandType.S_COMMAND_PLAY_CARD);
 
-            _m_roomState.SetCurrentCardUsePattern(".");
+            _m_roomState.SetCurrentCardUsePattern("..");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY);
 
             TrustedAI ai = GetAI(player);
@@ -6870,7 +6878,7 @@ namespace SanguoshaServer.Game
                     To = new List<string> { player.Name },
                     Card_str = string.Join("+", JsonUntity.IntList2StringList(player.HandCards))
                 };
-                SendLog(log, new List<Player> { to });
+                SendLog(log, to);
 
                 LogMessage log2 = new LogMessage
                 {

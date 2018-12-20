@@ -761,9 +761,17 @@ namespace SanguoshaServer.Game
                         Arg2 = (name == "head_general" ? effect.To.ActualGeneral1 : effect.To.ActualGeneral2)
                     };
                     room.SendLog(log, effect.From);
+
+                    LogMessage log2 = new LogMessage
+                    {
+                        Type = "#KnownBothView",
+                        From = effect.From.Name,
+                        To = new List<string> { effect.To.Name },
+                        Arg = name
+                    };
+                    room.SendLog(log2, new List<Player> { effect.From });
                 }
-                //List<string> arg = new List<string> { "shangyi", JsonUntity.Object2Json(list2) };
-                //room.DoNotify(room.GetClient(effect.From), CommandType.S_COMMAND_VIEW_GENERALS, arg);
+                
                 room.ViewGenerals(effect.From, list2, "shangyi", effect.Card.SkillPosition);
             }
         }

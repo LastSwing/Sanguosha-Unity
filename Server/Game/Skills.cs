@@ -555,14 +555,8 @@ namespace SanguoshaServer.Game
 
             return null;
         }
-        public static ViewAsSkill ParseViewAsSkill(string skill)
-        {
-            return ParseViewAsSkill(Engine.GetSkill(skill));
-        }
-        public virtual List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
-        {
-            return new List<WrappedCard>();
-        }
+        public static ViewAsSkill ParseViewAsSkill(string skill) => ParseViewAsSkill(Engine.GetSkill(skill));
+        public virtual List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player) => new List<WrappedCard>();
         public static List<string> GetGuhuoCards(Room room, string type)
         {
             List<string> all = new List<string>();

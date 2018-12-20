@@ -194,7 +194,7 @@ namespace SanguoshaServer.Game
             WrappedCard card = use.Card;
             List<TargetModSkill> targetModSkills = new List<TargetModSkill>();
             // for Paoxiao, Jili, CrossBow & etc
-            if (player.Phase == PlayerPhase.Play && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY && player.GetSlashCount() > 1)
+            if (player.Phase == PlayerPhase.Play && use.Reason == CardUseReason.CARD_USE_REASON_PLAY && player.GetSlashCount() > 1)
             {
                 foreach (string name in room.Skills)
                 {
@@ -401,23 +401,21 @@ namespace SanguoshaServer.Game
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
-            return IsAvailable(room, player, card) && base.IsAvailable(room, player, card);
+            return IsAvailable(room, player, card);
         }
 
         public static bool IsAvailable(Room room, Player player, WrappedCard slash = null, bool considerSpecificAssignee = true)
         {
             WrappedCard newslash = new WrappedCard("Slash");
             newslash.SetFlags("Global_SlashAvailabilityChecker");
-            if (slash == null)
-                slash = newslash;
+            slash = slash ?? newslash;
             if (RoomLogic.IsCardLimited(room, player, slash, HandlingMethod.MethodUse)) return false;
 
             CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
             if (reason == CardUseReason.CARD_USE_REASON_PLAY
                     || (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && room.GetRoomState().GetCurrentCardUsePattern(player) == "@@rende"))
             {
-                List<int> ids = new List<int>();
-                if (slash != null) ids = slash.SubCards;
+                List<int> ids = slash != null ? slash.SubCards : new List<int>();
                 bool has_weapon = player.HasWeapon("CrossBow") && !ids.Contains(player.Weapon.Key);
                 if (has_weapon || RoomLogic.CanSlashWithoutCrossBow(room, player, slash))
                     return true;
@@ -719,7 +717,7 @@ namespace SanguoshaServer.Game
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "savage_assault");
-            WrappedCard slash = room.AskForCard(effect.To, Name, "Slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard slash = room.AskForCard(effect.To, Name, "slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (slash != null)
             {
@@ -750,7 +748,7 @@ namespace SanguoshaServer.Game
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "archery_attack");
-            WrappedCard jink = room.AskForCard(effect.To, Name, "Jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard jink = room.AskForCard(effect.To, Name, "jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (jink != null && jink.Skill != "EightDiagram")
                 room.SetEmotion(effect.To, "jink");
@@ -1640,8 +1638,15 @@ namespace SanguoshaServer.Game
                 };
                 room.SendLog(log, effect.From);
 
-                //List<string> arg = new List<string> { Name, JsonUntity.Object2Json(new List<string> { general }) };
-                //room.DoNotify(room.GetClient(effect.From), CommandType.S_COMMAND_VIEW_GENERALS, arg);
+                LogMessage log2 = new LogMessage
+                {
+                    Type = "#KnownBothView",
+                    From = effect.From.Name,
+                    To = new List<string> { effect.To.Name },
+                    Arg = choice
+                };
+                room.SendLog(log2, new List<Player> { effect.From });
+
                 room.ViewGenerals(effect.From, new List<string> { general }, Name);
             }
         }
@@ -2667,6 +2672,16 @@ namespace SanguoshaServer.Game
                         Arg2 = general
                     };
                     room.SendLog(log, player);
+
+                    LogMessage log2 = new LogMessage
+                    {
+                        Type = "#KnownBothView",
+                        From = player.Name,
+                        To = new List<string> { target.Name },
+                        Arg = choice
+                    };
+                    room.SendLog(log2, new List<Player> { player });
+
                     room.ViewGenerals(player, new List<string> { general }, "pioneer");
                 }
             }

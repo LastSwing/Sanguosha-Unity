@@ -257,6 +257,8 @@ namespace SanguoshaServer.Scenario
                 use_list.Add(card_use);
                 room.SetTag("card_proceeing", use_list);
 
+                room.OutPut(card_use.Card.Name + use_list.Count.ToString());
+
                 if (card_use.From != null)
                 {
                     thread.Trigger(TriggerEvent.TargetChoosing, room, card_use.From, ref data);
@@ -441,23 +443,28 @@ namespace SanguoshaServer.Scenario
                         OnCardUsed(room, player, ref data);
                         break;
                 case TriggerEvent.CardFinished:
-                        CardUseStruct use = (CardUseStruct)data;
-                        room.ClearCardFlag(use.Card);
+                    CardUseStruct use = (CardUseStruct)data;
+                    room.ClearCardFlag(use.Card);
 
+                    //以askforcard形式使用的卡牌没有onUse的trigger，但有finish
+                    if (use.Reason != CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
+                    {
                         List<CardUseStruct> use_list = (List<CardUseStruct>)room.GetTag("card_proceeing");                    //remove when finished
-                        if (use_list.Count != 0) use_list.RemoveAt(use_list.Count - 1);
+                        if (use_list.Count > 0) use_list.RemoveAt(use_list.Count - 1);
                         room.SetTag("card_proceeing", use_list);
-                        room.RemoveTag("targets" + RoomLogic.CardToString(room, use.Card));
+                    }
 
-                        if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
-                            room.RemoveTag(RoomLogic.CardToString(room, use.Card) + "HegnullificationTargets");
+                    room.RemoveTag("targets" + RoomLogic.CardToString(room, use.Card));
 
-                        foreach (Client p in room.Clients)
-                            room.DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { "." });
-                        if (Engine.GetFunctionCard(use.Card.Name) is Slash)
-                            use.From.RemoveTag("Jink_" + RoomLogic.CardToString(room, use.Card));
+                    if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
+                        room.RemoveTag(RoomLogic.CardToString(room, use.Card) + "HegnullificationTargets");
 
-                        break;
+                    foreach (Client p in room.Clients)
+                        room.DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { "." });
+                    if (Engine.GetFunctionCard(use.Card.Name) is Slash)
+                        use.From.RemoveTag("Jink_" + RoomLogic.CardToString(room, use.Card));
+
+                    break;
                 case TriggerEvent.EventAcquireSkill:
                 case TriggerEvent.EventLoseSkill:
                     InfoStruct info = (InfoStruct)data;
@@ -687,7 +694,7 @@ namespace SanguoshaServer.Scenario
                         }
                         else
                         {
-                            WrappedCard jink = new WrappedCard("Dummy");
+                            WrappedCard jink = new WrappedCard("DummyCard");
                             for (int i = effect.Jink_num; i > 0; i--)
                             {
                                 string prompt = string.Format("@multi-jink{0}:{1}::{2}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i);

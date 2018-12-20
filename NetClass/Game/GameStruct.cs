@@ -732,7 +732,7 @@ namespace CommonClass.Game
         public WrappedCard Card { set; get; }
         public double Score { set; get; }
         public int Draws { set; get; }
-        public bool Key { set; get; }
+        public bool DoDamage { set; get; }
         public double Rate { set; get; }
     };
 

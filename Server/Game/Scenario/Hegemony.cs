@@ -28,7 +28,7 @@ namespace SanguoshaServer.Scenario
                 {
                     player.Name,
                     string.Empty,
-                    JsonUntity.Object2Json<List<string>>(options[player]),
+                    JsonUntity.Object2Json(options[player]),
                     false.ToString(),
                     true.ToString(),
                     false.ToString()
@@ -54,12 +54,12 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in options.Keys) {
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
-                if (room.GetClient(player).Status == Client.GameStatus.bot || !room.GetClient(player).IsClientResponseReady)
+                List<string> reply = room.GetClient(player).ClientReply;
+                if (!room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                     success = false;
                 else
                 {
-                    string generalName = room.GetClient(player).ClientReply[0];
-
+                    string generalName = reply[0];
                     string[] generals = generalName.Split('+');
                     if (generals.Length != 2 || (!options[player].Contains(Engine.GetMainGeneral(generals[0])) && room.GetClient(player).UserRight < 3)
                         || (!options[player].Contains(Engine.GetMainGeneral(generals[1])) && room.GetClient(player).UserRight < 3)

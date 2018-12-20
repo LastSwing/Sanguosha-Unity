@@ -1388,8 +1388,8 @@ namespace SanguoshaServer
                     GetPacket2Client(false);
                     return;
                 }
-
-                viewascard = pending_skill.ViewAs(room, selected_cards.ContainsKey(player) ? selected_cards[player] : new List<WrappedCard>(), player);
+                List<WrappedCard> new_selected = selected_cards.ContainsKey(player) ? selected_cards[player] : new List<WrappedCard>();
+                viewascard = pending_skill.ViewAs(room, new_selected, player);
             }
             else
             {
@@ -1414,20 +1414,24 @@ namespace SanguoshaServer
         }
         private bool CheckCardAvailable(Player player, WrappedCard card)
         {
-            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-            if (player == null || card == null || fcard == null || card.HasFlag("using")) return false;
+            FunctionCard fcard = Engine.GetFunctionCard(card?.Name);
+            if (player == null || fcard == null || card.HasFlag("using")) return false;
 
             bool ok_enable = true;
             if ((ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse) && !fcard.IsAvailable(room, player, card))
+            {
                 ok_enable = false;
+            }
 
             string pattern = room.GetRoomState().GetCurrentCardUsePattern(player);
-            if (ok_enable && !string.IsNullOrEmpty(pattern) && (ExpectedReplyCommand == CommandType.S_COMMAND_RESPONSE_CARD
+            if (ok_enable && !string.IsNullOrEmpty(pattern) && ExpectedReplyCommand != CommandType.S_COMMAND_PLAY_CARD && (ExpectedReplyCommand == CommandType.S_COMMAND_RESPONSE_CARD
                     || (m_requestResponsePair.ContainsKey(ExpectedReplyCommand) && m_requestResponsePair[ExpectedReplyCommand] == CommandType.S_COMMAND_RESPONSE_CARD)))
             {
                 if (RoomLogic.IsCardLimited(room, player, card, method))
+                {
                     ok_enable = false;
-                else if (!skill_invoke && fcard?.TypeID != CardType.TypeSkill)
+                }
+                else if (!skill_invoke && fcard.TypeID != CardType.TypeSkill)
                 {
                     if (pattern.EndsWith("!")) pattern = pattern.Substring(0, pattern.Length - 1);
                     pattern = Engine.GetPattern(pattern).GetPatternString();
@@ -1435,7 +1439,9 @@ namespace SanguoshaServer
                         pattern = pattern.Replace("hand", string.Join(",", player.GetHandPileList()));
                     ExpPattern p = new ExpPattern(pattern);
                     if (!p.Match(player, room, card))
+                    {
                         ok_enable = false;
+                    }
                 }
             }
 
