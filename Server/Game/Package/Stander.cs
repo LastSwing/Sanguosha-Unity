@@ -1446,7 +1446,7 @@ namespace SanguoshaServer.Game
             if (!player.Alive)
                 return new TriggerStruct();
 
-            Player target = room.AskForPlayerChosen(player, new List<Player>(room.GetAlivePlayers()), Name, "jieming-invoke", true, true, info.SkillPosition);
+            Player target = room.AskForPlayerChosen(player, room.GetAlivePlayers(), Name, "jieming-invoke", true, true, info.SkillPosition);
             if (target != null)
             {
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
@@ -4161,7 +4161,7 @@ namespace SanguoshaServer.Game
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             player.RemoveMark("leiji_postpone");
-            Player target = room.AskForPlayerChosen(player, new List<Player>(room.GetAlivePlayers()), Name, "leiji-invoke", true, true, info.SkillPosition);
+            Player target = room.AskForPlayerChosen(player, room.GetAlivePlayers(), Name, "leiji-invoke", true, true, info.SkillPosition);
             if (target != null)
             {
                 player.SetTag("leiji-target", target.Name);

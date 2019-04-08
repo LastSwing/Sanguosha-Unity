@@ -951,7 +951,7 @@ namespace SanguoshaServer.Game
         }
         public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
         {
-            List<Player> targets = new List<Player>(room.GetAlivePlayers());
+            List<Player> targets = room.GetAlivePlayers();
             room.SortByActionOrder(ref targets);
             foreach (Player p in targets)
             {

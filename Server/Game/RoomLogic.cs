@@ -1034,7 +1034,7 @@ namespace SanguoshaServer.Game
                 { "wu", 0 },
                 { "qun", 0 }
             };
-            List<Player> players = new List<Player>(room.GetAlivePlayers());
+            List<Player> players = room.GetAlivePlayers();
             foreach (Player p in players)
             {
                 if (!p.HasShownOneGeneral())
@@ -1159,7 +1159,7 @@ namespace SanguoshaServer.Game
                     to_calculate = player.Kingdom;
             }
 
-            List <Player> players = new List<Player>(room.GetAlivePlayers());
+            List <Player> players = room.GetAlivePlayers();
             int num = 0;
 
             if (to_calculate == "careerist")
