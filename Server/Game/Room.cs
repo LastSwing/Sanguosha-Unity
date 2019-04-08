@@ -23,34 +23,36 @@ namespace SanguoshaServer.Game
     public delegate void RemoveRoomDelegate(Room room, Client host, List<Client> clients);
     public class Room
     {
-        public Client Host => host;
-        public Player Current => current;
-        public List<Player> AlivePlayers => m_alivePlayers;
-        public List<Client> Clients => m_clients;
+        public Client Host { get; private set; }
+        public Player Current { get; private set; }
+
+        public List<Player> GetAlivePlayers() => new List<Player>(_alivePlayers);
+
+        public List<Client> Clients { get; private set; } = new List<Client>();
         public List<Player> Players => m_players;
-        public RoomThread RoomThread => room_thread;
-        public int RoomId => room_id;
-        public bool GameStarted => game_started;
+        public RoomThread RoomThread { get; private set; }
+        public int RoomId { get; }
+        public bool GameStarted { get; private set; }
         public List<int> RoomCards => pile1;
         public GameSetting Setting { set; get; }
-        public GameScenario Scenario => scenario;
-        public List<string> Generals => generals;
-        public List<string> Skills => skills;
-        public List<string> UsedGeneral => used_general;
+        public GameScenario Scenario { get; }
+        public List<string> Generals { get; private set; } = new List<string>();
+        public List<string> Skills { get; } = new List<string>();
+        public List<string> UsedGeneral { get; } = new List<string>();
         public List<int> DiscardPile => m_discardPile;
-        public bool Finished => game_finished;
+        public int Round { get; private set; }
+        public bool Finished { get; private set; }
         public bool BloodBattle { set; get; }
         public List<int> DrawPile => m_drawPile;
         public List<TrustedAI> AIs => new List<TrustedAI>(player_ai.Values);
+        public int NullTimes { get; private set; }
+        public bool HegNull { get; set; }
+        public bool HegNullEffected { get; private set; }
 
         private Thread thread;
-        private RoomThread room_thread;
         private Dictionary<Player, Client> player_client = new Dictionary<Player, Client>();
         private Dictionary<Player, TrustedAI> player_ai = new Dictionary<Player, TrustedAI>();
-        private Client host;
         private GameHall hall;
-        private int room_id;
-        private GameScenario scenario;
         private RoomState _m_roomState;
 
         private Dictionary<int, WrappedCard> m_cards = new Dictionary<int, WrappedCard>();
@@ -59,17 +61,11 @@ namespace SanguoshaServer.Game
         private Dictionary<string, object> tag = new Dictionary<string, object>();
 
         private int _m_lastMovementId;
-        private int round_count;
-        private List<Player> m_players = new List<Player>(), m_alivePlayers = new List<Player>();
-        private List<Client> m_clients = new List<Client>();
+        private List<Player> m_players = new List<Player>();
         private List<Client> m_watcher = new List<Client>();
-        private List<string> used_general = new List<string>();
-        private Player current;
         private List<int> pile1 = new List<int>(), table_cards = new List<int>(), m_drawPile = new List<int>(), m_discardPile = new List<int>();
-        private List<string> generals = new List<string>();
-        private List<string> skills = new List<string>();
         private Queue<DamageStruct> m_damageStack = new Queue<DamageStruct>();
-        private bool game_started, game_finished, create_new;
+        private bool create_new;
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -81,16 +77,16 @@ namespace SanguoshaServer.Game
         public Room(GameHall hall, int room_id, Client host, GameSetting setting)
         {
             this.hall = hall;
-            this.host = host;
-            game_started = false;
+            this.Host = host;
+            GameStarted = false;
             _m_lastMovementId = 0;
-            this.room_id = room_id;
+            this.RoomId = room_id;
             Setting = setting;
-            scenario = Engine.GetScenario(setting.GameMode);
+            Scenario = Engine.GetScenario(setting.GameMode);
             _m_roomState = new RoomState(false);
             timer.Elapsed += Timer1_Elapsed;
-            
-            if (scenario != null)
+
+            if (Scenario != null)
             {
                 OnHostInter();
                 InitCallbacks();
@@ -99,31 +95,41 @@ namespace SanguoshaServer.Game
                 StopGame();
         }
 
-        public void SetCurrent(Player regular_next) => current = regular_next;
+        public void SetCurrent(Player regular_next) => Current = regular_next;
         public bool IsFull()
         {
-            return m_clients.Count >= Setting.PlayerNum;
+            return Clients.Count >= Setting.PlayerNum;
         }
-        public void DrawCards(Player player, int n, string reason = null)
+        public void DrawCards(Player player, int n, string reason)
+        {
+            DrawCardStruct _reason = new DrawCardStruct(n, player, reason);
+            DrawCards(player, _reason);
+        }
+        public void DrawCards(Player player, DrawCardStruct reason)
         {
             List<Player> players = new List<Player> { player };
-            DrawCards(players, n, reason);
+            List<DrawCardStruct> reasons = new List<DrawCardStruct> { reason };
+            DrawCards(players, reasons);
         }
-        public void DrawCards(List<Player> players, int n, string reason = null)
-        {
-            List<int> n_list = new List<int> { n };
-            DrawCards(players, n_list, reason);
-        }
-        public void DrawCards(List<Player> players, List<int> n_list, string reason = null)
+
+        public void DrawCards(List<Player> players, List<DrawCardStruct> reasons)
         {
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-            int index = -1, len = n_list.Count;
-            foreach (Player player in players)
+            for (int i = 0; i < players.Count; i++)
             {
-                index++;
-                if (!player.Alive && reason != "reform") continue;
-                int n = n_list[Math.Min(index, len - 1)];
+                Player player = players[i];
+                DrawCardStruct reason = reasons[i];
+                if (!player.Alive && reason.Reason != "reform") continue;
+                int n = reason.Draw;
                 if (n <= 0) continue;
+
+                if (reason.Who != null && player != reason.Who && RoomLogic.PlayerHasSkill(this, reason.Who, reason.Reason))
+                {
+                    ResultStruct result = reason.Who.Result;
+                    result.Assist += n;
+                    reason.Who.Result = result;
+                }
+
                 List<int> card_ids = GetNCards(n, true);
 
                 CardsMoveStruct move = new CardsMoveStruct(card_ids, player, Place.PlaceHand, new CardMoveReason());
@@ -191,7 +197,7 @@ namespace SanguoshaServer.Game
                 //}
             }
             object data = m_drawPile.Count;
-            room_thread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
+            RoomThread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
             List<string> arg = new List<string>
             {
                 m_drawPile.Count.ToString()
@@ -203,7 +209,7 @@ namespace SanguoshaServer.Game
                 string top = isBottom ? "ViewBottomCards:" : "ViewTopCards:";
                 object decisionData = string.Format("{0}:{1}:{2}:{3}", isBottom ? "ViewBottomCards" : "ViewTopCards", move_from.Name, string.Join("+", JsonUntity.IntList2StringList(cards)),
                     open ? "open" : "private");
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, move_from, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, move_from, ref decisionData);
             }
         }
         public void RemoveFromDrawPile(int id)
@@ -241,7 +247,7 @@ namespace SanguoshaServer.Game
                     m_drawPile.Count.ToString()
                 };
                 DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_PILE, arg);
-                room_thread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
             }
 
             if (m_drawPile.Count == 0)
@@ -279,19 +285,21 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_PILE, new List<string> { m_drawPile.Count.ToString() });
 
             object data = m_drawPile.Count;
-            room_thread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
+            RoomThread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
         }
         public void GameOver(string winner)
         {
-            List<string> all_roles = new List<string>();
-            foreach (Player player in m_players) {
+            List<string> arg = new List<string> { winner };
+            foreach (Player player in m_players)
+            {
+                arg.Add(JsonUntity.Object2Json(player));
                 if (player.HandcardNum > 0)
                 {
                     player.SetTag("last_handcards", player.HandCards);
                 }
             }
 
-            game_finished = true;
+            Finished = true;
 
             if (!ContainsTag("NextGameMode") || string.IsNullOrEmpty((string)GetTag("NextGameMode")))
             {
@@ -299,7 +307,6 @@ namespace SanguoshaServer.Game
                 RemoveTag("NextGameMode");
             }
 
-            List<string> arg = new List<string> { winner, JsonUntity.Object2Json(all_roles) };
             DoBroadcastNotify(CommandType.S_COMMAND_GAME_OVER, arg);
 
             create_new = true;
@@ -332,13 +339,14 @@ namespace SanguoshaServer.Game
                 return;
 
             object data = recover_struct;
-            if (room_thread.Trigger(TriggerEvent.PreHpRecover, this, player, ref data))
+            if (RoomThread.Trigger(TriggerEvent.PreHpRecover, this, player, ref data))
                 return;
 
             recover_struct = (RecoverStruct)data;
             int recover_num = recover_struct.Recover;
 
             int new_hp = Math.Min(player.Hp + recover_num, player.MaxHp);
+            int num = new_hp - player.Hp;
             player.Hp = new_hp;
             BroadcastProperty(player, "Hp");
 
@@ -347,14 +355,23 @@ namespace SanguoshaServer.Game
 
             if (set_emotion) SetEmotion(player, "recover");
 
-            room_thread.Trigger(TriggerEvent.HpRecover, this, player, ref data);
+            ResultStruct new_result = player.Result;
+            new_result.Recover += num;
+            player.Result = new_result;
+
+            Player from = recover_struct.Who ?? player;
+            new_result = from.Result;
+            new_result.Heal += num;
+            from.Result = new_result;
+
+            RoomThread.Trigger(TriggerEvent.HpRecover, this, player, ref data);
         }
 
         public void CancelTarget(ref CardUseStruct use, Player player)
         {
             if (player == null)
                 return;
-            
+
             LogMessage log = new LogMessage();
             if (use.From != null)
             {
@@ -458,7 +475,7 @@ namespace SanguoshaServer.Game
                 SendLog(log);
 
                 object data = new InfoStruct() { Info = skill_name, Head = head };
-                room_thread.Trigger(TriggerEvent.EventLoseSkill, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.EventLoseSkill, this, player, ref data);
             }
         }
 
@@ -478,13 +495,11 @@ namespace SanguoshaServer.Game
                     bool head = true;
                     if (actual_skill.EndsWith("!"))
                     {
-                        actual_skill.Remove(actual_skill.Length - 1);
+                        actual_skill = actual_skill.Remove(actual_skill.Length - 1);
                         head = false;
                     }
-                    if (head && !player.GetAcquiredSkills("head").Contains(actual_skill) &&
-                    !player.GetHeadSkillList().Contains(actual_skill)) continue;
-                    if (!head && !player.GetAcquiredSkills("deputy").Contains(actual_skill) &&
-                            !player.GetDeputySkillList().Contains(actual_skill)) continue;
+                    if (head && !player.GetAcquiredSkills("head").Contains(actual_skill) && !player.GetHeadSkillList().Contains(actual_skill)) continue;
+                    if (!head && !player.GetAcquiredSkills("deputy").Contains(actual_skill) && !player.GetDeputySkillList().Contains(actual_skill)) continue;
                     if (player.GetAcquiredSkills(head ? "head" : "deputy").Contains(actual_skill))
                         player.DetachSkill(actual_skill, head);
                     else if (!acquire_only)
@@ -524,7 +539,7 @@ namespace SanguoshaServer.Game
                     string skill_name = _skill_name;
                     if (skill_name.EndsWith("!"))
                     {
-                        skill_name.Remove(skill_name.Length - 1);
+                        skill_name = skill_name.Remove(skill_name.Length - 1);
                         head = false;
                     }
                     Skill skill = Engine.GetSkill(skill_name);
@@ -557,7 +572,7 @@ namespace SanguoshaServer.Game
                 for (int i = 0; i < triggerList.Count; i++)
                 {
                     object data = new InfoStruct() { Info = triggerList[i], Head = isHead[i] };
-                    room_thread.Trigger(isLost[i] ? TriggerEvent.EventLoseSkill : TriggerEvent.EventAcquireSkill, this, player, ref data);
+                    RoomThread.Trigger(isLost[i] ? TriggerEvent.EventLoseSkill : TriggerEvent.EventAcquireSkill, this, player, ref data);
                 }
             }
         }
@@ -605,6 +620,18 @@ namespace SanguoshaServer.Game
             value -= remove_num;
             value = Math.Max(0, value);
             SetPlayerMark(player, mark, value);
+        }
+
+        public void SetPlayerStringMark(Player player, string mark, string value)
+        {
+            player.SetStringMark(mark, value);
+            BroadcastProperty(player, "StringMark");
+        }
+
+        public void RemovePlayerStringMark(Player player, string mark)
+        {
+            player.RemoveStringMark(mark);
+            BroadcastProperty(player, "StringMark");
         }
 
         public void SetPlayerDisableShow(Player player, string flags, string reason)
@@ -660,7 +687,8 @@ namespace SanguoshaServer.Game
             {
                 if (open_players.Count == 0)
                 {
-                    foreach (int id in card_ids) {
+                    foreach (int id in card_ids)
+                    {
                         Player owner = GetCardOwner(id);
                         if (owner != null && !open_players.Contains(owner))
                             open_players.Add(owner);
@@ -722,9 +750,9 @@ namespace SanguoshaServer.Game
             if (effect.To.Alive || Engine.GetFunctionCard(effect.Card.Name) is Slash)
             { // Be care!!!
               // No skills should be triggered here!
-                room_thread.Trigger(TriggerEvent.CardEffect, this, effect.To, ref data);
+                RoomThread.Trigger(TriggerEvent.CardEffect, this, effect.To, ref data);
                 // Make sure that effectiveness of Slash isn't judged here!
-                if (!room_thread.Trigger(TriggerEvent.CardEffected, this, effect.To, ref data))
+                if (!RoomThread.Trigger(TriggerEvent.CardEffected, this, effect.To, ref data))
                 {
                     cancel = true;
                 }
@@ -748,14 +776,20 @@ namespace SanguoshaServer.Game
             Skill skill = Engine.GetMainSkill(skill_name);
             if (skill != null)
             {
+                if (RoomLogic.PlayerHasSkill(this, player, skill_name))
+                {
+                    ResultStruct result = player.Result;
+                    result.SkillInvoke++;
+                    player.Result = result;
+                }
 
                 List<string> args = new List<string>
-            {
-                GameEventType.S_GAME_EVENT_SKILL_INVOKED.ToString(),
-                player.Name,
-                skill_name,
-                ((int)skill.Skill_type).ToString()
-            };
+                {
+                    GameEventType.S_GAME_EVENT_SKILL_INVOKED.ToString(),
+                    player.Name,
+                    skill_name,
+                    ((int)skill.Skill_type).ToString()
+                };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
             }
         }
@@ -880,7 +914,7 @@ namespace SanguoshaServer.Game
                 moveOneTime.To = null;
                 moveOneTime.To_place = Place.PlaceTable;
                 object data = moveOneTime;
-                room_thread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
                 moveOneTime = (CardsMoveOneTimeStruct)data;
                 moveOneTime.Origin_from_places = origin_from_places;
                 moveOneTime.Origin_from = origin_from;
@@ -894,7 +928,7 @@ namespace SanguoshaServer.Game
 
             NotifyMoveCards(true, cards_moves, forceMoveVisible);
             List<CardsMoveStruct> origin = new List<CardsMoveStruct>(cards_moves);
-            
+
             List<Place> final_places = new List<Place>();
             List<string> move_tos = new List<string>();
             for (int i = 0; i < cards_moves.Count; i++)
@@ -949,7 +983,7 @@ namespace SanguoshaServer.Game
             {
                 if (moveOneTime.Card_ids.Count == 0) continue;
                 object data = moveOneTime;
-                room_thread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
             }
 
             for (int i = 0; i < cards_moves.Count; i++)
@@ -992,7 +1026,7 @@ namespace SanguoshaServer.Game
                     continue;
                 }
                 object data = moveOneTime;
-                room_thread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
                 CardsMoveOneTimeStruct moveOneTime2 = (CardsMoveOneTimeStruct)data;
                 moveOneTimes[index] = moveOneTime2;
                 index++;
@@ -1016,9 +1050,11 @@ namespace SanguoshaServer.Game
                 m_x.Card_ids = new List<int>();
                 m_x.To = null;
                 m_x.To_place = Place.DiscardPile;
-                foreach (int id in m.Card_ids) {
+                foreach (int id in m.Card_ids)
+                {
                     bool sure = false;
-                    foreach (CardsMoveStruct cards_move in cards_moves) {
+                    foreach (CardsMoveStruct cards_move in cards_moves)
+                    {
                         if (cards_move.Card_ids.Contains(id))
                         {
                             m_x.Card_ids.Add(id);
@@ -1081,7 +1117,7 @@ namespace SanguoshaServer.Game
             {
                 if (moveOneTime.Card_ids.Count == 0) continue;
                 object data = moveOneTime;
-                room_thread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
             }
         }
 
@@ -1120,7 +1156,7 @@ namespace SanguoshaServer.Game
                     continue;
 
                 object data = moveOneTimes[index];
-                room_thread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.BeforeCardsMove, this, null, ref data);
                 CardsMoveOneTimeStruct moveOneTime2 = (CardsMoveOneTimeStruct)data;
                 moveOneTimes[index] = moveOneTime2;
                 index++;
@@ -1232,7 +1268,7 @@ namespace SanguoshaServer.Game
             {
                 if (moveOneTime.Card_ids.Count == 0) continue;
                 object data = moveOneTime;
-                room_thread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
+                RoomThread.Trigger(TriggerEvent.CardsMoveOneTime, this, null, ref data);
                 CardsMoveOneTimeStruct moveOneTime_result = (CardsMoveOneTimeStruct)data;
                 result.AddRange(moveOneTime_result.Card_ids);
             }
@@ -1301,7 +1337,7 @@ namespace SanguoshaServer.Game
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
             List<string> available = new List<string>();
             foreach (string name in Generals)
-                if (!name.StartsWith("lord_") && !used_general.Contains(name) && Engine.GetGeneral(name).Kingdom == player.Kingdom)
+                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name).Kingdom == player.Kingdom)
                     available.Add(name);
             if (available.Count == 0) return;
 
@@ -1313,8 +1349,9 @@ namespace SanguoshaServer.Game
 
             RemoveGeneral(player, false);
             object void_data = null;
-            List <TriggerSkill> game_start = new List<TriggerSkill>();
-            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false)) {
+            List<TriggerSkill> game_start = new List<TriggerSkill>();
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))
+            {
                 Skill skill = Engine.GetSkill(skill_name);
                 if (skill is TriggerSkill tr && tr.TriggerEvents.Contains(TriggerEvent.GameStart))
                     if (tr.Triggerable(TriggerEvent.GameStart, this, player, ref void_data).Count > 0)
@@ -1335,17 +1372,19 @@ namespace SanguoshaServer.Game
             //    player.SetSkillsPreshowed("d");
             NotifyPlayerPreshow(player, "d");
 
-            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false)) {
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))
+            {
                 Skill skill = Engine.GetSkill(skill_name);
                 if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
                 {
                     player.SetMark(skill.LimitMark, 1);
-                    List<string> arg = new List<string> {player.Name, skill.LimitMark, "1" };
+                    List<string> arg = new List<string> { player.Name, skill.LimitMark, "1" };
                     DoNotify(GetClient(player), CommandType.S_COMMAND_SET_MARK, arg);
                 }
             }
 
-            foreach (TriggerSkill skill in game_start) {
+            foreach (TriggerSkill skill in game_start)
+            {
                 TriggerStruct trigger = new TriggerStruct(skill.Name, player)
                 {
                     SkillPosition = "deputy"
@@ -1391,7 +1430,7 @@ namespace SanguoshaServer.Game
                     Player to = (cards_move.To != null ? FindPlayer(cards_move.To, true) : null);
                     Player p = player.GetPlayers()[0];
 
-                    foreach (Player p2 in AlivePlayers)
+                    foreach (Player p2 in GetAlivePlayers())
                     {
                         if (p2.HasFlag("Global_GongxinOperator") && (p2 == p || p.IsSameCamp(p2)))
                         {
@@ -1464,7 +1503,8 @@ namespace SanguoshaServer.Game
         public Player FindPlayer(string general_name, bool include_dead = false)
         {
             if (string.IsNullOrEmpty(general_name)) return null;
-            List<Player> list = include_dead ? m_players : m_alivePlayers;
+            List<Player> list = include_dead ? m_players : GetAlivePlayers();
+
             if (general_name.Contains("+"))
             {
                 string[] names = general_name.Split('+');
@@ -1828,7 +1868,7 @@ namespace SanguoshaServer.Game
         #region 客户端进入请求
         public bool OnClientRequestInter(Client client, int id, string pwd)
         {
-            if (id != room_id || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord) || m_clients.Count == 0 || IsFull() || banned_clients.Contains(client.UserID))
+            if (id != RoomId || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord) || Clients.Count == 0 || IsFull() || banned_clients.Contains(client.UserID))
             {
                 return false;
             }
@@ -1840,14 +1880,14 @@ namespace SanguoshaServer.Game
                 client.GetReady += OnClientReady;
                 client.GameControl += ProcessClientPacket;
 
-                m_clients.Add(client);
-                client.GameRoom = room_id;
+                Clients.Add(client);
+                client.GameRoom = RoomId;
                 client.Status = Client.GameStatus.normal;
 
                 SendRoomSetting2Client(client);
 
                 //通知客户端当前玩家(client)信息
-                if (!game_started)
+                if (!GameStarted)
                 {
                     foreach (int index in seat2clients.Keys)
                     {
@@ -1885,11 +1925,11 @@ namespace SanguoshaServer.Game
         {
             lock (this)
             {
-                host.Disconnected += OnClientDisconnected;
-                host.LeaveRoom += OnClientLeave;
-                host.GameControl += ProcessClientPacket;
+                Host.Disconnected += OnClientDisconnected;
+                Host.LeaveRoom += OnClientLeave;
+                Host.GameControl += ProcessClientPacket;
 
-                m_clients.Add(host);
+                Clients.Add(Host);
 
                 seat2clients = new Dictionary<int, Client>();
                 for (int i = 0; i < Setting.PlayerNum; i++)
@@ -1898,18 +1938,18 @@ namespace SanguoshaServer.Game
                 {
                     if (seat2clients[index] == null)
                     {
-                        seat2clients[index] = host;
+                        seat2clients[index] = Host;
                         break;
                     }
                 }
 
-                host.GameRoom = room_id;
-                host.Status = Client.GameStatus.ready;
+                Host.GameRoom = RoomId;
+                Host.Status = Client.GameStatus.ready;
 
-                SendRoomSetting2Client(host);
+                SendRoomSetting2Client(Host);
 
                 //通知客户端当前玩家(client)信息
-                host.Status = Client.GameStatus.normal;
+                Host.Status = Client.GameStatus.normal;
 
 
                 //通知room中的其他玩家
@@ -1937,8 +1977,8 @@ namespace SanguoshaServer.Game
         }
         private void UpdateClientsInfo()
         {
-            List<string> info = new List<string> { host.UserID.ToString() };
-            foreach (Client client in m_clients)
+            List<string> info = new List<string> { Host.UserID.ToString() };
+            foreach (Client client in Clients)
             {
                 //OutPut(string.Format("{0} 是 第{1}位", client.UserID, GetClientIndex(client)));
                 info.Add(GetClientIndex(client).ToString());
@@ -1953,7 +1993,7 @@ namespace SanguoshaServer.Game
                 Body = info,
             };
 
-            foreach (Client client in m_clients)
+            foreach (Client client in Clients)
             {
                 client.SendSwitchReply(data);
             }
@@ -1973,7 +2013,7 @@ namespace SanguoshaServer.Game
             {
                 Description = PacketDescription.Room2Cient,
                 Protocol = protocol.JoinRoom,
-                Body = new List<string> { host.UserID.ToString(), JsonUntity.Object2Json(setting), game_started.ToString() }
+                Body = new List<string> { Host.UserID.ToString(), JsonUntity.Object2Json(setting), GameStarted.ToString() }
             };
             client.SendSwitchReply(data);
         }
@@ -1986,9 +2026,9 @@ namespace SanguoshaServer.Game
             {
                 Client client = (Client)sender;
                 client.Status = Client.GameStatus.offline;
-                
+
                 bool human_stay = false;
-                foreach (Client other in m_clients)
+                foreach (Client other in Clients)
                 {
                     if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
@@ -1997,7 +2037,7 @@ namespace SanguoshaServer.Game
                     }
                 }
 
-                if (!game_started)
+                if (!GameStarted)
                 {
                     client.GameRoom = 0;
 
@@ -2041,7 +2081,7 @@ namespace SanguoshaServer.Game
             lock (this)
             {
                 bool human_stay = false;
-                foreach (Client other in m_clients)
+                foreach (Client other in Clients)
                 {
                     if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
@@ -2050,7 +2090,7 @@ namespace SanguoshaServer.Game
                     }
                 }
 
-                if (!game_started)
+                if (!GameStarted)
                 {
                     if (!human_stay)
                     {
@@ -2130,19 +2170,19 @@ namespace SanguoshaServer.Game
                 }
             }
 
-            m_clients.Remove(client);
+            Clients.Remove(client);
             client.Disconnected -= OnClientDisconnected;
             client.LeaveRoom -= OnClientLeave;
             client.GetReady -= OnClientReady;
             client.GameControl -= ProcessClientPacket;
 
-            if (client == host)
+            if (client == Host)
             {
-                foreach (Client other in m_clients)
+                foreach (Client other in Clients)
                 {
                     if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
-                        host = other;
+                        Host = other;
                         break;
                     }
                 }
@@ -2155,7 +2195,7 @@ namespace SanguoshaServer.Game
 
             OutPut("stop game2 " + Thread.CurrentThread.ManagedThreadId.ToString());
 
-            foreach (Client client in m_clients)
+            foreach (Client client in Clients)
             {
                 client.GameRoom = -1;
                 client.Disconnected -= OnClientDisconnected;
@@ -2164,11 +2204,18 @@ namespace SanguoshaServer.Game
                 client.GameControl -= ProcessClientPacket;
                 client.ClearPlayers();
             }
-            
-            OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
-            hall.RemoveRoom(this, create_new ? host : null, m_clients);
+            for (int i = 0; i < m_players.Count; i++)
+            {
+                player_ai[m_players[i]] = null;
+                m_players[i] = null;
+            }
+            player_ai.Clear();
+            m_players.Clear();
 
-            room_thread = null;
+            OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
+            hall.RemoveRoom(this, create_new ? Host : null, Clients);
+
+            RoomThread = null;
             if (thread != null)
             {
                 thread.Abort();
@@ -2186,7 +2233,7 @@ namespace SanguoshaServer.Game
         #region 客户端准备游戏的状态
         private void OnClientReady(Client client, bool ready)
         {
-            if (game_started || host == client) return;
+            if (GameStarted || Host == client) return;
             lock (this)
             {
                 client.Status = ready ? Client.GameStatus.ready : Client.GameStatus.normal;
@@ -2220,7 +2267,7 @@ namespace SanguoshaServer.Game
                 Protocol = protocol.ConfigChange,
                 Body = new List<string> { JsonUntity.Object2Json<GameSetting>(setting) }
             };
-            foreach (Client client in m_clients)
+            foreach (Client client in Clients)
                 client.SendSwitchReply(data);
         }
         #endregion
@@ -2498,11 +2545,11 @@ namespace SanguoshaServer.Game
         private void GameStart(Client client, List<string> data)
         {
             bool check = true;
-            if (IsFull() && host == client)
+            if (IsFull() && Host == client)
             {
-                foreach (Client c in m_clients)
+                foreach (Client c in Clients)
                 {
-                    if (c != host && c.Status != Client.GameStatus.bot && c.Status != Client.GameStatus.ready)
+                    if (c != Host && c.Status != Client.GameStatus.bot && c.Status != Client.GameStatus.ready)
                     {
                         check = false;
                         break;
@@ -2517,53 +2564,54 @@ namespace SanguoshaServer.Game
 
         public void Run()
         {
-            game_started = true;
+            GameStarted = true;
             PrepareForStart();
             PreparePlayers();
-            m_alivePlayers = new List<Player>(m_players);
-            current = m_players[0];
+            _alivePlayers = new List<Player>(m_players);
 
-            room_thread = scenario.GetThread(this);
-            thread = new Thread(room_thread.Start);
+            Current = m_players[0];
+
+            RoomThread = Scenario.GetThread(this);
+            thread = new Thread(RoomThread.Start);
             thread.Start();
         }
 
         private void PrepareForStart()
         {
             //添加玩家
-            for (int i = 0; i < m_clients.Count; i++)
+            for (int i = 0; i < Clients.Count; i++)
             {
-                m_players.Add(new Player { Name = string.Format("SGS{0}", i + 1), Seat = i + 1});
+                m_players.Add(new Player { Name = string.Format("SGS{0}", i + 1), Seat = i + 1 });
             }
 
             //加载武将
-            generals = Engine.GetGenerals(Setting.GeneralPackage, false);
+            Generals = Engine.GetGenerals(Setting.GeneralPackage, false);
             //加载本局游戏技能
             foreach (string general in Engine.GetGenerals(Setting.GeneralPackage))
             {
                 foreach (string skill in Engine.GetGeneralSkills(general, Setting.GameMode))
                 {
-                    if (!skills.Contains(skill))
-                        skills.Add(skill);
+                    if (!Skills.Contains(skill))
+                        Skills.Add(skill);
 
                     foreach (Skill _skill in Engine.GetRelatedSkills(skill))
-                        if (!skills.Contains(_skill.Name))
-                            skills.Add(_skill.Name);
+                        if (!Skills.Contains(_skill.Name))
+                            Skills.Add(_skill.Name);
                 }
 
                 foreach (string skill in Engine.GetGeneralRelatedSkills(general, Setting.GameMode))
                 {
-                    if (!skills.Contains(skill))
-                        skills.Add(skill);
+                    if (!Skills.Contains(skill))
+                        Skills.Add(skill);
 
                     foreach (Skill _skill in Engine.GetRelatedSkills(skill))
-                        if (!skills.Contains(_skill.Name))
-                            skills.Add(_skill.Name);
+                        if (!Skills.Contains(_skill.Name))
+                            Skills.Add(_skill.Name);
                 }
             }
 
             //游戏卡牌、玩家身份、座次由剧本函数生成
-            scenario.PrepareForStart(this, ref m_players, ref pile1, ref m_drawPile);
+            Scenario.PrepareForStart(this, ref m_players, ref pile1, ref m_drawPile);
             //更新游戏卡牌信息，通知客户端
             PrepareCards();
             //将玩家座次信息通知客户端
@@ -2589,7 +2637,7 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_ARRANGE_SEATS, players);
 
             //玩家选将由剧本函数完成，相关客户端通知也由此函数完成
-            scenario.Assign(this);
+            Scenario.Assign(this);
         }
 
         //准备游戏卡牌
@@ -2609,17 +2657,18 @@ namespace SanguoshaServer.Game
 
         public void PreparePlayers()
         {
-            foreach (Player player in m_players) {
+            foreach (Player player in m_players)
+            {
                 string general1_name = player.ActualGeneral1;
                 if (!player.DuanChang.Contains("head"))
                 {
-                    foreach (string skill in Engine.GetGeneralSkills(general1_name, scenario.Name, true))
+                    foreach (string skill in Engine.GetGeneralSkills(general1_name, Scenario.Name, true))
                         AddPlayerSkill(player, skill);
                 }
                 string general2_name = player.ActualGeneral2;
                 if (!string.IsNullOrEmpty(general2_name) && general2_name != general1_name && !player.DuanChang.Contains("deputy"))
                 {
-                    foreach (string skill in Engine.GetGeneralSkills(general2_name, scenario.Name, false))
+                    foreach (string skill in Engine.GetGeneralSkills(general2_name, Scenario.Name, false))
                         AddPlayerSkill(player, skill, false);
                 }
 
@@ -2654,18 +2703,19 @@ namespace SanguoshaServer.Game
         public void HandleUsedGeneral(string general)
         {
             bool remove = general.StartsWith("-") ? true : false;
-                string general_name = general;
+            string general_name = general;
             if (remove) general_name = general_name.Substring(1);
-                string main = Engine.GetMainGeneral(general_name);
+            string main = Engine.GetMainGeneral(general_name);
             if (remove)
-                used_general.Remove(main);
-            else if (!used_general.Contains(general))
-                used_general.Add(main);
-            foreach (string sub in Engine.GetConverPairs(main)) {
+                UsedGeneral.Remove(main);
+            else if (!UsedGeneral.Contains(general))
+                UsedGeneral.Add(main);
+            foreach (string sub in Engine.GetConverPairs(main))
+            {
                 if (remove)
-                    used_general.Remove(sub);
-                else if (!used_general.Contains(sub))
-                    used_general.Add(sub);
+                    UsedGeneral.Remove(sub);
+                else if (!UsedGeneral.Contains(sub))
+                    UsedGeneral.Add(sub);
             }
         }
 
@@ -2704,7 +2754,8 @@ namespace SanguoshaServer.Game
 
             bool show = is_head ? who.General1Showed : who.General2Showed;
 
-            foreach (Client target in m_clients) {
+            foreach (Client target in Clients)
+            {
                 if (client != target && !show) continue;
                 NotifyProperty(target, who, propertyName);
             }
@@ -2718,7 +2769,8 @@ namespace SanguoshaServer.Game
                 {
                     bool trust = false;
 
-                    foreach (Player p in client.GetPlayers()) {
+                    foreach (Player p in client.GetPlayers())
+                    {
                         if (!trust && p.Status == "online")
                             trust = true;
                         p.Status = trust ? "trust" : "online";
@@ -2749,7 +2801,7 @@ namespace SanguoshaServer.Game
             int index = int.Parse(data[0]);
             lock (this)
             {
-                if (client == host && !IsFull() && !game_started && seat2clients[index] == null)
+                if (client == Host && !IsFull() && !GameStarted && seat2clients[index] == null)
                 {
 
                     int bot_id = hall.GetBotId();
@@ -2764,11 +2816,11 @@ namespace SanguoshaServer.Game
                     };
                     Client bot = new Client(hall, null, profile)
                     {
-                        GameRoom = room_id,
+                        GameRoom = RoomId,
                         Status = Client.GameStatus.bot,
                     };
                     hall.AddBot(bot);
-                    m_clients.Add(bot);
+                    Clients.Add(bot);
                     bot.LeaveRoom += OnClientLeave;
 
                     seat2clients[index] = bot;
@@ -2781,7 +2833,7 @@ namespace SanguoshaServer.Game
 
         public void Speak(Client client, string message)
         {
-            if (client.UserID < 3 && game_started && Setting.SpeakForbidden) return;
+            if (client.UserID < 3 && GameStarted && Setting.SpeakForbidden) return;
             MyData data = new MyData
             {
                 Description = PacketDescription.Room2Cient,
@@ -2789,14 +2841,14 @@ namespace SanguoshaServer.Game
                 Body = new List<string> { client.UserID.ToString(), message }
             };
 
-            foreach (Client dest in m_clients)
+            foreach (Client dest in Clients)
                 dest.SendMessage(data);
         }
 
         private void ProcessRequestPreshow(Client client, List<string> args)
         {
             if (args.Count != 3) return;
-            
+
             Player player = FindPlayer(args[0]);
             string skill_name = args[1];
             TriggerSkill skill = Engine.GetTriggerSkill(skill_name);
@@ -2812,7 +2864,7 @@ namespace SanguoshaServer.Game
         private void ProcessRequestCheat(Client client, List<string> arg)
         {
             if (client.UserRight < 3) return;
-            
+
             client.CheatArgs = arg;
             if (client.IsWaitingReply
                 && client.ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
@@ -2938,7 +2990,7 @@ namespace SanguoshaServer.Game
 
             return null;
         }
-        
+
 
         #region 将游戏信息通知客户端
         public bool DoNotify(Client client, CommandType command, List<string> message_body)
@@ -2952,7 +3004,7 @@ namespace SanguoshaServer.Game
 
         public bool DoBroadcastNotify(CommandType command, List<string> message_body, Client except = null)
         {
-            foreach (Client player in m_clients)
+            foreach (Client player in Clients)
                 if (except == null || player != except)
                     DoNotify(player, command, message_body);
 
@@ -2968,7 +3020,7 @@ namespace SanguoshaServer.Game
 
         public bool DoBroadcastNotify(CommandType command, List<string> message_body)
         {
-            return DoBroadcastNotify(m_clients, command, message_body);
+            return DoBroadcastNotify(Clients, command, message_body);
         }
 
         public bool NotifyProperty(Client clientToNotify, Player propertyOwner, string propertyName, string value = null)
@@ -3040,7 +3092,8 @@ namespace SanguoshaServer.Game
             //for protecting anjiang
             //============================================
             bool verify = false;
-            foreach (Player focus in focuses) {
+            foreach (Player focus in focuses)
+            {
                 if (focus.HasFlag("Global_askForSkillCost"))
                 {
                     verify = true;
@@ -3078,7 +3131,7 @@ namespace SanguoshaServer.Game
             };
 
             List<string> names = new List<string>();
-            foreach (Player p in AlivePlayers)
+            foreach (Player p in GetAlivePlayers())
                 names.Add(p.Name);
             List<string> arg = new List<string> { JsonUntity.Object2Json(names), JsonUntity.Object2Json(countdown) };
             DoBroadcastNotify(CommandType.S_COMMAND_MOVE_FOCUS, arg, null);
@@ -3110,7 +3163,7 @@ namespace SanguoshaServer.Game
             m_broadcardrequest = true;
             foreach (Client player in receivers)
                 DoRequest(player, command, player.CommandArgs, timeOut, false);
-            
+
             Stopwatch sw = new Stopwatch();
             sw.Start();
             float remainTime = timeOut;
@@ -3250,7 +3303,7 @@ namespace SanguoshaServer.Game
         }
 
         bool GetResult(Client player, float timeOut)
-        {           
+        {
             bool validResult = false;
             player.mutex.WaitOne();
 
@@ -3336,7 +3389,7 @@ namespace SanguoshaServer.Game
         public void ChangePlayerGeneral(Player player, string new_general)
         {
             player.General1 = new_general;
-            List<Client> players = new List<Client>(m_clients);
+            List<Client> players = new List<Client>(Clients);
             if (new_general == "anjiang") players.Remove(GetClient(player));
 
             foreach (Client p in players)
@@ -3359,7 +3412,7 @@ namespace SanguoshaServer.Game
         public void ChangePlayerGeneral2(Player player, string new_general)
         {
             player.General2 = new_general;
-            List<Client> players = new List<Client>(m_clients);
+            List<Client> players = new List<Client>(Clients);
             if (new_general == "anjiang") players.Remove(GetClient(player));
 
             foreach (Client p in players)
@@ -3432,7 +3485,7 @@ namespace SanguoshaServer.Game
                 }
                 if (player.HeadSkinId > 0)
                 {
-                    foreach (Client p in m_clients)
+                    foreach (Client p in Clients)
                         if (p != GetClient(player))
                             NotifyProperty(p, player, "HeadSkinId");
                 }
@@ -3503,7 +3556,7 @@ namespace SanguoshaServer.Game
                 }
                 if (player.DeputySkinId > 0)
                 {
-                    foreach (Client p in m_clients)
+                    foreach (Client p in Clients)
                         if (p != GetClient(player))
                             NotifyProperty(p, player, "DeputySkinId");
                 }
@@ -3532,7 +3585,7 @@ namespace SanguoshaServer.Game
             {
                 //Q_ASSERT(room->getThread() != NULL);
                 object _head = (object)head_general;
-                room_thread.Trigger(TriggerEvent.GeneralShown, this, player, ref _head);
+                RoomThread.Trigger(TriggerEvent.GeneralShown, this, player, ref _head);
             }
 
             FilterCards(player, player.GetCards("he"), true);
@@ -3560,7 +3613,7 @@ namespace SanguoshaServer.Game
 
             //QVariant arg = log.toVariant(this);
             List<string> message = new List<string> { JsonUntity.Object2Json<LogMessage>(log) };
-            foreach (Client p in m_clients)
+            foreach (Client p in Clients)
                 if (!except_client.Contains(p))
                     DoNotify(p, CommandType.S_COMMAND_LOG_SKILL, message);
         }
@@ -3569,14 +3622,14 @@ namespace SanguoshaServer.Game
         {
             if (string.IsNullOrEmpty(log.Type))
                 return;
-            
+
             DoNotify(GetClient(player), CommandType.S_COMMAND_LOG_SKILL, new List<string> { JsonUntity.Object2Json<LogMessage>(log) });
         }
 
         public void SendCompulsoryTriggerLog(Player player, string skill_name, bool notify_skill = true)
-    {
-        if (!player.ContainsTag("JustShownSkill") || (string)player.GetTag("JustShownSkill") != skill_name)
         {
+            if (!player.ContainsTag("JustShownSkill") || (string)player.GetTag("JustShownSkill") != skill_name)
+            {
                 LogMessage log = new LogMessage
                 {
                     Type = "#TriggerSkill",
@@ -3584,20 +3637,21 @@ namespace SanguoshaServer.Game
                     From = player.Name
                 };
                 SendLog(log);
+            }
+            if (notify_skill)
+                NotifySkillInvoked(player, skill_name);
         }
-        if (notify_skill)
-            NotifySkillInvoked(player, skill_name);
-    }
 
-    public void SendPlayerSkillsToOthers(Player player, bool head_skill = true)
+        public void SendPlayerSkillsToOthers(Player player, bool head_skill = true)
         {
-            List<string> skills = head_skill ?  player.GetHeadSkillList(): player.GetDeputySkillList();
-            foreach (string skill in skills) {
+            List<string> skills = head_skill ? player.GetHeadSkillList() : player.GetDeputySkillList();
+            foreach (string skill in skills)
+            {
                 List<string> args = new List<string> { GameEventType.S_GAME_EVENT_ADD_SKILL.ToString(), player.Name, skill, head_skill.ToString() };
-                foreach (Client p in m_clients)
+                foreach (Client p in Clients)
                     if (p != GetClient(player))
                         DoNotify(p, CommandType.S_COMMAND_LOG_EVENT, args);
-                
+
             }
         }
 
@@ -3608,7 +3662,7 @@ namespace SanguoshaServer.Game
             int type = 0;
             if (skill_name == "showforviewhas" && !player.HasShownOneGeneral())            //this is for some skills that player doesnt own but need to show, such as hongfa-slash. by weirdouncle
                 type = 1;
-            
+
             if (type == 0)
             {
                 Skill skill = Engine.GetSkill(skill_name);
@@ -3639,7 +3693,8 @@ namespace SanguoshaServer.Game
                 else if (!RoomLogic.PlayerHasShownSkill(this, player, skill))
                 {
                     List<ViewHasSkill> vhskills = Engine.ViewHas(this, player, skill.Name, "skill");
-                    foreach (ViewHasSkill vhskill in vhskills) {
+                    foreach (ViewHasSkill vhskill in vhskills)
+                    {
                         if (!vhskill.Global)
                         {
                             type = 1;
@@ -3669,10 +3724,11 @@ namespace SanguoshaServer.Game
         }
         public int AliveCount(bool includeRemoved = true)
         {
-            int n = m_alivePlayers.Count;
+            int n = GetAlivePlayers().Count;
             if (!includeRemoved)
             {
-                foreach (Player p in m_alivePlayers) {
+                foreach (Player p in GetAlivePlayers())
+                {
                     if (p.Removed)
                         n--;
                 }
@@ -3712,7 +3768,7 @@ namespace SanguoshaServer.Game
         {
             List<Client> receivers = new List<Client>();
             if (players == null || players.Count == 0)
-                receivers = m_clients;
+                receivers = Clients;
             else
                 foreach (Player p in players)
                     if (GetClient(p) != null && !receivers.Contains(GetClient(p)))
@@ -3752,9 +3808,9 @@ namespace SanguoshaServer.Game
                         DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, JsonUntity.Object2Json(new List<string> { player.Name, p.Name }));
             }
         }
-        
+
         public List<Player> GetOtherPlayers(Player except, bool include_dead = false)
-        { 
+        {
             List<Player> other_players = new List<Player>(GetAllPlayers(include_dead));
             if (except != null && (except.Alive || include_dead))
                 other_players.Remove(except);
@@ -3773,10 +3829,10 @@ namespace SanguoshaServer.Game
         public List<Player> GetAllPlayers(bool include_dead = false)
         {
             List<Player> count_players = new List<Player>(m_players);
-            if (current == null)
+            if (Current == null)
                 return count_players;
 
-            Player starter = current;
+            Player starter = Current;
             int index = count_players.IndexOf(starter);
             if (index == -1)
                 return count_players;
@@ -3794,16 +3850,16 @@ namespace SanguoshaServer.Game
                     all_players.Add(count_players[i]);
             }
 
-            if (current.Phase == PlayerPhase.NotActive && all_players.Contains(current))
+            if (Current.Phase == PlayerPhase.NotActive && all_players.Contains(Current))
             {
-                all_players.Remove(current);
-                all_players.Add(current);
+                all_players.Remove(Current);
+                all_players.Add(Current);
             }
 
             return all_players;
         }
 
- 
+
         public void BroadcastSkillInvoke(Player player, WrappedCard card)
         {
             if (card.Mute) return;
@@ -3862,10 +3918,10 @@ namespace SanguoshaServer.Game
 
             DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
         }
-        
+
         public void SummonFriends(Player player, BattleArraySkill.ArrayType type)
         {
-            if (m_alivePlayers.Count < 4) return;
+            if (GetAlivePlayers().Count < 4) return;
             LogMessage log = new LogMessage
             {
                 Type = "#InvokeSkill",
@@ -3902,7 +3958,7 @@ namespace SanguoshaServer.Game
                                 SendLog(log);
                                 if (success)
                                 {
-                                    AskForGeneralShow(target);
+                                    AskForGeneralShow(target, "GameRule_AskForArraySummon");
                                     DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, string.Format("{0}+{1}", player.Name, target.Name));       //player success animation
                                     failed = false;
                                 }
@@ -3924,7 +3980,7 @@ namespace SanguoshaServer.Game
                                 SendLog(log);
                                 if (success)
                                 {
-                                    AskForGeneralShow(target);
+                                    AskForGeneralShow(target, "GameRule_AskForArraySummon");
                                     DoAnimate(AnimateType.S_ANIMATE_BATTLEARRAY, player.Name, string.Format("{0}+{1}", player.Name, target.Name));       //player success animation
                                     failed = false;
                                 }
@@ -3958,7 +4014,7 @@ namespace SanguoshaServer.Game
 
                                 if (success)
                                 {
-                                    AskForGeneralShow(target);
+                                    AskForGeneralShow(target, "GameRule_AskForArraySummon");
                                     DoBattleArrayAnimate(target);       //player success animation
                                     failed = false;
                                 }
@@ -3997,7 +4053,7 @@ namespace SanguoshaServer.Game
 
                                     if (success)
                                     {
-                                        AskForGeneralShow(target);
+                                        AskForGeneralShow(target, "GameRule_AskForArraySummon");
                                         DoBattleArrayAnimate(target);       //player success animation
                                         failed = false;
                                     }
@@ -4020,30 +4076,31 @@ namespace SanguoshaServer.Game
             List<JudgeStruct> judge_list = ContainsTag("current_judge") ? (List<JudgeStruct>)GetTag("current_judge") : new List<JudgeStruct>();
             judge_list.Add(judge_star);
             SetTag("current_judge", judge_list);
-            SetTag("judge_draw", (ContainsTag("judge_draw") ? (int)GetTag("judge_draw") : 0)+ 1);
+            SetTag("judge_draw", (ContainsTag("judge_draw") ? (int)GetTag("judge_draw") : 0) + 1);
 
-            room_thread.Trigger(TriggerEvent.StartJudge, this, judge_star.Who, ref data);
+            RoomThread.Trigger(TriggerEvent.StartJudge, this, judge_star.Who, ref data);
 
             SetTag("judge_draw", (int)GetTag("judge_draw") - 1);
 
             List<Player> players = GetAllPlayers();
-            foreach (Player player in players) {
-                if (room_thread.Trigger(TriggerEvent.AskForRetrial, this, player, ref data))
+            foreach (Player player in players)
+            {
+                if (RoomThread.Trigger(TriggerEvent.AskForRetrial, this, player, ref data))
                     break;
             }
 
-            room_thread.Trigger(TriggerEvent.FinishRetrial, this, judge_star.Who, ref data);
+            RoomThread.Trigger(TriggerEvent.FinishRetrial, this, judge_star.Who, ref data);
 
             SetTag("judge", (int)GetTag("judge") - 1);
             judge_list = (List<JudgeStruct>)GetTag("current_judge");
             judge_list.RemoveAt(judge_list.Count - 1);
             SetTag("current_judge", judge_list);
 
-            room_thread.Trigger(TriggerEvent.FinishJudge, this, judge_star.Who, ref data);
+            RoomThread.Trigger(TriggerEvent.FinishJudge, this, judge_star.Who, ref data);
             judge_star = (JudgeStruct)data;
         }
 
-        public bool AskForGeneralShow(Player player, bool one = true, bool refusable = false)
+        public bool AskForGeneralShow(Player player, string reason, bool one = true, bool refusable = false)
         {
             if (player.HasShownAllGenerals())
                 return false;
@@ -4061,7 +4118,7 @@ namespace SanguoshaServer.Game
             if (refusable)
                 choices.Add("cancel");
 
-            string choice = AskForChoice(player, "GameRule_AskForGeneralShow", string.Join("+", choices));
+            string choice = AskForChoice(player, reason, string.Join("+", choices));
 
             if (choice == "show_head_general" || choice == "show_both_generals")
                 ShowGeneral(player);
@@ -4117,7 +4174,7 @@ namespace SanguoshaServer.Game
                         invoked = false;
                 }
             }
-            DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString()});
+            DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             if (invoked)
             {
@@ -4125,9 +4182,9 @@ namespace SanguoshaServer.Game
                 if (skill != null && skill is TriggerSkill)
                 {
                     TriggerSkill tr_skill = (TriggerSkill)skill;
-                    if (tr_skill != null  && !tr_skill.Global)
+                    if (tr_skill != null && !tr_skill.Global)
                     {
-                        List<string> msg = new List<string> { skill_name ,player.Name };
+                        List<string> msg = new List<string> { skill_name, player.Name };
                         if (RoomLogic.PlayerHasSkill(this, player, skill_name) || RoomLogic.PlayerHasEquipSkill(player, skill_name))
                             DoBroadcastNotify(CommandType.S_COMMAND_INVOKE_SKILL, msg);
                         NotifySkillInvoked(player, skill_name);
@@ -4136,7 +4193,7 @@ namespace SanguoshaServer.Game
             }
 
             object decisionData = "skillInvoke:" + skill_name + ":" + (invoked ? "yes" : "no");
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
             return invoked;
         }
 
@@ -4173,7 +4230,7 @@ namespace SanguoshaServer.Game
                     else
                         answer = clientReply[0];
                 }
-                DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString()});
+                DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             }
             bool check = false;
@@ -4194,18 +4251,20 @@ namespace SanguoshaServer.Game
             }
 
             object decisionData = "skillChoice:" + skillname + ":" + answer;
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
             return answer;
         }
         public void AskForLordConvert()
         {
             List<Player> lords = new List<Player>();
-            foreach (Player p in m_players) {
+            foreach (Player p in m_players)
+            {
                 if (!string.IsNullOrEmpty(p.ActualGeneral1))
                 {
                     string lord = "lord_" + p.ActualGeneral1;
                     bool check = true;
-                    foreach (Player p2 in GetOtherPlayers(p)) {                                 //no duplicate lord
+                    foreach (Player p2 in GetOtherPlayers(p))
+                    {                                 //no duplicate lord
                         if (p != p2 && lord == "lord_" + p2.ActualGeneral1)
                         {
                             check = false;
@@ -4221,7 +4280,8 @@ namespace SanguoshaServer.Game
             if (lords.Count > 0)
             {
                 List<Client> receivers = new List<Client>();
-                foreach (Player player in lords) {
+                foreach (Player player in lords)
+                {
                     List<string> args = new List<string> { player.Name, "userdefine:changetolord", null };
                     TrustedAI ai = GetAI(player);
                     Client client = GetClient(player);
@@ -4239,7 +4299,7 @@ namespace SanguoshaServer.Game
 
                 bool solo = true;
                 int human = 0;
-                foreach (Client client in m_clients)
+                foreach (Client client in Clients)
                 {
                     if (client.Status != Client.GameStatus.bot)
                         human++;
@@ -4264,7 +4324,8 @@ namespace SanguoshaServer.Game
 
                 DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
-                foreach (Player player in lords) {
+                foreach (Player player in lords)
+                {
                     Client client = GetClient(player);
                     if (client.IsClientResponseReady && receivers.Contains(client))
                     {
@@ -4285,7 +4346,8 @@ namespace SanguoshaServer.Game
             if (count <= 0) return;
             player_luckcard.Clear();
             List<Client> players = new List<Client>();
-            foreach (Client player in m_clients) {
+            foreach (Client player in Clients)
+            {
                 player.CommandArgs = new List<string>();
                 if (GetAI(player.GetPlayers()[0]) == null)
                 {
@@ -4309,11 +4371,14 @@ namespace SanguoshaServer.Game
 
         public void FilterCards(Player player, List<int> ids, bool refilter)
         {
-            if (refilter) {
-                for (int i = 0; i< ids.Count; i++) {
+            if (refilter)
+            {
+                for (int i = 0; i < ids.Count; i++)
+                {
                     int cardId = ids[i];
                     WrappedCard card = GetCard(cardId);
-                    if (card.Modified) {
+                    if (card.Modified)
+                    {
                         ResetCard(cardId);
                     }
                 }
@@ -4345,15 +4410,19 @@ namespace SanguoshaServer.Game
                     _skills.Add(s);
             }
 
-            foreach (Skill skill in _skills) {
-                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is FilterSkill)) {
+            foreach (Skill skill in _skills)
+            {
+                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is FilterSkill))
+                {
                     FilterSkill filter = (FilterSkill)skill;
                     filterSkills.Add(filter);
                 }
-                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is TriggerSkill)) {
+                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is TriggerSkill))
+                {
                     TriggerSkill trigger = (TriggerSkill)skill;
                     ViewAsSkill vsskill = trigger.ViewAsSkill;
-                    if (vsskill != null && (vsskill is FilterSkill)) {
+                    if (vsskill != null && (vsskill is FilterSkill))
+                    {
                         FilterSkill filter = (FilterSkill)vsskill;
                         filterSkills.Add(filter);
                     }
@@ -4367,7 +4436,8 @@ namespace SanguoshaServer.Game
                 for (int fTime = 0; fTime < filterSkills.Count; fTime++)
                 {
                     bool converged = true;
-                    foreach (FilterSkill skill in filterSkills) {
+                    foreach (FilterSkill skill in filterSkills)
+                    {
                         if (skill.ViewFilter(this, card, player))
                         {
                             skill.ViewAs(this, ref card, player);
@@ -4379,11 +4449,12 @@ namespace SanguoshaServer.Game
                 }
             }
 
-            for (int i = 0; i < ids.Count; i++) {
+            for (int i = 0; i < ids.Count; i++)
+            {
                 int cardId = ids[i];
                 Place place = GetCardPlace(cardId);
                 if (!cardChanged[i]) continue;
-                    if (place == Place.PlaceJudge)
+                if (place == Place.PlaceJudge)
                 {
                     LogMessage log = new LogMessage
                     {
@@ -4414,7 +4485,7 @@ namespace SanguoshaServer.Game
                 Damage = reason
             };
             object dying_data = dying;
-            room_thread.Trigger(TriggerEvent.Dying, this, player, ref dying_data);
+            RoomThread.Trigger(TriggerEvent.Dying, this, player, ref dying_data);
 
             if (player.Alive)
             {
@@ -4430,18 +4501,19 @@ namespace SanguoshaServer.Game
                         From = player.Name,
                         To = new List<string>(),
                         Arg = (1 - player.Hp).ToString()
-                };
+                    };
                     foreach (Player p in GetAllPlayers())
                         log.To.Add(p.Name);
                     SendLog(log);
 
-                    foreach (Player saver in GetAllPlayers()) {
+                    foreach (Player saver in GetAllPlayers())
+                    {
                         if (player.Hp > 0 || !player.Alive)
                             break;
 
-                        room_thread.Trigger(TriggerEvent.AskForPeaches, this, saver, ref dying_data);
+                        RoomThread.Trigger(TriggerEvent.AskForPeaches, this, saver, ref dying_data);
                     }
-                    room_thread.Trigger(TriggerEvent.AskForPeachesDone, this, player, ref dying_data);
+                    RoomThread.Trigger(TriggerEvent.AskForPeachesDone, this, player, ref dying_data);
 
                     player.SetFlags("-Global_Dying");
                 }
@@ -4455,7 +4527,7 @@ namespace SanguoshaServer.Game
                 arg = new List<string> { GameEventType.S_GAME_EVENT_PLAYER_QUITDYING.ToString(), player.Name };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
             }
-            room_thread.Trigger(TriggerEvent.QuitDying, this, player, ref dying_data);
+            RoomThread.Trigger(TriggerEvent.QuitDying, this, player, ref dying_data);
         }
 
         public void SetPlayerChained(Player player, bool chained, bool trigger = true)
@@ -4466,7 +4538,7 @@ namespace SanguoshaServer.Game
             BroadcastProperty(player, "Chained");
             if (trigger && player.Alive)
             {
-                room_thread.Trigger(TriggerEvent.ChainStateChanged, this, player);
+                RoomThread.Trigger(TriggerEvent.ChainStateChanged, this, player);
             }
         }
         public void DoChainedAnimation(Player player = null, DamageStruct.DamageNature nature = DamageStruct.DamageNature.Normal)
@@ -4502,7 +4574,8 @@ namespace SanguoshaServer.Game
                 List<Player> players = new List<Player>(m_players);
                 players.Sort((x, y) => CompareByRole(x, y));
                 List<string> roles = new List<string>();
-                foreach (Player p in players) {
+                foreach (Player p in players)
+                {
                     string c = "ZCFN"[(int)p.GetRoleEnum()].ToString();
                     if (!p.Alive)
                         c = c.ToLower();
@@ -4531,15 +4604,21 @@ namespace SanguoshaServer.Game
             victim.Removed = false;
             BroadcastProperty(victim, "Removed");
 
-            int index = m_alivePlayers.IndexOf(victim);
-            for (int i = index + 1; i < m_alivePlayers.Count; i++)
+            int index = GetAlivePlayers().IndexOf(victim);
+            for (int i = index + 1; i < GetAlivePlayers().Count; i++)
             {
-                Player p = m_alivePlayers[i];
+                Player p = GetAlivePlayers()[i];
                 p.Seat = p.Seat - 1;
                 BroadcastProperty(p, "Seat");
             }
+            GetAlivePlayers().Remove(victim);
 
-            m_alivePlayers.Remove(victim);
+            if (reason.From != null)
+            {
+                ResultStruct new_result = reason.From.Result;
+                new_result.Kill += 1;
+                reason.From.Result = new_result;
+            }
 
             DeathStruct death = new DeathStruct
             {
@@ -4547,7 +4626,7 @@ namespace SanguoshaServer.Game
                 Damage = reason
             };
             object data = death;
-            room_thread.Trigger(TriggerEvent.BeforeGameOverJudge, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.BeforeGameOverJudge, this, victim, ref data);
 
             UpdateStateItem();
 
@@ -4570,18 +4649,19 @@ namespace SanguoshaServer.Game
 
             Thread.Sleep(1500);
 
-            room_thread.Trigger(TriggerEvent.GameOverJudge, this, victim, ref data);
-            room_thread.Trigger(TriggerEvent.Death, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.GameOverJudge, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.Death, this, victim, ref data);
 
             //DoNotify(GetClient(victim), CommandType.S_COMMAND_SET_DASHBOARD_SHADOW, new List<string> { victim.Name });
 
             victim.DetachAllSkills();
-            room_thread.Trigger(TriggerEvent.BuryVictim, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.BuryVictim, this, victim, ref data);
 
             if (!victim.Alive)
             {
                 bool expose_roles = true;
-                foreach (Player player in m_alivePlayers) {
+                foreach (Player player in GetAlivePlayers())
+                {
                     if (GetClient(player).Status != Client.GameStatus.offline)
                     {
                         expose_roles = false;
@@ -4591,7 +4671,8 @@ namespace SanguoshaServer.Game
 
                 if (expose_roles)
                 {
-                    foreach (Player player in m_alivePlayers) {
+                    foreach (Player player in GetAlivePlayers())
+                    {
                         string role = player.Kingdom;
                         if (role == "god")
                         {
@@ -4638,7 +4719,7 @@ namespace SanguoshaServer.Game
             if (!victim.Alive)
                 return;
             object data = lose;
-            if (room_thread.Trigger(TriggerEvent.PreHpLost, this, victim, ref data))
+            if (RoomThread.Trigger(TriggerEvent.PreHpLost, this, victim, ref data))
                 return;
 
             lose = (int)data;
@@ -4660,8 +4741,8 @@ namespace SanguoshaServer.Game
             List<string> arg = new List<string> { victim.Name, (-lose).ToString(), "-1" };
             DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
 
-            room_thread.Trigger(TriggerEvent.PostHpReduced, this, victim, ref data);
-            room_thread.Trigger(TriggerEvent.HpLost, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.PostHpReduced, this, victim, ref data);
+            RoomThread.Trigger(TriggerEvent.HpLost, this, victim, ref data);
         }
 
         public void LoseMaxHp(Player victim, int lose = 1)
@@ -4670,7 +4751,7 @@ namespace SanguoshaServer.Game
                 return;
 
             int hp_1 = victim.Hp;
-            victim.MaxHp= Math.Min(victim.MaxHp - lose, 0);
+            victim.MaxHp = Math.Min(victim.MaxHp - lose, 0);
             int hp_2 = victim.Hp;
 
             BroadcastProperty(victim, "MaxHp");
@@ -4702,11 +4783,11 @@ namespace SanguoshaServer.Game
                 KillPlayer(victim, new DamageStruct());
             else
             {
-                room_thread.Trigger(TriggerEvent.MaxHpChanged, this, victim);
+                RoomThread.Trigger(TriggerEvent.MaxHpChanged, this, victim);
                 if (hp_1 > hp_2)
                 {
                     object data = hp_1 - hp_2;
-                    room_thread.Trigger(TriggerEvent.PostHpReduced, this, victim, ref data);
+                    RoomThread.Trigger(TriggerEvent.PostHpReduced, this, victim, ref data);
                 }
             }
         }
@@ -4716,6 +4797,16 @@ namespace SanguoshaServer.Game
             int new_hp = victim.Hp - damage.Damage;
             victim.Hp = new_hp;
             BroadcastProperty(victim, "Hp");
+
+            ResultStruct new_result = damage.To.Result;
+            new_result.Damaged += damage.Damage;
+            damage.To.Result = new_result;
+            if (damage.From != null)
+            {
+                new_result = damage.From.Result;
+                new_result.Damage += damage.Damage;
+                damage.From.Result = new_result;
+            }
 
             List<string> arg = new List<string> { victim.Name, (-damage.Damage).ToString(), ((int)damage.Nature).ToString() };
             DoBroadcastNotify(CommandType.S_COMMAND_CHANGE_HP, arg);
@@ -4747,12 +4838,12 @@ namespace SanguoshaServer.Game
 
             if (!damage_data.Chain && !damage_data.Transfer)
             {
-                room_thread.Trigger(TriggerEvent.ConfirmDamage, this, damage_data.From, ref qdata);
+                RoomThread.Trigger(TriggerEvent.ConfirmDamage, this, damage_data.From, ref qdata);
                 damage_data = (DamageStruct)qdata;
             }
 
             // Predamage
-            if (room_thread.Trigger(TriggerEvent.Predamage, this, damage_data.From, ref qdata))
+            if (RoomThread.Trigger(TriggerEvent.Predamage, this, damage_data.From, ref qdata))
             {
                 RemoveQinggangTag(damage_data);
                 return;
@@ -4761,7 +4852,7 @@ namespace SanguoshaServer.Game
             bool enter_stack = false;
             do
             {
-                if (room_thread.Trigger(TriggerEvent.DamageForseen, this, damage_data.To, ref qdata))
+                if (RoomThread.Trigger(TriggerEvent.DamageForseen, this, damage_data.To, ref qdata))
                 {
                     RemoveQinggangTag(damage_data);
                     break;
@@ -4773,7 +4864,7 @@ namespace SanguoshaServer.Game
                 }
                 if (damage_data.From != null)
                 {
-                    if (room_thread.Trigger(TriggerEvent.DamageCaused, this, damage_data.From, ref qdata))
+                    if (RoomThread.Trigger(TriggerEvent.DamageCaused, this, damage_data.From, ref qdata))
                     {
                         RemoveQinggangTag(damage_data);
                         break;
@@ -4783,7 +4874,7 @@ namespace SanguoshaServer.Game
                 damage_data = (DamageStruct)qdata;
                 string str = damage_data.To.Name + "_TransferDamage";
                 RemoveTag(str);
-                if (room_thread.Trigger(TriggerEvent.DamageInflicted, this, damage_data.To, ref qdata))
+                if (RoomThread.Trigger(TriggerEvent.DamageInflicted, this, damage_data.To, ref qdata))
                 {
                     RemoveQinggangTag(damage_data);
                     // Make sure that the trigger in which 'TransferDamage' tag is set returns TRUE
@@ -4797,16 +4888,16 @@ namespace SanguoshaServer.Game
                 m_damageStack.Enqueue(damage_data);
                 SetTag("CurrentDamageStruct", qdata);
 
-                room_thread.Trigger(TriggerEvent.PreDamageDone, this, damage_data.To, ref qdata);
+                RoomThread.Trigger(TriggerEvent.PreDamageDone, this, damage_data.To, ref qdata);
 
                 RemoveQinggangTag(damage_data);
-                room_thread.Trigger(TriggerEvent.DamageDone, this, damage_data.To, ref qdata);
+                RoomThread.Trigger(TriggerEvent.DamageDone, this, damage_data.To, ref qdata);
 
                 if (damage_data.From != null && !damage_data.From.HasFlag("Global_DFDebut"))
-                    room_thread.Trigger(TriggerEvent.Damage, this, damage_data.From, ref qdata);
+                    RoomThread.Trigger(TriggerEvent.Damage, this, damage_data.From, ref qdata);
 
                 if (!damage_data.To.HasFlag("Global_DFDebut"))
-                    room_thread.Trigger(TriggerEvent.Damaged, this, damage_data.To, ref qdata);
+                    RoomThread.Trigger(TriggerEvent.Damaged, this, damage_data.To, ref qdata);
             } while (false);
 
 
@@ -4818,7 +4909,7 @@ namespace SanguoshaServer.Game
                 SetTag("SkipGameRule", true);
             }
             damage_data = (DamageStruct)qdata;
-            room_thread.Trigger(TriggerEvent.DamageComplete, this, damage_data.To, ref qdata);
+            RoomThread.Trigger(TriggerEvent.DamageComplete, this, damage_data.To, ref qdata);
 
             if (enter_stack)
             {
@@ -4835,17 +4926,17 @@ namespace SanguoshaServer.Game
             if (response.Card == null || user == null) return false;
 
             object jink_data = response;
-            return !room_thread.Trigger(TriggerEvent.JinkEffect, this, user, ref jink_data);
+            return !RoomThread.Trigger(TriggerEvent.JinkEffect, this, user, ref jink_data);
         }
 
         public void SlashEffect(SlashEffectStruct effect)
         {
             object data = effect;
-            if (room_thread.Trigger(TriggerEvent.SlashEffected, this, effect.To, ref data))
+            if (RoomThread.Trigger(TriggerEvent.SlashEffected, this, effect.To, ref data))
             {
                 if (!effect.To.HasFlag("Global_NonSkillNullify"))
                 { //setEmotion(effect.to, "skill_nullify");
-                }  
+                }
                 else
                     effect.To.SetFlags("-Global_NonSkillNullify");
                 if (effect.Slash != null)
@@ -4861,7 +4952,7 @@ namespace SanguoshaServer.Game
             if (jink == null)
             {
                 if (effect.To.Alive)
-                    room_thread.Trigger(TriggerEvent.SlashHit, this, effect.From, ref data);
+                    RoomThread.Trigger(TriggerEvent.SlashHit, this, effect.From, ref data);
             }
             else
             {
@@ -4871,7 +4962,7 @@ namespace SanguoshaServer.Game
                 }
                 if (effect.Slash != null)
                     RemoveQinggangTag(effect.To, effect.Slash);
-                room_thread.Trigger(TriggerEvent.SlashMissed, this, effect.From, ref data);
+                RoomThread.Trigger(TriggerEvent.SlashMissed, this, effect.From, ref data);
             }
         }
 
@@ -4889,8 +4980,10 @@ namespace SanguoshaServer.Game
 
         private WrappedCard provided = null;
         private bool has_provided;
+        private List<Player> _alivePlayers = new List<Player>();
+
         public CardResponseStruct AskForCard(Player player, string reason, string _pattern, string prompt, object data, HandlingMethod method,
-            string _skill_name, Player to, bool isRetrial, bool isProvision)
+string _skill_name, Player to, bool isRetrial, bool isProvision)
         {
             CardResponseStruct resp = new CardResponseStruct();
             string pattern = _pattern.Split(':')[0];
@@ -4910,7 +5003,7 @@ namespace SanguoshaServer.Game
             List<string> asked = new List<string> { pattern, prompt, reason };
             object asked_data = asked;
             if ((method == HandlingMethod.MethodUse || method == HandlingMethod.MethodResponse) && !isRetrial)
-                room_thread.Trigger(TriggerEvent.CardAsked, this, player, ref asked_data);
+                RoomThread.Trigger(TriggerEvent.CardAsked, this, player, ref asked_data);
 
             _m_roomState.SetGlobalResponseID();
             int response_id = _m_roomState.GlobalResponseID;
@@ -4969,7 +5062,7 @@ namespace SanguoshaServer.Game
                 if (card == null)
                 {
                     object decisionData = string.Format("cardResponded:{0}:{1}:{2}:_nil_", reason, pattern, prompt);
-                    room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                    RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
                     return resp;
                 }
 
@@ -4983,7 +5076,8 @@ namespace SanguoshaServer.Game
                 List<int> ids = card.SubCards;
                 if (ids.Count > 0)
                 {
-                    foreach (int id in ids) {
+                    foreach (int id in ids)
+                    {
                         if (GetCardOwner(id) != player || GetCardPlace(id) != Place.PlaceHand)
                         {
                             isHandcard = false;
@@ -4996,12 +5090,12 @@ namespace SanguoshaServer.Game
                     isHandcard = false;
                 }
 
-                object decisionData = string.Format("cardResponded:{0}:{1}:{2}:_{3}_", reason, pattern, prompt , RoomLogic.CardToString(this, card));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                object decisionData = string.Format("cardResponded:{0}:{1}:{2}:_{3}_", reason, pattern, prompt, RoomLogic.CardToString(this, card));
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
 
                 List<int> move_result = new List<int>();
                 bool move = false;
-                if (method ==  HandlingMethod.MethodUse)
+                if (method == HandlingMethod.MethodUse)
                 {
                     List<int> card_ids = card.SubCards;
                     CardMoveReason move_reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_LETUSE, player.Name, null, card.Skill, null);
@@ -5010,7 +5104,8 @@ namespace SanguoshaServer.Game
                         move_reason.CardString = RoomLogic.CardToString(this, card);
                         move_reason.General = RoomLogic.GetGeneralSkin(this, player, card.Skill, card.SkillPosition);
                         List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-                        foreach (int id in card_ids) {
+                        foreach (int id in card_ids)
+                        {
                             CardsMoveStruct this_move = new CardsMoveStruct(id, null, Place.PlaceTable, move_reason);
                             moves.Add(this_move);
                         }
@@ -5058,9 +5153,10 @@ namespace SanguoshaServer.Game
                         move_reason.CardString = RoomLogic.CardToString(this, card);
                         move_reason.General = RoomLogic.GetGeneralSkin(this, player, card.Skill, card.SkillPosition);
                         List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-                        foreach (int id in card_ids) {
+                        foreach (int id in card_ids)
+                        {
                             CardsMoveStruct this_move = new CardsMoveStruct(id, null, Place.PlaceTable, move_reason);
-                                moves.Add(this_move);
+                            moves.Add(this_move);
                         }
                         move_result = MoveCardsAtomic(moves, true);
                         move = true;
@@ -5099,7 +5195,7 @@ namespace SanguoshaServer.Game
                         Handcard = isHandcard
                     };
                     object resp_data = resp;
-                    room_thread.Trigger(TriggerEvent.CardResponded, this, player, ref resp_data);
+                    RoomThread.Trigger(TriggerEvent.CardResponded, this, player, ref resp_data);
                     if (method == HandlingMethod.MethodUse)
                     {
                         List<int> table_cardids = GetCardIdsOnTable(move_result);
@@ -5122,7 +5218,7 @@ namespace SanguoshaServer.Game
                         };
                         if (to != null) card_use.To = new List<Player> { to };
                         object data2 = card_use;
-                        room_thread.Trigger(TriggerEvent.CardFinished, this, player, ref data2);
+                        RoomThread.Trigger(TriggerEvent.CardFinished, this, player, ref data2);
                     }
                     else if (!isProvision)
                     {
@@ -5156,12 +5252,13 @@ namespace SanguoshaServer.Game
         {
             //tryPause();
             Thread.Sleep(400);
-            
+
             TriggerStruct answer = new TriggerStruct();
             List<TriggerStruct> all_skills = new List<TriggerStruct>(), all_skills_copy = new List<TriggerStruct>();
             List<string> all_skills_q = new List<string>();
 
-            foreach (TriggerStruct skill in skills) {                                  //append target
+            foreach (TriggerStruct skill in skills)
+            {                                  //append target
                 if (string.IsNullOrEmpty(skill.SkillName) || string.IsNullOrEmpty(skill.Invoker)) continue;
 
                 bool can_skip = true;
@@ -5191,7 +5288,8 @@ namespace SanguoshaServer.Game
                     }
                     else
                     {
-                        foreach (string name in skill.Targets) {
+                        foreach (string name in skill.Targets)
+                        {
                             TriggerStruct skill_copy = skill;
                             skill_copy.ResultTarget = name;
                             all_skills.Add(skill_copy);
@@ -5219,7 +5317,8 @@ namespace SanguoshaServer.Game
             }
 
             all_skills.Clear();
-            foreach (TriggerStruct skill in all_skills_copy) {                         //judge head or deputy
+            foreach (TriggerStruct skill in all_skills_copy)
+            {                         //judge head or deputy
                 if (!string.IsNullOrEmpty(skill.SkillPosition) || Engine.GetSkill(skill.SkillName) == null)
                     all_skills.Add(skill);
                 else
@@ -5272,7 +5371,8 @@ namespace SanguoshaServer.Game
 
             all_skills_copy = new List<TriggerStruct>(all_skills);                                           //re match duplicated
             all_skills.Clear();
-            foreach (TriggerStruct skill1 in all_skills_copy) {
+            foreach (TriggerStruct skill1 in all_skills_copy)
+            {
                 if (skill1.Targets.Count == 0)
                 {
                     all_skills.Add(skill1);
@@ -5280,7 +5380,8 @@ namespace SanguoshaServer.Game
                 }
 
                 bool same = false;
-                foreach (TriggerStruct skill2 in all_skills) {
+                foreach (TriggerStruct skill2 in all_skills)
+                {
                     if (skill1.Equals(skill2) && skill1.Targets.Count > 0 && skill2.Targets.Count > 0 &&
                             skill1.ResultTarget == skill2.ResultTarget && skill1.SkillPosition == skill2.SkillPosition)
                     {
@@ -5292,7 +5393,8 @@ namespace SanguoshaServer.Game
                 {
                     int times = 0;
                     List<string> targets = new List<string>();
-                    foreach (TriggerStruct skill3 in all_skills_copy) {
+                    foreach (TriggerStruct skill3 in all_skills_copy)
+                    {
                         if (skill1.Equals(skill3) && skill1.Targets.Count > 0 && skill3.Targets.Count > 0 &&
                             skill1.ResultTarget == skill3.ResultTarget && skill1.SkillPosition == skill3.SkillPosition)
                         {
@@ -5321,7 +5423,7 @@ namespace SanguoshaServer.Game
                     //Temporary method to keep compatible with existing AI system
                     List<string> alls = new List<string>();
                     foreach (TriggerStruct skill in skills)
-                    alls.Add(skill.SkillName);
+                        alls.Add(skill.SkillName);
 
                     if (optional)
                         alls.Add("cancel");
@@ -5329,7 +5431,8 @@ namespace SanguoshaServer.Game
                     string reply = ai.AskForChoice(reason, string.Join("+", alls), data);
                     if (reply != "cancel")
                     {
-                        foreach (TriggerStruct skill in all_skills) {
+                        foreach (TriggerStruct skill in all_skills)
+                        {
                             if (skill.SkillName == reply)
                             {
                                 answer = skill;
@@ -5341,7 +5444,7 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    List<string> args = new List<string> {player.Name, reason, optional.ToString(), JsonUntity.Object2Json(all_skills) };
+                    List<string> args = new List<string> { player.Name, reason, optional.ToString(), JsonUntity.Object2Json(all_skills) };
                     bool success = DoRequest(player, CommandType.S_COMMAND_TRIGGER_ORDER, args, true);
                     List<string> clientReply = GetClient(player).ClientReply;
                     if (success && clientReply[0] != "cancel")
@@ -5384,12 +5487,12 @@ namespace SanguoshaServer.Game
             };
             SendLog(log);
 
-            room_thread.Trigger(TriggerEvent.TurnedOver, this, player);
+            RoomThread.Trigger(TriggerEvent.TurnedOver, this, player);
         }
 
         public bool ChangePhase(Player player, PlayerPhase from, PlayerPhase to)
         {
-            player.Phase= PlayerPhase.PhaseNone;
+            player.Phase = PlayerPhase.PhaseNone;
 
             PhaseChangeStruct phase_change = new PhaseChangeStruct
             {
@@ -5398,7 +5501,7 @@ namespace SanguoshaServer.Game
             };
             object data = phase_change;
 
-            bool skip = room_thread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
+            bool skip = RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
             if (skip && to != PlayerPhase.NotActive)
             {
                 player.Phase = from;
@@ -5411,21 +5514,21 @@ namespace SanguoshaServer.Game
             if (player.Phases.Count > 0)
                 player.Phases.RemoveAt(0);
 
-            if (!room_thread.Trigger(TriggerEvent.EventPhaseStart, this, player))
+            if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
             {
                 if (player.Phase != PlayerPhase.NotActive)
                 {
                     if (player.Phase == PlayerPhase.Draw)
                     {
                         object draw = 2;
-                        room_thread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
+                        RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
                     }
                     else
-                        room_thread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
+                        RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
                 }
             }
             if (player.Phase != PlayerPhase.NotActive)
-                room_thread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
+                RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
 
             return false;
         }
@@ -5472,10 +5575,10 @@ namespace SanguoshaServer.Game
                 player.Phase = PlayerPhase.PhaseNone;
                 object data = phase_change;
 
-                bool skip = player.PhasesState[i].Finished || room_thread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
+                bool skip = player.PhasesState[i].Finished || RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
                 phase_change = (PhaseChangeStruct)data;
 
-                if ((skip || player.IsSkipped(phase_change.To)) && !room_thread.Trigger(TriggerEvent.EventPhaseSkipping, this, player, ref data) && phase_change.To != PlayerPhase.NotActive)
+                if ((skip || player.IsSkipped(phase_change.To)) && !RoomThread.Trigger(TriggerEvent.EventPhaseSkipping, this, player, ref data) && phase_change.To != PlayerPhase.NotActive)
                     continue;
 
                 PhaseStruct phase = player.PhasesState[i];
@@ -5486,21 +5589,21 @@ namespace SanguoshaServer.Game
                 BroadcastProperty(player, "Phase");
                 Thread.Sleep(200);
 
-                if (!room_thread.Trigger(TriggerEvent.EventPhaseStart, this, player))
+                if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
                 {
                     if (player.Phase != PlayerPhase.NotActive)
                     {
                         if (player.Phase == PlayerPhase.Draw)
                         {
                             object draw = 2;
-                            room_thread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
+                            RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
                         }
                         else
-                            room_thread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
+                            RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
                     }
                 }
                 if (player.Phase != PlayerPhase.NotActive)
-                    room_thread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
+                    RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
                 else
                     break;
             }
@@ -5519,7 +5622,7 @@ namespace SanguoshaServer.Game
                     break;
                 }
             }
-            
+
             int index = (int)phase;
 
             if (sendLog)
@@ -5549,7 +5652,8 @@ namespace SanguoshaServer.Game
             {
                 List<int> jilei_list = new List<int>();
                 List<WrappedCard> handcards = RoomLogic.GetPlayerHandcards(this, player);
-                foreach (WrappedCard card in handcards) {
+                foreach (WrappedCard card in handcards)
+                {
                     if (!RoomLogic.IsJilei(this, player, card))
                         dummy.Add(card.Id);
                     else
@@ -5557,8 +5661,9 @@ namespace SanguoshaServer.Game
                 }
                 if (include_equip)
                 {
-                    List <WrappedCard> equips = RoomLogic.GetPlayerEquips(this, player);
-                    foreach (WrappedCard card in equips) {
+                    List<WrappedCard> equips = RoomLogic.GetPlayerEquips(this, player);
+                    foreach (WrappedCard card in equips)
+                    {
                         if (!RoomLogic.IsJilei(this, player, card))
                             dummy.Add(card.Id);
                     }
@@ -5588,7 +5693,7 @@ namespace SanguoshaServer.Game
                         ThrowCard(ref dummy, movereason, player);
 
                         object choice = string.Format("{0}:{1}:{2}", "cardDiscard", reason, string.Join("+", JsonUntity.IntList2StringList(dummy)));
-                        room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref choice);
+                        RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref choice);
                     }
 
                     if (card_num < min_num && jilei_list.Count > 0)
@@ -5666,7 +5771,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                CardMoveReason move_reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, player.Name, null, notify_skill? reason : null, null);
+                CardMoveReason move_reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, player.Name, null, notify_skill ? reason : null, null);
                 if (notify_skill)
                 {
                     NotifySkillInvoked(player, reason);
@@ -5675,14 +5780,14 @@ namespace SanguoshaServer.Game
                 ThrowCard(ref to_discard, move_reason, player, null, notify_skill ? reason : null);
             }
             object data = string.Format("{0}:{1}:{2}", "cardDiscard", reason, string.Join("+", JsonUntity.IntList2StringList(to_discard)));
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
 
             return true;
         }
 
         public List<int> ForceToDiscard(Player player, int discard_num, bool include_equip, bool is_discard = true, List<int> reserved_discard = null)
         {
-            List<int> to_discard = reserved_discard?? new List<int>();
+            List<int> to_discard = reserved_discard ?? new List<int>();
             List<WrappedCard> all_cards = RoomLogic.GetPlayerHandcards(this, player);
             if (include_equip)
                 all_cards.AddRange(RoomLogic.GetPlayerEquips(this, player));
@@ -5704,12 +5809,14 @@ namespace SanguoshaServer.Game
         {
             List<int> to_discard = new List<int>();
             List<WrappedCard> all_cards = new List<WrappedCard>();
-            foreach (WrappedCard c in RoomLogic.GetPlayerCards(this, player, "he")) {
+            foreach (WrappedCard c in RoomLogic.GetPlayerCards(this, player, "he"))
+            {
                 if (Engine.MatchExpPattern(this, pattern, player, c))
                     all_cards.Add(c);
             }
             expand_pile = expand_pile ?? string.Empty;
-            foreach (string pile in expand_pile.Split(',')) {
+            foreach (string pile in expand_pile.Split(','))
+            {
                 foreach (int id in player.GetPile(pile))
                     all_cards.Add(GetCard(id));
             }
@@ -5728,7 +5835,7 @@ namespace SanguoshaServer.Game
 
         public void ThrowCard(int card_id, Player who, Player thrower = null, string skill_name = null)
         {
-            List<int> to_discard = new List<int>{ card_id };
+            List<int> to_discard = new List<int> { card_id };
             ThrowCard(ref to_discard, who, thrower, skill_name);
         }
 
@@ -5907,8 +6014,8 @@ namespace SanguoshaServer.Game
                 List<string> targets = new List<string>();
                 foreach (Player p in card_use.To)
                     targets.Add(p.Name);
-                object data = string.Format("Activate:{0}->{1}", RoomLogic.CardToString(this, card_use.Card) , string.Join("+", targets));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+                object data = string.Format("Activate:{0}->{1}", RoomLogic.CardToString(this, card_use.Card), string.Join("+", targets));
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
             }
         }
 
@@ -5927,7 +6034,8 @@ namespace SanguoshaServer.Game
             if (ids.Count > 0)
             {
                 bool check = true;
-                foreach (int id in ids) {
+                foreach (int id in ids)
+                {
                     if (GetCardOwner(id) != card_use.From || GetCardPlace(id) != Place.PlaceHand)
                     {
                         check = false;
@@ -5957,7 +6065,7 @@ namespace SanguoshaServer.Game
                 if (RoomLogic.IsVirtualCard(this, card) && fcard.TypeID != CardType.TypeSkill && !string.IsNullOrEmpty(card.Skill))
                 {
                     string name = card.Skill;
-                    card_use.From.AddHistory(string.Format("ViewAsSkill_{0}Card" , name));
+                    card_use.From.AddHistory(string.Format("ViewAsSkill_{0}Card", name));
                 }
             }
 
@@ -6022,7 +6130,7 @@ namespace SanguoshaServer.Game
             if (card != null)
             {
                 object decisionData = string.Format("peach:{0}:{1}:{2}", dying.Name, 1 - dying.Hp, RoomLogic.CardToString(this, card));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, repliedPlayer, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, repliedPlayer, ref decisionData);
                 use.From = repliedPlayer;
                 use.Card = card;
             }
@@ -6079,7 +6187,8 @@ namespace SanguoshaServer.Game
         public void ThrowAllMarks(Player player, bool visible_only = true)
         {
             // throw all marks
-            foreach (string mark_name in new List<string>(player.Marks.Keys)) {
+            foreach (string mark_name in new List<string>(player.Marks.Keys))
+            {
                 if (!mark_name.StartsWith("@"))
                     continue;
 
@@ -6099,7 +6208,8 @@ namespace SanguoshaServer.Game
                 return;
 
             List<int> ids = new List<int>();
-            foreach (int id in player.Piles[pile_name]) {
+            foreach (int id in player.Piles[pile_name])
+            {
                 if (GetCardOwner(id) == player && GetCardPlace(id) == Place.PlaceSpecial)
                     ids.Add(id);
             }
@@ -6165,7 +6275,7 @@ namespace SanguoshaServer.Game
                         Card_ids = new List<int> { card_id }
                     };
                     object data = move;
-                    room_thread.Trigger(TriggerEvent.BeforeCardsMove, this, player, ref data);
+                    RoomThread.Trigger(TriggerEvent.BeforeCardsMove, this, player, ref data);
                     move = (CardsMoveOneTimeStruct)data;
 
                     if (move.Card_ids.Count > 0)
@@ -6186,7 +6296,7 @@ namespace SanguoshaServer.Game
                 if (move_cards && moveOneTime.Card_ids?.Count > 0)
                 {
                     object data = moveOneTime;
-                    room_thread.Trigger(TriggerEvent.CardsMoveOneTime, this, player, ref data);
+                    RoomThread.Trigger(TriggerEvent.CardsMoveOneTime, this, player, ref data);
                 }
             }
             else
@@ -6246,7 +6356,7 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             object decisionData = string.Format("AGChosen:{0}:{1}", reason, card_id);
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
 
             return card_id;
         }
@@ -6276,10 +6386,10 @@ namespace SanguoshaServer.Game
             if (card_ids.Count == 0) return;
 
             CardsMoveStruct move = new CardsMoveStruct(card_ids, target, Place.PlaceHand, reason);
-            card_ids = MoveCardsAtomic(new List<CardsMoveStruct>{ move}, unhide);
+            card_ids = MoveCardsAtomic(new List<CardsMoveStruct> { move }, unhide);
         }
 
-        public WrappedCard AskForUseCard(Player player,string _pattern, string prompt, int notice_index = -1,
+        public WrappedCard AskForUseCard(Player player, string _pattern, string prompt, int notice_index = -1,
             HandlingMethod method = HandlingMethod.MethodUse, bool addHistory = true, string position = null)
         {
 
@@ -6338,18 +6448,18 @@ namespace SanguoshaServer.Game
             if (isCardUsed)
             {
                 object decisionData = card_use;
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
                 if (!UseCard(card_use, addHistory))
                     return AskForUseCard(player, _pattern, prompt, notice_index, method, addHistory);
 
                 decisionData = string.Format("cardUsed:{0}:{1}:{2}", pattern, prompt, RoomLogic.CardToString(this, card_use.Card));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
                 return card_use.Card;
             }
             else
             {
                 object decisionData = string.Format("cardUsed:{0}:{1}:nil", pattern, prompt);
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
             }
 
             return null;
@@ -6405,13 +6515,14 @@ namespace SanguoshaServer.Game
                 }
             }
 
-            SetTag("HegNullificationValid", false);
             SetTag("NullifyingTarget", effect.To);
             SetTag("NullifyingSource", effect.From);
             SetTag("NullifyingCard", effect.Card);
-            SetTag("NullifyingTimes", 0);
+            NullTimes = 0;
+            HegNull = false;
+            HegNullEffected = false;
             bool result = AskForNullification(effect.Card, effect.From, effect.To, true);
-            if ((bool)GetTag("HegNullificationValid") && fcard.IsNDTrick())
+            if (HegNullEffected && fcard.IsNDTrick())
             {
                 foreach (Player p in m_players)
                 {
@@ -6420,6 +6531,11 @@ namespace SanguoshaServer.Game
                 }
                 SetTag(card_str + "HegNullificationTargets", targets);
             }
+
+            RemoveTag("NullifyingTarget");
+            RemoveTag("NullifyingSource");
+            RemoveTag("NullifyingCard");
+            RemoveTag("NullifyingCard");
             return result;
         }
 
@@ -6435,7 +6551,7 @@ namespace SanguoshaServer.Game
             {
                 Trick = trick,
                 From = from,
-                To  = to
+                To = to
             };
             return _AskForNullification(trick, from, to, positive, helper);
         }
@@ -6457,10 +6573,11 @@ namespace SanguoshaServer.Game
                 To = to
             };
             object data = trickEffect;
-            foreach (Player player in m_alivePlayers) {
+            foreach (Player player in GetAlivePlayers())
+            {
                 if (RoomLogic.HasNullification(this, player))
                 {
-                    if (!room_thread.Trigger(TriggerEvent.TrickCardCanceling, this, player, ref data))
+                    if (!RoomThread.Trigger(TriggerEvent.TrickCardCanceling, this, player, ref data))
                     {
                         if (GetAI(player) == null)
                         {
@@ -6472,7 +6589,8 @@ namespace SanguoshaServer.Game
                 }
             }
             Dictionary<Player, WrappedCard> ai_cards = new Dictionary<Player, WrappedCard>();
-            foreach (Player player in validAiPlayers) {
+            foreach (Player player in validAiPlayers)
+            {
                 TrustedAI ai = GetAI(player);
                 WrappedCard nulli = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
                 if (nulli != null)
@@ -6493,12 +6611,13 @@ namespace SanguoshaServer.Game
                 Max = timeOut,
                 Type = Countdown.CountdownType.S_COUNTDOWN_USE_SPECIFIED
             };
-            NotifyMoveFocus(m_alivePlayers, countdown);
+            NotifyMoveFocus(GetAlivePlayers(), countdown);
 
             if (validHumanPlayers.Count > 0)
             {
                 List<Client> receivers = new List<Client>();
-                foreach (Player p in validHumanPlayers) {
+                foreach (Player p in validHumanPlayers)
+                {
                     Client client = GetClient(p);
                     if (!receivers.Contains(client))
                         receivers.Add(client);
@@ -6506,7 +6625,8 @@ namespace SanguoshaServer.Game
                 if (_m_AIraceWinner != null)
                     validHumanPlayers.Add(_m_AIraceWinner);
 
-                foreach (Client p in receivers) {
+                foreach (Client p in receivers)
+                {
                     p.NullificationRequest(this, trick_name, from, to);
                     DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { trick.Name });
                 }
@@ -6525,7 +6645,8 @@ namespace SanguoshaServer.Game
             {
                 if (repliedPlayer == _m_AIraceWinner)
                 {
-                    foreach (Player p in ais) {
+                    foreach (Player p in ais)
+                    {
                         if (p == repliedPlayer)
                         {
                             card = ai_cards[p];
@@ -6565,7 +6686,8 @@ namespace SanguoshaServer.Game
             List<int> subcards = card.SubCards;
             if (subcards.Count > 0)
             {
-                foreach (int id in subcards) {
+                foreach (int id in subcards)
+                {
                     if (GetCardOwner(id) != repliedPlayer || GetCardPlace(id) != Place.PlaceHand)
                     {
                         use.IsHandcard = false;
@@ -6579,15 +6701,14 @@ namespace SanguoshaServer.Game
             UseCard(use);
 
             object decisionData = string.Format("Nullification:{0}:{1}:{2}", trick.Name, to.Name, positive ? "true" : "false");
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, repliedPlayer, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, repliedPlayer, ref decisionData);
 
             object use_data = use;
-            if (room_thread.Trigger(TriggerEvent.NullificationEffect, this, repliedPlayer, ref use_data))
+            if (RoomThread.Trigger(TriggerEvent.NullificationEffect, this, repliedPlayer, ref use_data))
                 return _AskForNullification(trick, from, to, positive, helper);
 
-            bool isHegNullification = (int)GetTag("NullifyingTimes") == 0 && ContainsTag("NullificatonType") && (bool)GetTag("NullificatonType");
-            RemoveTag("NullificatonType");
-            SetTag("NullifyingTimes", (int)GetTag("NullifyingTimes") + 1);
+            bool isHegNullification = NullTimes == 0 && HegNull;
+            NullTimes++;
 
             bool result = true;
             CardEffectStruct effect = new CardEffectStruct
@@ -6599,7 +6720,7 @@ namespace SanguoshaServer.Game
                 result = !_AskForNullification(card, repliedPlayer, to, !positive, helper);
 
             if (isHegNullification && result)
-                SetTag("HegNullificationValid", true);
+                HegNullEffected = true;
 
             return result;
         }
@@ -6648,7 +6769,7 @@ namespace SanguoshaServer.Game
             if (handcard_visible && !who.IsKongcheng())
             {
                 List<int> handcards = new List<int>(who.HandCards);
-                List<string> arg = new List<string> { who.Name, JsonUntity.Object2Json(handcards)};
+                List<string> arg = new List<string> { who.Name, JsonUntity.Object2Json(handcards) };
                 DoNotify(GetClient(player), CommandType.S_COMMAND_SET_KNOWN_CARDS, arg);
             }
             int card_id = -1;
@@ -6671,7 +6792,7 @@ namespace SanguoshaServer.Game
                     card_id = ai.AskForCardChosen(who, flags_copy, reason.Split('%')[0], method, disabled_ids_copy);
                     if (card_id == -1)
                     {
-                        List <int> cards = who.GetCards(flags_copy);
+                        List<int> cards = who.GetCards(flags_copy);
                         foreach (int id in who.GetCards(flags_copy))
                             if (disabled_ids_copy.Contains(id))
                                 cards.Remove(id);
@@ -6728,10 +6849,10 @@ namespace SanguoshaServer.Game
                 }
             }
             DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
-            
+
             object decisionData = string.Format("cardChosen:{0}:{1}:{2}:{3}", reason, card_id, player.Name, who.Name);
             if (!who.HasFlag("continuous_card_chosen"))
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
             return card_id;
         }
 
@@ -6771,7 +6892,7 @@ namespace SanguoshaServer.Game
 
             object decisionData = string.Format("cardChosen:{0}:{1}:{2}:{3}", reason, string.Join("+", JsonUntity.IntList2StringList(result)),
                 chooser.Name, choosee.Name);
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, chooser, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, chooser, ref decisionData);
 
             return result;
         }
@@ -6819,7 +6940,7 @@ namespace SanguoshaServer.Game
                 card_id = GetRandomHandCard(player);
 
             object decisionData = string.Format("cardShow:{0}:_{1}_", reason, card_id);
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
             return card_id;
         }
 
@@ -6845,7 +6966,7 @@ namespace SanguoshaServer.Game
                 List<Client> players = new List<Client> { GetClient(only_viewer) };
                 if (!players.Contains(GetClient(player)))
                     players.Add(GetClient(player));
-                
+
                 DoBroadcastNotify(players, CommandType.S_COMMAND_SHOW_CARD, show_arg);
             }
             else
@@ -6856,7 +6977,7 @@ namespace SanguoshaServer.Game
             }
 
             object decisionData = string.Format("showCards:{0}:{1}", card_id, only_viewer != null ? only_viewer.Name : "all");
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
         }
 
         public void ShowAllCards(Player player, Player to = null, string reason = null, string position = null)
@@ -6910,9 +7031,9 @@ namespace SanguoshaServer.Game
                 DoBroadcastNotify(CommandType.S_COMMAND_SHOW_CARD, gongxinArgs);
                 FocusAll(3000);
             }
-            
+
             object decisionData = string.Format("viewCards:{0}:all", to != null ? to.Name : "all");
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
         }
         public void ViewGenerals(Player player, List<string> names, string reason = null, string position = null)
         {
@@ -6933,7 +7054,7 @@ namespace SanguoshaServer.Game
             List<Player> result = new List<Player>();
             if (ai != null)
             {
-                result = ai.AskForPlayersChosen(m_alivePlayers, skillName, 1, 0);
+                result = ai.AskForPlayersChosen(GetAlivePlayers(), skillName, 1, 0);
                 if (result.Count > 0)
                     Thread.Sleep(400);
             }
@@ -7029,7 +7150,7 @@ namespace SanguoshaServer.Game
                 {
                     NotifySkillInvoked(player, skillName);
                     object decisionData = string.Format("skillInvoke:{0}:yes", skillName);
-                    room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                    RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
 
                     DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, choice.Name);
                     LogMessage log = new LogMessage
@@ -7042,7 +7163,7 @@ namespace SanguoshaServer.Game
                     SendLog(log);
                 }
                 object data = string.Format("{0}:{1}:{2}", "playerChosen", skillName, targets[0].Name);
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
             }
             return choice;
         }
@@ -7056,7 +7177,7 @@ namespace SanguoshaServer.Game
                 foreach (Player p in targets)
                     names.Add(p.Name);
                 object data = string.Format("{0}:{1}:{2}", "playerChosen", skillName, string.Join("+", names));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
                 return targets;
             }
 
@@ -7101,7 +7222,7 @@ namespace SanguoshaServer.Game
                 if (notify_skill)
                 {
                     NotifySkillInvoked(player, skillName); object decisionData = string.Format("skillInvoke:{0}:yes", skillName);
-                    room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+                    RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
 
                     LogMessage log = new LogMessage
                     {
@@ -7121,7 +7242,7 @@ namespace SanguoshaServer.Game
                 foreach (Player p in result)
                     names.Add(p.Name);
                 object data = string.Format("{0}:{1}:{2}", "playerChosen", skillName, string.Join("+", names));
-                room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
             }
             return result;
         }
@@ -7156,8 +7277,10 @@ namespace SanguoshaServer.Game
                 {
                     List<string> heros = generals;
                     bool good = false;
-                    foreach (string name1 in heros) {
-                        foreach (string name2 in heros) {
+                    foreach (string name1 in heros)
+                    {
+                        foreach (string name2 in heros)
+                        {
                             if (name1 != name2 && Engine.GetGeneral(name1).Kingdom == Engine.GetGeneral(name2).Kingdom)
                             {
                                 default_choice = name1 + "+" + name2;
@@ -7178,7 +7301,8 @@ namespace SanguoshaServer.Game
                 bool check = true;
                 if (!single_result && general.Count != 2) check = false;
                 if (single_result && general.Count != 1) check = false;
-                foreach (string name in general) {
+                foreach (string name in general)
+                {
                     if (!generals.Contains(name))
                     {
                         check = false;
@@ -7189,13 +7313,14 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                List<string> options = new List<string> { player.Name, skill_name, JsonUntity.Object2Json(generals), single_result.ToString(), can_convert.ToString(), assign_kingdom.ToString()};
+                List<string> options = new List<string> { player.Name, skill_name, JsonUntity.Object2Json(generals), single_result.ToString(), can_convert.ToString(), assign_kingdom.ToString() };
                 bool success = DoRequest(player, CommandType.S_COMMAND_CHOOSE_GENERAL, options, true);
 
                 List<string> clientResponse = GetClient(player).ClientReply;
                 List<string> answer = new List<string>(clientResponse[0].Split('+'));
                 bool valid = true;
-                foreach (string name in answer) {
+                foreach (string name in answer)
+                {
                     if ((!can_convert && !generals.Contains(name)) || !generals.Contains(Engine.GetMainGeneral(name)))
                     {
                         valid = false;
@@ -7228,7 +7353,7 @@ namespace SanguoshaServer.Game
             ThrowAllMarks(player);          // necessary.
 
             object void_data = null;
-            List <TriggerSkill> game_start = new List<TriggerSkill>();
+            List<TriggerSkill> game_start = new List<TriggerSkill>();
 
             List<string> duanchang = new List<string>(player.DuanChang.Split(','));
             int max_hp = 0;
@@ -7241,7 +7366,8 @@ namespace SanguoshaServer.Game
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general1_name, false.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
 
-                foreach (string skill_name in Engine.GetGeneralSkills(general1_name, Setting.GameMode, true)) {
+                foreach (string skill_name in Engine.GetGeneralSkills(general1_name, Setting.GameMode, true))
+                {
                     Skill skill = Engine.GetSkill(skill_name);
                     if (skill is TriggerSkill tr)
                     {
@@ -7341,7 +7467,8 @@ namespace SanguoshaServer.Game
                 }
             }
 
-            foreach (TriggerSkill skill in game_start) {
+            foreach (TriggerSkill skill in game_start)
+            {
                 if (skill.Cost(TriggerEvent.GameStart, this, player, ref void_data, player, new TriggerStruct(skill.Name, player)).SkillName == skill.Name)
                     skill.Effect(TriggerEvent.GameStart, this, player, ref void_data, player, new TriggerStruct());
             }
@@ -7369,7 +7496,7 @@ namespace SanguoshaServer.Game
             player.SetSkillsPreshowed();
 
             if (show_flags.Contains("h"))
-                ShowGeneral(player,true, false, false);
+                ShowGeneral(player, true, false, false);
             if (show_flags.Contains("d"))
                 ShowGeneral(player, false, false, false);
         }
@@ -7381,16 +7508,17 @@ namespace SanguoshaServer.Game
             BroadcastProperty(player, "Alive");
             //setEmotion(player, "revive");
 
-            m_alivePlayers.Clear();
-            foreach (Player p in m_players) {
+            GetAlivePlayers().Clear();
+            foreach (Player p in m_players)
+            {
                 if (p.Alive)
-                    m_alivePlayers.Add(p);
+                    GetAlivePlayers().Add(p);
             }
 
-            for (int i = 0; i < m_alivePlayers.Count; i++)
+            for (int i = 0; i < GetAlivePlayers().Count; i++)
             {
-                m_alivePlayers[i].Seat = i + 1;
-                BroadcastProperty(m_alivePlayers[i], "Seat");
+                GetAlivePlayers()[i].Seat = i + 1;
+                BroadcastProperty(GetAlivePlayers()[i], "Seat");
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_REVIVE_PLAYER, new List<string> { player.Name });
@@ -7417,7 +7545,7 @@ namespace SanguoshaServer.Game
 
                 from_general = player.ActualGeneral1;
                 if (from_general.Contains("sujiang")) return;
-                room_thread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
+                RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
                 Gender gender = Engine.GetGeneral(from_general).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
@@ -7426,16 +7554,17 @@ namespace SanguoshaServer.Game
                 BroadcastProperty(player, "ActualGeneral1");
                 BroadcastProperty(player, "General1Showed");
 
-                List<string> arg = new List<string> {GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, false.ToString(), false.ToString() };
+                List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, false.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 player.HeadSkinId = 0;
-                foreach (Client p in m_clients)
+                foreach (Client p in Clients)
                     NotifyProperty(p, player, "HeadSkinId");
                 ChangePlayerGeneral(player, general_name);
 
                 DisconnectSkillsFromOthers(player, true, false);
 
-                foreach (string skill_name in player.GetHeadSkillList()) {
+                foreach (string skill_name in player.GetHeadSkillList())
+                {
                     Skill skill = Engine.GetSkill(skill_name);
                     if (skill != null)
                         DetachSkillFromPlayer(player, skill.Name, false, false, true);
@@ -7448,7 +7577,7 @@ namespace SanguoshaServer.Game
 
                 from_general = player.ActualGeneral2;
                 if (from_general.Contains("sujiang")) return;
-                room_thread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
+                RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
                 Gender gender = Engine.GetGeneral(from_general).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
@@ -7460,7 +7589,7 @@ namespace SanguoshaServer.Game
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, true.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 player.DeputySkinId = 0;
-                foreach (Client p in m_clients)
+                foreach (Client p in Clients)
                     NotifyProperty(p, player, "DeputySkinId");
 
                 ChangePlayerGeneral2(player, general_name);
@@ -7486,19 +7615,20 @@ namespace SanguoshaServer.Game
 
             HandleUsedGeneral("-" + from_general);
             object _from = new InfoStruct { Info = from_general, Head = head_general };
-            room_thread.Trigger(TriggerEvent.GeneralRemoved, this, player, ref _from);
+            RoomThread.Trigger(TriggerEvent.GeneralRemoved, this, player, ref _from);
 
             FilterCards(player, player.GetCards("he"), true);
         }
 
-        public void DisconnectSkillsFromOthers(Player player, bool head_skill = true , bool trigger = true)
+        public void DisconnectSkillsFromOthers(Player player, bool head_skill = true, bool trigger = true)
         {
-            foreach (string skill in head_skill? player.HeadSkills.Keys : player.DeputySkills.Keys) {
+            foreach (string skill in head_skill ? player.HeadSkills.Keys : player.DeputySkills.Keys)
+            {
                 object _skill = new InfoStruct { Info = skill, Head = head_skill };
                 if (trigger)
-                    room_thread.Trigger(TriggerEvent.EventLoseSkill, this, player, ref _skill);
+                    RoomThread.Trigger(TriggerEvent.EventLoseSkill, this, player, ref _skill);
                 List<string> args = new List<string> { GameEventType.S_GAME_EVENT_DETACH_SKILL.ToString(), player.Name, skill, head_skill.ToString() };
-                foreach (Client p in m_clients)
+                foreach (Client p in Clients)
                     if (p != GetClient(player))
                         DoNotify(p, CommandType.S_COMMAND_LOG_EVENT, args);
             }
@@ -7557,7 +7687,7 @@ namespace SanguoshaServer.Game
                     Retrial = true
                 };
                 object data = resp;
-                room_thread.Trigger(TriggerEvent.CardResponded, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.CardResponded, this, player, ref data);
             }
         }
 
@@ -7614,7 +7744,8 @@ namespace SanguoshaServer.Game
 
                     ids = JsonUntity.Json2List<int>(clientReply[0]);
 
-                    foreach (int id in ids) {
+                    foreach (int id in ids)
+                    {
                         if (!cards.Contains(id))
                             break;
                     }
@@ -7644,7 +7775,8 @@ namespace SanguoshaServer.Game
 
             //DummyCard dummy_card;
             List<int> to_move = new List<int>();
-            foreach (int card_id in ids) {
+            foreach (int card_id in ids)
+            {
                 cards.Remove(card_id);
                 //dummy_card.addSubcard(card_id);
                 to_move.Add(card_id);
@@ -7652,7 +7784,7 @@ namespace SanguoshaServer.Game
 
             object decisionData = string.Format("Yiji:{0}:{1}:{2}:{3}",
                 skill_name, guojia.Name, target.Name, string.Join("+", JsonUntity.IntList2StringList(ids)));
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, guojia, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, guojia, ref decisionData);
 
             if (notify_skill)
             {
@@ -7678,7 +7810,7 @@ namespace SanguoshaServer.Game
             return true;
         }
 
-        public List<int>NotifyChooseCards(Player player, List<int> cards, string reason,
+        public List<int> NotifyChooseCards(Player player, List<int> cards, string reason,
                                    int max_num, int min_num, string prompt, string pattern, string position)
         {
             player.PileChange("#" + reason, cards);
@@ -7740,7 +7872,7 @@ namespace SanguoshaServer.Game
             }
 
             object data = string.Format("{0}:{1}:{2}", "cardExchange", reason, string.Join("+", JsonUntity.IntList2StringList(to_exchange)));
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref data);
 
             return to_exchange;
         }
@@ -7853,7 +7985,7 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
 
             object data = pindian_struct;
-            room_thread.Trigger(TriggerEvent.PindianVerifying, this, pd.From, ref data);
+            RoomThread.Trigger(TriggerEvent.PindianVerifying, this, pd.From, ref data);
 
             pindian_struct = (PindianStruct)data;
             pindian_struct.Success = (pindian_struct.From_number > pindian_struct.To_number);
@@ -7871,7 +8003,7 @@ namespace SanguoshaServer.Game
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 Thread.Sleep(500);
             }
-            
+
             int pindian_type = pindian_struct.Success ? 1 : pindian_struct.From_number == pindian_struct.To_number ? 2 : 3;
             arg = new List<string> { GuanxingStep.S_GUANXING_FINISH.ToString(), pindian_type.ToString(), index.ToString() };
             DoBroadcastNotify(CommandType.S_COMMAND_PINDIAN, arg);
@@ -7885,10 +8017,10 @@ namespace SanguoshaServer.Game
                 To = new List<string> { pd.To.Name }
             };
             SendLog(log);
-            
+
             data = pindian_struct;
-            room_thread.Trigger(TriggerEvent.Pindian, this, pd.From, ref data);
-            
+            RoomThread.Trigger(TriggerEvent.Pindian, this, pd.From, ref data);
+
             List<CardsMoveStruct> pd_move = new List<CardsMoveStruct>();
 
             if (GetCardPlace(pindian_struct.From_card.Id) == Place.PlaceTable && index == pd.Tos.Count)
@@ -7924,7 +8056,7 @@ namespace SanguoshaServer.Game
 
             object decisionData = string.Format("pindian:{0}:{1}:{2}:{3}:{4}", pd.Reason, pd.From.Name, pindian_struct.From_card.Id, pd.To.Name,
                 pindian_struct.To_card.Id);
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, pd.From, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, pd.From, ref decisionData);
 
             bool r = pindian_struct.Success;
             return r;
@@ -7932,14 +8064,15 @@ namespace SanguoshaServer.Game
 
         public List<WrappedCard> AskForPindianRace(Player from, List<Player> to, string reason, WrappedCard card)
         {
-            List <WrappedCard> result = new List<WrappedCard>();
+            List<WrappedCard> result = new List<WrappedCard>();
             List<int> to_cards = new List<int>();
             for (int index = 0; index < to.Count; index++)
                 to_cards.Add(-1);
             if (!from.Alive || from.IsKongcheng())
                 return result;
             List<string> names = new List<string> { from.Name };
-            foreach (Player p in to) {
+            foreach (Player p in to)
+            {
                 names.Add(p.Name);
                 if (!p.Alive || p.IsKongcheng())
                     return result;
@@ -7991,7 +8124,7 @@ namespace SanguoshaServer.Game
                 if (to_cards[index] == -1)
                     check = false;
             }
-            
+
             List<string> stepArgs = new List<string> { GuanxingStep.S_GUANXING_START.ToString(), reason, JsonUntity.Object2Json(names) };
             DoBroadcastNotify(CommandType.S_COMMAND_PINDIAN, stepArgs);
 
@@ -8027,7 +8160,8 @@ namespace SanguoshaServer.Game
             {
                 List<Client> responsers = new List<Client>();
                 List<Player> response_players = new List<Player>();
-                foreach (Player p in players) {
+                foreach (Player p in players)
+                {
                     if (!responsers.Contains(GetClient(p)))
                     {
                         GetClient(p).PindianRequest(this, p, from);
@@ -8040,7 +8174,8 @@ namespace SanguoshaServer.Game
                 DoBroadcastRequest(responsers, CommandType.S_COMMAND_PINDIAN);
                 DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
-                foreach (Player player in response_players) {
+                foreach (Player player in response_players)
+                {
                     WrappedCard c = null;
                     Client client = GetClient(player);
                     List<string> clientReply = client.ClientReply;
@@ -8103,7 +8238,7 @@ namespace SanguoshaServer.Game
                 {
                     Type = "$GuanxingTop",
                     From = zhuge.Name,
-                    Card_str = string.Format("+", JsonUntity.IntList2StringList(top_cards))
+                    Card_str = string.Join("+", JsonUntity.IntList2StringList(top_cards))
                 };
                 SendLog(log1, zhuge);
             }
@@ -8113,7 +8248,7 @@ namespace SanguoshaServer.Game
                 {
                     Type = "$GuanxingBottom",
                     From = zhuge.Name,
-                    Card_str = string.Format("+", JsonUntity.IntList2StringList(bottom_cards))
+                    Card_str = string.Join("+", JsonUntity.IntList2StringList(bottom_cards))
                 };
                 SendLog(log, zhuge);
             }
@@ -8340,7 +8475,7 @@ namespace SanguoshaServer.Game
                     reserved.AddRange(bottom_cards);
                     bool length_equal = reserved.Count == to_move.Count;
                     bool result_equal = to_move.Except(reserved).Count() == 0;
-                    
+
                     if (!length_equal || !result_equal)
                     {
                         top_cards.Clear();
@@ -8367,7 +8502,7 @@ namespace SanguoshaServer.Game
 
             object decisionData = string.Format("{0}chose:{1}:{2}:{3}", skillName, zhuge.Name,
                 string.Join("+", JsonUntity.IntList2StringList(top_cards)), string.Join("+", JsonUntity.IntList2StringList(bottom_cards)));
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, zhuge, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, zhuge, ref decisionData);
             AskForMoveCardsStruct returns = new AskForMoveCardsStruct
             {
                 Top = top_cards,
@@ -8439,7 +8574,7 @@ namespace SanguoshaServer.Game
             Thread.Sleep(300);
 
             object _head = head_general;
-            room_thread.Trigger(TriggerEvent.GeneralHidden, this, player, ref _head);
+            RoomThread.Trigger(TriggerEvent.GeneralHidden, this, player, ref _head);
 
             FilterCards(player, player.GetCards("he"), true);
         }
@@ -8467,10 +8602,10 @@ namespace SanguoshaServer.Game
                     Head = head
                 };
                 object data = info;
-                room_thread.Trigger(TriggerEvent.EventAcquireSkill, this, player, ref data);
+                RoomThread.Trigger(TriggerEvent.EventAcquireSkill, this, player, ref data);
             }
         }
-        
+
         public void AcquireSkill(Player player, string skill_name, bool open = true, bool head = true)
         {
             Skill skill = Engine.GetSkill(skill_name);
@@ -8491,7 +8626,7 @@ namespace SanguoshaServer.Game
             SendLog(log, shenlvmeng);
 
             object decisionData = "viewCards:" + shenlvmeng.Name;
-            room_thread.Trigger(TriggerEvent.ChoiceMade, this, target, ref decisionData);
+            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, target, ref decisionData);
 
             NotifyMoveFocus(shenlvmeng, CommandType.S_COMMAND_SKILL_GONGXIN);
 
@@ -8508,7 +8643,8 @@ namespace SanguoshaServer.Game
                 }
 
                 List<int> hearts = new List<int>();
-                foreach (int id in target.HandCards) {
+                foreach (int id in target.HandCards)
+                {
                     if (GetCard(id).Suit == WrappedCard.CardSuit.Heart)
                         hearts.Add(id);
                 }
@@ -8526,7 +8662,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                List<string> gongxinArgs = new List<string> {shenlvmeng.Name, target.Name, false.ToString(), JsonUntity.Object2Json(target.HandCards), JsonUntity.Object2Json(enabled_ids), skill_name, position };
+                List<string> gongxinArgs = new List<string> { shenlvmeng.Name, target.Name, false.ToString(), JsonUntity.Object2Json(target.HandCards), JsonUntity.Object2Json(enabled_ids), skill_name, position };
                 bool success = DoRequest(shenlvmeng, CommandType.S_COMMAND_SKILL_GONGXIN, gongxinArgs, true);
                 List<string> clientReply = GetClient(shenlvmeng).ClientReply;
                 if (!success || clientReply.Count == 0 || !target.HandCards.Contains(int.Parse(clientReply[0])))
@@ -8546,15 +8682,15 @@ namespace SanguoshaServer.Game
         {
             if (new_round)
             {
-                round_count++;
-                DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { round_count.ToString() });
+                Round++;
+                DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_ROUND, new List<string> { Round.ToString() });
             }
 
             //进入鏖战模式判断
             if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)
             {
                 bool check = true;
-                foreach (Player p in AlivePlayers)
+                foreach (Player p in GetAlivePlayers())
                 {
                     if (RoomLogic.GetPlayerNumWithSameKingdom(this, p) > 1)
                     {

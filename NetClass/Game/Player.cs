@@ -7,6 +7,17 @@ namespace CommonClass.Game
 {
     public class Player
     {
+        public struct ResultStruct
+        {
+            public int Kill { get; set; }
+            public int Damage { get; set; }
+            public int Damaged { get; set; }
+            public int Recover { get; set; }
+            public int Heal { get; set; }
+            public int SkillInvoke { get; set; }
+            public int Assist { get; set; }
+        };
+
         public enum PlayerPhase
         {
             RoundStart, Start, Judge, Draw, Play, Discard, Finish, NotActive, PhaseNone
@@ -29,7 +40,8 @@ namespace CommonClass.Game
         public string Name { set; get; }
         public int ClientId { set; get; }
         public string SceenName { set; get; }
-        public Dictionary<string, int> Marks { set; get; } = new Dictionary<string, int>();
+        public Dictionary<string, int> Marks { private set; get; } = new Dictionary<string, int>();
+        public Dictionary<string, string> StringMarks { private set; get; } = new Dictionary<string, string>();
         public Dictionary<string, List<int>> Piles { set; get; } = new Dictionary<string, List<int>>();
         public Dictionary<string, List<string>> PileOpen { set; get; } = new Dictionary<string, List<string>>();
         public List<string> HeadAcquiredSkills { set; get; } = new List<string>();
@@ -86,6 +98,7 @@ namespace CommonClass.Game
         public int PhasesIndex { set; get; }
         public List<PhaseStruct> PhasesState { set; get; } = new List<PhaseStruct>();
         public Dictionary<int, List<string>> Limitation { get; set; } = new Dictionary<int, List<string>>();
+        public ResultStruct Result { get; set; } = new ResultStruct();
 
         private int _maxHp;
         private Dictionary<string, object> tag = new Dictionary<string, object>();
@@ -399,6 +412,25 @@ namespace CommonClass.Game
             if (!string.IsNullOrEmpty(mark) && Marks.ContainsKey(mark))
                 return Marks[mark];
             return 0;
+        }
+
+        public void SetStringMark(string mark, string value)
+        {
+            StringMarks[mark] = value;
+        }
+
+        public void RemoveStringMark(string mark)
+        {
+            if (StringMarks.ContainsKey(mark))
+                StringMarks.Remove(mark);
+        }
+
+        public string GetStringMark(string mark)
+        {
+            if (StringMarks.ContainsKey(mark))
+                return StringMarks[mark];
+
+            return string.Empty;
         }
 
         public int GetCardCount(bool include_equip)

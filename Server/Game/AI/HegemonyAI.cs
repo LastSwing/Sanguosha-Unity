@@ -4,6 +4,7 @@ using SanguoshaServer.Game;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace SanguoshaServer.AI
 {
@@ -83,7 +84,7 @@ namespace SanguoshaServer.AI
                 Player from = move.From;
                 Player to = move.To;
 
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                 {
                     if (p.HasFlag("Global_GongxinOperator") && (p == self || self.IsSameCamp(p)))
                     {
@@ -371,7 +372,7 @@ namespace SanguoshaServer.AI
             List<Player> alives = room.GetAllPlayers();
             players.Sort((x, y) =>
             {
-                if (players_level[x] > players_level[y])
+                if (PlayersLevel[x] > PlayersLevel[y])
                     return -1;
                 else
                     return alives.IndexOf(x) < alives.IndexOf(y) ? -1 : 1;
@@ -389,19 +390,19 @@ namespace SanguoshaServer.AI
             UpdateGameProcess();
             UpdatePlayerLevel();
 
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 friends[p] = new List<Player>();
                 enemies[p] = new List<Player>();
             }
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
-                if (players_level[p] < 0)
+                if (PlayersLevel[p] < 0)
                     friends[self].Add(p);
-                else if (players_level[p] > 0)
+                else if (PlayersLevel[p] > 0)
                 {
                     enemies[self].Add(p);
-                    if (players_level[p] > 3)
+                    if (PlayersLevel[p] > 3)
                         priority_enemies.Add(p);
                 }
             }
@@ -422,7 +423,7 @@ namespace SanguoshaServer.AI
             FriendNoSelf = friends[self];
             friends[self].RemoveAll(t => t == self);
 
-            string most = process_public.Split('>')[0];
+            string most = ProcessPublic.Split('>')[0];
             foreach (Player p1 in room.GetOtherPlayers(self))
             {
                 friends[p1].Add(p1);
@@ -444,19 +445,19 @@ namespace SanguoshaServer.AI
                                 {
                                     if (different_kingdom[p1].Contains(p2))
                                     {
-                                        if (process_public.Contains(">>>") && !(most == id1 || most == p1.Name)
+                                        if (ProcessPublic.Contains(">>>") && !(most == id1 || most == p1.Name)
                                             && !GetPublicPossibleId(p2).Contains(most))
                                             friends[p1].Add(p2);
                                         else
                                             enemies[p1].Add(p2);
                                     }
-                                    else if (process_public.Contains(">>") && (most == id1 || most == p1.Name))
+                                    else if (ProcessPublic.Contains(">>") && (most == id1 || most == p1.Name))
                                         enemies[p1].Add(p2);
                                 }
                             }
                             else
                             {
-                                if (process_public.Contains(">>>"))
+                                if (ProcessPublic.Contains(">>>"))
                                 {
                                     if (most == id_public[p1] || most == p1.Name || most == id_public[p2] || most == p2.Name)
                                         enemies[p1].Add(p2);
@@ -478,7 +479,7 @@ namespace SanguoshaServer.AI
                             friends[p1].Add(p2);
                         else if (most == id2 || most == p2.Name)
                             enemies[p1].Add(p2);
-                        else if (process_public.Contains(">>>") && !GetPossibleId(p1).Contains(most)
+                        else if (ProcessPublic.Contains(">>>") && !GetPossibleId(p1).Contains(most)
                                    && (id2 != "unknown" || !GetPublicPossibleId(p2).Contains(most)))
                             friends[p1].Add(p2);
                         else if (different_kingdom[p1].Contains(p2))
@@ -540,7 +541,7 @@ namespace SanguoshaServer.AI
                     kingdom_pits_public[kingdom] = Math.Max(all_num / 2 - (kingdoms_count.ContainsKey(kingdom) ? kingdoms_count[kingdom].Count : 0), 0);
             }
 
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {                        // evaluate all identified players
                 double value = EvaluatePlayerStrength(p);
                 if (id_tendency[p] == "careerist")
@@ -697,13 +698,13 @@ namespace SanguoshaServer.AI
             if (high2low.Count > 2)
                 sum_value2 = kingdom_value[high2low[1]] + kingdom_value[high2low[2]];
 
-            process = process_public = "===";
+            Process = ProcessPublic = "===";
             if (kingdom_value[high2low[0]] >= sum_value1 && kingdom_value[high2low[0]] > 0)
-                process = high2low[0] + ">>>" + string.Join("+", others);
+                Process = high2low[0] + ">>>" + string.Join("+", others);
             else if (kingdom_value[high2low[0]] >= sum_value2 && sum_value2 > 0)
-                process = high2low[0] + ">>" + string.Join("+", others);
+                Process = high2low[0] + ">>" + string.Join("+", others);
             else if (kingdom_value[high2low[0]] >= kingdom_value[high2low[1]] && kingdom_value[high2low[1]] > 0)
-                process = high2low[0] + ">" + string.Join("+", others);
+                Process = high2low[0] + ">" + string.Join("+", others);
 
             //room.OutPut(self.Name + " : " + process + " as " + string.Join(":", message));
 
@@ -761,11 +762,11 @@ namespace SanguoshaServer.AI
                 sum_value2 = kingdom_value_public[high2low[1]] + kingdom_value_public[high2low[2]];
 
             if (kingdom_value_public[high2low[0]] >= sum_value1 && kingdom_value_public[high2low[0]] > 0)
-                process_public = high2low[0] + ">>>";
+                ProcessPublic = high2low[0] + ">>>";
             else if (kingdom_value_public[high2low[0]] >= sum_value2 && sum_value2 > 0)
-                process_public = high2low[0] + ">>";
+                ProcessPublic = high2low[0] + ">>";
             else if (kingdom_value_public[high2low[0]] >= kingdom_value_public[high2low[1]] && kingdom_value_public[high2low[1]] > 0)
-                process_public = high2low[0] + ">";
+                ProcessPublic = high2low[0] + ">";
 
             //room.OutPut(self.Name + " : " + process_public + " public as " + string.Join(":", message));
         }
@@ -796,7 +797,7 @@ namespace SanguoshaServer.AI
                 }
 
                 if (p.General1Showed && Engine.GetGeneral(p.ActualGeneral1).IsLord())
-                    lords_public.Add(p.Kingdom, p);
+                    lords_public[p.Kingdom] = p;
             }
 
             foreach (Player p in showns)
@@ -839,7 +840,7 @@ namespace SanguoshaServer.AI
 
                 if (kingdom_pits[kingdom] <= 0)
                 {
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         player_intention[p][kingdom] = -100;
                 }
 
@@ -855,7 +856,7 @@ namespace SanguoshaServer.AI
 
                 if (kingdom_pits_public[kingdom] <= 0)
                 {
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         player_intention_public[p][kingdom] = -100;
                 }
             }
@@ -886,15 +887,26 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in anjiangs)
             {                                       //identify anjiangs rejudge careerist
-                if (id_tendency[p] != "unknown" && id_tendency[p] != "careerist")
+                if (IsKnown(self, p))
                 {
-                    if ((!lords.ContainsKey(id_tendency[p]) || lords[id_tendency[p]] == null || !lords[id_tendency[p]].Alive) && kingdom_pits[id_tendency[p]] <= 0)
+                    string kingdom = p.Kingdom;
+                    if ((!lords.ContainsKey(kingdom) || lords[kingdom] == null || !lords[kingdom].Alive) && kingdom_pits[kingdom] <= 0)
                         id_tendency[p] = "careerist";
+                    else
+                        id_tendency[p] = kingdom;
                 }
-                else if (id_tendency[p] == "careerist")
+                else
                 {
-                    if (lords.ContainsKey(p.Kingdom) && lords[p.Kingdom] != null && lords[p.Kingdom].Alive)
-                        id_tendency[p] = p.Kingdom;
+                    if (id_tendency[p] != "unknown" && id_tendency[p] != "careerist")
+                    {
+                        if ((!lords.ContainsKey(id_tendency[p]) || lords[id_tendency[p]] == null || !lords[id_tendency[p]].Alive) && kingdom_pits[id_tendency[p]] <= 0)
+                            id_tendency[p] = "careerist";
+                    }
+                    else if (id_tendency[p] == "careerist")
+                    {
+                        if (lords.ContainsKey(p.Kingdom) && lords[p.Kingdom] != null && lords[p.Kingdom].Alive)
+                            id_tendency[p] = p.Kingdom;
+                    }
                 }
 
                 if (id_public[p] != "unknown" && id_public[p] != "careerist")
@@ -941,15 +953,15 @@ namespace SanguoshaServer.AI
         //更新敌我识别
         public void UpdatePlayerLevel()
         {
-            players_level[self] = -1;
-            List<string> strs = new List<string>(process.Split('>'));
+            PlayersLevel[self] = -1;
+            List<string> strs = new List<string>(Process.Split('>'));
             List<string> others = new List<string>(strs[strs.Count - 1].Split('+'));
 
             foreach (Player p in room.GetOtherPlayers(self))
             {
-                players_level[p] = 1;                                                               // level defualt to 1
+                PlayersLevel[p] = 1;                                                               // level defualt to 1
                 if (id_tendency[self] != "careerist" && id_tendency[self] == id_tendency[p])        // same kingdom or tendency should be friends
-                    players_level[p] = -1;
+                    PlayersLevel[p] = -1;
                 else if (id_tendency[p] == "unknown")
                 {                                             // when tendency is unknown
                     List<string> possible = GetPossibleId(p);
@@ -957,34 +969,34 @@ namespace SanguoshaServer.AI
                     if (!string.IsNullOrEmpty(big))
                     {                                                           // judge his most probable tendency
                         if (id_tendency[self] != "careerist" && big == id_tendency[p])
-                            players_level[p] = 0;
-                        else if (process.Split('>')[0] == big)
+                            PlayersLevel[p] = 0;
+                        else if (Process.Split('>')[0] == big)
                         {
-                            if (process.Contains(">>>"))
-                                players_level[p] = 4;
-                            else if (process.Contains(">>"))
-                                players_level[p] = 2;
+                            if (Process.Contains(">>>"))
+                                PlayersLevel[p] = 4;
+                            else if (Process.Contains(">>"))
+                                PlayersLevel[p] = 2;
                         }
                     }
                 }
                 else
                 {                                                                            // when id clearly but not same as "me"
                     string id = id_tendency[p];
-                    string big = process.Split('>')[0];
+                    string big = Process.Split('>')[0];
                     if (big == id || big == p.Name
                             || big == id_tendency[self] || big == self.Name)
                     {                // if he or me belong to big kingdom
-                        if (process.Contains(">>>") || others.Count == 1)                                                // extremely dangerous
-                            players_level[p] = 5;
-                        else if (process.Contains(">>") && (others[0] == id_tendency[p] || others[0] == p.Name || big == id))  // high dangerous
-                            players_level[p] = 3;
+                        if (Process.Contains(">>>") || others.Count == 1)                                                // extremely dangerous
+                            PlayersLevel[p] = 5;
+                        else if (Process.Contains(">>") && (others[0] == id_tendency[p] || others[0] == p.Name || big == id))  // high dangerous
+                            PlayersLevel[p] = 3;
                     }
                     else
                     {                                                                        // if not belong to big kingdom
-                        if (process.Contains(">>>"))                                                // if the big is extremely dangerous, all smalls will be united
-                            players_level[p] = -1;
-                        else if (process.Contains(">>"))
-                            players_level[p] = 1.5;
+                        if (Process.Contains(">>>"))                                                // if the big is extremely dangerous, all smalls will be united
+                            PlayersLevel[p] = -1;
+                        else if (Process.Contains(">>"))
+                            PlayersLevel[p] = 1.5;
                     }
                 }
             }
@@ -1123,6 +1135,31 @@ namespace SanguoshaServer.AI
             to_use.Clear();
         }
 
+        public override WrappedCard AskForCard(string reason, string pattern, string prompt, object data)
+        {
+            UseCard card = Engine.GetCardUsage(reason);
+            if (card != null)
+                return card.OnResponding(this, self, pattern, prompt, data).Card;
+
+            SkillEvent skill = Engine.GetSkillEvent(reason);
+            if (skill != null)
+                return skill.OnResponding(this, self, pattern, prompt, data).Card;
+
+            return base.AskForCard(reason, pattern, prompt, data);
+        }
+        public override WrappedCard AskForCardShow(Player requestor, string reason, object data)
+        {
+            UseCard card = Engine.GetCardUsage(reason);
+            if (card != null)
+                return card.OnCardShow(this, self, requestor, data);
+
+            SkillEvent skill = Engine.GetSkillEvent(reason);
+            if (skill != null)
+                return skill.OnCardShow(this, self, requestor, data);
+
+            return base.AskForCardShow(requestor, reason, data);
+        }
+
         public override WrappedCard AskForSinglePeach(Player dying)
         {
             if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
@@ -1144,6 +1181,232 @@ namespace SanguoshaServer.AI
 
         public override string AskForChoice(string skill_name, string choice, object data)
         {
+            if (skill_name.Contains("GameRule_AskForGeneral"))
+            {
+                bool canShowHead = choice.Contains("GameRule_AskForGeneralShowHead");
+                bool canShowDeputy = choice.Contains("GameRule_AskForGeneralShowDeputy");
+                List<string> firstShow = new List<string>("luanji|qianhuan".Split('|'));
+                List<string> bothShow = new List<string>("luanji+shuangxiong|luanji+huoshui|huoji+jizhi|luoshen+fangzhu|guanxing+jizhi".Split('|'));
+                List<string> followShow = new List<string>("qianhuan|duoshi|rende|cunsi|jieyin|xiongyi|shouyue|hongfa".Split('|'));
+                int notshown = 0, shown = 0, allshown = 0, f = 0, e = 0, eAtt = 0;
+
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (!p.HasShownOneGeneral())
+                        notshown++;
+                    else
+                    {
+                        shown++;
+                        if (RoomLogic.WillBeFriendWith(room, Self, p))
+                            f++;
+                        else
+                        {
+                            e++;
+                            if (IsWeak(p) && p.Hp == 1 && RoomLogic.InMyAttackRange(room, Self, p))
+                                eAtt++;
+                        }
+                    }
+
+                    if (p.HasShownAllGenerals())
+                        allshown++;
+                }
+                double showRate = (double)shown / 20;
+                bool firstShowReward = false;
+                if (shown == 0)
+                    firstShowReward = true;
+
+
+                if ((firstShowReward || WillShowForAttack()) && !WillSkipPlayPhase(Self))
+                {
+                    foreach (string _skill in bothShow)
+                    {
+                        if (RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate > 0.7)
+                        {
+                            if (canShowHead)
+                                return "GameRule_AskForGeneralShowHead";
+                            else if (canShowDeputy)
+                                return "GameRule_AskForGeneralShowDeputy";
+                        }
+                    }
+                }
+
+                if (firstShowReward && !WillSkipPlayPhase(Self))
+                {
+                    foreach (string _skill in firstShow)
+                    {
+                        if (RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate > 0.8 && !Self.HasShownOneGeneral())
+                        {
+                            if (RoomLogic.InPlayerHeadSkills(Self, _skill) && canShowHead)
+                                return "GameRule_AskForGeneralShowHead";
+                            else if (canShowDeputy)
+                                return "GameRule_AskForGeneralShowDeputy";
+                        }
+                    }
+                }
+
+                if (!Self.HasShownOneGeneral() && showRate > 0.9)
+                {
+                    return canShowHead ? "GameRule_AskForGeneralShowHead" : "GameRule_AskForGeneralShowDeputy";
+                }
+
+                if (RoomLogic.InPlayerHeadSkills(Self, "baoling"))
+                {
+                    if ((RoomLogic.PlayerHasSkill(room, Self, "luanwu") && Self.GetMark("@chaos") != 0)
+                        || (RoomLogic.PlayerHasSkill(room, Self, "xiongyi") && Self.GetMark("@arise") != 0))
+                        canShowHead = false;
+
+
+                    if ((RoomLogic.PlayerHasSkill(room, Self, "mingshi") && allshown >= room.AliveCount() - 1)
+                        || (RoomLogic.PlayerHasSkill(room, Self, "luanwu") && Self.GetMark("@chaos") == 0)
+                        || (RoomLogic.PlayerHasSkill(room, Self, "xiongyi") && Self.GetMark("@arise") != 0))
+                    {
+                        if (canShowHead)
+                            return "GameRule_AskForGeneralShowHead";
+                    }
+                }
+
+                if (RoomLogic.PlayerHasSkill(room, Self, "guixiu") && !RoomLogic.PlayerHasShownSkill(room, Self, "guixiu"))
+                {
+                    if (IsWeak() || (shown > 0 && eAtt > 0 && e - f < 3 && !WillSkipPlayPhase(Self)))
+                    {
+                        if (canShowHead && RoomLogic.InPlayerHeadSkills(Self, "guixiu"))
+                            return "GameRule_AskForGeneralShowHead";
+                        else if (canShowDeputy && RoomLogic.InPlayerDeputykills(Self, "guixiu"))
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+                }
+
+                foreach (Player p in GetFriends(Self))
+                {
+                    if (RoomLogic.PlayerHasSkill(room, p, "jieyin") && (p.IsWounded() || Self.IsWounded()) && Self.PlayerGender != Player.Gender.Male)
+                    {
+                        if (!Self.General1Showed && Engine.GetGeneral(Self.ActualGeneral1).IsMale() && canShowHead)
+                            return "GameRule_AskForGeneralShowHead";
+                        else if (!Self.General1Showed && !Self.General2Showed && Engine.GetGeneral(Self.ActualGeneral2).IsMale() && canShowDeputy)
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+                }
+                if (Self.GetMark("CompanionEffect") > 0)
+                {
+                    if (IsRoleExpose() || IsWeak())
+                    {
+                        if (canShowHead)
+                            return "GameRule_AskForGeneralShowHead";
+                        if (canShowDeputy)
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+                }
+                if (Self.GetMark("HalfMaxHpLeft") > 0)
+                {
+                    if (IsRoleExpose() || IsWeak() || showRate > 0.7)
+                    {
+                        if (canShowHead)
+                            return "GameRule_AskForGeneralShowHead";
+                        if (canShowDeputy)
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+                }
+
+                if (Self.HasTreasure("JadeSeal") && !Self.HasShownOneGeneral())
+                {
+                    if (canShowHead)
+                        return "GameRule_AskForGeneralShowHead";
+                    if (canShowDeputy)
+                        return "GameRule_AskForGeneralShowDeputy";
+                }
+
+                foreach (string _skill in followShow)
+                {
+                    if (((shown > 0 && e < notshown) || Self.HasShownOneGeneral()) && RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate > 0.6)
+                    {
+                        if (RoomLogic.InPlayerHeadSkills(Self, _skill) && canShowHead)
+                            return "GameRule_AskForGeneralShowHead";
+                        else if (RoomLogic.InPlayerDeputykills(Self, _skill) && canShowDeputy)
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+                }
+
+                if (!Self.HasShownOneGeneral() && showRate > 0.2)
+                {
+                    foreach (string _skill in followShow)
+                    {
+                        foreach (Player p in room.GetOtherPlayers(self))
+                        {
+                            if (RoomLogic.PlayerHasShownSkill(room, p, _skill) && RoomLogic.WillBeFriendWith(room, Self, p))
+                            {
+                                List<string> chos = new List<string>();
+                                if (canShowHead)
+                                    chos.Add("GameRule_AskForGeneralShowHead");
+                                if (canShowDeputy)
+                                    chos.Add("GameRule_AskForGeneralShowDeputy");
+                                Shuffle.shuffle(ref chos);
+                                return chos[0];
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (skill_name == "GameRule:TriggerOrder")
+            {
+                if (choice.Contains("duanbing")) return "duanbing";
+                if (choice.Contains("jieming")) return "jieming";
+                if (choice.Contains("fankui") && choice.Contains("ganglie")) return "fankui";
+                if (choice.Contains("fangzhu") && data is DamageStruct damage)
+                {
+                    Player from = damage.From;
+                    if (choice.Contains("wangxi"))
+                    {
+                        if (from != null && from.IsNude())
+                            return "wangxi";
+                    }
+
+                    if (choice.Contains("fankui"))
+                    {
+                        if (from != null && from == Self && HasArmorEffect(Self, "SilverLion"))
+                        {
+                            bool friend = false;
+                            foreach (Player p in FriendNoSelf)
+                            {
+                                if (!p.FaceUp)
+                                {
+                                    friend = true;
+                                    break;
+                                }
+                            }
+                            if (!friend)
+                                return "fankui";
+                        }
+                    }
+
+                    return "fangzhu";
+                }
+
+                if (choice.Contains("wangxi") && choice.Contains("ganglie")) return "ganglie";
+                if (choice.Contains("jiangxiong")) return "jianxiong";
+
+                if (choice.Contains("qianxi") && choice.Contains("guanxing"))
+                {
+                    if (self.JudgingArea.Count > 0 && room.AliveCount() <= 4)
+                    {
+                        return "qianxi";
+                    }
+                    return "guanxing";
+                }
+
+                if (choice.Contains("tiandu") && data is JudgeStruct judge)
+                {
+                    int id = judge.Card.Id;
+                    if (IsCard(id, "Peach", self) || IsCard(id, "Analeptic", Self))
+                        return "tiandu";
+                }
+                if (choice.Contains("yiji")) return "yiji";
+                if (choice.Contains("yingzi_zhouyu")) return "yingzi_zhouyu";
+                if (choice.Contains("yingzi_sunce")) return "yingzi_sunce";
+                string[] skillnames = choice.Split('+');
+                return skillnames[0];
+            }
+
             UseCard card = Engine.GetCardUsage(skill_name);
             if (card != null)
                 return card.OnChoice(this, self, choice, data);
@@ -1153,6 +1416,361 @@ namespace SanguoshaServer.AI
                 return skill.OnChoice(this, self, choice, data);
 
             return base.AskForChoice(skill_name, choice, data);
+        }
+
+        public override bool AskForSkillInvoke(string skill_name, object data)
+        {
+            UseCard card = Engine.GetCardUsage(skill_name);
+            if (card != null)
+                return card.OnSkillInvoke(this, self, data);
+
+            SkillEvent skill = Engine.GetSkillEvent(skill_name);
+            if (skill != null)
+                return skill.OnSkillInvoke(this, self, data);
+
+            return base.AskForSkillInvoke(skill_name, data);
+        }
+
+        public override List<int> AskForDiscard(string reason, int discard_num, int min_num, bool optional, bool include_equip)
+        {
+            List<int> result;
+            SkillEvent skill = Engine.GetSkillEvent(reason);
+            if (skill != null)
+            {
+                result = skill.OnDiscard(this, self, min_num, discard_num, optional, include_equip);
+                if (result != null)
+                    return result;
+            }
+            result = new List<int>();
+            if (optional)
+                return result;
+            {
+                List<int> ids = new List<int>(self.HandCards);
+                if (include_equip)
+                    ids.AddRange(self.GetEquips());
+
+                bool use = self.FaceUp;
+                if (use && (room.Current != self || self.Phase > Player.PlayerPhase.Play || self.GetMark("ThreatenEmperorExtraTurn") == 0))
+                {
+                    Player next = room.Current;
+                    if ((next.Phase > Player.PlayerPhase.Play && (next.GetMark("ThreatenEmperorExtraTurn") == 0 || !next.FaceUp)) || self.Removed)
+                        next = room.GetNextAlive(next);
+                    while (next != self)
+                    {
+                        if (next.FaceUp && !IsFriend(next))
+                        {
+                            use = false;
+                            break;
+                        }
+                        next = room.GetNextAlive(next);
+                    }
+                }
+
+                if (use)
+                    SortByUseValue(ref ids, false);
+                else
+                    SortByKeepValue(ref ids, false);
+
+                for (int i = 0; i < min_num; i++)
+                    result.Add(ids[i]);
+
+                if (result.Count < discard_num)
+                {
+                    for (int i = result.Count - 1; i < Math.Min(result.Count, ids.Count); i++)
+                    {
+                        if (ids[i] < 0)
+                            result.Add(ids[i]);
+                        else
+                            break;
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
+            { "collateral-slash", "Collateral" },
+            { "@tiaoxin-slash", "TiaoxinCard" },
+        };
+
+        public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)
+        {
+            const string rx_pattern = @"@?@?([_A-Za-z]+)(\d+)?!?";
+            if (!string.IsNullOrEmpty(pattern) && pattern.StartsWith("@"))
+            {
+                Match result = Regex.Match(pattern, rx_pattern);
+                if (result.Length > 0)
+                {
+                    string skill_name = result.Groups[1].ToString();
+                    UseCard card = Engine.GetCardUsage(skill_name);
+                    if (card != null)
+                        return card.OnResponding(this, self, pattern, prompt, method);
+
+                    SkillEvent skill = Engine.GetSkillEvent(skill_name);
+                    if (skill != null)
+                        return skill.OnResponding(this, self, pattern, prompt, method);
+                }
+            }
+            else
+            {
+                foreach (string key in prompt_keys.Keys)
+                {
+                    if (prompt.StartsWith(key))
+                    {
+                        string skill_name = prompt_keys[key];
+                        UseCard card = Engine.GetCardUsage(skill_name);
+                        if (card != null)
+                            return card.OnResponding(this, self, pattern, prompt, method);
+
+                        SkillEvent skill = Engine.GetSkillEvent(skill_name);
+                        if (skill != null)
+                            return skill.OnResponding(this, self, pattern, prompt, method);
+                    }
+                }
+            }
+
+            return base.AskForUseCard(pattern, prompt, method);
+        }
+
+        public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
+        {
+            if (!to.Alive) return null;
+
+            List<WrappedCard> nullcards = GetCards("Nullification", self);
+            if (nullcards.Count == 0)
+                return null;
+
+            if (trick.Name == "SavageAssault" && IsFriend(to) && positive)
+            {
+                Player menghuo = FindPlayerBySkill("huoshou");
+                if (menghuo != null && RoomLogic.PlayerHasShownSkill(room, menghuo, "huoshou") && IsFriend(to, menghuo) && HasSkill("zhiman", menghuo))
+                    return null;
+            }
+
+            if (from != null && IsFriend(to, from) && IsFriend(to) && positive && HasSkill("zhiman"))
+                return null;
+
+            int null_num = nullcards.Count;
+            SortByUseValue(ref nullcards);
+            WrappedCard null_card = nullcards[0];
+
+            FunctionCard fcard = Engine.GetFunctionCard(trick.Name);
+            if (HasSkill("kongcheng") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
+            {
+                //bool heg = (int)room.GetTag("NullifyingTimes") == 0 && null_card.Name == "HegNullification" || (bool)room.GetTag("HegNullificationValid");
+                if (positive && IsFriend(to) && IsEnemy(from))
+                {
+                    return null_card;
+                }
+                else if (!positive && IsFriend(from))
+                {
+                    return null_card;
+                }
+            }
+
+
+            if (null_num > 1)
+            {
+                foreach (WrappedCard card in nullcards)
+                {
+                    if (card.Name != "HegNullification")
+                    {
+                        null_card = card;
+                        break;
+                    }
+                }
+            }
+            if (RoomLogic.IsCardLimited(room, self, null_card, FunctionCard.HandlingMethod.MethodUse)) return null;
+
+            if (null_num == 1 && HasSkill("kanpo") && self.Phase == Player.PlayerPhase.NotActive && self.IsLastHandCard(null_card))
+            {
+                foreach (Player p in GetFriends(self))
+                {
+                    if (HasSkill("shouchen", p))
+                    {
+                        null_num = 2;
+                        break;
+                    }
+                }
+            }
+            bool keep = false;
+            if (null_num == 1)
+            {
+                bool only = true;
+                foreach (Player p in FriendNoSelf)
+                {
+                    if (GetKnownCardsNums("Nullification", "he", p, self) > 0)
+                    {
+                        only = false;
+                        break;
+                    }
+                }
+
+                if (only)
+                {
+                    foreach (Player p in GetFriends(self))
+                    {
+                        if (RoomLogic.PlayerContainsTrick(room, p, "Indulgence") && !HasSkill("guanxing|yizhi|shensu|qiaobian") && p.HandcardNum >= p.Hp
+                            && (trick.Name != "Indulgence") || p.Name != to.Name)
+                        {
+                            keep = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            UseCard use = Engine.GetCardUsage(trick.Name);
+            if (use != null)
+            {
+                UseCard.NulliResult result = use.OnNullification(this, from, to, trick, positive, keep);
+                if (result.Null)
+                {
+                    if (result.Heg)
+                    {
+                        foreach (WrappedCard card in nullcards)
+                        {
+                            if (card.Name == "HegNullification")
+                            {
+                                null_card = card;
+                                break;
+                            }
+                        }
+                    }
+                    return null_card;
+                }
+            }
+            return null;
+
+            /*
+
+
+    if ("snatch|dismantlement"):match(trick: objectName()) and to:isAllNude() then return nil end
+
+
+    if from then
+        local damage = { }
+            damage.from = from
+            damage.to = to
+
+        damage.card = trick
+
+
+        if (trick:isKindOf("Duel") or trick:isKindOf("AOE")) and not self: damageIsEffective(to, sgs.DamageStruct_Normal) then return nil end
+
+
+        if (trick:isKindOf("Duel") or trick:isKindOf("FireAttack") or trick:isKindOf("AOE")) and self:isFriend(to) then
+
+            if self:getDamagedEffects(damage) then
+
+                return nil
+
+            end
+        end
+
+    end
+
+    if (trick:isKindOf("Duel") or trick:isKindOf("FireAttack") or trick:isKindOf("AOE")) and self:needToLoseHp(to, from) and self:isFriend(to) then
+
+        return nil
+
+    end
+
+    local callback = sgs.ai_nullification[trick: getClassName()]
+
+    if type(callback) == "function" then
+        local shouldUse, single = callback(self, trick, from, to, positive, keep)
+
+        if self.room:getTag("NullifyingTimes"):toInt() > 0 then single = true end
+
+        if shouldUse and not single then
+
+            local heg_null_card = self:getCard("HegNullification")
+
+            if heg_null_card then null_card = heg_null_card end
+        end
+
+        return shouldUse and null_card
+
+    end
+
+
+    if keep then--要为被乐的友方保留无懈
+
+        if not self: isFriend(to) or not self: isWeak(to) then return nil end
+      end
+
+
+    if positive then
+
+        if from and (trick: isKindOf("FireAttack") or trick:isKindOf("Duel")) and self:cantbeHurt(to, from) and self:isWeak(to) and self:isFriend(to) then
+
+            return null_card
+
+        end
+
+        local isEnemyFrom = from and self:isEnemy(from)
+
+
+        if isEnemyFrom and self.player: hasSkill("kongcheng") and self.player: getHandcardNum() == 1 and self.player: isLastHandCard(null_card) and trick:isKindOf("SingleTargetTrick") then
+
+            return null_card
+
+
+        elseif trick:isKindOf("GodSalvation") then
+
+            if self:isEnemy(to) and self:evaluateKingdom(to) ~= "unknown" and self:isWeak(to) then return null_card end
+        end
+
+	else
+
+        if from and from:objectName() == self.player:objectName() then return end
+
+
+        if (trick:isKindOf("FireAttack") or trick:isKindOf("Duel")) and self:cantbeHurt(to, from) then
+
+            if isEnemyFrom then return null_card end
+        end
+
+        --[[看不懂原版这一段
+
+        if from and from:objectName() == to:objectName() then
+
+            if self:isFriend(from) then return null_card else return end
+
+        end
+        --]]
+		if trick:isKindOf("Duel") then
+
+            if trick:getSkillName() == "lijian" then
+
+                if self:isEnemy(to) and(self: isWeak(to) or null_num > 1 or self: getOverflow() > 0 or not self: isWeak()) then return null_card end
+
+                return
+            end
+
+            return from and self:isFriend(from) and not self: isFriend(to) and null_card
+
+        elseif trick:isKindOf("GodSalvation") then
+
+            if self:isFriend(to) and self:isWeak(to) then return null_card end
+        elseif trick: isKindOf("AmazingGrace") then
+
+            if self:isFriend(to) then return null_card end
+        elseif not(trick: isKindOf("GlobalEffect") or trick: isKindOf("AOE")) then
+
+            if from and self:isFriend(from) and not self: isFriend(to) then
+
+                if ("snatch|dismantlement"):match(trick: objectName()) and to:isNude() then
+                 elseif trick: isKindOf("FireAttack") and to:isKongcheng() then
+				else return null_card end
+            end
+
+        end
+    end
+
+    return
+                */
         }
     }
 }

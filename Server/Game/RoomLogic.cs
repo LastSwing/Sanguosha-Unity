@@ -58,7 +58,6 @@ namespace SanguoshaServer.Game
             valid_slash_count += Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, newslash);
 
             return slash_count < valid_slash_count;
-
         }
 
         public static int GetAttackRange(Room room, Player player, bool include_weapon = true, int range_fix = 0)
@@ -618,7 +617,7 @@ namespace SanguoshaServer.Game
         }
         public static Player GetLord(Room room, string kingdom, bool include_dead = false)
         {
-            List<Player> players = include_dead ? room.Players : room.AlivePlayers;
+            List<Player> players = include_dead ? room.Players : room.GetAlivePlayers();
             foreach (Player p in players)
             {
                 General g = Engine.GetGeneral(p.ActualGeneral1);
@@ -1035,7 +1034,7 @@ namespace SanguoshaServer.Game
                 { "wu", 0 },
                 { "qun", 0 }
             };
-            List<Player> players = room.AlivePlayers;
+            List<Player> players = new List<Player>(room.GetAlivePlayers());
             foreach (Player p in players)
             {
                 if (!p.HasShownOneGeneral())
@@ -1160,7 +1159,7 @@ namespace SanguoshaServer.Game
                     to_calculate = player.Kingdom;
             }
 
-            List <Player> players = room.AlivePlayers;
+            List <Player> players = new List<Player>(room.GetAlivePlayers());
             int num = 0;
 
             if (to_calculate == "careerist")

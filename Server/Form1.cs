@@ -92,6 +92,7 @@ namespace SanguoshaServer
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.logBox = new System.Windows.Forms.ListBox();
             this.SuspendLayout();
             // 
@@ -101,7 +102,7 @@ namespace SanguoshaServer
             this.logBox.ItemHeight = 12;
             this.logBox.Location = new System.Drawing.Point(0, 0);
             this.logBox.Name = "logBox";
-            this.logBox.Size = new System.Drawing.Size(416, 292);
+            this.logBox.Size = new System.Drawing.Size(416, 294);
             this.logBox.TabIndex = 1;
             // 
             // Form1
@@ -109,7 +110,8 @@ namespace SanguoshaServer
             this.AutoScaleBaseSize = new System.Drawing.Size(6, 14);
             this.ClientSize = new System.Drawing.Size(416, 294);
             this.Controls.Add(this.logBox);
-            this.Name = "Sanguosha-Server";
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Name = "Form1";
             this.Text = "Sanguosha-Server";
             this.Closing += new System.ComponentModel.CancelEventHandler(this.Form1_Closing);
             this.ResumeLayout(false);

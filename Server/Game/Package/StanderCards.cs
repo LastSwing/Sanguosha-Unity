@@ -131,7 +131,7 @@ namespace SanguoshaServer.Game
             {
                 player.SetFlags("-slashTargetFix");
                 player.SetFlags("-slashTargetFixToOne");
-                foreach (Player target in room.AlivePlayers)
+                foreach (Player target in room.GetAlivePlayers())
                     if (target.HasFlag("SlashAssignee"))
                         target.SetFlags("-SlashAssignee");
             }
@@ -361,7 +361,7 @@ namespace SanguoshaServer.Game
             int slash_targets = 1 + (card.ExtraTarget ? Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card) : 0);
 
             bool has_specific_assignee = false;
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 if (p == Self) continue;
                 if (IsSpecificAssignee(room, p, Self, card))
@@ -422,7 +422,7 @@ namespace SanguoshaServer.Game
 
                 if (considerSpecificAssignee)
                 {
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.SpecificAssignee, player, p, slash) && RoomLogic.CanSlash(room, player, p, slash))
                             return true;
 
@@ -759,9 +759,9 @@ namespace SanguoshaServer.Game
                 Thread.Sleep(500);
             }
             else if (effect.Card.Skill == "luanji" && room.Setting.GameMode == "Hegemony" && RoomLogic.IsFriendWith(room, effect.To, effect.From)
-                && room.AskForSkillInvoke(effect.To, "luanji-draw", null))
+                && room.AskForSkillInvoke(effect.To, "luanji-draw", "#luanji-draw"))
             {
-                room.DrawCards(effect.To, 1);
+                room.DrawCards(effect.To, 1, "luanji");
             }
         }
     }
@@ -771,7 +771,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 if (p == player) continue;
                 if (p.GetWeapon())
@@ -898,7 +898,7 @@ namespace SanguoshaServer.Game
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.To, "ex_nihilo");
-            room.DrawCards(effect.To, 2);
+            room.DrawCards(effect.To, 2, Name);
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
@@ -1182,7 +1182,7 @@ namespace SanguoshaServer.Game
                     string heg_nullification_selection = room.AskForChoice(player, "HegNullification", "single+all", des, _data);
 
                     if (heg_nullification_selection.Contains("all"))
-                        room.SetTag("NullificatonType", true);
+                        room.HegNull = true;
                     else
                         tos.Clear();
                 }
@@ -1453,7 +1453,7 @@ namespace SanguoshaServer.Game
                 canUse = true;
             if (!canUse)
             {
-                List<Player> players = room.AlivePlayers;
+                List<Player> players = room.GetAlivePlayers();
                 foreach (Player p in players)
                 {
                     if (p == player) continue;
@@ -1549,7 +1549,7 @@ namespace SanguoshaServer.Game
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.DrawCards(effect.To, 2);
+            room.DrawCards(effect.To, new DrawCardStruct(2, effect.From, Name));
             effect.To.SetFlags("AwaitExhaustedEffected");
         }
     }
@@ -1559,7 +1559,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool can_use = false;
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 if (p == player) continue;
                 if (RoomLogic.IsProhibited(room, player, p, card) != null)
@@ -1664,8 +1664,8 @@ namespace SanguoshaServer.Game
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.DrawCards(effect.To, 1);
-            room.DrawCards(effect.From, 3);
+            room.DrawCards(effect.To, new DrawCardStruct(1, effect.From, Name));
+            room.DrawCards(effect.From, new DrawCardStruct(3, effect.From, Name));
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
@@ -1737,7 +1737,7 @@ namespace SanguoshaServer.Game
                     draw_card = true;
             }
             if (draw_card)
-                room.DrawCards(ask_who, 1);
+                room.DrawCards(ask_who, 1, Name);
             return false;
         }
 
@@ -1869,7 +1869,7 @@ namespace SanguoshaServer.Game
             if (cards.Count != 2)
                 return null;
 
-            WrappedCard card = new WrappedCard("Dummy")
+            WrappedCard card = new WrappedCard("DummyCard")
             {
                 Skill = Name
             };
@@ -2128,7 +2128,7 @@ namespace SanguoshaServer.Game
         }
         public override int GetExtra(Room room, Player target, bool include_weapon)
         {
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 if (p.HasWeapon("SixSwords") && RoomLogic.IsFriendWith(room, p, target) && p.GetMark("Equips_nullified_to_Yourself") == 0)
                     return 1;
@@ -2652,7 +2652,7 @@ namespace SanguoshaServer.Game
             }
             if (targets.Count > 0)
             {
-                Player target = room.AskForPlayerChosen(player, targets, "pioneer", "@pioneer", true);
+                Player target = room.AskForPlayerChosen(player, targets, "pioneer", "@pioneer-view", true);
                 if (target != null)
                 {
                     List<string> choices = new List<string>();
@@ -2660,8 +2660,11 @@ namespace SanguoshaServer.Game
                         choices.Add("head_general");
                     if (!string.IsNullOrEmpty(target.General2) && !target.General2Showed)
                         choices.Add("deputy_general");
-                    
+
+
+                    target.SetFlags("KnownBothTarget");// For AI
                     string choice = room.AskForChoice(player, "pioneer", string.Join("+", choices), null, target);
+                    target.SetFlags("-KnownBothTarget");
                     string general = choice == "head_general" ? target.ActualGeneral1 : target.ActualGeneral2;
                     LogMessage log = new LogMessage
                     {

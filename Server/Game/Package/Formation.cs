@@ -151,7 +151,7 @@ namespace SanguoshaServer.Game
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             JudgeStruct judge  = (JudgeStruct)data;
-            if (room.AskForSkillInvoke(judge.Who, "_tuntian", "gotofield"))
+            if (room.AskForSkillInvoke(judge.Who, "tuntian", "#gotofield"))
             {
                 room.BroadcastSkillInvoke("tuntian", judge.Who, info.SkillPosition);
                 return info;
@@ -375,7 +375,7 @@ namespace SanguoshaServer.Game
             Player target = room.FindPlayer((string)caohong.GetTag("huyuan_target"));
 
             List<Player> targets = new List<Player>();
-            foreach (Player p in room.AlivePlayers) {
+            foreach (Player p in room.GetAlivePlayers()) {
                 if (RoomLogic.DistanceTo(room, target, p) == 1 && RoomLogic.CanDiscard(room, caohong, p, "he"))
                     targets.Add(p);
             }
@@ -442,7 +442,7 @@ namespace SanguoshaServer.Game
         public override bool ViewHas(Room room, Player player, string skill_name)
         {
             List <Player> caohongs = new List<Player>();
-            List<Player> sib = room.AlivePlayers;
+            List<Player> sib = room.GetAlivePlayers();
             if (sib.Count < 3) return false;
 
             foreach (Player p in sib)
@@ -627,7 +627,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.DrawCards(player, 2);
+            room.DrawCards(player, 2, Name);
 
             return false;
         }
@@ -683,7 +683,7 @@ namespace SanguoshaServer.Game
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
             if (move.From != null)
-                room.DrawCards(move.From, 1);
+                room.DrawCards(move.From, new DrawCardStruct(1, ask_who, Name));
             return false;
         }
     }
@@ -917,7 +917,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.DrawCards(player, 1);
+            room.DrawCards(player, new DrawCardStruct(1, ask_who, Name));
             if (player.Alive && RoomLogic.CanDiscard(room, player, player, "he"))
                 room.AskForDiscard(player, Name, 1, 1, false, true, null, false, info.SkillPosition);
             return false;
@@ -1154,7 +1154,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.DrawCards(ask_who, 3);
+            room.DrawCards(ask_who, 3, Name);
             return false;
         }
     }
@@ -1295,7 +1295,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.DrawCards(player, 2);
+            room.DrawCards(player, 2, "zhangwu");
             return false;
         }
     }
@@ -1342,7 +1342,7 @@ namespace SanguoshaServer.Game
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             if (player.HandcardNum < player.MaxHp)
-                room.DrawCards(player, player.MaxHp - player.HandcardNum);
+                room.DrawCards(player, player.MaxHp - player.HandcardNum, Name);
 
             if (player.Hp < 2)
             {

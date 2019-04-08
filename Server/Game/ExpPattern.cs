@@ -134,7 +134,8 @@ namespace SanguoshaServer.Game
                 string suit = _suit;
                 if (suit == ".")
                 {
-                    checkpoint = true; break;
+                    checkpoint = true;
+                    break;
                 }
                 bool positive = true;
                 if (suit.StartsWith("^"))
@@ -142,12 +143,11 @@ namespace SanguoshaServer.Game
                     positive = false;
                     suit = suit.Substring(1);
                 }
-                if (WrappedCard.GetSuitString(RoomLogic.GetCardSuit(room, card)) == suit
+                checkpoint = WrappedCard.GetSuitString(RoomLogic.GetCardSuit(room, card)) == suit
                     || (WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, card)) && suit == "black")
-                    || (WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)) && suit == "red"))
-                    checkpoint = positive;
-                else
-                    checkpoint = !positive;
+                    || (WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)) && suit == "red")
+                    ? positive
+                    : !positive;
                 if (checkpoint) break;
             }
             if (!checkpoint) return false;
@@ -229,7 +229,7 @@ namespace SanguoshaServer.Game
                                 if (p.StartsWith("%"))
                                 {
                                     p = p.Substring(1);
-                                    foreach (Player pl in room.AlivePlayers) {
+                                    foreach (Player pl in room.GetAlivePlayers()) {
                                         if (pl.GetPile(p).Count > 0 && pl.GetPile(p).Contains(id))
                                         {
                                             checkpoint = true;

@@ -214,7 +214,7 @@ namespace SanguoshaServer.Scenario
         private void AdjustSeats(Room room, ref List<Player> room_players)
         {
             List<Client> clients = room.Clients;
-            Shuffle.shuffle<Client>(ref clients);
+            Shuffle.shuffle(ref clients);
 
             for (int i = 0; i < clients.Count; i++)
             {
@@ -568,7 +568,7 @@ namespace SanguoshaServer.Scenario
         public override string GetWinner(Room room)
         {
             List<string> winners = new List<string>();
-                List<Player> players = room.AlivePlayers;
+                List<Player> players = new List<Player>(room.GetAlivePlayers());
                 Player win_player = players[0];
                 if (players.Count == 1)
                 {

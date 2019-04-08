@@ -453,6 +453,8 @@ namespace SanguoshaServer.Game
             foreach (TrustedAI ai in room.AIs)
                 ai.Event(triggerEvent, target, data);
 
+            AchieveCollector.Event(triggerEvent, room, target, data);
+
             // pop event stack
             //event_stack.pop_back();
 

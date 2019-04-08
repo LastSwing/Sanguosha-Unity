@@ -23,7 +23,8 @@ namespace SanguoshaServer.AI
     public class SkillEvent
     {
         public string Name { private set; get; }
-        public List<string> Key { private set; get; }
+        public List<string> Key => key;
+        protected List<string> key = new List<string>();
 
         public SkillEvent(string name)
         {
@@ -34,13 +35,15 @@ namespace SanguoshaServer.AI
         {
         }
 
+        public virtual List<WrappedCard> GetViewAsCards(TrustedAI ai, string pattern, Player player) => new List<WrappedCard>();
+
         public virtual string OnChoice(TrustedAI ai, Player player, string choice, object data) => string.Empty;
 
         public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data) => new List<Player>();
 
         public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data) => new List<int>();
 
-        public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data, HandlingMethod method) => new CardUseStruct();
+        public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data) => new CardUseStruct();
 
         public virtual bool OnSkillInvoke(TrustedAI ai, Player player, object data) => false;
 
@@ -52,7 +55,7 @@ namespace SanguoshaServer.AI
 
         public virtual Dictionary<string, List<int>> OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max) => new Dictionary<string, List<int>>();
 
-        public virtual List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip) => new List<int>();
+        public virtual List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip) => null;
 
         public int OnPickAG(TrustedAI ai, Player player, List<int> card_ids, bool refusable) => -1;
 
@@ -68,15 +71,13 @@ namespace SanguoshaServer.AI
 
         public virtual double UseCardAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 0;
 
-        public virtual double GetDamegeEffect(TrustedAI ai, Player player, DamageStruct damage) => 0;
-
         public virtual bool IsProhibit(TrustedAI ai, Player player, Player to, WrappedCard card) => false;
 
         public virtual bool IsCancelTarget(TrustedAI ai, WrappedCard card, Player from, Player to) => false;
 
         public virtual bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to) => true;
 
-        public virtual void DamageEffect(TrustedAI ai, ref DamageStruct damage)
+        public virtual void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
         {
         }
 
@@ -90,6 +91,12 @@ namespace SanguoshaServer.AI
     }
     public class UseCard
     {
+        public struct NulliResult
+        {
+            public bool Null { set; get; }
+            public bool Heg { set; get; }
+        }
+  
         public string Name { get; private set; }
         public List<string> Key => key;
         protected List<string> key = new List<string>();
@@ -101,22 +108,30 @@ namespace SanguoshaServer.AI
         public virtual void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
         }
-
+        public virtual bool OnSkillInvoke(TrustedAI ai, Player player, object data) => false;
         public virtual void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
         }
         public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data) => new List<int>();
-        public virtual bool OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick) => false;
+        public virtual NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        {
+            NulliResult result = new NulliResult
+            {
+                Null = false,
+                Heg = false
+            };
+            return result;
+        }
 
         public virtual double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place) => 0;
 
         public virtual bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to) => true;
 
-        public virtual void DamageEffect(TrustedAI ai, ref DamageStruct damage)
+        public virtual void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
         {
         }
 
-        public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data, HandlingMethod method) => new CardUseStruct();
+        public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data) => new CardUseStruct();
 
         public virtual WrappedCard OnCardShow(TrustedAI ai, Player player, Player request, object data) => null;
 

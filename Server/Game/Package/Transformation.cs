@@ -142,7 +142,7 @@ namespace SanguoshaServer.Game
             {
                 List<string> big_kingdoms = RoomLogic.GetBigKingdoms(room);
                 if (big_kingdoms.Count == 0) return false;
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                     players.Add(p);
                 List <Player> bigs = new List<Player>(), smalls = new List<Player>();
                 foreach (Player p in players) {
@@ -211,13 +211,13 @@ namespace SanguoshaServer.Game
             List<Player> targets = new List<Player>();
             if (fcard is AwaitExhausted)
             {
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
             if (RoomLogic.IsProhibited(room, source, p, use_card) == null && RoomLogic.IsFriendWith(room, source, p))
                     targets.Add(p);
             }
             else if (fcard.GetSubtype() == "global_effect")
             {
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
             if (RoomLogic.IsProhibited(room, source, p, use_card) == null)
                     targets.Add(p);
             }
@@ -326,7 +326,7 @@ namespace SanguoshaServer.Game
                 if (big_kingdoms.Count > 0)
                 {
                     List<Player> bigs = new List<Player>(), smalls = new List<Player>();
-                    List<Player> all = room.AlivePlayers;
+                    List<Player> all = room.GetAlivePlayers();
 
                     foreach (Player p in all) {
                         if (RoomLogic.IsProhibited(room, Self, p, card) != null) continue;
@@ -1141,7 +1141,7 @@ namespace SanguoshaServer.Game
             player.SetTag(Name, list);
 
             if (range > 0)
-                room.DrawCards(player, range, "jili");
+                room.DrawCards(player, range, Name);
 
             return false;
         }
@@ -1154,7 +1154,7 @@ namespace SanguoshaServer.Game
         {
             if (targets.Count > 0) return false;
             int max = -1000;
-            foreach (Player p in room.AlivePlayers) {
+            foreach (Player p in room.GetAlivePlayers()) {
                 if (max < p.Hp)
                     max = p.Hp;
             }
@@ -1350,7 +1350,7 @@ namespace SanguoshaServer.Game
         {
             int n = 3;
             List<Player> targets = new List<Player>();
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
         if (CanTransfer(room, p).Count > 0)
                 targets.Add(p);
 
@@ -1401,7 +1401,7 @@ namespace SanguoshaServer.Game
 
                 --n;
                 targets.Clear();
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
             if (CanTransfer(room, p).Count > 0)
                     targets.Add(p);
             }
@@ -1445,7 +1445,7 @@ namespace SanguoshaServer.Game
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
             bool check = false;
-            foreach (Player p in room.AlivePlayers) {
+            foreach (Player p in room.GetAlivePlayers()) {
                 if (p.HasEquip())
                 {
                     check = true;
@@ -1709,7 +1709,7 @@ namespace SanguoshaServer.Game
                         return new TriggerStruct(Name, player);
                 }
 
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                 {
                     if (p.GetTreasure() && p.Treasure.Value == "LuminouSpearl")
                         return new TriggerStruct(Name, player);
@@ -1730,9 +1730,9 @@ namespace SanguoshaServer.Game
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.SendCompulsoryTriggerLog(player, Name);
-            room.DrawCards(player, 1);
+            room.DrawCards(player, 1, Name);
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-            foreach (Player p in room.AlivePlayers) {
+            foreach (Player p in room.GetAlivePlayers()) {
                 if (p.GetTreasure() && p.Treasure.Value == "Luminouspearl" && RoomLogic.CanGetCard(room, player, p, "he"))
                 {
                     int card_id = room.AskForCardChosen(player, p, "he", Name, false, HandlingMethod.MethodGet);
@@ -2036,7 +2036,7 @@ namespace SanguoshaServer.Game
             {
                 if (base.Triggerable(player, room))
                 {
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                     {
                         if (RoomLogic.WillBeFriendWith(room, p, player))
                         {
@@ -2053,7 +2053,7 @@ namespace SanguoshaServer.Game
             }
             else if (triggerEvent == TriggerEvent.Death && data is DeathStruct death && death.Who == player && RoomLogic.PlayerHasSkill(room, player, Name))
             {
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                     room.DetachSkillFromPlayer(p, "flamemap");
             }
             else if (triggerEvent == TriggerEvent.DFDebut)
@@ -2076,7 +2076,7 @@ namespace SanguoshaServer.Game
         }
         public override void OnSkillDetached(Room room, Player player, object data)
         {
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             room.DetachSkillFromPlayer(p, "flamemap");
         }
     }

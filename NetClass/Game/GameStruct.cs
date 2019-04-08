@@ -15,6 +15,13 @@ namespace CommonClass.Game
             Thunder // lightning, thunder slash, and few damage skill (Leiji, etc)
         };
 
+        public enum DamageStep
+        {
+            None,
+            Caused,
+            Done,
+        }
+
         public DamageStruct(Player from) {
             From = from;
             To = null;
@@ -27,6 +34,7 @@ namespace CommonClass.Game
             reason = string.Empty;
             TransferReason = string.Empty;
             Prevented = false;
+            Steped = DamageStep.None;
         }
 
         public DamageStruct(WrappedCard card, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal) {
@@ -41,6 +49,7 @@ namespace CommonClass.Game
             reason = string.Empty;
             TransferReason = string.Empty;
             Prevented = false;
+            Steped = DamageStep.None;
         }
 
         public DamageStruct(string reason, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal)
@@ -56,6 +65,7 @@ namespace CommonClass.Game
             this.reason = reason;
             TransferReason = string.Empty;
             Prevented = false;
+            Steped = DamageStep.None;
         }
 
         public Player From { get; set; }
@@ -82,6 +92,7 @@ namespace CommonClass.Game
         private string reason;
         public string TransferReason { get; set; }
         public bool Prevented { get; set; }
+        public DamageStep Steped { get; set; }
     }
 
     public struct RoomSetting
@@ -565,6 +576,19 @@ namespace CommonClass.Game
         public Player Who { set; get; }
         public WrappedCard Card { set; get; }
     };
+
+    public struct DrawCardStruct
+    {
+        public DrawCardStruct(int count, Player who,  string reason)
+        {
+            Draw = count;
+            Who = who;
+            Reason = reason;
+        }
+        public int Draw { set; get; }
+        public Player Who { set; get; }
+        public string Reason { set; get; }
+    }
 
     public struct PindianStruct
     {

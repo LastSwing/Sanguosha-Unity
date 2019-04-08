@@ -90,7 +90,7 @@ namespace SanguoshaServer.Game
             if (room.Setting.GameMode != "Hegemony") return false;
 
             Player dfowner = null;
-            foreach (Player p in room.AlivePlayers) {
+            foreach (Player p in room.GetAlivePlayers()) {
                 if (p.HasWeapon("DragonPhoenix"))
                 {
                     dfowner = p;
@@ -135,7 +135,7 @@ namespace SanguoshaServer.Game
             if (avaliable_generals.Count == 0)
                 return false;
 
-            bool invoke = room.AskForSkillInvoke(dfowner, "DragonPhoenix", data) && room.AskForSkillInvoke(player, "DragonPhoenix", "revive");
+            bool invoke = room.AskForSkillInvoke(dfowner, "DragonPhoenix", data) && room.AskForSkillInvoke(player, "DragonPhoenix", "#DragonPhoenix-revive:::" + dfowner.Kingdom);
 
             if (invoke)
             {
@@ -162,7 +162,7 @@ namespace SanguoshaServer.Game
                     };
                     room.SendLog(l);
 
-                    room.DrawCards(player, 1);
+                    room.DrawCards(player, 1, "DragonPhoenix");
                 }
             }
             return false;
@@ -282,7 +282,7 @@ namespace SanguoshaServer.Game
             if (!target.HasShownOneGeneral())
                 return 0;
 
-            List<Player> targets = room.AlivePlayers;
+            List<Player> targets = room.GetAlivePlayers();
 
             Player ps_owner = null;
             foreach (Player p in targets) {

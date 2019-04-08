@@ -78,7 +78,8 @@ namespace SanguoshaServer.Scenario
                 }
             }
             room.SetTag("FirstRound", true);
-            room.DrawCards(room.Players, 4);
+            foreach (Player p in room.Players)
+                room.DrawCards(p, 4, "gamerule");
 
             if (room.Setting.LuckCard)
                 room.AskForLuckCard(3);
@@ -129,7 +130,7 @@ namespace SanguoshaServer.Scenario
                     {
                         int num = (int)data;
                         if (num > 0)
-                            room.DrawCards(player, num);
+                            room.DrawCards(player, num, "gamerule");
                         room.RoomThread.Trigger(TriggerEvent.AfterDrawNCards, room, player, ref data);
 
                         break;
@@ -257,8 +258,6 @@ namespace SanguoshaServer.Scenario
                 use_list.Add(card_use);
                 room.SetTag("card_proceeing", use_list);
 
-                room.OutPut(card_use.Card.Name + use_list.Count.ToString());
-
                 if (card_use.From != null)
                 {
                     thread.Trigger(TriggerEvent.TargetChoosing, room, card_use.From, ref data);
@@ -348,7 +347,7 @@ namespace SanguoshaServer.Scenario
                 killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);
                 int kill_count = killer.GetMark("multi_kill_count");
                 if (kill_count > 1 && kill_count < 8)
-                    room.SetEmotion(killer, string.Format("multi_kill%1",kill_count));
+                    room.SetEmotion(killer, string.Format("multi_kill{0}", kill_count));
                 else if (kill_count > 7)
                     room.SetEmotion(killer, "zylove");
                 RewardAndPunish(room, killer, player);
@@ -388,7 +387,7 @@ namespace SanguoshaServer.Scenario
                     if (RoomLogic.IsFriendWith(room, victim, p))
                         ++n;
                 }
-                room.DrawCards(killer, n);
+                room.DrawCards(killer, n, "gamerule");
             }
             else
                 room.ThrowAllHandCardsAndEquips(killer);
@@ -452,9 +451,9 @@ namespace SanguoshaServer.Scenario
                         List<CardUseStruct> use_list = (List<CardUseStruct>)room.GetTag("card_proceeing");                    //remove when finished
                         if (use_list.Count > 0) use_list.RemoveAt(use_list.Count - 1);
                         room.SetTag("card_proceeing", use_list);
-                    }
 
-                    room.RemoveTag("targets" + RoomLogic.CardToString(room, use.Card));
+                        //room.RemoveTag("targets" + RoomLogic.CardToString(room, use.Card));
+                    }
 
                     if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
                         room.RemoveTag(RoomLogic.CardToString(room, use.Card) + "HegnullificationTargets");
@@ -804,7 +803,7 @@ namespace SanguoshaServer.Scenario
                     }
                 case TriggerEvent.ChoiceMade:
                     {
-                        foreach (Player p in room.AlivePlayers) {
+                        foreach (Player p in room.GetAlivePlayers()) {
                             List<string> flags = new List<string>(p.Flags);
                             foreach (string flag in flags) {
                                 if (flag.StartsWith("Global_") && flag.EndsWith("Failed"))

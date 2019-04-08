@@ -167,8 +167,8 @@ namespace SanguoshaServer.Game
             CardUseStruct use = (CardUseStruct)data;
             room.SetTag("extra_target_skill", data);                   //for AI
             List<Player> targets = room.AskForExtraTargets(player, use.To, use.Card,
-                                                                     "Halberd", "@extra_targets1:" + use.Card.Name, true);
-            player.RemoveTag("extra_target_skill");
+                                                                     "Halberd", "@extra_targets1:::" + use.Card.Name, true);
+            room.RemoveTag("extra_target_skill");
             if (targets.Count > 0)
             {
                 List<string> players = new List<string>();
@@ -586,7 +586,7 @@ namespace SanguoshaServer.Game
                 }
                 if (targets.Count > 0)
                 {
-                    Shuffle.shuffle<Player>(ref targets);
+                    Shuffle.shuffle(ref targets);
                     Player target = targets[0];
                     room.UseCard(new CardUseStruct(kb, player, target), false);
                 }
@@ -628,7 +628,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
-            List<Player> players = room.AlivePlayers;
+            List<Player> players = room.GetAlivePlayers();
             foreach (Player p in players) {
                 if (p == player) continue;
                 if (RoomLogic.IsProhibited(room, player, p, card) != null)
@@ -836,7 +836,7 @@ namespace SanguoshaServer.Game
                 {
                     bool big = (use.Pattern == "big");
                     List<Player> targets = new List<Player>(), prohibites = new List<Player>();
-                    foreach (Player p in room.AlivePlayers) {
+                    foreach (Player p in room.GetAlivePlayers()) {
                         string kingdom = (p.HasShownOneGeneral() ? (p.Role == "careerist" ? p.Name : p.Kingdom) : string.Empty);
                         if (big_kingdoms.Contains(kingdom) == big)
                         {
@@ -1148,7 +1148,7 @@ namespace SanguoshaServer.Game
             string choice = room.AskForChoice(effect.To, Name, string.Join("+", choices));
             if (choice == "show")
             {
-                room.AskForGeneralShow(effect.To);
+                room.AskForGeneralShow(effect.To, Name);
                 room.DrawCards(effect.To, 1, Name);
             }
             else

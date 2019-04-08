@@ -909,7 +909,7 @@ namespace SanguoshaServer
                     available_targets.Clear();
                     List<Player> targets = new List<Player>(), available = new List<Player>(), selected = new List<Player>(extra_targets);
                     selected.AddRange(selected_targets);
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         if (!selected.Contains(p))
                             targets.Add(p);
 
@@ -1283,7 +1283,7 @@ namespace SanguoshaServer
                         if (new_name.StartsWith("%"))
                         {
                             new_name = new_name.Substring(1);
-                            foreach (Player p in room.AlivePlayers)
+                            foreach (Player p in room.GetAlivePlayers())
                                 pile.AddRange(p.GetPile(new_name));
                         }
                         else
@@ -1500,14 +1500,14 @@ namespace SanguoshaServer
 
                 List<Player> check_available = new List<Player>(targets);
                 List<Player> available = new List<Player>();
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                     if (fcard.TargetFilter(room, check_available, p, player, viewas_card))
                         available.Add(p);
 
                 if (available.Count == 0 && check_available.Count > 0)
                 {
                     check_available.Remove(check_available[check_available.Count - 1]);
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         if (fcard.TargetFilter(room, check_available, p, player, viewas_card))
                             available_targets.Add(p);
                 }
@@ -1578,7 +1578,7 @@ namespace SanguoshaServer
                     selected_targets.Add(available_targets[0]);
                     targets.Add(available_targets[0]);
                     available_targets.Clear();
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         if (fcard.TargetFilter(room, targets, p, player, viewas_card))
                             available_targets.Add(p);
                 }
@@ -1624,6 +1624,9 @@ namespace SanguoshaServer
                 else
                     hightlight_skills.Add(pending_skill.Name);
             }
+            else if (viewas_card != null && viewas_card.Name == "TransferCard")
+                hightlight_skills.Add("transfer");
+
             if (!string.IsNullOrEmpty(hightlight_skill))
                 hightlight_skills.Add(hightlight_skill);
             args.HighLightSkills = hightlight_skills;
@@ -2039,6 +2042,9 @@ namespace SanguoshaServer
                 {
                     card = available_cards[args[1]].Find(t => t.Name == "TransferCard" && t.GetEffectiveId() == card.GetEffectiveId());
                 }
+
+                if (player == null)
+                    room.OutPut(args[1] + " is null " + room.GetAlivePlayers().Count.ToString());
 
                 if (player != null && card != null && (pending_skill == null || skill_owner == player)
                     && ((available_cards.ContainsKey(player.Name) && available_cards[player.Name].Contains(card))

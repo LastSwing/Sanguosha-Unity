@@ -185,7 +185,7 @@ namespace SanguoshaServer.Game
             List<Player> players = new List<Player> { player, target };
             room.SortByActionOrder(ref players);
 
-            room.DrawCards(players, 1, Name);
+            room.DrawCards(players, new List<DrawCardStruct> { new DrawCardStruct(1, player, Name), new DrawCardStruct(1, player, Name) });
 
             return false;
         }
@@ -301,7 +301,7 @@ namespace SanguoshaServer.Game
         {
             room.SetPlayerMark(ask_who, "HengjiangInvoke", 0);
             room.SetPlayerMark(player, "@hengjiang", 0);
-            room.DrawCards(ask_who, 1);
+            room.DrawCards(ask_who, 1, "hengjiang");
             return false;
         }
     }
@@ -563,7 +563,7 @@ namespace SanguoshaServer.Game
             target.SetTag("yongjue_position", skin_id);
             room.SetPlayerMark(target, "@yongjue", 1);
             if (target != card_use.From)
-                room.DrawCards(target, 2);
+                room.DrawCards(target, new DrawCardStruct(2, card_use.From, "cunsi"));
         }
     }
     public class Cunsi : ZeroCardViewAsSkill
@@ -755,7 +755,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.DrawCards(player, 1);
+            room.DrawCards(player, 1, Name);
             return false;
         }
     }
@@ -951,7 +951,7 @@ namespace SanguoshaServer.Game
         }
         public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
         {
-            List<Player> targets = room.AlivePlayers;
+            List<Player> targets = new List<Player>(room.GetAlivePlayers());
             room.SortByActionOrder(ref targets);
             foreach (Player p in targets)
             {
@@ -1344,7 +1344,7 @@ namespace SanguoshaServer.Game
             {
                 if (base.Triggerable(player, room))
                 {
-                    foreach (Player p in room.AlivePlayers)
+                    foreach (Player p in room.GetAlivePlayers())
                         if (RoomLogic.WillBeFriendWith(room, p, player))
                             room.AttachSkillToPlayer(p, "hongfaslash");
                 }
@@ -1363,7 +1363,7 @@ namespace SanguoshaServer.Game
             }
             else if (triggerEvent == TriggerEvent.Death && player != null && RoomLogic.PlayerHasSkill(room, player, Name))
             {
-                foreach (Player p in room.AlivePlayers)
+                foreach (Player p in room.GetAlivePlayers())
                     room.DetachSkillFromPlayer(p, "hongfaslash");
             }
 
@@ -1431,7 +1431,7 @@ namespace SanguoshaServer.Game
         }
         public override void OnSkillDetached(Room room, Player player, object data)
         {
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 room.DetachSkillFromPlayer(p, "hongfaslash");
             }
@@ -1446,7 +1446,7 @@ namespace SanguoshaServer.Game
         public override void Use(Room room, CardUseStruct card_use)
         {
             WrappedCard tpys = null;
-            foreach (Player p in room.AlivePlayers)
+            foreach (Player p in room.GetAlivePlayers())
             {
                 foreach (int id in p.GetEquips())
                 {

@@ -225,6 +225,20 @@ namespace CommonClass.Game
             }
         }
 
+        public static string GetSuitChar(CardSuit suit)
+        {
+            switch (suit)
+            {
+                case CardSuit.Spade: return "spade_char";
+                case CardSuit.Heart: return "heart_char";
+                case CardSuit.Club: return "club_char";
+                case CardSuit.Diamond: return "diamond_char";
+                case CardSuit.NoSuitBlack: return "no_suit_black";
+                case CardSuit.NoSuitRed: return "no_suit_red";
+                default: return "no_suit";
+            }
+        }
+
         public static string GetNumberString(int number)
         {
             if (number == 10)

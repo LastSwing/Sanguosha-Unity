@@ -319,7 +319,7 @@ namespace SanguoshaServer.Game
                 room.MoveCardsAtomic(new List<CardsMoveStruct>() { move }, true);
             }
 
-            room.DrawCards(use.From, 1);
+            room.DrawCards(use.From, 1, "recast");
         }
 
         public virtual string GetCommonEffectName() => null;
@@ -433,7 +433,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
-            List<Player> players = room.AlivePlayers;
+            List<Player> players = room.GetAlivePlayers();
             foreach (Player p in players) {
                 if (RoomLogic.IsProhibited(room, player, p, card) != null)
                     continue;
@@ -457,7 +457,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
-            List<Player> players = room.AlivePlayers;
+            List<Player> players = room.GetAlivePlayers();
             foreach (Player p in players)
             {
                 if (RoomLogic.IsProhibited(room, player, p, card) != null)

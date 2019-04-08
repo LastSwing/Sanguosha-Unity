@@ -980,7 +980,7 @@ namespace SanguoshaServer.Game
 
         public override bool Triggerable(Player player, Room room)
         {
-            return base.Triggerable(player, room) && room.AlivePlayers.Count >= 4;
+            return base.Triggerable(player, room) && room.GetAlivePlayers().Count >= 4;
         }
 
        public virtual void SummonFriends(Room room, Player player)
