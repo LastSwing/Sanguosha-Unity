@@ -670,10 +670,10 @@ namespace SanguoshaServer.Game
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            if (room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, ((CardsMoveOneTimeStruct)data).From.Name);
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, ((CardsMoveOneTimeStruct)data).From.Name);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
                 return info;
             }
 

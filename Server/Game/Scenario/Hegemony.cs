@@ -568,7 +568,7 @@ namespace SanguoshaServer.Scenario
         public override string GetWinner(Room room)
         {
             List<string> winners = new List<string>();
-                List<Player> players = new List<Player>(room.GetAlivePlayers());
+                List<Player> players = room.GetAlivePlayers();
                 Player win_player = players[0];
                 if (players.Count == 1)
                 {

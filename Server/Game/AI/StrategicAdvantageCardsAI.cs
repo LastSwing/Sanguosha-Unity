@@ -1218,6 +1218,7 @@ namespace SanguoshaServer.AI
         }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            use.To = new List<Player>();
             ai.Choice[Name] = string.Empty;
             Room room = ai.Room;
             List<string> big_kingdoms = RoomLogic.GetBigKingdoms(room);

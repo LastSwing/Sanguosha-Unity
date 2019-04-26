@@ -54,7 +54,7 @@ namespace SanguoshaServer
         public Client GetClient(int uid) {
             if (UId2ClientTable.ContainsKey(uid))
             {
-                return (Client)UId2ClientTable[uid];
+                return UId2ClientTable[uid];
             }
             else {
                 return null;
@@ -66,7 +66,7 @@ namespace SanguoshaServer
         {
             OutPut(session.SessionID + " disconnected:" + value);
 
-            Client client = (Client)Session2ClientTable[session];
+            Client client = Session2ClientTable[session];
             client.Connected -= OnConnected;
             //删除session对应
             Session2ClientTable.Remove(session);
@@ -218,30 +218,50 @@ namespace SanguoshaServer
                 UId2ClientTable.Add(temp.UserID, temp);
                 OutPut("Client Connected:" + temp.UserID);
 
-                InterHall(temp);
+                //check last game is over
+                bool reconnect = false;
+                if (temp.GameRoom > 0)
+                {
+                    if (RId2Room[temp.GameRoom] != null && RId2Room[temp.GameRoom].GameStarted)
+                    {
+                        reconnect = true;
+                    }
+                    else
+                    {
+                        //更新用户room id
+                        DB.UpdateGameRoom(temp.UserName, -1);
+                    }
+                }
+
+                InterHall(temp, reconnect);
             }
         }
 
-        public void InterHall(Client client)
+        public void InterHall(Client client, bool reconnect)
         {
             //update user profile
-            bool proceed = client.GetProfile();
+            //bring to hall
+            bool proceed = client.GetProfile(!reconnect);
             if (!proceed) return;
 
             ClientList.Instance().AddClient(client.UserID, client.Profile.NickName);
-            //发送当前已登录的其他玩家信息和游戏房间信息
-            DataSet ds = new DataSet();
-            ds.Tables.Add(ClientList.Instance().GetUserList(0).Copy());
-            ds.Tables.Add(RoomList.Instance().GetRoomList().Copy());
 
-            MyData data = new MyData
+            MyData data = new MyData();
+            if (!reconnect)
             {
-                Description = PacketDescription.Hall2Cient,
-                Protocol = protocol.GetProfile,
-                Body = new List<string> { JsonUntity.DataSet2Json(ds) }
-            };
-            //bring to hall
-            client.SendProfileReply(data);
+                //发送当前已登录的其他玩家信息和游戏房间信息
+                DataSet ds = new DataSet();
+                ds.Tables.Add(ClientList.Instance().GetUserList(0).Copy());
+                ds.Tables.Add(RoomList.Instance().GetRoomList().Copy());
+
+                data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.GetProfile,
+                    Body = new List<string> { JsonUntity.DataSet2Json(ds) }
+                };
+                client.SendProfileReply(data);
+            }
 
             //通知其他客户端更新
             data = new MyData()
@@ -255,9 +275,6 @@ namespace SanguoshaServer
                 if (other != client)
                     other.SendProfileReply(data);
             }
-
-            //**** todo
-            //再次连接断线的游戏房间
         }
         #endregion
 
@@ -314,8 +331,17 @@ namespace SanguoshaServer
                     CreateRoom(client, JsonUntity.Json2Object<GameSetting>(data.Body[0]));
                     break;
                 case protocol.JoinRoom:
-                    int room_id = int.Parse(data.Body[0]);
-                    string pass = data.Body[1].ToString();
+                    int room_id = -1;
+                    string pass = string.Empty;
+                    if (data.Body.Count > 0)
+                    {
+                        room_id = int.Parse(data.Body[0]);
+                        pass = data.Body[1].ToString();
+                    }
+                    else
+                    {
+                        room_id = client.GameRoom;
+                    }
 
                     Room room = RId2Room.ContainsKey(room_id) ? RId2Room[room_id] : null;
                     bool result = false;
@@ -427,6 +453,15 @@ namespace SanguoshaServer
 
         public void StartGame(Room room)
         {
+            //更新房间号至数据库，以备断线重连
+            foreach (Client client in room.Clients)
+            {
+                if (client.UserID > 0)
+                {
+                    DB.UpdateGameRoom(client.UserName, client.GameRoom);
+                }
+            }
+
             Thread thread = new Thread(room.Run);
             Room2Thread.Add(room, thread);
             thread.Start();
@@ -467,6 +502,14 @@ namespace SanguoshaServer
             {
                 OutPut("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
 
+                //更新该room下用户的房间号为0
+                foreach (Client client in clients)
+                {
+                    if (client.UserID > 0)
+                        DB.UpdateGameRoom(client.UserName, room.RoomId);
+                }
+
+                //若房主存在，重建一个新的房间
                 if (host != null)
                 {
                     CreateRoom(host, room.Setting);
@@ -532,6 +575,47 @@ namespace SanguoshaServer
         public void RemoveBot(Client client)
         {
             UId2ClientTable.Remove(client.UserID);
+        }
+        #endregion
+
+        #region 更新用户游戏数据
+        public void UpdateProfileGamePlay(int uid, int win, bool escaped)
+        {
+            string sql = string.Format("select * from profile where uid = {0}", uid);
+            DataTable dt = DB.GetData(sql);
+
+            if (dt.Rows.Count == 1)
+            {
+                Profile profile = new Profile
+                {
+                    UId = uid,
+                    GamePlay = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
+                    Win = int.Parse(dt.Rows[0]["Win"].ToString()),
+                    Lose = int.Parse(dt.Rows[0]["Lose"].ToString()),
+                    Draw = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
+                    Escape = int.Parse(dt.Rows[0]["Escape"].ToString()),
+                    Title = int.Parse(dt.Rows[0]["Title_id"].ToString())
+                };
+
+                profile.GamePlay++;
+                if (win > 0)
+                    profile.Win++;
+                else if (win < 0)
+                    profile.Lose++;
+                else
+                    profile.Draw++;
+
+                if (escaped)
+                    profile.Escape++;
+
+                string new_sql = string.Format("update  profile set GamePlay = {0}, Win = {1}, Lose = {2}, Draw = {3}, Escape = {4} where uid = {5}",
+                    profile.GamePlay, profile.Win, profile.Lose, profile.Draw, profile.Escape, uid);
+                DB.UpdateData(new_sql);
+
+                Client client = GetClient(uid);
+                if (client != null)
+                    client.UpdateProfileGamePlay(profile);
+            }
         }
         #endregion
     }

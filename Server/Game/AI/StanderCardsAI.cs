@@ -1402,7 +1402,7 @@ namespace SanguoshaServer.AI
                 }
             }
             List<ScoreStruct> scores = new List<ScoreStruct>();
-            List<Player> players = ai.Exclude(new List<Player>(room.GetAlivePlayers()), card, player);
+            List<Player> players = ai.Exclude(room.GetAlivePlayers(), card, player);
             foreach (Player p in players)
             {
                 DamageStruct damage = new DamageStruct(card, player, p, 1, DamageStruct.DamageNature.Fire);

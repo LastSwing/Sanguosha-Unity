@@ -211,6 +211,7 @@ namespace SanguoshaServer
                     userID = int.Parse(dr.Rows[0]["uid"].ToString());
                     userName = UserName;
                     user_right = int.Parse(dr.Rows[0]["User_Right"].ToString());
+                    GameRoom = int.Parse(dr.Rows[0]["roomID"].ToString());
 
                     //更新LastIP
                     string sql = string.Format("update account set lastIP = '{1}' where uid = {0}", UserID, IP);
@@ -251,7 +252,7 @@ namespace SanguoshaServer
         }
 
         //从数据库读取个人信息并发送给客户端
-        public bool GetProfile() {
+        public bool GetProfile(bool to_hall = true) {
             string sql = string.Format("select * from profile where uid = {0}", UserID);
             DataTable dt = DB.GetData(sql);
 
@@ -271,7 +272,7 @@ namespace SanguoshaServer
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json<Profile>(profile) }
+                    Body = new List<string> { JsonUntity.Object2Json(profile), to_hall.ToString() }
                 };
 
                 SendProfileReply(data);
@@ -385,7 +386,7 @@ namespace SanguoshaServer
                 //data.Body[0] = "true";
                 SendProfileReply(data);
 
-                hall.InterHall(this);
+                hall.InterHall(this, false);
             }
             //昵称重名
             else
@@ -405,14 +406,14 @@ namespace SanguoshaServer
                     break;
                 case protocol.UserProfile:
                     Profile profile = JsonUntity.Json2Object<Profile>(data.Body[0]);
-                    UpDateProfile(profile);
+                    UpDateProfileAvatar(profile);
                     break;
                 default:
                     return;
             }
         }
 
-        private void UpDateProfile(Profile profile)
+        private void UpDateProfileAvatar(Profile profile)
         {
             if (profile.UId == this.profile.UId && Engine.CheckShwoAvailable(profile) && CheckTitle(profile.Title))
             {
@@ -425,15 +426,34 @@ namespace SanguoshaServer
                     profile.Avatar, profile.Frame, profile.Bg, profile.Title, profile.UId);
                 DB.UpdateData(new_sql);
 
-                MyData data = new MyData
-                {
-                    Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json(profile) }
-                };
-
-                SendProfileReply(data);
+                SendProfile2Client();
             }
+        }
+
+        public void UpdateProfileGamePlay(Profile profile)
+        {
+            if (profile.UId == this.profile.UId)
+            {
+                this.profile.GamePlay = profile.GamePlay;
+                this.profile.Win = profile.Win;
+                this.profile.Lose = profile.Lose;
+                this.profile.Escape = profile.Escape;
+                this.profile.Draw = profile.Draw;
+                
+                SendProfile2Client();
+            }
+        }
+
+        private void SendProfile2Client()
+        {
+            MyData data = new MyData
+            {
+                Description = PacketDescription.Hall2Cient,
+                Protocol = protocol.UserProfile,
+                Body = new List<string> { JsonUntity.Object2Json(profile) }
+            };
+
+            SendProfileReply(data);
         }
 
         private bool CheckTitle(int id)

@@ -2902,7 +2902,7 @@ namespace SanguoshaServer.AI
                     players.Add(room.GetNextAlive(starter));
             }
             else
-                players = new List<Player>(room.GetAlivePlayers());
+                players = room.GetAlivePlayers();
 
             foreach (Player p in players) {
                 if (CanRetrial(p, reason, judge_who))
@@ -2922,7 +2922,7 @@ namespace SanguoshaServer.AI
             players = players ?? room.GetOtherPlayers(self);
 
             //优先判断当前或下一轮行动的玩家
-            List<Player> all = new List<Player>(room.GetAlivePlayers());
+            List<Player> all = room.GetAlivePlayers();
             room.SortByActionOrder(ref all);
             Player current = null;
             foreach (Player p in all)

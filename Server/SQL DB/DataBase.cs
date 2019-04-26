@@ -71,10 +71,16 @@ namespace SanguoshaServer
         {
             return UpdateData("update account set status = 0, inGame = 0, roomID = 0");
         }
-
+        //更新用户状态
         public static void UpdateStatus(string UserID, bool is_online)
         {
             string sql = string.Format("update account set status = {0} where account = '{1}'", is_online ? 1 : 0, UserID);
+            UpdateData(sql);
+        }
+        //更新用户所在游戏信息
+        public static void UpdateGameRoom(string UserID, int RoomId)
+        {
+            string sql = string.Format("update account set inGame = {0}, roomID = {1} where account = '{2}'", RoomId > 0 ? 1 : 0, RoomId, UserID);
             UpdateData(sql);
         }
 

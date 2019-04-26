@@ -111,6 +111,32 @@ namespace CommonClass.Game
             return null;
         }
 
+        public void Copy(Player other)
+        {
+            Name = other.Name;
+            ClientId = other.ClientId;
+            SceenName = other.SceenName;
+            Status = other.Status;
+            MaxHp = other.Hp;
+            Hp = other.Hp;
+            Seat = other.Seat;
+            DisableShow = other.DisableShow;
+            FaceUp = other.FaceUp;
+            Removed = other.Removed;
+            DuanChang = other.DuanChang;
+            Alive = other.Alive;
+            Chained = other.Chained;
+            Next = other.Next;
+            General1Showed = other.General1Showed;
+            General2Showed = other.General2Showed;
+            Camp = other.Camp;
+            PhasesState = other.PhasesState;
+            PhasesIndex = other.PhasesIndex;
+            HeadAcquiredSkills = other.HeadAcquiredSkills;
+            DeputyAcquiredSkills = other.DeputyAcquiredSkills;
+            StringMarks = other.StringMarks;
+        }
+
         //绝对不能给Player类设置class类的tag
         //否则json打包player信息给客户端时会出错
         public void SetTag(string key, object data)

@@ -311,7 +311,39 @@ namespace SanguoshaServer.Game
 
             create_new = true;
             //记录游戏结果
+            bool bot = false;
+            foreach (Player p in m_players)
+            {
+                if (p.ClientId < 0)
+                {
+                    bot = true;
+                    break;
+                }
+            }
 
+            //当不存在AI时才记录胜负记录
+            if (!bot)
+            {
+                List<int> clients = new List<int>();
+                foreach (Player p in m_players)
+                {
+                    int id = p.ClientId;
+                    if (!clients.Contains(id))
+                    {
+                        clients.Add(id);
+                        int win = 0;
+                        if (winner != ".")
+                        {
+                            if (winner.Contains(p.Name))
+                                win = 1;
+                            else
+                                win = -1;
+                        }
+
+                        hall.UpdateProfileGamePlay(id, win, p.Status == "escape");
+                    }
+                }
+            }
 
             StopGame();
         }
@@ -1472,7 +1504,7 @@ namespace SanguoshaServer.Game
 
                     if (cards_move.Open)
                     {
-                        arg.Add(JsonUntity.Object2Json<CardsMoveStruct>(cards_move));
+                        arg.Add(JsonUntity.Object2Json(cards_move));
                     }
                     else
                     {
@@ -1492,7 +1524,7 @@ namespace SanguoshaServer.Game
                         for (int index = 0; index < count; index++)
                             notify.Card_ids.Add(-1);
 
-                        arg.Add(JsonUntity.Object2Json<CardsMoveStruct>(notify));
+                        arg.Add(JsonUntity.Object2Json(notify));
                     }
                 }
                 DoNotify(player, isLostPhase ? CommandType.S_COMMAND_LOSE_CARD : CommandType.S_COMMAND_GET_CARD, arg);
@@ -1868,9 +1900,31 @@ namespace SanguoshaServer.Game
         #region 客户端进入请求
         public bool OnClientRequestInter(Client client, int id, string pwd)
         {
-            if (id != RoomId || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord) || Clients.Count == 0 || IsFull() || banned_clients.Contains(client.UserID))
+            if (id != RoomId || Clients.Count == 0 || banned_clients.Contains(client.UserID))
             {
                 return false;
+            }
+
+            bool reconnect = false;
+
+            if (!GameStarted && IsFull() || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord))
+            {
+                return false;
+            }
+            else
+            {
+                //检查room中玩家是否符合重连条件
+                foreach (Player p in Players)
+                {
+                    if (p.ClientId == client.UserID)
+                    {
+                        reconnect = true;
+                        break;
+                    }
+                }
+
+                if (!reconnect)
+                    return false;
             }
 
             lock (this)
@@ -1916,6 +1970,12 @@ namespace SanguoshaServer.Game
                 //room_thread = new RoomThread(this);
                 //thread = new Thread(room_thread.Start);
                 //thread.Start();
+
+                //reconnect
+                if (reconnect)
+                {
+                    Marshal(client);
+                }
             }
             return true;
         }
@@ -2111,13 +2171,28 @@ namespace SanguoshaServer.Game
                         return;
                     }
 
-                    //将room_id写入数据库进行记录
+                    //更新room_id让其不会再加入此room
+                    DB.UpdateGameRoom(client.UserName, room_id);
+
+
                     //游戏继续
+                    //判断是否因角色死亡而离开
+                    bool check = true;
                     foreach (Player p in client.GetPlayers())
                     {
-                        p.Status = "escape";
+                        if (p.Alive)
+                        {
+                            check = false;
+                            break;
+                        }
+                    }
+
+                    foreach (Player p in client.GetPlayers())
+                    {
+                        p.Status = check ? "leave" : "escape";
                         BroadcastProperty(p, "Status");
                     }
+
                     RomoveClientOnGamePlay(client);
 
                     UpdateClientsInfo();
@@ -2945,6 +3020,178 @@ namespace SanguoshaServer.Game
             throw new NotImplementedException();
         }
 
+        #endregion
+
+        #region 客户端重连游戏
+        private void Marshal(Client client)
+        {
+            DoNotify(client, CommandType.S_COMMAND_INIT_CARDS, new List<string> { JsonUntity.Object2Json(pile1) });
+            DoNotify(client, CommandType.S_COMMAND_UPDATE_PILE, new List<string> { m_drawPile.Count.ToString() });
+
+            //玩家信息
+            List<string> players = new List<string>();
+            foreach (Player player in m_players)
+            {
+                Player _player = new Player();
+                _player.Copy(player);
+                if (player.ClientId == client.UserID)
+                {
+                    client.SetPlayer(player);
+                    player_client[player] = client;
+
+                    _player.ActualGeneral1 = player.ActualGeneral1;
+                    _player.ActualGeneral2 = player.ActualGeneral2;
+                    _player.General1 = player.General1;
+                    _player.General2 = player.General2;
+                    _player.Role = player.Role;
+                    _player.Kingdom = player.Kingdom;
+                    _player.HeadSkills = player.HeadSkills;
+                    _player.DeputySkills = player.DeputySkills;
+                    _player.HeadSkinId = player.HeadSkinId;
+                    _player.DeputySkinId = player.DeputySkinId;
+                    _player.Piles = player.Piles;
+                    foreach (string mark in player.Marks.Keys)
+                        _player.SetMark(mark, player.GetMark(mark));
+                }
+                else
+                {
+                    List<string> invisebale_marks = new List<string>();
+                    if (player.General1Showed)
+                    {
+                        _player.General1 = player.General1;
+                        _player.HeadSkills = player.HeadSkills;
+                        _player.HeadSkinId = player.HeadSkinId;
+                    }
+                    else
+                    {
+                        _player.General1 = "anjiang";
+                        foreach (string skill_name in player.HeadSkills.Keys)
+                        {
+                            Skill skill = Engine.GetSkill(skill_name);
+                            if (!string.IsNullOrEmpty(skill.LimitMark))
+                                invisebale_marks.Add(skill.LimitMark);
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(player.General2))
+                    {
+                        if (player.General2Showed)
+                        {
+                            _player.General2 = player.General2;
+                            _player.DeputySkills = player.DeputySkills;
+                            _player.DeputySkinId = player.DeputySkinId;
+                        }
+                        else
+                        {
+                            _player.General2 = "anjiang";
+                            foreach (string skill_name in player.DeputySkills.Keys)
+                            {
+                                Skill skill = Engine.GetSkill(skill_name);
+                                if (!string.IsNullOrEmpty(skill.LimitMark))
+                                    invisebale_marks.Add(skill.LimitMark);
+                            }
+                        }
+                    }
+                    if (player.HasShownOneGeneral())
+                    {
+                        _player.Role = player.Role;
+                        _player.Kingdom = player.Kingdom;
+                    }
+                    foreach (string mark in player.Marks.Keys)
+                    {
+                        if (mark.StartsWith("@") && !invisebale_marks.Contains(mark))
+                            _player.SetMark(mark, player.GetMark(mark));
+                    }
+
+                    foreach (string pile in player.Piles.Keys)
+                    {
+                        bool open = false;
+                        foreach (Player p in m_players)
+                        {
+                            if (p.ClientId == client.UserID && player.GetPileOpener(pile).Contains(p.Name))
+                            {
+                                open = true;
+                                break;
+                            }
+                        }
+
+                        if (open)
+                        {
+                            _player.PileChange(pile, player.GetPile(pile));
+                        }
+                        else
+                        {
+                            List<int> ids = new List<int>();
+                            for (int i = 0; i < player.GetPile(pile).Count; i++)
+                                ids.Add(-1);
+
+                            _player.PileChange(pile, ids);
+                        }
+                    }
+                }
+
+                players.Add(JsonUntity.Object2Json(_player));
+            }
+
+            //通知客户端
+            DoNotify(client, CommandType.S_COMMAND_ARRANGE_SEATS, players);
+
+            //鏖战通知
+            if (BloodBattle)
+                DoNotify(client, CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
+
+            //装备、手牌
+            List<Player> _players = new List<Player> { client.GetPlayers()[0] };
+            foreach (Player player in m_players)
+            {
+                if (player.IsAllNude()) continue;
+
+                List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
+                if (!player.IsKongcheng())
+                {
+                    CardsMoveStruct move = new CardsMoveStruct
+                    {
+                        Card_ids = player.HandCards,
+                        From_place = Place.DrawPile,
+                        To = player.Name,
+                        To_place = Place.PlaceHand
+                    };
+                    moves.Add(move);
+                }
+
+                if (player.HasEquip())
+                {
+                    CardsMoveStruct move = new CardsMoveStruct
+                    {
+                        Card_ids = player.GetEquips(),
+                        From_place = Place.DrawPile,
+                        To = player.Name,
+                        To_place = Place.PlaceEquip
+                    };
+                    moves.Add(move);
+                }
+
+                if (player.JudgingArea.Count > 0)
+                {
+                    CardsMoveStruct move = new CardsMoveStruct
+                    {
+                        Card_ids = player.JudgingArea,
+                        From_place = Place.DrawPile,
+                        To = player.Name,
+                        To_place = Place.PlaceDelayedTrick
+                    };
+                    moves.Add(move);
+                }
+
+                NotifyMoveCards(true, moves, false, _players);
+                NotifyMoveCards(false, moves, false, _players);
+            }
+
+            foreach (Player p in client.GetPlayers())
+            {
+                p.Status = "online";
+                BroadcastProperty(p, "Status");
+            }
+        }
         #endregion
 
         public void OutPut(string msg)
@@ -4611,7 +4858,7 @@ namespace SanguoshaServer.Game
                 p.Seat = p.Seat - 1;
                 BroadcastProperty(p, "Seat");
             }
-            GetAlivePlayers().Remove(victim);
+            _alivePlayers.Remove(victim);
 
             if (reason.From != null)
             {
