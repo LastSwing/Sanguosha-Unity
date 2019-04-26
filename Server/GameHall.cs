@@ -222,7 +222,7 @@ namespace SanguoshaServer
                 bool reconnect = false;
                 if (temp.GameRoom > 0)
                 {
-                    if (RId2Room[temp.GameRoom] != null && RId2Room[temp.GameRoom].GameStarted)
+                    if (RId2Room.ContainsKey(temp.GameRoom) && RId2Room[temp.GameRoom].GameStarted)
                     {
                         reconnect = true;
                     }
