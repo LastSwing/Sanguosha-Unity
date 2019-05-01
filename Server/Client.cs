@@ -272,7 +272,7 @@ namespace SanguoshaServer
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json(profile), to_hall.ToString() }
+                    Body = new List<string> { JsonUntity.Object2Json(profile) }
                 };
 
                 SendProfileReply(data);
@@ -301,7 +301,7 @@ namespace SanguoshaServer
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json(profile) }
+                    Body = new List<string> { JsonUntity.Object2Json(profile), to_hall.ToString() }
                 };
 
                 SendProfileReply(data);

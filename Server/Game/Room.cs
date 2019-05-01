@@ -1901,17 +1901,15 @@ namespace SanguoshaServer.Game
         public bool OnClientRequestInter(Client client, int id, string pwd)
         {
             if (id != RoomId || Clients.Count == 0 || banned_clients.Contains(client.UserID))
-            {
                 return false;
-            }
 
             bool reconnect = false;
 
-            if (!GameStarted && IsFull() || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord))
+            if (!GameStarted && (IsFull() || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord)))
             {
                 return false;
             }
-            else
+            else if (GameStarted)
             {
                 //检查room中玩家是否符合重连条件
                 foreach (Player p in Players)
@@ -1936,29 +1934,21 @@ namespace SanguoshaServer.Game
 
                 Clients.Add(client);
                 client.GameRoom = RoomId;
-                client.Status = Client.GameStatus.normal;
 
                 SendRoomSetting2Client(client);
 
-                //通知客户端当前玩家(client)信息
-                if (!GameStarted)
+                //为改玩家安排座次
+                foreach (int index in seat2clients.Keys)
                 {
-                    foreach (int index in seat2clients.Keys)
+                    if (seat2clients[index] == null)
                     {
-                        if (seat2clients[index] == null)
-                        {
-                            seat2clients[index] = client;
-                            break;
-                        }
+                        seat2clients[index] = client;
+                        break;
                     }
-
-                    client.Status = Client.GameStatus.normal;
-                    //marshal 通知客户端更新玩家信息
                 }
-                else
-                {
+                client.Status = Client.GameStatus.normal;
+                if (GameStarted)
                     client.Status = Client.GameStatus.online;
-                }
 
                 //通知room中的其他玩家
                 UpdateClientsInfo();
@@ -3096,6 +3086,9 @@ namespace SanguoshaServer.Game
                         _player.Role = player.Role;
                         _player.Kingdom = player.Kingdom;
                     }
+                    else
+                        _player.Kingdom = "god";
+
                     foreach (string mark in player.Marks.Keys)
                     {
                         if (mark.StartsWith("@") && !invisebale_marks.Contains(mark))
@@ -3146,6 +3139,7 @@ namespace SanguoshaServer.Game
                 if (player.IsAllNude()) continue;
 
                 List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
+
                 if (!player.IsKongcheng())
                 {
                     CardsMoveStruct move = new CardsMoveStruct
@@ -3153,8 +3147,9 @@ namespace SanguoshaServer.Game
                         Card_ids = player.HandCards,
                         From_place = Place.DrawPile,
                         To = player.Name,
-                        To_place = Place.PlaceHand
-                    };
+                        To_place = Place.PlaceHand,
+                        Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DRAW, player.Name)
+                };
                     moves.Add(move);
                 }
 
@@ -3165,21 +3160,28 @@ namespace SanguoshaServer.Game
                         Card_ids = player.GetEquips(),
                         From_place = Place.DrawPile,
                         To = player.Name,
-                        To_place = Place.PlaceEquip
+                        To_place = Place.PlaceEquip,
+                        Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name)
                     };
                     moves.Add(move);
                 }
 
                 if (player.JudgingArea.Count > 0)
                 {
-                    CardsMoveStruct move = new CardsMoveStruct
+                    foreach (int id in player.JudgingArea)
                     {
-                        Card_ids = player.JudgingArea,
-                        From_place = Place.DrawPile,
-                        To = player.Name,
-                        To_place = Place.PlaceDelayedTrick
-                    };
-                    moves.Add(move);
+                        CardsMoveStruct move = new CardsMoveStruct
+                        {
+                            Card_ids = new List<int> { id },
+                            From_place = Place.DrawPile,
+                            To = player.Name,
+                            To_place = Place.PlaceDelayedTrick,
+                            Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name)
+                        };
+                        move.Reason.CardString = RoomLogic.CardToString(this, GetCard(id));
+
+                        moves.Add(move);
+                    }
                 }
 
                 NotifyMoveCards(true, moves, false, _players);
@@ -3232,7 +3234,7 @@ namespace SanguoshaServer.Game
         public TrustedAI GetAI(Player player, bool ai = false)
         {
             Client client = hall.GetClient(player.ClientId);
-            if (ai || client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || player.Status == "trust" || player.Status == "escape")
+            if (ai || client.Status == Client.GameStatus.bot || client == null || client.Status == Client.GameStatus.offline || player.Status == "trust" || player.Status == "escape")
                 return player_ai[player];
 
             return null;
@@ -7755,17 +7757,17 @@ string _skill_name, Player to, bool isRetrial, bool isProvision)
             BroadcastProperty(player, "Alive");
             //setEmotion(player, "revive");
 
-            GetAlivePlayers().Clear();
+            _alivePlayers.Clear();
             foreach (Player p in m_players)
             {
                 if (p.Alive)
-                    GetAlivePlayers().Add(p);
+                    _alivePlayers.Add(p);
             }
 
-            for (int i = 0; i < GetAlivePlayers().Count; i++)
+            for (int i = 0; i < _alivePlayers.Count; i++)
             {
-                GetAlivePlayers()[i].Seat = i + 1;
-                BroadcastProperty(GetAlivePlayers()[i], "Seat");
+                _alivePlayers[i].Seat = i + 1;
+                BroadcastProperty(_alivePlayers[i], "Seat");
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_REVIVE_PLAYER, new List<string> { player.Name });
