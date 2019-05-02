@@ -2148,8 +2148,10 @@ namespace SanguoshaServer.Game
                 else
                 {
                     foreach (Player p in room.GetOtherPlayers(ask_who))
+                    {
                         if (p != player && p.IsWounded())
-                            targets.Add(player);
+                            targets.Add(p);
+                    }
                     prompt = "@longdan-jink";
                 }
 

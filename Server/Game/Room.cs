@@ -4060,7 +4060,7 @@ namespace SanguoshaServer.Game
 
         public List<Player> GetOtherPlayers(Player except, bool include_dead = false)
         {
-            List<Player> other_players = new List<Player>(GetAllPlayers(include_dead));
+            List<Player> other_players = GetAllPlayers(include_dead);
             if (except != null && (except.Alive || include_dead))
                 other_players.Remove(except);
 
@@ -4077,10 +4077,10 @@ namespace SanguoshaServer.Game
         }
         public List<Player> GetAllPlayers(bool include_dead = false)
         {
-            List<Player> count_players = new List<Player>(m_players);
             if (Current == null)
-                return count_players;
+                return include_dead ? new List<Player>(m_players) : GetAlivePlayers();
 
+            List<Player> count_players = new List<Player>(m_players);
             Player starter = Current;
             int index = count_players.IndexOf(starter);
             if (index == -1)
