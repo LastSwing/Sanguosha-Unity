@@ -5144,9 +5144,9 @@ namespace SanguoshaServer.Game
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (Engine.GetGeneral(to_select.General1).IsLord() || to_select.General1.Contains("sujiang")
-                || string.IsNullOrEmpty(to_select.General2) || to_select.General2.Contains("sujiang")) return false;
-            return targets.Count == 0 && to_select != Self && to_select.HasShownAllGenerals();
+            if (!to_select.HasShownAllGenerals() || to_select.General1.Contains("sujiang") || string.IsNullOrEmpty(to_select.General2)
+                || to_select.General2.Contains("sujiang") || Engine.GetGeneral(to_select.General1).IsLord()) return false;
+            return targets.Count == 0 && to_select != Self;
         }
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {

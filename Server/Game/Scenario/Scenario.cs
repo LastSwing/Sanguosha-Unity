@@ -299,14 +299,14 @@ namespace SanguoshaServer.Scenario
             bool askforpeach = true;
             Client client = room.GetClient(player);
 
-            if (!client.GetPlayers().Contains(dying.Who))
+            if (!room.GetPlayers(client).Contains(dying.Who))
             {
                 List<Player> players = room.GetAllPlayers();
                 int index = players.IndexOf(player);
                 for (int i = 0; i < index; i++)
                 {
                     Player p = players[i];
-                    if (client.GetPlayers().Contains(p))
+                    if (room.GetPlayers(client).Contains(p))
                     {
                         askforpeach = false;
                         break;

@@ -230,9 +230,10 @@ namespace SanguoshaServer.Scenario
                     player.Next = room_players[i + 1].Name;
 
                 player.ClientId = client.UserID;
-                client.SetPlayer(room_players[i]);
+                room.SetPlayer2Client(client, room_players[i]);
             }
         }
+
 
         public override bool IsFriendWith(Room room, Player player, Player other)
         {

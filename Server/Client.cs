@@ -47,7 +47,6 @@ namespace SanguoshaServer
         private Profile profile;
         private int userID = 0;
         private string userName;
-        private List<Player> m_players = new List<Player>();
         private int user_right;
 
         public int UserID => userID;
@@ -107,6 +106,18 @@ namespace SanguoshaServer
             discard_skill = new DiscardSkill();
             yiji_skill = new YijiViewAsSkill();
             exchange_skill = new ExchangeSkill();
+        }
+
+        //bot only
+        public Client(GameHall hall, Profile profile = new Profile())
+        {
+            this.hall = hall;
+            session = null;
+            userName = profile.NickName;
+            isLogin = false;
+            this.profile = profile;
+            if (profile.UId < 0)
+                userID = profile.UId;
         }
 
         public override bool Equals(object obj)
@@ -627,7 +638,7 @@ namespace SanguoshaServer
             if (requestor != null)
                 requestors.Add(requestor);
             else
-                requestors = m_players;
+                requestors = room.GetPlayers(this);
 
             foreach (Player p in requestors) {
                 equip_cards[p] = RoomLogic.GetPlayerEquips(room, p);
@@ -638,7 +649,7 @@ namespace SanguoshaServer
 
             Operate arg = GetPacket2Client(true, prompt, notice_index);
             m_do_request = false;
-            return room.DoRequest(m_players[0], type, new List<string> { JsonUntity.Object2Json(arg) }, true);
+            return room.DoRequest(room.GetPlayers(this)[0], type, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
 
         public bool DiscardRequest(Room room, Player player, string prompt, string reason, string position, int discard_num, int min_num, bool include_equip, bool optional)
@@ -690,7 +701,7 @@ namespace SanguoshaServer
             skill_position = null;
             cancel_able = true;
 
-            foreach (Player player in GetPlayers()) {
+            foreach (Player player in room.GetPlayers(this)) {
                 equip_cards[player] = RoomLogic.GetPlayerEquips(room, player);
                 hand_cards[player] = RoomLogic.GetPlayerHandcards(room, player);
             }
@@ -699,7 +710,7 @@ namespace SanguoshaServer
             HandleInfos();
             m_do_request = false;
             Operate arg = GetPacket2Client(true);
-            return room.DoRequest(GetPlayers()[0], ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(arg) }, true);
+            return room.DoRequest(room.GetPlayers(this)[0], ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
         public void NullificationRequest(Room room, string trick_name, Player from, Player to)
         {
@@ -716,7 +727,7 @@ namespace SanguoshaServer
             skill_position = null;
             cancel_able = true;
 
-            foreach (Player player in GetPlayers()) {
+            foreach (Player player in room.GetPlayers(this)) {
                 equip_cards[player] = RoomLogic.GetPlayerEquips(room, player);
                 hand_cards[player] = RoomLogic.GetPlayerHandcards(room, player);
             }
@@ -807,7 +818,7 @@ namespace SanguoshaServer
 
             Operate arg = GetPacket2Client(true, prompt);
             m_do_request = false;
-            return room.DoRequest(GetPlayers()[0], ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(arg) }, true);
+            return room.DoRequest(room.GetPlayers(this)[0], ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
 
         public bool YijiRequest(Room room, Player player, List<int> ids, List<Player> targets, string prompt,
@@ -1068,7 +1079,7 @@ namespace SanguoshaServer
             if (requestor != null)
                 requestors.Add(requestor);
             else
-                requestors = m_players;
+                requestors = room.GetPlayers(this);
 
             viewas_card = null;
             if (ExpectedReplyCommand == CommandType.S_COMMAND_RESPONSE_CARD && !string.IsNullOrEmpty(hightlight_skill))
@@ -1161,7 +1172,7 @@ namespace SanguoshaServer
             PromoteStruct promote = promote_skill;
             promote_skill = new PromoteStruct();
             Player promoter = room.FindPlayer(promote.Name);
-            if (promoter != null && !skill_invoke && pending_skill == null && !string.IsNullOrEmpty(promote.SkillName) && m_players.Contains(promoter)
+            if (promoter != null && !skill_invoke && pending_skill == null && !string.IsNullOrEmpty(promote.SkillName) && room.GetPlayers(this).Contains(promoter)
                     && room.GetRoomState().GetCurrentCardUsePattern(promoter) == promote.Pattern && reason == promote.Reason)
             {
                 ViewAsSkill pro_skill = Engine.GetViewAsSkill(promote.SkillName);
@@ -2526,22 +2537,5 @@ namespace SanguoshaServer
             else
                 Reply2Server(false);                                                    //cancel respond
         }
-
-        public List<Player> GetPlayers()
-        {
-            return m_players;
-        }
-
-
-        public void SetPlayer(Player player)
-        {
-            m_players.Add(player);
-        }
-
-        public void ClearPlayers()
-        {
-            m_players.Clear();
-        }
-
     }
 }
