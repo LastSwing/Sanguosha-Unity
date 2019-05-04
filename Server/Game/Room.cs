@@ -30,7 +30,6 @@ namespace SanguoshaServer.Game
 
         public List<Client> Clients { get; private set; } = new List<Client>();
         public List<Player> Players => new List<Player>(m_players);
-        public Dictionary<Client, List<Player>> Client2Players = new Dictionary<Client, List<Player>>();
         public RoomThread RoomThread { get; private set; }
         public int RoomId { get; }
         public bool GameStarted { get; private set; }
@@ -96,25 +95,14 @@ namespace SanguoshaServer.Game
                 StopGame();
         }
 
-        public void SetPlayer2Client(Client client, Player player)
-        {
-            if (Client2Players.ContainsKey(client))
-            {
-                if (!Client2Players[client].Contains(player))
-                    Client2Players[client].Add(player);
-            }
-            else
-            {
-                Client2Players.Add(client, new List<Player> { player });
-            }
-        }
-
         public List<Player> GetPlayers(Client client)
         {
-            if (Client2Players.ContainsKey(client))
-                return new List<Player>(Client2Players[client]);
+            List<Player>  players = new List<Player>();
+            foreach (Player p in m_players)
+                if (p.ClientId == client.UserID)
+                    players.Add(p);
 
-            return new List<Player>();
+            return players;
         }
 
         public void SetCurrent(Player regular_next) => Current = regular_next;
@@ -2290,6 +2278,7 @@ namespace SanguoshaServer.Game
                 client.GetReady -= OnClientReady;
                 client.GameControl -= ProcessClientPacket;
             }
+            /*
             for (int i = 0; i < m_players.Count; i++)
             {
                 player_ai[m_players[i]] = null;
@@ -2297,6 +2286,7 @@ namespace SanguoshaServer.Game
             }
             player_ai.Clear();
             m_players.Clear();
+            */
 
             OutPut("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
             hall.RemoveRoom(this, create_new ? Host : null, Clients);
@@ -3047,9 +3037,7 @@ namespace SanguoshaServer.Game
                 _player.Copy(player);
                 if (player.ClientId == client.UserID)
                 {
-                    SetPlayer2Client(client, player);
                     player_client[player] = client;
-
                     _player.ActualGeneral1 = player.ActualGeneral1;
                     _player.ActualGeneral2 = player.ActualGeneral2;
                     _player.General1 = player.General1;

@@ -230,7 +230,6 @@ namespace SanguoshaServer.Scenario
                     player.Next = room_players[i + 1].Name;
 
                 player.ClientId = client.UserID;
-                room.SetPlayer2Client(client, room_players[i]);
             }
         }
 

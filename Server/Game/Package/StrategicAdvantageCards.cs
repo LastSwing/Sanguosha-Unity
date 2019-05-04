@@ -1099,7 +1099,19 @@ namespace SanguoshaServer.Game
         public ImperialOrder() : base("ImperialOrder") { }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
-            return base.IsAvailable(room, player, card);
+            bool canUse = false;
+            List<Player> players = room.GetAlivePlayers();
+            foreach (Player p in players)
+            {
+                if (p.HasShownOneGeneral() || RoomLogic.IsProhibited(room, player, p, card) != null)
+                    continue;
+
+                canUse = true;
+                break;
+            }
+
+            return canUse && !RoomLogic.IsCardLimited(room, player, card, handling_method)
+                || CanRecast(room, player, card);
         }
         public override void OnUse(Room room, CardUseStruct card_use)
         {
@@ -1126,6 +1138,7 @@ namespace SanguoshaServer.Game
                 else
                     targets.Add(p);
             }
+            if (targets.Count == 0) return;
 
             card_use.To = targets;
             base.OnUse(room, card_use);
