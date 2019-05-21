@@ -19,5 +19,17 @@ namespace CommonClass
 
             list = newList;
         }
+
+        public static bool random(int ratenumerator, int denominator)
+        {
+            if (ratenumerator == 1 && denominator == 2)
+            {
+                ratenumerator = 2;
+                denominator = 4;
+            }
+            Random rand = new Random(Guid.NewGuid().GetHashCode());
+            int result = rand.Next(denominator);
+            return ratenumerator < result ? true : false;
+        }
     }
 }

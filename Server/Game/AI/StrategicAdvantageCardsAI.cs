@@ -1039,40 +1039,43 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
-                ScoreStruct result = scores[0];
-                Player to = result.Damage.To;
-                if (!RoomLogic.CanSlash(room, player, to, result.Damage.Card) && RoomLogic.CanSlash(room, player, to, result.Damage.Card, -2))
+                if (scores.Count > 0)
                 {
-                    int right = RoomLogic.OriginalRightDistance(room, player, to);
-                    int left = room.AliveCount(false) - right;
-                    if (right < left)
+                    scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
+                    ScoreStruct result = scores[0];
+                    Player to = result.Damage.To;
+                    if (!RoomLogic.CanSlash(room, player, to, result.Damage.Card) && RoomLogic.CanSlash(room, player, to, result.Damage.Card, -2))
                     {
-                        int i = 0;
-                        Player nextp = room.GetNextAlive(player);
-                        while (i < 2 && nextp != to)
+                        int right = RoomLogic.OriginalRightDistance(room, player, to);
+                        int left = room.AliveCount(false) - right;
+                        if (right < left)
                         {
-                            players.Add(nextp);
-                            nextp = room.GetNextAlive(nextp);
-                            i++;
+                            int i = 0;
+                            Player nextp = room.GetNextAlive(player);
+                            while (i < 2 && nextp != to)
+                            {
+                                players.Add(nextp);
+                                nextp = room.GetNextAlive(nextp);
+                                i++;
+                            }
                         }
-                    }
-                    else
-                    {
-                        int i = 0;
-                        Player lastp = room.GetLastAlive(player);
-                        while (i < 2 && lastp != to)
+                        else
                         {
-                            players.Add(lastp);
-                            lastp = room.GetLastAlive(lastp);
-                            i++;
+                            int i = 0;
+                            Player lastp = room.GetLastAlive(player);
+                            while (i < 2 && lastp != to)
+                            {
+                                players.Add(lastp);
+                                lastp = room.GetLastAlive(lastp);
+                                i++;
+                            }
                         }
-                    }
-                    if (players.Count > 0)
-                    {
-                        use.Card = card;
-                        use.To = players;
-                        return;
+                        if (players.Count > 0)
+                        {
+                            use.Card = card;
+                            use.To = players;
+                            return;
+                        }
                     }
                 }
             }

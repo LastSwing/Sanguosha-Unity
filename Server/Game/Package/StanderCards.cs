@@ -2151,7 +2151,7 @@ namespace SanguoshaServer.Game
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             DamageStruct damage = (DamageStruct)data;
-            if (damage.To != null && damage.To.Alive && damage.Card != null
+            if (!player.IsKongcheng() && damage.To != null && damage.To.Alive && damage.Card != null
                 && damage.ByUser && !damage.Chain && !damage.Transfer)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);

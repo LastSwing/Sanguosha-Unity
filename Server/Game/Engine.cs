@@ -26,6 +26,9 @@ namespace SanguoshaServer.Game
         private static DataTable show_avatar;
         private static DataTable show_frame;
         private static DataTable show_bg;
+        private static DataTable bot_skills_lines;
+        private static DataTable bots;
+        private static List<string> bot_names = new List<string>();
 
         private static DataSet ai_values = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
@@ -255,6 +258,17 @@ namespace SanguoshaServer.Game
 
             File.Delete("gamedata/show.json");
             File.AppendAllText("gamedata/show.json", JsonUntity.DataSet2Json(ds));
+
+            //bot & lines
+            sql = "select * from bot_lines";
+            bots = DB.GetData(sql, false);
+            foreach (DataRow row in bots.Rows)
+            {
+                bot_names.Add(row["id"].ToString());
+            }
+
+            sql = "select * from bot_skill_lines";
+            bot_skills_lines = DB.GetData(sql, false);
         }
 
         private void LoadTranslations()
@@ -467,6 +481,36 @@ namespace SanguoshaServer.Game
 
             return null;
         }
+
+        #region 机器人相关
+        public static DataRow GetRandomBot(List<string> used)
+        {
+            List<string> names = new List<string>();
+            foreach (string name in bot_names)
+            {
+                if (!used.Contains(name))
+                    names.Add(name);
+            }
+            Shuffle.shuffle(ref names);
+            string result = names[0];
+
+            return bots.Select(string.Format("id = '{0}'", result))[0];
+        }
+
+        public static DataRow GetLines(string id)
+        {
+            return bots.Select(string.Format("id = '{0}'", id))[0];
+        }
+
+        public static DataRow[] GetSkillShowingLines()
+        {
+            return bot_skills_lines.Select("trigger = 'show'");
+        }
+        public static DataRow[] GetStarPlayLines()
+        {
+            return bot_skills_lines.Select("trigger = 'play'");
+        }
+        #endregion
 
         #region 卡牌相关
         public static List<int> GetGameCards(List<string> packages)

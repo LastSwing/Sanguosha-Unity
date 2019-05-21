@@ -2881,6 +2881,7 @@ namespace SanguoshaServer.Game
                 {
 
                     int bot_id = hall.GetBotId();
+                    /*
                     Profile profile = new Profile
                     {
                         NickName = string.Format("女装ZY {0}号", Math.Abs(bot_id)),
@@ -2890,6 +2891,9 @@ namespace SanguoshaServer.Game
                         UId = bot_id,
                         Title = 0,
                     };
+                    */
+                    Profile profile = Bot.GetBot(this);
+                    profile.UId = bot_id;
                     Client bot = new Client(hall, profile)
                     {
                         GameRoom = RoomId,
@@ -2902,19 +2906,33 @@ namespace SanguoshaServer.Game
                     seat2clients[index] = bot;
                     UpdateClientsInfo();
 
-                    Speak(bot, string.Format("大家好，我是{0}，我超爱水饺的", profile.NickName));
+                    //Speak(bot, string.Format("大家好，我是{0}，我超爱水饺的", profile.NickName));
+                    Speak(bot, Bot.GetGreeting(profile.NickName));
                 }
             }
         }
 
         public void Speak(Client client, string message)
         {
-            if (client.UserID < 3 && GameStarted && Setting.SpeakForbidden) return;
+            if (client.UserRight < 3 && GameStarted && Setting.SpeakForbidden) return;
             MyData data = new MyData
             {
                 Description = PacketDescription.Room2Cient,
                 Protocol = protocol.Message2Room,
                 Body = new List<string> { client.UserID.ToString(), message }
+            };
+
+            foreach (Client dest in Clients)
+                dest.SendMessage(data);
+        }
+
+        public void Emotion(Client client, string group, string message)
+        {
+            MyData data = new MyData
+            {
+                Description = PacketDescription.Room2Cient,
+                Protocol = protocol.Message2Room,
+                Body = new List<string> { client.UserID.ToString(), group, message }
             };
 
             foreach (Client dest in Clients)
@@ -3918,7 +3936,7 @@ namespace SanguoshaServer.Game
             if (string.IsNullOrEmpty(skill_name)) return false;
             bool result = false;
             int type = 0;
-            if (skill_name == "showforviewhas" && !player.HasShownOneGeneral())            //this is for some skills that player doesnt own but need to show, such as hongfa-slash. by weirdouncle
+            if (skill_name == "showforviewhas" && !player.HasShownOneGeneral())            //this is for some skills that player doesnt own but need to show, such as hongfa-slash
                 type = 1;
 
             if (type == 0)
@@ -3959,6 +3977,12 @@ namespace SanguoshaServer.Game
                             break;
                         }
                     }
+                }
+
+                //当某玩家首次亮出技能时bot聊天
+                if (result)
+                {
+                    Bot.OnSkillShow(this, player, skill_name);
                 }
             }
             if (type == 1)

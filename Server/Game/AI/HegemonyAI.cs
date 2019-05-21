@@ -1150,12 +1150,21 @@ namespace SanguoshaServer.AI
         public override WrappedCard AskForCardShow(Player requestor, string reason, object data)
         {
             UseCard card = Engine.GetCardUsage(reason);
+            WrappedCard result = null;
             if (card != null)
-                return card.OnCardShow(this, self, requestor, data);
+            {
+                result = card.OnCardShow(this, self, requestor, data);
+                if (result != null)
+                    return result;
+            }
 
             SkillEvent skill = Engine.GetSkillEvent(reason);
             if (skill != null)
-                return skill.OnCardShow(this, self, requestor, data);
+            {
+                result = skill.OnCardShow(this, self, requestor, data);
+                if (result != null)
+                    return result;
+            }
 
             return base.AskForCardShow(requestor, reason, data);
         }

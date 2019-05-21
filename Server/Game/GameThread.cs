@@ -453,6 +453,9 @@ namespace SanguoshaServer.Game
             foreach (TrustedAI ai in room.AIs)
                 ai.Event(triggerEvent, target, data);
 
+            //Bot聊天
+            Bot.BotChat(triggerEvent, room, target, data);
+            //成就
             AchieveCollector.Event(triggerEvent, room, target, data);
 
             // pop event stack

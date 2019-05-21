@@ -102,6 +102,7 @@
     <Compile Include="Game\AI\StanderAI.cs" />
     <Compile Include="Game\AI\StanderCardsAI.cs" />
     <Compile Include="Game\AI\StrategicAdvantageCardsAI.cs" />
+    <Compile Include="Game\Bot.cs" />
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
     <Compile Include="Game\FunctionCard.cs" />
