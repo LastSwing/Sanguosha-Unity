@@ -12,19 +12,7 @@ using CommandType = CommonClassLibrary.CommandType;
 
 namespace SanguoshaServer
 {
-    public delegate void ConnectDelegate(Client client, EventArgs e);
-    public delegate void DisconnectDelegate(Client client, EventArgs e);
-    public delegate void MessageDelegate(Client client, MessageEventArgs e);
-    public delegate void LeaveHallDelegate(Client client, EventArgs e);
-    //public delegate void JoinHallDelegate(object sender, JoinHallEventArgs e);
-    //public delegate void LeaveDeskDelegate(object sender, LeaveDeskEventArgs
-    //public delegate void GameOverDelegate(object sender, GameOverEventArgs e);
-
-    public delegate void LeaveRoomDelegate(Client client, int room_id, bool kicked);
-    public delegate void GetReadyDelegate(Client client, bool ready);
-    public delegate void GameControlDelegate(Client client, MyData data);
-
-    public class Client
+    public class Client : IDisposable
     {
         public enum GameStatus {
             normal,
@@ -36,10 +24,21 @@ namespace SanguoshaServer
 
         public event ConnectDelegate Connected;
         public event DisconnectDelegate Disconnected;
-
         public event LeaveRoomDelegate LeaveRoom;
         public event GetReadyDelegate GetReady;
         public event GameControlDelegate GameControl;
+
+        //public delegate void MessageDelegate(object sender, MessageEventArgs e);
+        //public delegate void LeaveHallDelegate(object sender, EventArgs e);
+        //public delegate void JoinHallDelegate(object sender, JoinHallEventArgs e);
+        //public delegate void LeaveDeskDelegate(object sender, LeaveDeskEventArgs
+        //public delegate void GameOverDelegate(object sender, GameOverEventArgs e);
+
+        public delegate void ConnectDelegate(object sender, EventArgs e);
+        public delegate void DisconnectDelegate(object sender, EventArgs e);
+        public delegate void LeaveRoomDelegate(Client client, int room_id, bool kicked);
+        public delegate void GetReadyDelegate(Client client, bool ready);
+        public delegate void GameControlDelegate(Client client, MyData data);
 
         private MsgPackSession session;
         private GameHall hall;
@@ -229,11 +228,7 @@ namespace SanguoshaServer
                     DB.UpdateData(sql);
 
                     //Raise the Connected Event 
-                    if (Connected != null)
-                    {
-                        EventArgs e = new EventArgs();
-                        Connected(this, e);
-                    }
+                    Connected?.Invoke(this, new EventArgs());
                 }
                 //密码错误
                 else {
@@ -476,11 +471,7 @@ namespace SanguoshaServer
 
         public void OnDisconnected()
         {
-            if (Disconnected != null)
-            {
-                EventArgs e = new EventArgs();
-                Disconnected(this, e);
-            }
+            Disconnected?.Invoke(this, new EventArgs());
         }
 
         public void RequestLeaveRoom(bool kicked = false)
@@ -541,6 +532,7 @@ namespace SanguoshaServer
         private bool ok_enable, cancel_enable;
         private bool cancel_able;
         private bool skill_invoke;
+        private WrappedCard initial_transfer_card = null;
         private List<Player> available_targets = new List<Player>();
         private List<Player> selected_targets = new List<Player>();
         private List<Player> extra_targets = new List<Player>();
@@ -559,7 +551,6 @@ namespace SanguoshaServer
         private bool auto_target, first_selection, first_pending, double_click;
         private readonly bool auto_preshow;
         private readonly bool intel_select;
-        private bool huashen_pending;
 
         private WrappedCard viewas_card;
         private DiscardSkill discard_skill;
@@ -1102,8 +1093,7 @@ namespace SanguoshaServer
             selected_guhuo = null;
             selected_cards.Clear();
             selected_targets.Clear();
-
-            huashen_pending = false;
+            
             ok_enable = false;
             cancel_enable = cancel_able;
             room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string> { GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), false.ToString() });
@@ -1213,7 +1203,14 @@ namespace SanguoshaServer
                         if (CheckCardAvailable(player, card))
                             available_cards[player.Name].Add(card);
 
-                    if (ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD)
+                    #region new transfer card
+                    if (ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
+                        && Engine.GetViewAsSkill("transfer").IsAvailable(room, player, room.GetRoomState().GetCurrentCardUseReason(), string.Empty))
+                    {
+                        if (available_head_skills.ContainsKey(player.Name))
+                            available_head_skills[player.Name].Add("transfer");
+                        else
+                            available_head_skills[player.Name] = new List<string> { "transfer" };
                         foreach (WrappedCard card in hand_cards[player])
                         {
                             if (card.Transferable)
@@ -1227,6 +1224,29 @@ namespace SanguoshaServer
                                 available_cards[player.Name].Add(transfer);
                             }
                         }
+                    }
+                    #endregion
+
+                    #region old transfer card
+                    /*
+                    if (ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD)
+                    {
+                        foreach (WrappedCard card in hand_cards[player])
+                        {
+                            if (card.Transferable)
+                            {
+                                WrappedCard transfer = new WrappedCard("TransferCard")
+                                {
+                                    Skill = "transfer",
+                                    Mute = true
+                                };
+                                transfer.AddSubCard(card.Id);
+                                available_cards[player.Name].Add(transfer);
+                            }
+                        }
+                    }
+                    */
+                    #endregion
                 }
 
                 if (intel_select && ExpectedReplyCommand != CommandType.S_COMMAND_PLAY_CARD && available_cards.Count > 0       //auto select intel card
@@ -1333,6 +1353,15 @@ namespace SanguoshaServer
                     }
                 }
             }
+
+            #region new transfer card
+            if (pending_skill.Name == "transfer")
+            {
+                selected_cards[player] = new List<WrappedCard> { initial_transfer_card };
+                initial_transfer_card = null;
+            }
+            #endregion
+
             UpdatePending();
         }
 
@@ -1447,6 +1476,7 @@ namespace SanguoshaServer
         {
             FunctionCard fcard = Engine.GetFunctionCard(card?.Name);
             if (player == null || fcard == null || card.HasFlag("using")) return false;
+            if (fcard is EquipCard && room.GetCardPlace(card.Id) == Player.Place.PlaceEquip) return false;
 
             bool ok_enable = true;
             if ((ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse) && !fcard.IsAvailable(room, player, card))
@@ -1468,7 +1498,7 @@ namespace SanguoshaServer
                     pattern = Engine.GetPattern(pattern).GetPatternString();
                     if ((method == HandlingMethod.MethodResponse || method == HandlingMethod.MethodUse) && pattern.Contains("hand"))
                         pattern = pattern.Replace("hand", string.Join(",", player.GetHandPileList()));
-                    ExpPattern p = new ExpPattern(pattern);
+                    ExpPattern p = (ExpPattern)Engine.GetPattern(pattern);
                     if (!p.Match(player, room, card))
                     {
                         ok_enable = false;
@@ -1507,127 +1537,134 @@ namespace SanguoshaServer
 
             if (fcard.TypeID == CardType.TypeSkill || ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse)
             {
-                bool check = true;
-                ok_enable = false;
-                List<Player> targets = new List<Player>();
-                if (selected_targets.Count > 0)
+                ok_enable = fcard.TargetFixed(viewas_card);
+                if (!ok_enable)
                 {
-                    foreach (Player p in selected_targets) {
-                        if (fcard.TargetFilter(room, targets, p, player, viewas_card))
-                            targets.Add(p);
-                        else
+                    bool check = true;
+                    List<Player> targets = new List<Player>();
+                    if (selected_targets.Count > 0)
+                    {
+                        foreach (Player p in selected_targets)
                         {
-                            check = false;
-                            break;
+                            if (fcard.TargetFilter(room, targets, p, player, viewas_card))
+                                targets.Add(p);
+                            else
+                            {
+                                check = false;
+                                break;
+                            }
                         }
                     }
-                }
 
-                if (!check)
-                {
-                    selected_targets.Clear();
-                    targets.Clear();
-                }
+                    if (!check)
+                    {
+                        selected_targets.Clear();
+                        targets.Clear();
+                    }
 
-                List<Player> check_available = new List<Player>(targets);
-                List<Player> available = new List<Player>();
-                foreach (Player p in room.GetAlivePlayers())
-                    if (fcard.TargetFilter(room, check_available, p, player, viewas_card))
-                        available.Add(p);
-
-                if (available.Count == 0 && check_available.Count > 0)
-                {
-                    check_available.Remove(check_available[check_available.Count - 1]);
+                    List<Player> check_available = new List<Player>(targets);
+                    List<Player> available = new List<Player>();
                     foreach (Player p in room.GetAlivePlayers())
                         if (fcard.TargetFilter(room, check_available, p, player, viewas_card))
-                            available_targets.Add(p);
-                }
-                else
-                    available_targets = available;
+                            available.Add(p);
 
-                room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string> { GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), false.ToString() });
-                //show tip for liegong
-                if (fcard is Slash && RoomLogic.PlayerHasSkill(room, player, "liegong") && player.Phase == Player.PlayerPhase.Play)
-                {
-                    bool weapon = player.Weapon.Key != -1 && !viewas_card.SubCards.Contains(player.Weapon.Key);
-                    List<string> liegong_targets = new List<string>();
-                    foreach (Player p in available_targets)
-                        if (p.HandcardNum >= player.Hp || p.HandcardNum <= RoomLogic.GetAttackRange(room, player, weapon))
-                            liegong_targets.Add(p.Name);
+                    if (available.Count == 0 && check_available.Count > 0)
+                    {
+                        check_available.Remove(check_available[check_available.Count - 1]);
+                        foreach (Player p in room.GetAlivePlayers())
+                            if (fcard.TargetFilter(room, check_available, p, player, viewas_card))
+                                available_targets.Add(p);
+                    }
+                    else
+                        available_targets = available;
 
-                    if (liegong_targets.Count > 0)
-                        room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
+                    room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string> { GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), false.ToString() });
+                    //show tip for liegong
+                    if (fcard is Slash && RoomLogic.PlayerHasSkill(room, player, "liegong") && player.Phase == Player.PlayerPhase.Play)
+                    {
+                        bool weapon = player.Weapon.Key != -1 && !viewas_card.SubCards.Contains(player.Weapon.Key);
+                        List<string> liegong_targets = new List<string>();
+                        foreach (Player p in available_targets)
+                            if (p.HandcardNum >= player.Hp || p.HandcardNum <= RoomLogic.GetAttackRange(room, player, weapon))
+                                liegong_targets.Add(p.Name);
+
+                        if (liegong_targets.Count > 0)
+                            room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
                             "liegong", JsonUntity.Object2Json(liegong_targets) });
-                }
+                    }
 
-                if (first_selection && selected_targets.Count == 0 && fcard is Slash && player.HasFlag("slashTargetFixToOne"))
-                {
-                    foreach (Player p in available_targets) {
-                        if (p.HasFlag("SlashAssignee"))
+                    if (first_selection && selected_targets.Count == 0 && fcard is Slash && player.HasFlag("slashTargetFixToOne"))
+                    {
+                        foreach (Player p in available_targets)
                         {
-                            selected_targets.Add(p);
-                            targets.Add(p);
-                            break;
-                        }
-                    }
-                }
-
-                //player chain animation
-                if (first_selection)
-                {
-                    bool chain_animation = false;
-                    if (fcard is FireSlash || fcard is ThunderSlash || fcard is FireAttack)
-                    {
-                        foreach (Player p in available_targets) {
-                            if (p.Chained)
+                            if (p.HasFlag("SlashAssignee"))
                             {
-                                chain_animation = true;
+                                selected_targets.Add(p);
+                                targets.Add(p);
                                 break;
                             }
                         }
                     }
-                    else if (fcard is BurningCamps)
+
+                    //player chain animation
+                    if (first_selection)
                     {
-                        List <Player> players = RoomLogic.GetFormation(room, room.GetNextAlive(player));
-                        foreach (Player target in players) {
-                            if (RoomLogic.IsProhibited(room, player, target, viewas_card) == null && target.Chained)
+                        bool chain_animation = false;
+                        if (fcard is FireSlash || fcard is ThunderSlash || fcard is FireAttack)
+                        {
+                            foreach (Player p in available_targets)
                             {
-                                chain_animation = true;
-                                break;
+                                if (p.Chained)
+                                {
+                                    chain_animation = true;
+                                    break;
+                                }
                             }
                         }
+                        else if (fcard is BurningCamps)
+                        {
+                            List<Player> players = RoomLogic.GetFormation(room, room.GetNextAlive(player));
+                            foreach (Player target in players)
+                            {
+                                if (RoomLogic.IsProhibited(room, player, target, viewas_card) == null && target.Chained)
+                                {
+                                    chain_animation = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (chain_animation)
+                            room.DoChainedAnimation();
                     }
-                    if (chain_animation)
-                        room.DoChainedAnimation();
-                }
 
-                first_selection = false;
+                    first_selection = false;
 
-                //reserve extra available targets
-                if (!fcard.CanRecast(room, player, viewas_card) && selected_targets.Count == 0 && available_targets.Count == 1 && auto_target)
-                {
-                    selected_targets.Add(available_targets[0]);
-                    targets.Add(available_targets[0]);
-                    available_targets.Clear();
-                    foreach (Player p in room.GetAlivePlayers())
-                        if (fcard.TargetFilter(room, targets, p, player, viewas_card))
-                            available_targets.Add(p);
-                }
-                auto_target = false;
+                    //reserve extra available targets
+                    if (!fcard.CanRecast(room, player, viewas_card) && selected_targets.Count == 0 && available_targets.Count == 1 && auto_target)
+                    {
+                        selected_targets.Add(available_targets[0]);
+                        targets.Add(available_targets[0]);
+                        available_targets.Clear();
+                        foreach (Player p in room.GetAlivePlayers())
+                            if (fcard.TargetFilter(room, targets, p, player, viewas_card))
+                                available_targets.Add(p);
+                    }
+                    auto_target = false;
 
-                //show tip for lijian
-                if (fcard is LijianCard && selected_targets.Count > 0)
-                {
-                    List<string> lijian_targets = new List<string>();
-                    foreach (Player p in selected_targets)
-                        lijian_targets.Add(p.Name);
+                    //show tip for lijian
+                    if (fcard is LijianCard && selected_targets.Count > 0)
+                    {
+                        List<string> lijian_targets = new List<string>();
+                        foreach (Player p in selected_targets)
+                            lijian_targets.Add(p.Name);
 
-                    room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
+                        room.DoNotify(this, CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
                         "lijian", JsonUntity.Object2Json(lijian_targets) });
-                }
+                    }
 
-                if (fcard.TargetsFeasible(room, targets, player, viewas_card))
-                    ok_enable = true;
+                    if (fcard.TargetsFeasible(room, targets, player, viewas_card))
+                        ok_enable = true;
+                }
             }
             else
                 selected_targets.Clear();
@@ -1635,7 +1672,7 @@ namespace SanguoshaServer
             GetPacket2Client(false);
         }
 
-        Operate GetPacket2Client(bool first_time, string prompt = null, int notice_index = -1, List<string> huashen = null)
+        Operate GetPacket2Client(bool first_time, string prompt = null, int notice_index = -1, List<string> guhuo_box = null)
         {
             Operate args = new Operate();
             if (m_do_request && !first_time) return args;
@@ -1646,15 +1683,9 @@ namespace SanguoshaServer
             args.NoticeIndex = notice_index;
             args.SkillInvoke = skill_invoke;
             
-
             List<string> hightlight_skills = new List<string>();
             if (pending_skill != null)
-            {
-                if (!RoomLogic.PlayerHasSkill(room, skill_owner, pending_skill.Name) && pending_skill.Name.EndsWith("_h"))
-                    hightlight_skills.Add("huashen");
-                else
-                    hightlight_skills.Add(pending_skill.Name);
-            }
+                hightlight_skills.Add(pending_skill.Name);
             else if (viewas_card != null && viewas_card.Name == "TransferCard")
                 hightlight_skills.Add("transfer");
 
@@ -1683,8 +1714,14 @@ namespace SanguoshaServer
             if (guhuo_cards.Count > 0)
                 args.GuhuoType = (int)pending_skill.GetGuhuoType();
 
-            if (huashen_pending && huashen != null)
-                args.ExInfo = huashen;
+            //pop_up类型的蛊惑框和化身框的弹出信息在这里
+            if (guhuo_box != null)
+            {
+                room.OutPut("open guhuo_popup_box");
+                args.ExInfo = guhuo_box;
+            }
+            else if (pending_skill != null && pending_skill.Name == "huashen" && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0))
+                args.ExInfo = (List<string>)skill_owner.GetTag("huashen");
             else
                 args.ExInfo = ex_information;
 
@@ -1716,9 +1753,9 @@ namespace SanguoshaServer
                         args.SelectedCards[player.Name].Add(card.Id.ToString());
                     else
                         args.SelectedCards[player.Name].Add(card.Name);
-
                 }
             }
+
             args.PrependPile = prepends;
             args.AppendPile = appends;
 
@@ -2069,15 +2106,27 @@ namespace SanguoshaServer
                         }
                     }
                 }
+
+                #region old transfer card
+                /*
                 else if (card.Name == "TransferCard" && available_cards.ContainsKey(args[1]))
                 {
                     card = available_cards[args[1]].Find(t => t.Name == "TransferCard" && t.GetEffectiveId() == card.GetEffectiveId());
                 }
-
+                */
+                #endregion
                 if (player == null)
                     room.OutPut(args[1] + " is null " + room.GetAlivePlayers().Count.ToString());
 
-                if (player != null && card != null && (pending_skill == null || skill_owner == player)
+                //huashen
+                bool huashen = false;
+                if (pending_skill != null && pending_skill.Name == "huashen" && !guhuo_check && card == null && Engine.GetGeneral(args[2]) != null)
+                {
+                    huashen = HandleHuashen(skill_owner, args[2]);
+                    success = huashen;
+                }
+
+                if (!huashen && player != null && card != null && (pending_skill == null || skill_owner == player)
                     && ((available_cards.ContainsKey(player.Name) && available_cards[player.Name].Contains(card))
                     || (guhuo_cards.Count == 0 && GetSelected(player, card) != null)
                     || (guhuo_check && pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox)))
@@ -2132,10 +2181,24 @@ namespace SanguoshaServer
             }
             else if (type == RequestType.S_REQUEST_SKILL && args.Count == 5)
             {
-
-                huashen_pending = false;
                 Player player = room.FindPlayer(args[1]);
                 string skill_name = args[2];
+
+                #region new transfer card
+                const string rx_pattern = @"transfer(\d+)";
+                Match result = Regex.Match(skill_name, rx_pattern);
+                if (result.Success && result.Length > 0)
+                {
+                    skill_name = "transfer";
+
+                    if (pending_skill == null || pending_skill.Name != skill_name)
+                    {
+                        int id = int.Parse(result.Groups[1].ToString());
+                        initial_transfer_card = room.GetCard(id);
+                    }
+                }
+                #endregion
+
                 ViewAsSkill skill = Engine.GetViewAsSkill(skill_name);
                 string position = args[3];
                 auto_target = bool.Parse(args[4]);
@@ -2190,7 +2253,6 @@ namespace SanguoshaServer
                     }
                     else
                     {
-                        huashen_pending = false;
                         foreach (Player p in selected_cards.Keys) {
                             if (selected_cards[p].Count > 0)
                             {
@@ -2263,7 +2325,7 @@ namespace SanguoshaServer
                         HandleInfos();
                 }
             }
-            else if (type == RequestType.S_REQUEST_HUASHEN && args.Count == 2 && huashen_pending)
+            else if (type == RequestType.S_REQUEST_HUASHEN && args.Count == 2)
             {
                 string skill = args[1];
                 ViewAsSkill vs = Engine.GetViewAsSkill(skill);
@@ -2273,7 +2335,6 @@ namespace SanguoshaServer
                     pending_skill = vs;
                     StartPending(skill_owner);
                 }
-                huashen_pending = false;
             }
             else if (type == RequestType.S_REQUEST_DASHBOARD_CHANGE && args.Count == 1)
             {
@@ -2289,6 +2350,18 @@ namespace SanguoshaServer
                 room.OutPut(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
             }
             mutex.ReleaseMutex();
+        }
+
+        private bool HandleHuashen(Player requestor, string general)
+        {
+            List<string> huashens = requestor.ContainsTag("huashen") ? (List<string>)requestor.GetTag("huashen") : new List<string>();
+            if (!huashens.Contains(general)) return false;
+
+            WrappedCard card = new WrappedCard(general);
+            selected_cards[requestor] = new List<WrappedCard> { card };
+            UpdatePending();
+
+            return true;
         }
 
         private void CardClicked(Player player, WrappedCard card)
@@ -2372,12 +2445,16 @@ namespace SanguoshaServer
                     UpdatePending();
                 }
             }
+            #region old tranfer card
+            /*
             else if (RoomLogic.IsVirtualCard(room, card) && card.Name == "TransferCard")
             {
                 selected_cards[player] = new List<WrappedCard> { room.GetCard(card.GetEffectiveId()) };
                 viewas_card = card;
                 EnableTargets(player);
             }
+            */
+            #endregion
             else
             {
                 if (pending_skill != null)
@@ -2537,5 +2614,42 @@ namespace SanguoshaServer
             else
                 Reply2Server(false);                                                    //cancel respond
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 要检测冗余调用
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: 释放托管状态(托管对象)。
+                    mutex.Dispose();
+                }
+
+                // TODO: 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
+                // TODO: 将大型字段设置为 null。
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
+        // ~Client() {
+        //   // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+        //   Dispose(false);
+        // }
+
+        // 添加此代码以正确实现可处置模式。
+        public void Dispose()
+        {
+            // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+            Dispose(true);
+            // TODO: 如果在以上内容中替代了终结器，则取消注释以下行。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
+
     }
 }

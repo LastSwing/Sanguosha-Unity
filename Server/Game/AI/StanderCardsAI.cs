@@ -218,7 +218,7 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            use = ai.FindSlashandTarget(player);
+            ai.FindSlashandTarget(ref use, player);
         }
     }
 
@@ -236,7 +236,7 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            use = ai.FindSlashandTarget(player);
+            ai.FindSlashandTarget(ref use, player);
         }
     }
     public class ThunderSlashAI : UseCard
@@ -253,7 +253,7 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            use = ai.FindSlashandTarget(player);
+            ai.FindSlashandTarget(ref use, player);
         }
     }
 

@@ -1463,7 +1463,8 @@ namespace SanguoshaServer.AI
                 {
                     Player next = room.Current;
                     if ((next.Phase > Player.PlayerPhase.Play && (next.GetMark("ThreatenEmperorExtraTurn") == 0 || !next.FaceUp)) || self.Removed)
-                        next = room.GetNextAlive(next);
+                        next = room.GetNextAlive(next, 1, false);
+                    int i = 0;
                     while (next != self)
                     {
                         if (next.FaceUp && !IsFriend(next))
@@ -1471,7 +1472,10 @@ namespace SanguoshaServer.AI
                             use = false;
                             break;
                         }
-                        next = room.GetNextAlive(next);
+                        next = room.GetNextAlive(next, 1, false);
+                        i++;
+                        if (i > 10)
+                            room.OutPut("get next error");
                     }
                 }
 

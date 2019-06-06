@@ -184,9 +184,9 @@ namespace SanguoshaServer.Game
 
     public class TriggerSkill : Skill
     {
-        ~TriggerSkill() {
-            view_as_skill = null;
-        }
+        //~TriggerSkill() {
+        //    view_as_skill = null;
+        //}
 
         protected ViewAsSkill view_as_skill = null;
         protected List<TriggerEvent> events = new List<TriggerEvent>();

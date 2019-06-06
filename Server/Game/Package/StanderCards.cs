@@ -476,7 +476,7 @@ namespace SanguoshaServer.Game
             else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE)
                 method = HandlingMethod.MethodResponse;
 
-            return room.GetRoomState().GetCurrentCardUsePattern() == "jink" && RoomLogic.IsProhibited(room, player, player, card) == null
+            return room.GetRoomState().GetCurrentCardUsePattern() == "jink" && RoomLogic.IsProhibited(room, player, null, card) == null
                 && !RoomLogic.IsCardLimited(room, player, card, method);
         }
     }
@@ -981,7 +981,7 @@ namespace SanguoshaServer.Game
         public Indulgence() : base("Indulgence")
         {
             judge.Pattern = ".|heart";
-            judge.Good = true;
+            judge.Good = false;
             judge.PlayAnimation = true;
             judge.Reason = "Indulgence";
         }
@@ -1002,7 +1002,7 @@ namespace SanguoshaServer.Game
         public SupplyShortage() : base("SupplyShortage")
         {
             judge.Pattern = ".|club";
-            judge.Good = true;
+            judge.Good = false;
             judge.PlayAnimation = true;
             judge.Reason = "SupplyShortage";
         }
@@ -1082,7 +1082,7 @@ namespace SanguoshaServer.Game
         {
             target_fixed = true;
             judge.Pattern = ".|spade|2~9";
-            judge.Good = false;
+            judge.Good = true;
             judge.PlayAnimation = true;
             judge.Reason = "Lightning";
         }
@@ -1232,7 +1232,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
-                return room.GetRoomState().GetCurrentCardUsePattern().Contains("Nullification");
+                return room.GetRoomState().GetCurrentCardUsePattern().Contains("Nullification") && RoomLogic.IsProhibited(room, player, null, card) == null;
 
             return false;
         }
@@ -1272,7 +1272,7 @@ namespace SanguoshaServer.Game
                 return;
 
             int card_id = room.AskForCardChosen(effect.From, effect.To, "hej", Name, false, HandlingMethod.MethodGet);
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, effect.From.Name);
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, effect.From.Name, Name, Name);
             room.ObtainCard(effect.From, room.GetCard(card_id), reason, false);
         }
 

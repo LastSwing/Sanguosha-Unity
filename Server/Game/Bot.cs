@@ -66,13 +66,13 @@ namespace SanguoshaServer.Game
                             {
                                 if (speak)
                                 {
-                                    string message = row[string.Format("self_lines[0]", num)].ToString();
+                                    string message = row[string.Format("self_lines{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(message))
                                         room.Speak(ai, message);
                                 }
                                 else
                                 {
-                                    string messages = row[string.Format("self_emotion[0]", num)].ToString();
+                                    string messages = row[string.Format("self_emotion{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(messages))
                                     {
                                         string[] ms = messages.Split('/');
@@ -84,13 +84,13 @@ namespace SanguoshaServer.Game
                             {
                                 if (speak)
                                 {
-                                    string message = row[string.Format("lines[0]", num)].ToString();
+                                    string message = row[string.Format("lines{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(message))
                                         room.Speak(ai, message);
                                 }
                                 else
                                 {
-                                    string messages = row[string.Format("emotion[0]", num)].ToString();
+                                    string messages = row[string.Format("emotion{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(messages))
                                     {
                                         string[] ms = messages.Split('/');
@@ -186,14 +186,16 @@ namespace SanguoshaServer.Game
         {
             if (data is CardUseStruct use)
             {
-                if (use.Card.Name == "Analeptic" && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY && use.Card.Skill != "_zhendu")
+                if (use.Card.Name == "Analeptic"
+                    && (use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || room.GetRoomState().GetCurrentCardUsePattern(player) == "@@rende")
+                    && use.Card.Skill != "_zhendu")
                 {
                     List<Client> ais = new List<Client>();
                     foreach (Player p in room.GetAlivePlayers())
                     {
                         Client client = room.GetClient(p);
                         if (p.ClientId < 0 && !ais.Contains(client) && RoomLogic.InMyAttackRange(room, player, p) && !RoomLogic.IsFriendWith(room, player, p)
-                            && room.GetClient(p) != client && Shuffle.random(1, 3))
+                            && room.GetClient(player) != client && Shuffle.random(1, 3))
                             ais.Add(client);
                     }
 
@@ -225,7 +227,9 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-                else if (player.ClientId < 0 && use.Card.Name.Contains("Slash") && use.To.Count == 1 && !RoomLogic.IsFriendWith(room, player, use.To[0]) && Shuffle.random(1, 3))
+                else if (player.ClientId < 0 && use.Card.Name.Contains("Slash")
+                    && (use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || room.GetRoomState().GetCurrentCardUsePattern(player) == "@@rende")
+                    && use.To.Count == 1 && !RoomLogic.IsFriendWith(room, player, use.To[0]) && Shuffle.random(1, 3))
                 {
                     Client client = room.GetClient(player);
 
@@ -507,13 +511,13 @@ namespace SanguoshaServer.Game
                             {
                                 if (speak)
                                 {
-                                    string message = row[string.Format("self_lines[0]", num)].ToString();
+                                    string message = row[string.Format("self_lines{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(message))
                                         room.Speak(ai, message);
                                 }
                                 else
                                 {
-                                    string messages = row[string.Format("self_emotion[0]", num)].ToString();
+                                    string messages = row[string.Format("self_emotion{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(messages))
                                     {
                                         string[] ms = messages.Split('/');
@@ -525,13 +529,13 @@ namespace SanguoshaServer.Game
                             {
                                 if (speak)
                                 {
-                                    string message = row[string.Format("lines[0]", num)].ToString();
+                                    string message = row[string.Format("lines{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(message))
                                         room.Speak(ai, message);
                                 }
                                 else
                                 {
-                                    string messages = row[string.Format("emotion[0]", num)].ToString();
+                                    string messages = row[string.Format("emotion{0}", num)].ToString();
                                     if (!string.IsNullOrEmpty(messages))
                                     {
                                         string[] ms = messages.Split('/');

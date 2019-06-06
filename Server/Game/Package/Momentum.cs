@@ -46,7 +46,6 @@ namespace SanguoshaServer.Package
                 new Hongfa(),
                 new HongfaClear(),
                 new HongfaSlash(),
-
             };
             skill_cards = new List<FunctionCard>
             {
@@ -1268,7 +1267,7 @@ namespace SanguoshaServer.Game
         {
             int num = RoomLogic.GetPlayerNumWithSameKingdom(room, player);
 
-            string prompt = "@hongfa-tianbing:" + Name;
+            string prompt = "@hongfa-tianbing:" + player.Name;
             List<int> ints = room.AskForExchange(player, "hongfa2", player.GetPile("heavenly_army").Count, 0, prompt, "heavenly_army", null, "head");
 
             List<int> guanxing = room.GetNCards(num + ints.Count);

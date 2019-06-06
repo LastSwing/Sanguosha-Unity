@@ -13,16 +13,19 @@ namespace SanguoshaServer.Package
             {
                 new DragonPhoenix(),
                 new PeaceSpell(),
-                new LuminouSpearl()
+                new LuminouSpearl(),
+                new DragonCarriage(),
             };
             skills = new List<Skill>
             {
                 new DragonPhoenixSkill(),
-                new DragonPhoenixSkill2(),
+                //new DragonPhoenixSkill2(),
                 new PeaceSpellSkill(),
                 new PeaceSpellSkillMaxCards(),
                 new LuminouSpearlSkill(),
-                new ZhihengVH()
+                new ZhihengVH(),
+                new DragonCarriageSkill(),
+                new DragonCarriageDistanceSkill()
             };
         }
     }
@@ -36,6 +39,74 @@ namespace SanguoshaServer.Game
         {
         }
     }
+
+    public class DragonPhoenixSkill : WeaponSkill
+    {
+        public DragonPhoenixSkill() : base("DragonPhoenix")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.Dying };
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct use)
+            {
+                FunctionCard fcard = use.Card != null ? Engine.GetFunctionCard(use.Card.Name) : null;
+                if (base.Triggerable(player, room) && use.Card != null && fcard is Slash)
+                {
+                    List<Player> targets = new List<Player>();
+                    foreach (Player to in use.To)
+                    {
+                        if (RoomLogic.CanDiscard(room, to, to, "he"))
+                            targets.Add(to);
+                    }
+                    if (targets.Count > 0)
+                        return new TriggerStruct(Name, player, targets);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Dying && data is DyingStruct dying && dying.Damage.Card != null && dying.Damage.Card.Name.Contains("Slash")
+                && !dying.Damage.Transfer && !dying.Damage.Chain
+                && dying.Damage.From != null && dying.Damage.From.Alive && base.Triggerable(dying.Damage.From, room) && !player.IsKongcheng())
+            {
+                if (RoomLogic.CanGetCard(room, dying.Damage.From, player, "h"))
+                    return new TriggerStruct(Name, dying.Damage.From);
+            }
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            bool invoke = false;
+            if (triggerEvent == TriggerEvent.TargetChosen && room.AskForSkillInvoke(ask_who, Name, player))
+                invoke = true;
+            else if (triggerEvent == TriggerEvent.Dying && data is DyingStruct dying && dying.Damage.From != null
+                && dying.Damage.From.Alive && !player.IsKongcheng() && RoomLogic.CanGetCard(room, ask_who, player, "h"))
+                invoke = true;
+
+            if (invoke)
+            {
+                room.SetEmotion(ask_who, "dragonphoenix");
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.TargetChosen)
+                room.AskForDiscard(player, Name, 1, 1, false, true, "@dragonphoenix-discard");
+            else if (data is DyingStruct dying && dying.Damage.From != null && dying.Damage.From.Alive && !player.IsKongcheng() && RoomLogic.CanGetCard(room, ask_who, player, "h"))
+            {
+                room.SendCompulsoryTriggerLog(ask_who, Name, false);
+                int id = room.AskForCardChosen(ask_who, player, "h", Name, false, FunctionCard.HandlingMethod.MethodGet);
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, ask_who.Name, Name, Name);
+                room.ObtainCard(ask_who, room.GetCard(id), reason, false);
+            }
+
+            return false;
+        }
+    }
+
+    /*
     public class DragonPhoenixSkill : WeaponSkill
     {
         public DragonPhoenixSkill() : base("DragonPhoenix")
@@ -73,7 +144,7 @@ namespace SanguoshaServer.Game
             return false;
         }
     }
-
+    
     public class DragonPhoenixSkill2 : WeaponSkill
     {
         public DragonPhoenixSkill2() : base("#DragonPhoenix")
@@ -168,6 +239,8 @@ namespace SanguoshaServer.Game
             return false;
         }
     }
+    */
+
     public class PeaceSpell : Armor
     { 
         public PeaceSpell() : base("PeaceSpell") { }
@@ -178,6 +251,104 @@ namespace SanguoshaServer.Game
             base.OnUninstall(room, player, card);
         }
     }
+    public class PeaceSpellSkill : ArmorSkill
+    {
+        public PeaceSpellSkill() : base("PeaceSpell")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.DamageInflicted, TriggerEvent.CardsMoveOneTime };
+            frequency = Frequency.Compulsory;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            {
+                if (base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
+                    return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
+                && move.From_places.Contains(Player.Place.PlaceEquip) && move.From.HasFlag("peacespell_throwing"))
+            {
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if (move.From_places[i] != Player.Place.PlaceEquip) continue;
+                    WrappedCard card = Engine.GetRealCard(move.Card_ids[i]);
+                    if (card.Name == Name)
+                        return new TriggerStruct(Name, move.From);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.QuitDying && player.HasFlag("peacespell_dying") && player.Alive)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime) return info;
+            return base.Cost(room, ref data, info);
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            {
+                LogMessage l = new LogMessage
+                {
+                    Type = "#PeaceSpellNatureDamage",
+                    From = damage.From.Name,
+                    To = new List<string> { damage.To.Name },
+                    Arg = damage.Damage.ToString()
+                };
+                switch (damage.Nature)
+                {
+                    case DamageStruct.DamageNature.Normal: l.Arg2 = "normal_nature"; break;
+                    case DamageStruct.DamageNature.Fire: l.Arg2 = "fire_nature"; break;
+                    case DamageStruct.DamageNature.Thunder: l.Arg2 = "thunder_nature"; break;
+                }
+
+                room.SendLog(l);
+                room.SetEmotion(damage.To, "peacespell");
+                return true;
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
+            {
+                move.From.SetFlags("-peacespell_throwing");
+                LogMessage l = new LogMessage
+                {
+                    Type = "#PeaceSpellLost",
+                    From = move.From.Name
+                };
+                room.SendLog(l);
+
+                if (move.From.Alive)
+                    room.DrawCards(move.From, 2, Name);
+                if (move.From.Hp > 1)
+                    room.LoseHp(move.From);
+            }
+            return false;
+        }
+    }
+    public class PeaceSpellSkillMaxCards : MaxCardsSkill
+    {
+        public PeaceSpellSkillMaxCards() : base("#PeaceSpell-max")
+        {
+        }
+        public override int GetExtra(Room room, Player target)
+        {
+            if (RoomLogic.HasArmorEffect(room, target, "PeaceSpell"))
+            {
+                int count = 1;
+                foreach (Player p in room.GetOtherPlayers(target))
+                    if (RoomLogic.IsFriendWith(room, target, p))
+                        count++;
+
+                count += target.GetPile("heavenly_army").Count;
+
+                return count;
+            }
+
+            return 0;
+        }
+    }
+    /*
     public class PeaceSpellSkill : ArmorSkill
     {
         public PeaceSpellSkill() : base("PeaceSpell")
@@ -303,6 +474,7 @@ namespace SanguoshaServer.Game
         }
         
     }
+    */
     public class LuminouSpearl : Treasure
     {
         public LuminouSpearl() : base("LuminouSpearl")
@@ -353,5 +525,83 @@ namespace SanguoshaServer.Game
             viewhas_skills.Add("zhiheng");
         }
         public override bool ViewHas(Room room, Player player, string skill_name) => player.HasTreasure("LuminouSpearl");
+    }
+
+    public class DragonCarriage : SpecialEquip
+    {
+        public DragonCarriage() : base("DragonCarriage")
+        {
+        }
+    }
+
+    public class DragonCarriageSkill : TriggerSkill
+    {
+        public DragonCarriageSkill() : base("DragonCarriage")
+        {
+            global = true;
+            events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime };
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is CardsMoveOneTimeStruct move && move.To != null && move.To_place == Player.Place.PlaceEquip && (move.To.GetOffensiveHorse() || move.To.GetDefensiveHorse()))
+            {
+                bool cart = false;
+                foreach (int id in move.Card_ids)
+                {
+                    if (room.GetCard(id).Name == Name)
+                    {
+                        cart = true;
+                        break;
+                    }
+                }
+                if (cart)
+                    return new TriggerStruct(Name, move.To);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardsMoveOneTimeStruct move && move.To != null && (move.To.GetOffensiveHorse() || move.To.GetDefensiveHorse()))
+            {
+                room.SendCompulsoryTriggerLog(move.To, Name, false);
+                List<int> ids = new List<int>();
+                if (move.To.GetDefensiveHorse())
+                    ids.Add(move.To.DefensiveHorse.Key);
+                if (move.To.GetOffensiveHorse())
+                    ids.Add(move.To.OffensiveHorse.Key);
+
+                room.ThrowCard(ref ids, move.To, move.To);
+            }
+
+            return false;
+        }
+    }
+
+    public class DragonCarriageDistanceSkill : DistanceSkill
+    {
+        public DragonCarriageDistanceSkill() : base("DragonCarriage-Distance")
+        {
+        }
+
+        public override int GetCorrect(Room room, Player from, Player to, WrappedCard card = null)
+        {
+            int correct = 0;
+            if (from.GetSpecialEquip() && from.GetMark("Equips_nullified_to_Yourself") == 0
+                    && (card == null || !card.SubCards.Contains(from.Special.Key)))
+            {
+                correct -= 1;
+            }
+            if (to.GetSpecialEquip() && to.GetMark("Equips_nullified_to_Yourself") == 0
+                    && (card == null || !card.SubCards.Contains(to.Special.Key)))
+            {
+                correct += 1;
+            }
+
+            return correct;
+        }
     }
 }

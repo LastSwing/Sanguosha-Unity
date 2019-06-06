@@ -55,7 +55,6 @@ namespace SanguoshaServer.Scenario
         }
 
         protected abstract void AddRuleSkill();
-
         public override int GetPriority() => 0;
         public abstract string GetWinner(Room room);
         public override bool Triggerable(Player player, Room room)
@@ -540,14 +539,15 @@ namespace SanguoshaServer.Scenario
                         data = damage;
                         room.SendDamageLog(damage);
 
-                        room.ApplyDamage(player, damage);
+                        bool reduce = !room.ApplyDamage(player, damage);
                         if (damage.Nature != DamageNature.Normal && player.Chained && !damage.Chain)
                         {
                             int n = room.ContainsTag("is_chained") ? (int)room.GetTag("is_chained") : 0;
                             n++;
                             room.SetTag("is_chained", n);
                         }
-                        room.RoomThread.Trigger(TriggerEvent.PostHpReduced, room, player, ref data);
+                        if (reduce)
+                            room.RoomThread.Trigger(TriggerEvent.PostHpReduced, room, player, ref data);
 
                         break;
                     }

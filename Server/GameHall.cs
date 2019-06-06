@@ -207,33 +207,36 @@ namespace SanguoshaServer
         #endregion
 
         #region 客户端登录成功时
-        public void OnConnected(Client temp, EventArgs e)
+        public void OnConnected(object sender, EventArgs e)
         {
             lock (this)
             {
-                //同名已连接用户强制离线
-                bool same = HandleSameAccount(temp.UserID);
-
-                //Add the client to the Hashtable 
-                UId2ClientTable.Add(temp.UserID, temp);
-                OutPut("Client Connected:" + temp.UserID);
-
-                //check last game is over
-                bool reconnect = false;
-                if (temp.GameRoom > 0)
+                if (sender is Client temp)
                 {
-                    if (RId2Room.ContainsKey(temp.GameRoom) && RId2Room[temp.GameRoom].GameStarted)
-                    {
-                        reconnect = true;
-                    }
-                    else
-                    {
-                        //更新用户room id
-                        DB.UpdateGameRoom(temp.UserName, -1);
-                    }
-                }
+                    //同名已连接用户强制离线
+                    bool same = HandleSameAccount(temp.UserID);
 
-                InterHall(temp, reconnect);
+                    //Add the client to the Hashtable 
+                    UId2ClientTable.Add(temp.UserID, temp);
+                    OutPut("Client Connected:" + temp.UserID);
+
+                    //check last game is over
+                    bool reconnect = false;
+                    if (temp.GameRoom > 0)
+                    {
+                        if (RId2Room.ContainsKey(temp.GameRoom) && RId2Room[temp.GameRoom].GameStarted)
+                        {
+                            reconnect = true;
+                        }
+                        else
+                        {
+                            //更新用户room id
+                            DB.UpdateGameRoom(temp.UserName, -1);
+                        }
+                    }
+
+                    InterHall(temp, reconnect);
+                }
             }
         }
 
@@ -414,9 +417,10 @@ namespace SanguoshaServer
                     if (!mode.PlayerNum.Contains(setting.PlayerNum))
                         setting.PlayerNum = mode.PlayerNum[0];
 
+                    List<string> general_p = new List<string>();
                     foreach (string general in setting.GeneralPackage)
                     {
-                        if (!mode.GeneralPackage.Contains(general))
+                        if (mode.GeneralPackage.Contains(general))
                         {
                             setting.GeneralPackage = mode.GeneralPackage;
                             break;
@@ -537,6 +541,7 @@ namespace SanguoshaServer
                 }
                 RoomList.Instance().RemoveRoom(room.RoomId);
                 int room_id = room.RoomId;
+                room.Dispose();
                 room = null;
 
                 MyData data = new MyData

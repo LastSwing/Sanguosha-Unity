@@ -622,11 +622,15 @@ namespace CommonClass.Game
     public struct JudgeStruct
     {
         //public JudgeStruct();
-        public bool IsGood() => _m_result == TrialResult.TRIAL_RESULT_GOOD;
+        public bool IsGood()
+        {
+            bool effected = IsEffected();
+            return Negative != effected;
+        }
         public bool IsBad() => !IsGood();
         public bool IsEffected()
         {
-            return Negative ? IsBad() : IsGood();
+            return _m_result == TrialResult.TRIAL_RESULT_GOOD;
         }
         public void UpdateResult(bool effected)
         {

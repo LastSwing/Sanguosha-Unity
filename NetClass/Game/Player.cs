@@ -80,6 +80,7 @@ namespace CommonClass.Game
         public KeyValuePair<int, string> DefensiveHorse { set; get; } = new KeyValuePair<int, string>(-1, null);
         public KeyValuePair<int, string> OffensiveHorse { set; get; } = new KeyValuePair<int, string>(-1, null);
         public KeyValuePair<int, string> Treasure { set; get; } = new KeyValuePair<int, string>(-1, null);
+        public KeyValuePair<int, string> Special { set; get; } = new KeyValuePair<int, string>(-1, null);
         public bool FaceUp { set; get; } = true;
         public bool Chained { set; get; } = false;
         public bool Removed { set; get; } = false;
@@ -102,6 +103,10 @@ namespace CommonClass.Game
 
         private int _maxHp;
         private Dictionary<string, object> tag = new Dictionary<string, object>();
+        private Dictionary<int, bool> equip_state = new Dictionary<int, bool>
+        {
+            { 0,true },{ 1,true },{ 2,true },{ 3,true },{ 4,true },{ 5,true }
+        };
 
         public object GetTag(string key)
         {
@@ -135,6 +140,9 @@ namespace CommonClass.Game
             HeadAcquiredSkills = other.HeadAcquiredSkills;
             DeputyAcquiredSkills = other.DeputyAcquiredSkills;
             StringMarks = other.StringMarks;
+
+            if (other.ContainsTag("huashen"))
+                SetTag("huashen", other.GetTag("huashen"));
         }
 
         //绝对不能给Player类设置class类的tag
@@ -278,6 +286,7 @@ namespace CommonClass.Game
         public bool GetDefensiveHorse() => DefensiveHorse.Key > -1;
         public bool GetOffensiveHorse() => OffensiveHorse.Key > -1;
         public bool GetTreasure() => Treasure.Key > -1;
+        public bool GetSpecialEquip() => Special.Key > -1;
 
         public List<int> GetCards(string flags)
         {
@@ -309,7 +318,7 @@ namespace CommonClass.Game
 
         public bool HasEquip()
         {
-            return Weapon.Key != -1 || Armor.Key != -1 || DefensiveHorse.Key != -1 || OffensiveHorse.Key != -1 || Treasure.Key != -1;
+            return Weapon.Key != -1 || Armor.Key != -1 || DefensiveHorse.Key != -1 || OffensiveHorse.Key != -1 || Treasure.Key != -1 || Special.Key != -1;
         }
         public bool HasEquip(int location)
         {
@@ -325,6 +334,8 @@ namespace CommonClass.Game
                     return GetOffensiveHorse();
                 case 4:
                     return GetTreasure();
+                case 5:
+                    return GetSpecialEquip();
                 default:
                     return false;
             }
@@ -336,7 +347,8 @@ namespace CommonClass.Game
                 || (!string.IsNullOrEmpty(Armor.Value) && Armor.Value == name)
                 || (!string.IsNullOrEmpty(DefensiveHorse.Value) && DefensiveHorse.Value == name)
                 || (!string.IsNullOrEmpty(OffensiveHorse.Value) && OffensiveHorse.Value == name)
-                || (!string.IsNullOrEmpty(Treasure.Value) && Treasure.Value == name);
+                || (!string.IsNullOrEmpty(Treasure.Value) && Treasure.Value == name)
+                || (!string.IsNullOrEmpty(Special.Value) && Special.Value == name);
         }
 
         public List<int> GetEquips()
@@ -352,6 +364,8 @@ namespace CommonClass.Game
                 equips.Add(OffensiveHorse.Key);
             if (Treasure.Key != -1)
                 equips.Add(Treasure.Key);
+            if (Special.Key != -1)
+                equips.Add(Special.Key);
 
             return equips;
         }
@@ -364,9 +378,31 @@ namespace CommonClass.Game
                 case 2: return DefensiveHorse.Key;
                 case 3: return OffensiveHorse.Key;
                 case 4: return Treasure.Key;
+                case 5: return Special.Key;
                 default:
                     return -1;
             }
+        }
+
+        public void BanEquip(int index)
+        {
+            if (equip_state.Keys.Contains(index))
+                equip_state[index] = false;
+        }
+        public void RecoverEquip(int index)
+        {
+            if (equip_state.Keys.Contains(index))
+                equip_state[index] = true;
+        }
+
+        public bool CanPutEquip(int index)
+        {
+            if (equip_state.Keys.Contains(index))
+            {
+                return equip_state[index] && (index != 2 && index != 3 || !GetSpecialEquip());
+            }
+
+            return false;
         }
 
         public bool HasWeapon(string weapon_name)
@@ -758,6 +794,9 @@ namespace CommonClass.Game
                 case 4:
                     Treasure = new KeyValuePair<int, string>(-1, null);
                     break;
+                case 5:
+                    Special = new KeyValuePair<int, string>(-1, null);
+                    break;
             }
         }
 
@@ -790,6 +829,9 @@ namespace CommonClass.Game
                     break;
                 case 4:
                     Treasure = new KeyValuePair<int, string>(equip.Id, equip.Name);
+                    break;
+                case 5:
+                    Special = new KeyValuePair<int, string>(equip.Id, equip.Name);
                     break;
             }
         }

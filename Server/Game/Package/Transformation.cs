@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
+using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Game.FunctionCard;
 
@@ -38,7 +40,10 @@ namespace SanguoshaServer.Package
                 new FlameMapSkill(),
                 new YingziExtra(),
                 new HaoshiExtra(),
-                new Shelie()
+                new Shelie(),
+                new Huashen(),
+                new HuashenClear(),
+                new Xinsheng(),
             };
             skill_cards = new List<FunctionCard>
             {
@@ -47,15 +52,16 @@ namespace SanguoshaServer.Package
                 new XiongsuanCard(),
                 new SanyaoCard(),
                 new YongjinCard(),
-                new DiaoduequipCard(),
-                new DiaoduCard(),
+                //new DiaoduequipCard(),
+                //new DiaoduCard(),
                 new LianziCard(),
                 new FlameMapCard(),
             };
             related_skills = new Dictionary<string, List<string>>
             {
                 { "zhiman", new List<string>{ "#zhiman-second" } },
-                { "jiahe", new List<string>{ "#jiahe-clear" } }
+                { "jiahe", new List<string>{ "#jiahe-clear" } },
+                { "huashen", new List<string>{ "#huashen-clear" } }
             };
         }
     }
@@ -372,7 +378,7 @@ namespace SanguoshaServer.Game
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.PreCardUsed && data is CardUseStruct use)
+            if (triggerEvent == TriggerEvent.PreCardUsed && data is CardUseStruct use && player.GetMark(Name + "_transform") == 0)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard.TypeID == CardType.TypeTrick && use.Card.Skill == Name && use.From != null && use.From == player)
@@ -401,6 +407,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            player.AddMark(Name + "_transform");
             room.TransformDeputyGeneral(player);
             return false;
         }
@@ -742,297 +749,178 @@ namespace SanguoshaServer.Game
     }
 
     //zuoci
-    //HuashenCard::HuashenCard()
-    //{
-    //    will_throw = false;
-    //}
+    public class Huashen : TriggerSkill
+    {
+        public Huashen() : base("huashen")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.GameStart };
+            skill_type = SkillType.Wizzard;
+        }
 
-    //bool HuashenCard::targetFilter(const List<Player> &targets, Player to_select, Player Self) const
-    //{
-    //    string c = getUsernull;
-    //Card* mutable_card;
-    //    if (c.endsWith("Card"))
-    //        mutable_card = Sanguosha.cloneSkillCard(c);
-    //    else
-    //        mutable_card = Sanguosha.cloneCard(c);
-    //    if (mutable_card) {
-    //        mutable_card.AddSubCards(subcards);
-    //mutable_card.deleteLater();
-    //    }
+        public static void Acquiregenerals(Room room, Player zuoci, int n)
+        {
+            List<string> huashens = zuoci.ContainsTag("huashen") ? (List<string>)zuoci.GetTag("huashen") : new List<string>();
+            List<string> acquired = GetavailableGenerals(room, zuoci, n);
 
-    //    return mutable_card && mutable_card.targetFilter(targets, to_select, Self) && !Self.isProhibited(to_select, mutable_card, targets);
-    //}
+            if (acquired.Count == 0) return;
 
-    //bool HuashenCard::targetFixed() const
-    //{
-    //    string c = getUsernull;
-    //Card* mutable_card;
-    //    if (c.endsWith("Card"))
-    //        mutable_card = Sanguosha.cloneSkillCard(c);
-    //    else
-    //        mutable_card = Sanguosha.cloneCard(c);
-    //    if (mutable_card) {
-    //        mutable_card.AddSubCards(subcards);
-    //mutable_card.deleteLater();
-    //    }
+            foreach (string general in acquired)
+                room.HandleUsedGeneral(general);
 
-    //    return mutable_card && mutable_card.targetFixed();
-    //}
+            huashens.AddRange(acquired);
+            zuoci.SetTag("huashen", huashens);
+            room.AddPlayerMark(zuoci, "@huashen", acquired.Count);
 
-    //bool HuashenCard::targetsFeasible(const List<Player> &targets, Player Self) const
-    //{
-    //    string c = getUsernull;
-    //Card* mutable_card;
-    //    if (c.endsWith("Card"))
-    //        mutable_card = Sanguosha.cloneSkillCard(c);
-    //    else
-    //        mutable_card = Sanguosha.cloneCard(c);
-    //    if (mutable_card) {
-    //        mutable_card.AddSubCards(subcards);
-    //mutable_card.deleteLater();
-    //    }
+            List<Player> others = new List<Player>();
+            List<Client> clients = new List<Client>();
+            foreach (Player p in room.GetOtherPlayers(zuoci))
+            {
+                Client c = room.GetClient(p);
+                if (c != room.GetClient(zuoci) && !clients.Contains(c))
+                {
+                    others.Add(p);
+                    clients.Add(c);
+                }
+            }
+            LogMessage log = new LogMessage
+            {
+                Type = "#gethuashendetail",
+                From = zuoci.Name,
+                Arg = string.Join("\\, \\", acquired)
+            };
 
-    //    return mutable_card && mutable_card.targetsFeasible(targets, Self);
-    //}
+            LogMessage log1 = new LogMessage
+            {
+                Type = "#gethuashen",
+                From = zuoci.Name,
+                Arg = acquired.Count.ToString()
+            };
 
-    //WrappedCard HuashenCard::validate(CardUseStruct &card_use) const
-    //{
-    //    string c = getUsernull;
-    //Card* mutable_card;
-    //    if (c.endsWith("Card"))
-    //        mutable_card = Sanguosha.cloneSkillCard(c);
-    //    else
-    //        mutable_card = Sanguosha.cloneCard(c);
-    //    if (mutable_card) {
-    //        mutable_card.AddSubCards(subcards);
-    //mutable_card.Skill = "huashen");
-    //removeHuashen(card_use.From, Sanguosha.getHuashenGeneral(showSkill()));
-    //    }
+            room.SendLog(log, zuoci);
+            room.SendLog(log1, new List<Player> { zuoci });
 
-    //    return mutable_card;
-    //}
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", acquired), string.Format("null+{0}", zuoci.Name), new List<Player> { zuoci });
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, "-1+-1", string.Format("null+{0}", zuoci.Name), others);
+            Thread.Sleep(1500);
+        }
 
-    //WrappedCard HuashenCard::validateInResponse(Player player) const
-    //{
-    //    string c = getUsernull;
-    //Card* mutable_card;
-    //    if (c.endsWith("Card"))
-    //        mutable_card = Sanguosha.cloneSkillCard(c);
-    //    else
-    //        mutable_card = Sanguosha.cloneCard(c);
-    //    if (mutable_card) {
-    //        mutable_card.AddSubCards(subcards);
-    //mutable_card.Skill = "huashen");
-    //removeHuashen(player, Sanguosha.getHuashenGeneral(showSkill()));
-    //    }
+        public static void RemoveHuashen(Room room, Player zuoci, List<string> generals)
+        {
+            List<string> huashens = zuoci.ContainsTag("huashen") ? (List<string>)zuoci.GetTag("huashen") : new List<string>();
+            List<string> remove = new List<string>();
+            foreach (string name in generals)
+            {
+                if (huashens.Contains(name))
+                {
+                    remove.Add(name);
+                    room.HandleUsedGeneral("-" + name);
+                }
+            }
+            if (remove.Count == 0) return;
 
-    //    return mutable_card;
-    //}
+            huashens.RemoveAll(t => remove.Contains(t));
+            zuoci.SetTag("huashen", huashens);
+            room.AddPlayerMark(zuoci, "@huashen", -remove.Count);
 
-    //class HuashenVS : public ZeroCardViewAsSkill
-    //{
-    //public:
-    //    HuashenVS() : ZeroCardViewAsSkill("huashen")
-    //{
-    //}
+            LogMessage log = new LogMessage
+            {
+                Type = "#drophuashendetail",
+                From = zuoci.Name,
+                Arg = string.Join("\\, \\", remove)
+            };
+            room.SendLog(log);
 
-    //virtual bool isEnabledAtPlay(Player player) const
-    //    {
-    //        return !player.getHuashen().Count == 0;
-    //    }
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", remove), string.Format("{0}+null", zuoci.Name));
+            Thread.Sleep(1500);
+        }
 
-    //    virtual bool isEnabledAtResponse(Player player, const string &pattern) const
-    //    {
-    //        return !pattern.startsWith("@@") && !player.getHuashen().Count == 0;
-    //    }
+        public static List<string> GetavailableGenerals(Room room, Player zuoci, int n)
+        {
+            List<string> available = new List<string>();
+            foreach (string name in room.Generals)
+                if (!room.UsedGeneral.Contains(name))
+                    available.Add(name);
+            List<string> result = new List<string>();
+            Shuffle.shuffle(ref available);
+            for (int i = 0; i < Math.Min(available.Count, n); i++)
+                result.Add(available[i]);
 
-    //    virtual bool isEnabledAtNullification(Player player) const
-    //    {
-    //        Room room = player.getRoom();
-    //        if (player.tag["Huashens"].ToStringList().Contains("wolong")) {
-    //            List<WrappedCard> handlist = player.getHandcards();
-    //            foreach (int id, player.getHandPile()) {
-    //                WrappedCard ca = room.getCard(id);
-    //handlist.Add(ca);
-    //            }
-    //            foreach (WrappedCard ca, handlist) {
-    //                if (ca.isBlack())
-    //                    return true;
-    //            }
-    //        }
+            return result;
+        }
 
-    //        return false;
-    //    }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player != null && base.Triggerable(player, room))
+            {
+                return new TriggerStruct(Name, player);
+            }
 
-    //    virtual WrappedCard viewAs(const ServerPlayer *) const
-    //    {
-    //        return null;
-    //    }
-    //};
+            return new TriggerStruct();
+        }
 
-    //bool hasHuashenSkill(Player zuoci, string skill_name)
-    //{
-    //    if (!zuoci || !zuoci.Alive || !zuoci.hasSkill("huashen")) return false;
-    //    List<string> huashens = zuoci.tag["Huashens"].ToStringList();
-    //    foreach (string general, huashens)
-    //        if (Sanguosha.getHuashenSkills(general).Contains(skill_name))
-    //        return true;
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                return info;
+            }
+            return new TriggerStruct();
+        }
 
-    //    return false;
-    //}
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Acquiregenerals(room, player, 2);
+            return false;
+        }
 
-    //void removeHuashen(Player zuoci, string general)
-    //{
-    //    if (general.Count == 0) return;
-    //    Room room = zuoci.getRoom();
-    //    List<string> huashens = zuoci.tag["Huashens"].ToStringList();
-    //    huashens.removeAll(general);
-    //    zuoci.tag["Huashens"] = huashens;
-    //    room.handleUsedGeneral("-" + general);
+        public override int GetEffectIndex(Room room, Player player, WrappedCard card)
+        {
+            return 2;
+        }
+    }
 
-    //    LogMessage log;
-    //    log.type = "#dropHuashenDetail";
-    //    log.From = zuoci;
-    //    log.arg = general;
-    //    room.sendLog(log);
+    public class HuashenClear : DetachEffectSkill
+    {
+        public HuashenClear() : base("huashen", string.Empty)
+        {
+        }
+        public override void OnSkillDetached(Room room, Player zuoci, object data)
+        {
+            List<string> huashens = zuoci.ContainsTag("huashen") ? (List<string>)zuoci.GetTag("huashen") : new List<string>();
+            Huashen.RemoveHuashen(room, zuoci, huashens);
+        }
+    };
+ 
+    public class Xinsheng : MasochismSkill
+    {
+        public Xinsheng() : base("xinsheng")
+        {
+            frequency = Frequency.Frequent;
+            skill_type = SkillType.Masochism;
+        }
+        public override bool Triggerable(Player target, Room room)
+        {
+            return base.Triggerable(target, room);
+        }
 
-    //    room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, zuoci.Name, "-" + general);
-    //}
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
 
-    //void AcquireGenerals(Player zuoci, int n)
-    //{
-    //    Room room = zuoci.getRoom();
-    //    List<string> huashens = zuoci.tag["Huashens"].ToStringList();
-    //    List<string> acquired = GetAvailableGenerals(zuoci, n);
-    //    List<string> result;
+            return new TriggerStruct();
+        }
 
-    //    if (acquired.Count > 2)
-    //    {
-    //        for (int i = 0; i < 2; i++)
-    //        {
-    //            string general = room.askForGeneral(zuoci, acquired, null, true, "@huashen1");
-    //            acquired.removeAll(general);
-    //            result.Add(general;
-    //        }
-    //    }
-    //    else
-    //        result = acquired;
-
-    //    if (result.Count == 0) return;
-
-    //    foreach (string general, result)
-    //        room.handleUsedGeneral(general);
-
-    //    huashens.Add(result;
-    //    zuoci.tag["Huashens"] = huashens;
-
-    //    room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, zuoci.Name, result.join(":"));
-
-    //    LogMessage log;
-    //    log.type = "#GetHuashenDetail";
-    //    log.From = zuoci;
-    //    log.arg = result.join("\\, \\");
-
-    //    LogMessage log1;
-    //    log1.type = "#GetHuashen";
-    //    log1.From = zuoci;
-    //    log1.arg = string::number(result.Count);
-
-
-    //    room.sendLog(log, zuoci);
-    //    room.sendLog(log1, List<Player>().Add(zuoci);
-    //}
-
-    //List<string> GetAvailableGenerals(Player zuoci, int n)
-    //{
-    //    Room room = zuoci.getRoom();
-    //    List<string> available;
-    //    foreach (string name, Sanguosha.getLimitedGeneralNames())
-    //        if (Sanguosha.getHuashenGenerals().Contains(name) && !room.getUsedGeneral().Contains(name))
-    //        available.Add(name;
-
-    //    qShuffle(available);
-    //    if (available.Count == 0) return List<string>();
-    //    n = qMin(n, available.Count);
-
-    //    return available.mid(0, n);
-    //}
-
-    //class Huashen : public PhaseChangeSkill
-    //{
-    //public:
-    //    Huashen() : PhaseChangeSkill("huashen")
-    //{
-    //    view_as_skill = new HuashenVS;
-    //    skill_type = Wizzard;
-    //}
-
-    //virtual bool canPreshow() const
-    //    {
-    //        return true;
-    //    }
-
-    //    virtual bool triggerable(Player player) const
-    //    {
-    //        Room room = player.getRoom();
-    //        return base.Triggerable(player) && player.Phase == Player::Start
-    //                && player.tag["Huashens"].ToStringList().Count != 2 && !GetAvailableGenerals(room.findPlayer(player.Name), 1).Count == 0;
-    //    }
-    //    virtual TriggerStruct cost(TriggerEvent, Room room, Player player, QVariant &, Player, TriggerStruct info) const
-    //    {
-    //        if (player.AskForSkillInvoke(this, QVariant(), info.SkillPosition)) {
-    //            room.BroadcastSkillInvoke(Name, player.isMale()? "male" : "female", 1, player, info.SkillPosition);
-    //            return info;
-    //        }
-
-    //        return new TriggerStruct();
-    //    }
-    //    virtual bool onPhaseChange(Player zuoci, TriggerStruct ) const
-    //    {
-    //        List<string> huashens = zuoci.tag["Huashens"].ToStringList();
-    //Room room = zuoci.getRoom();
-    //        if (huashens.Count < 2)
-    //            AcquireGenerals(zuoci, 5);
-    //        else if (huashens.Count > 2) {
-    //            string general = room.askForGeneral(zuoci, huashens, null, true, "@huashen2");
-    //AcquireGenerals(zuoci, 1);
-    //removeHuashen(zuoci, general);
-    //        }
-
-    //        return false;
-    //    }
-
-    //    virtual int getEffectIndex(Player, WrappedCard) const
-    //    {
-    //        return 2;
-    //    }
-    //};
-
-    //class HuashenClear : public DetachEffectSkill
-    //{
-    //public:
-    //    HuashenClear() : DetachEffectSkill("huashen")
-    //{
-    //}
-    //virtual void onSkillDetached(Room room, Player player, QVariant &) const
-    //    {
-    //        List<string> huashens = player.tag["Huashens"].ToStringList();
-    //List<string> drops;
-    //        foreach (string name, huashens) {
-    //            drops.Add("-" + name;
-    //            room.handleUsedGeneral("-" + name);
-    //        }
-
-    //        LogMessage log;
-    //log.type = "#dropHuashenDetail";
-    //        log.From = player;
-    //        log.arg = huashens.join("\\, \\");
-    //        room.sendLog(log);
-
-    //room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, player.Name, drops.join(":"));
-    //        player.tag.remove("Huashens");
-    //    }
-    //};
+        public override void OnDamaged(Room room, Player target, DamageStruct damage, TriggerStruct info)
+        {
+            Huashen.Acquiregenerals(room, target, 1);
+        }
+    }
 
     //class Xinsheng : public MasochismSkill
     //{
@@ -1271,10 +1159,11 @@ namespace SanguoshaServer.Game
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name);
                 room.ObtainCard(player, room.GetCard(card_id), reason);
             }
-            if (RoomLogic.IsFriendWith(room, to, player) && RoomLogic.CanTransform(to)
+            if (player.GetMark(Name + "_transform") == 0 && RoomLogic.IsFriendWith(room, to, player) && RoomLogic.CanTransform(to)
                     && room.AskForSkillInvoke(to, "transform"))
             {
                 //room.BroadcastSkillInvoke("transform", to.isMale());
+                player.AddMark(Name + "_transform");
                 room.TransformDeputyGeneral(to);
             }
             return false;
@@ -1455,6 +1344,7 @@ namespace SanguoshaServer.Game
             return check && player.GetMark("@yong") >= 1;
         }
     }
+
     //lvfan
     public class DiaoduequipCard : SkillCard
     {
@@ -1574,6 +1464,7 @@ namespace SanguoshaServer.Game
             return dd;
         }
     }
+
     public class Diancai : TriggerSkill
     {
         public Diancai() : base("diancai")
@@ -1620,9 +1511,10 @@ namespace SanguoshaServer.Game
             if (ask_who.HandcardNum < ask_who.MaxHp)
                 room.DrawCards(ask_who, ask_who.MaxHp - ask_who.HandcardNum, Name);
 
-            if (RoomLogic.CanTransform(ask_who) && room.AskForSkillInvoke(ask_who, "transform"))
+            if (player.GetMark(Name + "_transform") == 0 && RoomLogic.CanTransform(ask_who) && room.AskForSkillInvoke(ask_who, "transform"))
             {
                 //room.BroadcastSkillInvoke("transform", ask_who.isMale());
+                player.AddMark(Name + "_transform");
                 room.TransformDeputyGeneral(ask_who);
             }
             return false;

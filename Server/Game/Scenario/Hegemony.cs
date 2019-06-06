@@ -201,7 +201,9 @@ namespace SanguoshaServer.Scenario
             {
                 foreach (int id in Engine.GetGameCards(room.Setting.CardPackage))
                     if (Engine.GetRealCard(id).Name != "DoubleSword"
-                        && Engine.GetRealCard(id).Name != "JingFan" && Engine.GetRealCard(id).Name != "SixSwords")
+                        && Engine.GetRealCard(id).Name != "JingFan"
+                        && Engine.GetRealCard(id).Name != "SixSwords"
+                        && Engine.GetRealCard(id).Name != "Zhuahuangfeidian")
                         game_cards.Add(id);
             }
             else

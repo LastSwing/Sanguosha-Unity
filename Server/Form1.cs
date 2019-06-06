@@ -23,14 +23,14 @@ namespace SanguoshaServer
 
             hall = new GameHall(this);
 
-            serverThread = new Thread(new ThreadStart(startListen));
+            serverThread = new Thread(new ThreadStart(StartListen));
             serverThread.Start();
 
             AddLog("Socket Server Started");
         }
         
 
-        public void startListen()
+        public void StartListen()
         {
             string[] ip_address = ConfigurationManager.AppSettings["ServerIP"].Split(':');
             serverListener = new MsgPackServer();
@@ -86,6 +86,9 @@ namespace SanguoshaServer
                 {
                     components.Dispose();
                 }
+
+                if (serverListener != null)
+                    serverListener.Dispose();
             }
             base.Dispose(disposing);
         }

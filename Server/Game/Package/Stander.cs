@@ -365,6 +365,7 @@ namespace SanguoshaServer.Game
             JudgeStruct judge = new JudgeStruct
             {
                 Pattern = ".|heart",
+                Negative = true,
                 Good = false,
                 Reason = Name,
                 PlayAnimation = true,
@@ -373,7 +374,7 @@ namespace SanguoshaServer.Game
 
             room.Judge(ref judge);
             if (from == null || !from.Alive) return;
-            if (judge.IsGood())
+            if (judge.IsBad())
             {
                 bool discard = false;
                 if (from.HandcardNum >= 2)
@@ -440,10 +441,10 @@ namespace SanguoshaServer.Game
             string str = "tuxi_invoke" + source.Name;
             List<Player> targets = room.ContainsTag(str) ? (List<Player>)room.GetTag(str) : new List<Player>();
             room.RemoveTag(str);
-
+            int id = room.AskForCardChosen(source, targets[0], "h", Name, false, HandlingMethod.MethodGet);
             CardsMoveStruct move1 = new CardsMoveStruct
             {
-                Card_ids = new List<int> { room.AskForCardChosen(source, targets[0], "h", Name, false, HandlingMethod.MethodGet) },
+                Card_ids = new List<int> { id },
                 To = source.Name,
                 To_place = Place.PlaceHand,
                 Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, source.Name, targets[0].Name, Name, null)
@@ -451,9 +452,10 @@ namespace SanguoshaServer.Game
             List<CardsMoveStruct> moves = new List<CardsMoveStruct> { move1 };
             if (targets.Count == 2)
             {
+                id = room.AskForCardChosen(source, targets[1], "h", Name, false, HandlingMethod.MethodGet);
                 CardsMoveStruct move2 = new CardsMoveStruct
                 {
-                    Card_ids = new List<int> { room.AskForCardChosen(source, targets[1], "h", Name, false, HandlingMethod.MethodGet) },
+                    Card_ids = new List<int> { id },
                     To = source.Name,
                     To_place = Place.PlaceHand,
                     Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, source.Name, targets[1].Name, Name, null)
@@ -692,6 +694,9 @@ namespace SanguoshaServer.Game
                      Time_consuming = true
                  };
                 room.Judge(ref judge);
+
+                if (judge.IsBad())
+                    Thread.Sleep(1000);
             }
             while (judge.IsGood() && room.AskForSkillInvoke(zhenji, Name, null, info.SkillPosition));
 
@@ -983,11 +988,11 @@ namespace SanguoshaServer.Game
             {
                 if (targets.Count == 0)
                     return;
-
+                int id = room.AskForCardChosen(card_use.From, targets[0], "h", "qiaobian", false, HandlingMethod.MethodGet);
                 List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
                 CardsMoveStruct move1 = new CardsMoveStruct
                 {
-                    Card_ids = new List<int> { room.AskForCardChosen(card_use.From, targets[0], "h", "qiaobian", false, HandlingMethod.MethodGet) },
+                    Card_ids = new List<int> { id },
                     To = card_use.From.Name,
                     To_place = Place.PlaceHand,
                     Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, card_use.From.Name, targets[0].Name, "qiaobian", null)
@@ -995,9 +1000,10 @@ namespace SanguoshaServer.Game
                 moves.Add(move1);
                 if (targets.Count == 2)
                 {
+                    id = room.AskForCardChosen(card_use.From, targets[1], "h", "qiaobian", false, HandlingMethod.MethodGet);
                     CardsMoveStruct move2 = new CardsMoveStruct
                     {
-                        Card_ids = new List<int> { room.AskForCardChosen(card_use.From, targets[1], "h", "qiaobian", false, HandlingMethod.MethodGet) },
+                        Card_ids = new List<int> { id },
                         To = card_use.From.Name,
                         To_place = Place.PlaceHand,
                         Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, card_use.From.Name, targets[1].Name, "qiaobian", null)
@@ -1032,7 +1038,7 @@ namespace SanguoshaServer.Game
                 {
                     if (equip_index != -1)
                     {
-                        if (p.GetEquip(equip_index) < 0)
+                        if (p.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(p, card))
                             tos.Add(p);
                     }
                     else
@@ -1122,7 +1128,6 @@ namespace SanguoshaServer.Game
         {
             PhaseChangeStruct change = (PhaseChangeStruct)data;
             int index = (int)(change.To);
-
             string discard_prompt = string.Format("#qiaobian:::{0}", phase_strings[index]);
 
             if (room.AskForDiscard(zhanghe, Name, 1, 1, true, false, discard_prompt, true, info.SkillPosition) && zhanghe.Alive)
@@ -1131,6 +1136,7 @@ namespace SanguoshaServer.Game
                 room.SkipPhase(zhanghe, change.To);
                 return info;
             }
+
             return new TriggerStruct();
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -1157,7 +1163,6 @@ namespace SanguoshaServer.Game
             }
             return false;
         }
-        
     }
 
     public class DuanliangVS : OneCardViewAsSkill
@@ -1353,7 +1358,6 @@ namespace SanguoshaServer.Game
         {
             return 2 - card.SubCards.Count;
         }
-
     }
 
     public class QuhuCard : SkillCard
@@ -1373,7 +1377,9 @@ namespace SanguoshaServer.Game
 
             if (success)
             {
+                room.SetTag("quhu", target);
                 List<Player> players = room.GetOtherPlayers(target), wolves = new List<Player>();
+                room.RemoveTag("quhu");
                 foreach (Player player in players) {
                     if (RoomLogic.InMyAttackRange(room, target, player))
                         wolves.Add(player);
@@ -4185,7 +4191,7 @@ namespace SanguoshaServer.Game
                 JudgeStruct judge = new JudgeStruct
                 {
                     Pattern = ".|spade",
-                    Good = false,
+                    Good = true,
                     Negative = true,
                     Reason = Name,
                     Who = target
@@ -6679,10 +6685,11 @@ namespace SanguoshaServer.Game
         {
             if (targets.Count > 0 || to_select == Self)
                 return false;
-            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card.SubCards[0]).Name);
+            WrappedCard equip_card = room.GetCard(card.SubCards[0]);
+            FunctionCard fcard = Engine.GetFunctionCard(equip_card.Name);
             EquipCard equip = (EquipCard)fcard;
             int equip_index = (int)equip.EquipLocation();
-            return to_select.GetEquip(equip_index) < 0;
+            return to_select.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(to_select, equip_card);
         }
         public override void Use(Room room, CardUseStruct card_use)
         {

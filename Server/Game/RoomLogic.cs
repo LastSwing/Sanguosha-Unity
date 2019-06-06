@@ -219,7 +219,7 @@ namespace SanguoshaServer.Game
                 card_str.Remove(card_str.Length - 1);
             }
             Match match = Regex.Match(card_str, @"(\w+):(\w*)\[(\w+):(\S\d?)\]=([^:]+)&(\w*)\:(\w+)\$(\w+)%(\w+)?\;(\w+)?");
-            if (match.Length > 0)
+            if (match.Success && match.Length > 0)
             {
                 string card_name = match.Groups[1].ToString();
                 string m_skillName = match.Groups[2].ToString();
@@ -382,7 +382,8 @@ namespace SanguoshaServer.Game
 
         public static bool CanTransform(Player player)
         {
-            return !string.IsNullOrEmpty(player.General2) && !player.General2.Contains("sujiang") && !player.IsDuanchang(false) && player.CanShowGeneral("hd");
+            //return !string.IsNullOrEmpty(player.General2) && !player.General2.Contains("sujiang") && !player.IsDuanchang(false) && player.CanShowGeneral("hd");
+            return !string.IsNullOrEmpty(player.General2) && !player.IsDuanchang(false) && player.CanShowGeneral("hd");
         }
 
         public static bool PlayerHasShownSkill(Room room, Player player, string skill)
@@ -958,8 +959,9 @@ namespace SanguoshaServer.Game
             { Location.WeaponLocation, "w" },
             { Location.ArmorLocation, "a" },
             { Location.OffensiveHorseLocation, "o"},
-            {Location.DefensiveHorseLocation,"d" },
-            {Location.TreasureLocation, "t" }
+            { Location.DefensiveHorseLocation,"d" },
+            { Location.TreasureLocation, "t" },
+            { Location.SpecialLocation, "s" }
         };
         public static bool CanGetCard(Room room, Player from, Player to, int card_id)
         {
@@ -1091,6 +1093,7 @@ namespace SanguoshaServer.Game
                     big_kingdoms.Add(kingdom);
                 }
             }
+
             return big_kingdoms;
         }
         public static bool CanBeChainedBy(Room room, Player target, Player _source)
@@ -1102,7 +1105,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                if (RoomLogic.HasArmorEffect(room, target, "IronArmor"))
+                if (HasArmorEffect(room, target, "IronArmor"))
                 {
                     List<string> big_kingdoms = GetBigKingdoms(room);
                     if (big_kingdoms.Count > 0)
@@ -1200,6 +1203,39 @@ namespace SanguoshaServer.Game
                     return player;
             }
             return null;
+        }
+
+        public static bool CanPutEquip(Room room, Player player, int id)
+        {
+            WrappedCard card = room.GetCard(id);
+            return CanPutEquip(player, card);
+        }
+
+        public static bool CanPutEquip(Player player, WrappedCard card)
+        {
+            if (card != null && player != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (fcard != null)
+                {
+                    int index = -1;
+                    if (fcard is Weapon)
+                        index = 0;
+                    else if (fcard is Armor)
+                        index = 1;
+                    else if (fcard is DefensiveHorse)
+                        index = 2;
+                    else if (fcard is OffensiveHorse)
+                        index = 3;
+                    else if (fcard is Treasure)
+                        index = 4;
+                    else if (fcard is SpecialEquip)
+                        index = 5;
+
+                    return player.CanPutEquip(index);
+                }
+            }
+            return false;
         }
     }
 }

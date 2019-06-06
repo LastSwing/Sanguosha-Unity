@@ -42,8 +42,8 @@ namespace SanguoshaServer
                     dt.Load(SqlDr);
                     //关闭对象和连接
                     SqlDr.Close();
-                    SqlDrConn.Close();
                 }
+                //SqlDrConn.Close();
                 return dt;
             }
         }
@@ -84,6 +84,7 @@ namespace SanguoshaServer
             UpdateData(sql);
         }
 
+        /*
         public static void UpdateDB(string DestinationDB, int uid, List<string> names, List<string> values)
         {
             if (names.Count != values.Count) return;
@@ -103,13 +104,14 @@ namespace SanguoshaServer
                 SqlDataReader dr = Command.ExecuteReader(CommandBehavior.CloseConnection);
 
                 string sql = string.Format("update {0} where uid = @uid set {1} = {2}", DestinationDB, name, value);
+                //string sql = "update @DestinationDB where uid = @uid set @name = @value";
+
                 SqlCommand myCommand = new SqlCommand(sql, myConnection);
-
                 myCommand.ExecuteNonQuery();
-                myConnection.Close();
             }
+            myConnection.Close();
         }
-
+        */
         //获取
 
         public static void UpdateScore(string UserID, int Score)

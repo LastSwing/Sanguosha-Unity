@@ -457,7 +457,7 @@ namespace SanguoshaServer.Game
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
-            List<Player> players = room.GetAlivePlayers();
+            List<Player> players = room.GetOtherPlayers(player);
             foreach (Player p in players)
             {
                 if (RoomLogic.IsProhibited(room, player, p, card) != null)
@@ -525,7 +525,7 @@ namespace SanguoshaServer.Game
 
     public abstract class DelayedTrick : TrickCard
     {
-        protected JudgeStruct judge;
+        protected JudgeStruct judge = new JudgeStruct();
         private bool movable;
         public DelayedTrick(string name, bool movable = false) : base(name)
         {
@@ -705,7 +705,7 @@ namespace SanguoshaServer.Game
                 Who = effect.To
             };
             room.Judge(ref judge_struct);
-            if (judge_struct.IsBad())
+            if (judge_struct.IsEffected())
             {
                 TakeEffect(room, effect.To, card);
                 List<int> table_cardids = room.GetCardIdsOnTable(card);
@@ -744,7 +744,8 @@ namespace SanguoshaServer.Game
             ArmorLocation,
             DefensiveHorseLocation,
             OffensiveHorseLocation,
-            TreasureLocation
+            TreasureLocation,
+            SpecialLocation
         };
         public EquipCard(string name) : base(name)
         {
@@ -754,7 +755,8 @@ namespace SanguoshaServer.Game
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
-            return RoomLogic.IsProhibited(room, player, player, card) == null && !player.HasEquip(card.Name) && base.IsAvailable(room, player, card);
+            return RoomLogic.IsProhibited(room, player, player, card) == null
+                && RoomLogic.CanPutEquip(player, card) && base.IsAvailable(room, player, card);
         }
         public override void OnUse(Room room, CardUseStruct use)
         {
@@ -937,6 +939,17 @@ namespace SanguoshaServer.Game
         public override string GetSubtype() => "treasure";
         public override Location EquipLocation() => Location.TreasureLocation;
         public override string GetCommonEffectName() => "treasure";
+    }
+
+    public class SpecialEquip : EquipCard
+    {
+        public SpecialEquip(string name) : base(name)
+        {
+        }
+
+        public override string GetSubtype() => "special";
+        public override Location EquipLocation() => Location.SpecialLocation;
+        public override string GetCommonEffectName() => "horse";
     }
 
 

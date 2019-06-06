@@ -57,11 +57,11 @@ namespace SanguoshaServer.AI
 
         public virtual List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip) => null;
 
-        public int OnPickAG(TrustedAI ai, Player player, List<int> card_ids, bool refusable) => -1;
+        public virtual int OnPickAG(TrustedAI ai, Player player, List<int> card_ids, bool refusable) => -1;
 
         public virtual WrappedCard OnCardShow(TrustedAI ai, Player player, Player requestor, object data) => null;
 
-        public virtual WrappedCard OnPindian(TrustedAI ai, Player player, Player requestor) => null;
+        public virtual WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> player) => null;
 
         public virtual Player OnYiji(TrustedAI ai, Player player, List<int> ids, ref int id) => null;
 

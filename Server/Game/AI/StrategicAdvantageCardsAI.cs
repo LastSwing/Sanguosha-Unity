@@ -57,28 +57,12 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            if (ai.Target["transfer"] != null)
-            {
-                use.Card = card;
-                use.To.Add(ai.Target["transfer"]);
-            }
-        }
-    }
-
-    public class TransferAI : SkillEvent
-    {
-        public TransferAI() : base("transfer")
-        {
-        }
-
-        public override WrappedCard GetTurnUse(TrustedAI ai, Player player)
-        {
             Room room = ai.Room;
             List<int> ids = new List<int>();
             foreach (int id in player.HandCards)
             {
-                WrappedCard card = room.GetCard(id);
-                if (card.Transferable)
+                WrappedCard c = room.GetCard(id);
+                if (c.Transferable)
                     ids.Add(id);
             }
 
@@ -104,13 +88,28 @@ namespace SanguoshaServer.AI
                 }
                 if (friend.Count > 0)                               //可以摸牌的友方
                 {
-                    KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, friend);
-                    if (pair.Key != null)
+                    List<int> to_transfer = new List<int>();
+                    while (ids.Count > 0)
                     {
-                        WrappedCard card = new WrappedCard("TransferCard");
-                        card.AddSubCard(pair.Value);
-                        ai.Target[Name] = pair.Key;
-                        return card;
+                        KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, friend);
+                        if (pair.Key != null)
+                        {
+                            ids.Remove(pair.Value);
+                            to_transfer.Add(pair.Value);
+                            friend = new List<Player> { pair.Key };
+                            if (to_transfer.Count >= 3)
+                                break;
+                        }
+                        else
+                            break;
+                    }
+                    if (to_transfer.Count > 0 && friend.Count == 1)
+                    {
+                        card.ClearSubCards();
+                        card.AddSubCards(to_transfer);
+                        use.Card = card;
+                        use.To = friend;
+                        return;
                     }
                 }
 
@@ -134,26 +133,59 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (cards.Count == 0) return null;
+                if (cards.Count == 0) return; ;
                 if (friend_other.Count > 0)
                 {
-                    KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(cards, friend_other);
-                    if (pair.Key != null)
+                    List<int> to_transfer = new List<int>();
+                    while (cards.Count > 0)
                     {
-                        WrappedCard card = new WrappedCard("TransferCard");
-                        card.AddSubCard(pair.Value);
-                        ai.Target[Name] = pair.Key;
-                        return card;
+                        KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(cards, friend_other);
+                        if (pair.Key != null)
+                        {
+                            cards.Remove(pair.Value);
+                            to_transfer.Add(pair.Value);
+                            friend_other = new List<Player> { pair.Key };
+                            if (to_transfer.Count >= 3)
+                                break;
+                        }
+                        else
+                            break;
                     }
+                    if (to_transfer.Count > 0 && friend_other.Count == 1)
+                    {
+                        card.ClearSubCards();
+                        card.AddSubCards(to_transfer);
+                        use.Card = card;
+                        use.To = friend_other;
+                        return;
+                    }
+
                 }
 
-                if (!player.HasShownOneGeneral()) return null;
+                if (!player.HasShownOneGeneral()) return;
 
                 foreach (int id in cards)
                 {
                     WrappedCard c = room.GetCard(id);
                     if (c.Name == "ThreatenEmperor")
                     {
+                        FunctionCard fcard = Engine.GetFunctionCard(c.Name);
+                        if (fcard.IsAvailable(room, player, c))
+                        {
+                            UseCard e = Engine.GetCardUsage(c.Name);
+                            if (e != null)
+                            {
+                                CardUseStruct dummy_use = new CardUseStruct
+                                {
+                                    From = player,
+                                    IsDummy = true
+                                };
+                                e.Use(ai, player, ref dummy_use, c);
+                                if (dummy_use.Card != null && dummy_use.Card == c)
+                                    continue;
+                            }
+                        }
+
                         int anjiang = 0;
                         foreach (Player p in room.GetOtherPlayers(player))
                         {
@@ -182,10 +214,11 @@ namespace SanguoshaServer.AI
                             if (p.HasShownOneGeneral() && p.Name != big_kingdom && (!big_kingdoms.Contains(p.Kingdom) || p.Role == "careerist")
                                 && (maxNum == 99 || RoomLogic.GetPlayerNumWithSameKingdom(room, p) + anjiang < maxNum))
                             {
-                                WrappedCard card = new WrappedCard("TransferCard");
+                                card.ClearSubCards();
                                 card.AddSubCard(id);
-                                ai.Target[Name] = p;
-                                return card;
+                                use.Card = card;
+                                use.To = new List<Player> { p };
+                                return;
                             }
                         }
                     }
@@ -198,10 +231,11 @@ namespace SanguoshaServer.AI
                             {
                                 if (p.HasShownOneGeneral() && (ai.IsFriend(p) || ai.WillSkipPlayPhase(p)))
                                 {
-                                    WrappedCard card = new WrappedCard("TransferCard");
+                                    card.ClearSubCards();
                                     card.AddSubCard(id);
-                                    ai.Target[Name] = p;
-                                    return card;
+                                    use.Card = card;
+                                    use.To = new List<Player> { p };
+                                    return;
                                 }
                             }
                         }
@@ -217,16 +251,37 @@ namespace SanguoshaServer.AI
                                     damage.Damage = ai.DamageEffect(damage, DamageStruct.DamageStep.None);
                                     if (!ai.IsFriend(np) && (!np.Chained || !ai.IsGoodSpreadStarter(damage, false)))
                                     {
-                                        WrappedCard card = new WrappedCard("TransferCard");
+                                        card.ClearSubCards();
                                         card.AddSubCard(id);
-                                        ai.Target[Name] = p;
-                                        return card;
+                                        use.Card = card;
+                                        use.To = new List<Player> { p };
+                                        return;
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    public class TransferAI : SkillEvent
+    {
+        public TransferAI() : base("transfer")
+        {
+        }
+
+        public override WrappedCard GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (player.HasFlag(Name)) return null;
+
+            Room room = ai.Room;
+            foreach (int id in player.HandCards)
+            {
+                WrappedCard card = room.GetCard(id);
+                if (card.Transferable)
+                    return new WrappedCard("TransferCard");
             }
 
             return null;
@@ -911,8 +966,9 @@ namespace SanguoshaServer.AI
 
                     if (first != null && players.Count > 0)
                     {
+                        for (int i = 0; i < 2 && i < players.Count; i++)
+                            use.To.Add(players[i]);
                         use.Card = card;
-                        use.To = players;
                         return;
                     }
                 }
@@ -1044,7 +1100,10 @@ namespace SanguoshaServer.AI
                     scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
                     ScoreStruct result = scores[0];
                     Player to = result.Damage.To;
-                    if (!RoomLogic.CanSlash(room, player, to, result.Damage.Card) && RoomLogic.CanSlash(room, player, to, result.Damage.Card, -2))
+                    if (to == null && result.Players != null && result.Players.Count > 0)
+                        to = result.Players[0];
+
+                    if (to != null && !RoomLogic.CanSlash(room, player, to, result.Damage.Card) && RoomLogic.CanSlash(room, player, to, result.Damage.Card, -2))
                     {
                         int right = RoomLogic.OriginalRightDistance(room, player, to);
                         int left = room.AliveCount(false) - right;
@@ -1105,11 +1164,10 @@ namespace SanguoshaServer.AI
                     return;
                 }
             }
-
+            /*
             players.Clear();
             if (player == room.Current)
             {
-
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if (lure.TargetFilter(room, new List<Player>(), p, player, card) && ai.IsCardEffect(card, p, player))
@@ -1120,6 +1178,7 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
+            */
         }
     }
 
@@ -1342,6 +1401,12 @@ namespace SanguoshaServer.AI
         {
         }
 
+        public override string OnChoice(TrustedAI ai, Player player, string choices, object data)
+        {
+            string[] strs = choices.Split('+');
+            return strs[0];
+        }
+
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
@@ -1357,9 +1422,21 @@ namespace SanguoshaServer.AI
 
             if (from == to)
             {
-                double from_value = from.GetMark(Name);
-                if (ai.HasSkill(TrustedAI.CardneedSkill, from))
-                    from_value *= 1.5;
+                int draw = from.GetMark(Name);
+                double from_value = 0;
+                if (from.IsWounded())
+                {
+                    int heal = Math.Min(draw, from.GetLostHp());
+                    from_value += 1.5 * heal;
+                    draw -= heal;
+                    if (ai.HasSkill(TrustedAI.MasochismSkill, to))
+                        from_value += heal;
+                }
+
+                from_value += draw;
+                if (draw > 0 && ai.HasSkill(TrustedAI.CardneedSkill, from))
+                    from_value += 1.5 * draw;
+
                 if ((ai.IsFriend(to) && positive) || (ai.IsEnemy(to) && !positive))
                     from_value = 0 - from_value;
 
@@ -1382,17 +1459,17 @@ namespace SanguoshaServer.AI
                         {
                             count++;
                             value++;
-                            if (p.IsWounded())
-                            {
-                                value += 1.8;
-                                if (ai.HasSkill(TrustedAI.MasochismSkill, p))
-                                    value++;
-                            }
-                            else
-                            {
+                            //if (p.IsWounded())
+                            //{
+                            //    value += 1.8;
+                            //    if (ai.HasSkill(TrustedAI.MasochismSkill, p))
+                            //        value++;
+                            //}
+                            //else
+                            //{
                                 if (ai.HasSkill(TrustedAI.CardneedSkill, p)) value++;
                                 if (p.Chained) value++;
-                            }
+                           //}
                         }
                     }
 
@@ -1416,17 +1493,17 @@ namespace SanguoshaServer.AI
                     if (ai.IsCardEffect(trick, to, player))
                     {
                         value++;
-                        if (to.IsWounded())
-                        {
-                            value += 1.8;
-                            if (ai.HasSkill(TrustedAI.MasochismSkill, to))
-                                value++;
-                        }
-                        else
-                        {
+                        //if (to.IsWounded())
+                        //{
+                        //    value += 1.8;
+                        //    if (ai.HasSkill(TrustedAI.MasochismSkill, to))
+                        //        value++;
+                        //}
+                        //else
+                        //{
                             if (ai.HasSkill(TrustedAI.CardneedSkill, to)) value++;
                             if (to.Chained) value++;
-                        }
+                        //}
                     }
 
                     if (value > 3 && !keep)
@@ -1469,74 +1546,86 @@ namespace SanguoshaServer.AI
                     if (ai.IsFriend(target))
                     {
                         value++;
-                        if (target.IsWounded())
-                        {
-                            value += 1.8;
-                            if (ai.HasSkill(TrustedAI.MasochismSkill, target))
-                                value++;
-                        }
-                        else
-                        {
+                        //if (target.IsWounded())
+                        //{
+                        //    value += 1.8;
+                        //    if (ai.HasSkill(TrustedAI.MasochismSkill, target))
+                        //        value++;
+                        //}
+                        //else
+                        //{
                             if (ai.HasSkill(TrustedAI.CardneedSkill, target)) value++;
                             if (target.Chained) value++;
-                        }
+                        //}
                     }
                     else if (ai.IsEnemy(target))
                     {
                         value--;
-                        if (target.IsWounded())
-                        {
-                            value -= 1.8;
-                            if (ai.HasSkill(TrustedAI.MasochismSkill, target))
-                                value--;
-                        }
-                        else
-                        {
+                        //if (target.IsWounded())
+                        //{
+                        //    value -= 1.8;
+                        //    if (ai.HasSkill(TrustedAI.MasochismSkill, target))
+                        //        value--;
+                        //}
+                        //else
+                        //{
                             if (ai.HasSkill(TrustedAI.CardneedSkill, target)) value--;
                             if (target.Chained) value--;
-                        }
+                        //}
                     }
                 }
                 else
                 {
                     double self_value = 0;
                     double enemy_value = 0;
+                    int draw = 0;
                     foreach (Player p in room.GetOtherPlayers(player))
                     {
                         if (p.HasShownOneGeneral() && p.Role != "careerist" && p.Kingdom == kingdom)
                         {
-                            self_value++;
+                            draw++;
                             if (ai.HasSkill(TrustedAI.CardneedSkill, player)) self_value += 0.5;
                             if (ai.IsFriend(p) && ai.IsCardEffect(card, p, player))
                             {
                                 self_value++;
-                                if (p.IsWounded())
-                                {
-                                    self_value += 1.8;
-                                    if (ai.HasSkill(TrustedAI.MasochismSkill, p)) self_value++;
-                                }
-                                else
-                                {
+                                //if (p.IsWounded())
+                                //{
+                                //    self_value += 1.8;
+                                //    if (ai.HasSkill(TrustedAI.MasochismSkill, p)) self_value++;
+                                //}
+                                //else
+                                //{
                                     if (ai.HasSkill(TrustedAI.CardneedSkill, p)) self_value++;
                                     if (p.Chained) self_value++;
-                                }
+                                //}
                             }
                             else if (ai.IsEnemy(p) && ai.IsCardEffect(card, p, player))
                             {
                                 enemy_value++;
-                                if (p.IsWounded())
-                                {
-                                    enemy_value += 1.8;
-                                    if (ai.HasSkill(TrustedAI.MasochismSkill, p)) enemy_value++;
-                                }
-                                else
-                                {
+                                //if (p.IsWounded())
+                                //{
+                                //    enemy_value += 1.8;
+                                 //   if (ai.HasSkill(TrustedAI.MasochismSkill, p)) enemy_value++;
+                                //}
+                                //else
+                                //{
                                     if (ai.HasSkill(TrustedAI.CardneedSkill, p)) enemy_value++;
                                     if (p.Chained) enemy_value++;
-                                }
+                                //}
                             }
                         }
                     }
+
+                    if (player.IsWounded())
+                    {
+                        int heal = Math.Min(draw, player.GetLostHp());
+                        self_value += 1.5 * heal;
+                        draw -= heal;
+                        if (ai.HasSkill(TrustedAI.MasochismSkill, player))
+                            self_value += heal;
+                    }
+                    self_value += draw;
+
                     if (self_value >= 3 && enemy_value > 5 && hegnullcards.Count > 0)
                         enemy_value = enemy_value / 2;
                     value = self_value - enemy_value;
@@ -1643,9 +1732,8 @@ namespace SanguoshaServer.AI
         {
             if (ai.IsCardEffect(card, player, player) && !ai.IsCancelTarget(card, player, player))
             {
-                List<int> ids = player.GetCards("he");
-                foreach (int id in card.SubCards)
-                    ids.Remove(id);
+                List<int> ids = new List<int>(player.HandCards);
+                ids.RemoveAll(t => card.SubCards.Contains(t));
 
                 if (ai.HasSkill("jizhi") && !RoomLogic.IsVirtualCard(ai.Room, card) || ids.Count > 0)
                 {

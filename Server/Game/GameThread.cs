@@ -92,10 +92,13 @@ namespace SanguoshaServer.Game
         {
             Player starter = room.Current;
             bool new_round = false;
-            while (true) {
-                    room.BeforeTurnStart(new_round);
+            while (true)
+            {
+                room.BeforeTurnStart(new_round);
                 new_round = false;
-                Trigger(TriggerEvent.TurnStart, room, room.Current);
+
+                object data = room.Round;
+                Trigger(TriggerEvent.TurnStart, room, room.Current, ref data);
                 if (room.Finished) break;
 
                 Player regular_next = room.Current;
@@ -114,7 +117,7 @@ namespace SanguoshaServer.Game
                         extraTurnList.RemoveAt(0);
                         room.SetTag("ExtraTurnList", extraTurnList);
                         room.SetCurrent(next);
-                        Trigger(TriggerEvent.TurnStart, room, next);
+                        Trigger(TriggerEvent.TurnStart, room, next, ref data);
                         if (room.Finished) break;
                     }
                     else

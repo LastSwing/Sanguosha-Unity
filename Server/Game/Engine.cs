@@ -300,7 +300,7 @@ namespace SanguoshaServer.Game
                     {
                         Name = mode_name,
                         PlayerNum = new List<int> { int.Parse(r["players_count"].ToString()) },
-                        IsScenario = Boolean.Parse(r["is_scenario"].ToString()),
+                        IsScenario = bool.Parse(r["is_scenario"].ToString()),
                         GeneralPackage = new List<string>(),
                         CardPackage = new List<string>(),
                     };
@@ -325,7 +325,8 @@ namespace SanguoshaServer.Game
             dt = dView.ToTable();
             foreach (DataRow r in dt.Rows)
             {
-                game_modes[r["mode"].ToString()].GeneralPackage.Add(r["package_name"].ToString());
+                if (bool.Parse(r["enable"].ToString()))
+                    game_modes[r["mode"].ToString()].GeneralPackage.Add(r["package_name"].ToString());
             }
             //读取模式对应的卡牌包
             sql = "select * from card_package";
@@ -335,11 +336,12 @@ namespace SanguoshaServer.Game
             dt = dView.ToTable();
             foreach (DataRow r in dt.Rows)
             {
-                game_modes[r["mode"].ToString()].CardPackage.Add(r["package_name"].ToString());
+                if (bool.Parse(r["enable"].ToString()))
+                    game_modes[r["mode"].ToString()].CardPackage.Add(r["package_name"].ToString());
             }
 
             File.Delete("gamedata/gamemode.json");
-            File.AppendAllText("gamedata/gamemode.json", JsonUntity.Dictionary2Json<string, GameMode>(game_modes));
+            File.AppendAllText("gamedata/gamemode.json", JsonUntity.Dictionary2Json(game_modes));
         }
         private void CreateCardTable()
         {

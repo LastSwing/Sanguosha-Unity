@@ -1,7 +1,9 @@
 ﻿using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
+using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using static CommonClass.Game.Player;
 
@@ -13,6 +15,7 @@ namespace SanguoshaServer.Package
         {
             skills = new List<Skill>
             {
+                new Transfer(),         //new transfer card
                 new BladeSkill(),
                 new HalberdSkill(),
                 new HalberdTM(),
@@ -727,7 +730,7 @@ namespace SanguoshaServer.Game
 
                 room.CardEffect(effect);
             }
-            room.DrawCards(card_use.From, 1, Name);
+            //room.DrawCards(card_use.From, 1, Name);
 
             List<int> table_cardids = room.GetCardIdsOnTable(card_use.Card);
             if (table_cardids.Count > 0)
@@ -748,6 +751,58 @@ namespace SanguoshaServer.Game
             effect.From.SetFlags("LureTigerUser");
         }
     }
+    public class LureTigerSkill : TriggerSkill
+    {
+        public LureTigerSkill() : base("lure_tiger_effect")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.EventPhaseChanging, TriggerEvent.HpChanged };
+            global = true;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.HpChanged || !player.HasFlag("LureTigerUser"))
+                return;
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change)
+            {
+                if (change.To != PlayerPhase.NotActive)
+                    return;
+            }
+
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.Removed)
+                {
+                    p.Removed = false;
+                    room.BroadcastProperty(p, "Removed");
+                }
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.HpChanged && player.Removed)
+            {
+                return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(player, Name, false);
+            LogMessage log = new LogMessage
+            {
+                Type = "#lure_tiger",
+                From = player.Name
+            };
+            room.SendLog(log);
+
+            return true;
+        }
+    }
+
+    /*
     public class LureTigerSkill : TriggerSkill
     {
         public LureTigerSkill() : base("lure_tiger_effect")
@@ -780,6 +835,7 @@ namespace SanguoshaServer.Game
             return new TriggerStruct();
         }
     }
+    */
     public class LureTigerProhibit : ProhibitSkill
     {
         public LureTigerProhibit() : base("#lure_tiger-prohibit")
@@ -795,6 +851,7 @@ namespace SanguoshaServer.Game
             return false;
         }
     }
+
     class FightTogether : TrickCard
     {
         public FightTogether() : base("FightTogether") { }
@@ -892,6 +949,210 @@ namespace SanguoshaServer.Game
                 room.DrawCards(effect.To, 1, Name);
         }
     }
+    class AllianceFeast : TrickCard
+    {
+        public AllianceFeast() : base("AllianceFeast") { }
+        public override string GetSubtype() => "alliance_feast";
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (!base.TargetFilter(room, targets, to_select, Self, card)) return false;
+
+            return to_select.HasShownOneGeneral() && !RoomLogic.IsFriendWith(room, Self, to_select);
+        }
+        public override void OnUse(Room room, CardUseStruct card_use)
+        {
+            Player source = card_use.From;
+            WrappedCard card = card_use.Card;
+            List<Player> targets = new List<Player>();
+            if (card_use.To.Count == 1)
+            {
+                Player target = card_use.To[0];
+                List<Player> other_players = room.GetOtherPlayers(source);
+                foreach (Player p in other_players)
+                {
+                    if (!RoomLogic.IsFriendWith(room, target, p))
+                        continue;
+                    Skill skill = RoomLogic.IsProhibited(room, source, p, card);
+                    if (skill != null)
+                    {
+                        skill = Engine.GetMainSkill(skill.Name);
+                        LogMessage _log = new LogMessage
+                        {
+                            Type = "#SkillAvoid",
+                            From = p.Name,
+                            Arg = skill.Name,
+                            Arg2 = Name
+                        };
+                        room.SendLog(_log);
+                        room.BroadcastSkillInvoke(skill.Name, p);
+                    }
+                    else
+                        targets.Add(p);
+                }
+                room.SortByActionOrder(ref targets);
+            }
+            targets.Add(source);
+            
+            Player player = source;
+            LogMessage log = new LogMessage("#UseCard")
+            {
+                From = player.Name,
+                To = new List<string>(),
+                Card_str = RoomLogic.CardToString(room, card_use.Card)
+            };
+            if (!TargetFixed(card_use.Card) || card_use.To.Count > 1 || !card_use.To.Contains(card_use.From))
+                log.SetTos(card_use.To);
+
+            List<int> used_cards = new List<int>();
+            List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
+            used_cards.AddRange(card_use.Card.SubCards);
+
+            RoomThread thread = room.RoomThread;
+            object data = card_use;
+            thread.Trigger(TriggerEvent.PreCardUsed, room, player, ref data);
+
+            card_use = (CardUseStruct)data;
+
+            if (TypeID != CardType.TypeSkill)
+            {
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card_use.Card.Skill, null)
+                {
+                    CardString = RoomLogic.CardToString(room, card_use.Card),
+                    General = RoomLogic.GetGeneralSkin(room, player, card_use.Card.Skill, card_use.Card.SkillPosition)
+                };
+                if (card_use.To.Count == 1)
+                    reason.TargetId = card_use.To[0].Name;
+
+                foreach (int id in used_cards)
+                {
+                    CardsMoveStruct move = new CardsMoveStruct(id, null, Place.PlaceTable, reason);
+                    moves.Add(move);
+                }
+                room.MoveCardsAtomic(moves, true);
+                if (used_cards.Count == 0)
+                {                                                                                 //show virtual card on table
+                    CardsMoveStruct move = new CardsMoveStruct(-1, player, Place.PlaceTable, reason)
+                    {
+                        From_place = Place.PlaceUnknown,
+                        From = player.Name,
+                        Is_last_handcard = false,
+                    };
+                    room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card_use.Card), move);
+                }
+
+                room.SendLog(log);
+            }
+
+            room.RoomThread.Trigger(TriggerEvent.CardUsedAnnounced, room, player, ref data);
+            room.RoomThread.Trigger(TriggerEvent.CardTargetAnnounced, room, player, ref data);
+
+            room.RoomThread.Trigger(TriggerEvent.CardUsed, room, player, ref data);
+            room.RoomThread.Trigger(TriggerEvent.CardFinished, room, player, ref data);
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            List<Player> targets = card_use.To;
+            List<string> nullified_list = room.ContainsTag("CardUseNullifiedList") ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
+            bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
+            foreach (Player target in targets)
+            {
+                CardEffectStruct effect = new CardEffectStruct
+                {
+                    Card = card_use.Card,
+                    From = card_use.From,
+                    To = target,
+                    Multiple = (targets.Count > 1),
+                    Nullified = (all_nullified || nullified_list.Contains(target.Name))
+                };
+
+                List<Player> players = new List<Player>();
+                for (int i = targets.IndexOf(target); i < targets.Count; i++)
+                {
+                    if (!nullified_list.Contains(targets[i].Name) && !all_nullified)
+                        players.Add(targets[i]);
+                }
+                room.SetTag("targets" + RoomLogic.CardToString(room, card_use.Card), players);
+
+                if (target == card_use.From)
+                {
+                    int n = 0;
+                    Player enemy = targets[targets.Count - 1];
+                    foreach (Player p in room.GetOtherPlayers(card_use.From))
+                    {
+                        if (RoomLogic.IsFriendWith(room, enemy, p))
+                            ++n;
+                    }
+                    target.SetMark(Name, n);
+                }
+                room.CardEffect(effect);
+                target.SetMark(Name, 0);
+            }
+
+            List<int> table_cardids = room.GetCardIdsOnTable(card_use.Card);
+            if (table_cardids.Count > 0)
+            {
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, card_use.From.Name, null, card_use.Card.Skill, null)
+                {
+                    CardString = RoomLogic.CardToString(room, card_use.Card)
+                };
+                CardsMoveStruct move = new CardsMoveStruct(table_cardids, card_use.From, null, Place.PlaceTable, Place.DiscardPile, reason);
+                room.MoveCardsAtomic(new List<CardsMoveStruct> { move }, true);
+            }
+        }
+        public override void OnEffect(Room room, CardEffectStruct effect)
+        {
+            if (effect.To.GetMark(Name) > 0)
+            {
+                if (effect.To.IsWounded())
+                {
+                    List<string> prompts = new List<string>();
+                    List<string> choices = new List<string>();
+                    for (int i = Math.Min(effect.To.GetMark(Name), effect.To.GetLostHp()); i > 0; i--)
+                    {
+                        choices.Add(string.Format("recover{0}", i));
+                        if (i == effect.To.GetMark(Name) && effect.To.GetMark(Name) <= effect.To.GetLostHp())
+                            prompts.Add(string.Format("@AllianceFeast-recover:::{0}:", i));
+                        else
+                            prompts.Add(string.Format("@AllianceFeast-recover-draw:::{0}:{1}", i, effect.To.GetMark(Name) - i));
+                    }
+                    prompts.Add(string.Format("@AllianceFeast-draw:::{0}:", effect.To.GetMark(Name)));
+                    string result = room.AskForChoice(effect.To, Name, string.Join("+", choices), prompts);
+
+                    const string rx_pattern = @"recover(\d+)";
+                    Match match = Regex.Match(result, rx_pattern);
+
+                    int draw = effect.To.GetMark(Name);
+                    if (match.Success && match.Length > 0)
+                    {
+                        int recover = int.Parse(match.Groups[1].ToString());
+                        draw = effect.To.GetMark(Name) - recover;
+                        RecoverStruct re = new RecoverStruct
+                        {
+                            Recover = recover,
+                            Who = effect.From
+                        };
+                        room.Recover(effect.To, re, true);
+                    }
+                    if (draw > 0)
+                        room.DrawCards(effect.To, draw, Name);
+                }
+                else
+                    room.DrawCards(effect.To, effect.To.GetMark(Name), Name);
+            }
+            else
+            {
+                room.DrawCards(effect.To, new DrawCardStruct(1, effect.From, Name));
+                if (effect.To.Chained)
+                    room.SetPlayerChained(effect.To, false);
+            }
+        }
+        public override bool IsAvailable(Room room, Player player, WrappedCard card)
+        {
+            return player.HasShownOneGeneral() && RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card);
+        }
+    }
+
+    /*
     class AllianceFeast : TrickCard
     {
         public AllianceFeast() : base("AllianceFeast") { }
@@ -1022,6 +1283,7 @@ namespace SanguoshaServer.Game
             return player.HasShownOneGeneral() && RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card);
         }
     }
+    */
     public class ThreatenEmperor : SingleTargetTrick
     {
         public ThreatenEmperor() : base("ThreatenEmperor") { target_fixed = true; }
@@ -1055,6 +1317,45 @@ namespace SanguoshaServer.Game
             return invoke && RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card);
         }
     }
+    public class ThreatenEmperorSkill : TriggerSkill
+    {
+        public ThreatenEmperorSkill() : base("ThreatenEmperor")
+        {
+            events.Add(TriggerEvent.EventPhaseEnd);
+            global = true;
+        }
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> list = new List<TriggerStruct>();
+            if (player.Phase != PlayerPhase.Discard)
+                return list;
+            foreach (Player p in room.GetAllPlayers())
+                if (p.GetMark("ThreatenEmperorExtraTurn") > 0)
+                    list.Add(new TriggerStruct(Name, p));
+
+            return list;
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            ask_who.RemoveMark("ThreatenEmperorExtraTurn");
+            if (room.AskForCard(ask_who, Name, ".!", "@threaten_emperor", data, Name) != null)
+                return info;
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            LogMessage l = new LogMessage
+            {
+                Type = "#Fangquan",
+                To = new List<string> { ask_who.Name }
+            };
+            room.SendLog(l);
+            room.GainAnExtraTurn(ask_who);
+            return false;
+        }
+    }
+
+    /*
     public class ThreatenEmperorSkill : TriggerSkill
     {
         public ThreatenEmperorSkill() : base("ThreatenEmperor")
@@ -1094,6 +1395,7 @@ namespace SanguoshaServer.Game
             return false;
         }
     }
+    */
     public class ImperialOrder : GlobalEffect
     {
         public ImperialOrder() : base("ImperialOrder") { }
@@ -1171,6 +1473,8 @@ namespace SanguoshaServer.Game
         }
     }
 
+    #region old
+    /*
     public class TransferCard : SkillCard
     {
         public TransferCard() : base("TransferCard")
@@ -1196,5 +1500,68 @@ namespace SanguoshaServer.Game
                 room.DrawCards(effect.From, 1, "transfer");
         }
     }
+    */
+    #endregion
+
+    #region new
+    public class TransferCard : SkillCard
+    {
+        public TransferCard() : base("TransferCard")
+        {
+            will_throw = false;
+        }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (targets.Count == 0 && to_select != Self)
+            {
+                if (!Self.HasShownOneGeneral())
+                    return !to_select.HasShownOneGeneral();
+                return !to_select.HasShownOneGeneral() || !RoomLogic.IsFriendWith(room, to_select, Self);
+            }
+            return false;
+        }
+        public override void OnEffect(Room room, CardEffectStruct effect)
+        {
+            effect.From.SetFlags("transfer");
+            bool draw = effect.To.HasShownOneGeneral();
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, effect.From.Name, effect.To.Name, "transfer", null);
+            room.ObtainCard(effect.To, effect.Card, reason);
+            if (draw)
+                room.DrawCards(effect.From, effect.Card.SubCards.Count, "transfer");
+        }
+    }
+
+    public class Transfer : ViewAsSkill
+    {
+        public Transfer() : base("transfer")
+        {
+        }
+
+        public override bool IsAvailable(Room room, Player invoker, CardUseStruct.CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY && !invoker.IsKongcheng() && !invoker.HasFlag(Name);
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            return selected.Count <= 2 && player.HandCards.Contains(to_select.Id) && to_select.Transferable;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count > 0)
+            {
+                WrappedCard card = new WrappedCard("TransferCard")
+                {
+                    Mute = true
+                };
+                card.AddSubCards(cards);
+                return card;
+            }
+
+            return null;
+        }
+    }
+    #endregion
     #endregion
 }

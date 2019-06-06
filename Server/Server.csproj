@@ -99,6 +99,10 @@
     <Compile Include="Game\AI\AI.cs" />
     <Compile Include="Game\AI\AICore.cs" />
     <Compile Include="Game\AI\HegemonyAI.cs" />
+    <Compile Include="Game\AI\Stander-qun.cs" />
+    <Compile Include="Game\AI\Stander-shu.cs" />
+    <Compile Include="Game\AI\Stander-wu.cs" />
+    <Compile Include="Game\AI\Stander-wei.cs" />
     <Compile Include="Game\AI\StanderAI.cs" />
     <Compile Include="Game\AI\StanderCardsAI.cs" />
     <Compile Include="Game\AI\StrategicAdvantageCardsAI.cs" />
