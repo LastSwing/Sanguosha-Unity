@@ -992,6 +992,7 @@ namespace SanguoshaServer.Game
                 room.SortByActionOrder(ref targets);
             }
             targets.Add(source);
+            card_use.To = targets;
             
             Player player = source;
             LogMessage log = new LogMessage("#UseCard")
@@ -1076,7 +1077,7 @@ namespace SanguoshaServer.Game
                 if (target == card_use.From)
                 {
                     int n = 0;
-                    Player enemy = targets[targets.Count - 1];
+                    Player enemy = targets[0];
                     foreach (Player p in room.GetOtherPlayers(card_use.From))
                     {
                         if (RoomLogic.IsFriendWith(room, enemy, p))
@@ -1105,7 +1106,7 @@ namespace SanguoshaServer.Game
             {
                 if (effect.To.IsWounded())
                 {
-                    List<string> prompts = new List<string>();
+                    List<string> prompts = new List<string> { string.Empty };
                     List<string> choices = new List<string>();
                     for (int i = Math.Min(effect.To.GetMark(Name), effect.To.GetLostHp()); i > 0; i--)
                     {
@@ -1115,6 +1116,7 @@ namespace SanguoshaServer.Game
                         else
                             prompts.Add(string.Format("@AllianceFeast-recover-draw:::{0}:{1}", i, effect.To.GetMark(Name) - i));
                     }
+                    choices.Add("draw");
                     prompts.Add(string.Format("@AllianceFeast-draw:::{0}:", effect.To.GetMark(Name)));
                     string result = room.AskForChoice(effect.To, Name, string.Join("+", choices), prompts);
 

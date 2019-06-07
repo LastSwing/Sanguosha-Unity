@@ -39,9 +39,9 @@ namespace SanguoshaServer.AI
 
         public virtual string OnChoice(TrustedAI ai, Player player, string choice, object data) => string.Empty;
 
-        public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data) => new List<Player>();
+        public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max) => null;
 
-        public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data) => new List<int>();
+        public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids) => null;
 
         public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data) => new CardUseStruct();
 
@@ -112,7 +112,7 @@ namespace SanguoshaServer.AI
         public virtual void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
         }
-        public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data) => new List<int>();
+        public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids) => null;
         public virtual NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
         {
             NulliResult result = new NulliResult
@@ -122,6 +122,7 @@ namespace SanguoshaServer.AI
             };
             return result;
         }
+        public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max) => null;
 
         public virtual double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place) => 0;
 

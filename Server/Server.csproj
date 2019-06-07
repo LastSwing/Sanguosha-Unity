@@ -101,6 +101,7 @@
     <Compile Include="Game\AI\HegemonyAI.cs" />
     <Compile Include="Game\AI\Stander-qun.cs" />
     <Compile Include="Game\AI\Stander-shu.cs" />
+    <Compile Include="Game\AI\FormationAI.cs" />
     <Compile Include="Game\AI\Stander-wu.cs" />
     <Compile Include="Game\AI\Stander-wei.cs" />
     <Compile Include="Game\AI\StanderAI.cs" />

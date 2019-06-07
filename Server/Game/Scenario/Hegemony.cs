@@ -328,15 +328,11 @@ namespace SanguoshaServer.Scenario
 
             return selctor;
         }
-
-        private DataTable general_value;
+        
         private DataTable pair_value;
         public GeneralSelctor()
         {
-            string sql = "select * from ai_general_value";
-            general_value = DB.GetData(sql, false);
-
-            sql = "select * from ai_pair_value";
+            string sql = "select * from ai_pair_value";
             pair_value = DB.GetData(sql, false);
         }
 
@@ -420,27 +416,8 @@ namespace SanguoshaServer.Scenario
                 else {
                     General general1 = Engine.GetGeneral(first);
                     General general2 = Engine.GetGeneral(second);
-                    int general2_value = 4;
-                    double v = 4;
-                    try
-                    {
-                        DataRow[] row2 = general_value.Select(string.Format("general ='{0}' and mode = 'Hegemony'", second));
-                        general2_value = int.Parse(row2[0]["value"].ToString());
-                    }
-                    catch
-                    {
-                        room.OutPut(string.Format("cant find {0}", second));
-                    }
-                    try
-                    {
-                        DataRow[] row1 = general_value.Select(string.Format("general = '{0}' and mode = 'Hegemony'", first));
-                        v = int.Parse(row1[0]["value"].ToString()) + general2_value;
-
-                    }
-                    catch
-                    {
-                        room.OutPut(string.Format("cant find {0}", first));
-                    }
+                    double general2_value = Engine.GetGeneralValue(second, "Hegemony");
+                    double v = Engine.GetGeneralValue(first, "Hegemony") + general2_value;
 
                     int max_hp = general1.GetMaxHpHead() + general2.GetMaxHpDeputy();
                     if (max_hp % 2 > 0) v -= 0.5;
@@ -671,6 +648,30 @@ namespace SanguoshaServer.Scenario
                 }
 
             return string.Join("+", winners);
+        }
+
+        protected override void RewardAndPunish(Room room, Player killer, Player victim)
+        {
+            if (!killer.Alive || !killer.HasShownOneGeneral())
+                return;
+
+            if (!RoomLogic.IsFriendWith(room, killer, victim))
+            {
+                if (killer.Role == "careerist")
+                    room.DrawCards(killer, 3, "gamerule");
+                else
+                {
+                    int n = 1;
+                    foreach (Player p in room.GetOtherPlayers(victim))
+                    {
+                        if (RoomLogic.IsFriendWith(room, victim, p))
+                            ++n;
+                    }
+                    room.DrawCards(killer, n, "gamerule");
+                }
+            }
+            else
+                room.ThrowAllHandCardsAndEquips(killer);
         }
 
         protected override void AddRuleSkill()

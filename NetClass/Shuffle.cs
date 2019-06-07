@@ -29,7 +29,7 @@ namespace CommonClass
             }
             Random rand = new Random(Guid.NewGuid().GetHashCode());
             int result = rand.Next(denominator);
-            return ratenumerator < result ? true : false;
+            return ratenumerator > result ? true : false;
         }
     }
 }

@@ -372,7 +372,7 @@ namespace SanguoshaServer.Scenario
             }
         }
 
-        private void RewardAndPunish(Room room, Player killer, Player victim)
+        protected virtual void RewardAndPunish(Room room, Player killer, Player victim)
         {
             if (!killer.Alive || !killer.HasShownOneGeneral())
                 return;

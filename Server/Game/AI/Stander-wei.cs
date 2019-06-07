@@ -164,10 +164,10 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data)
-        {
-            return ai.FindCards2Discard(from, to, "he", FunctionCard.HandlingMethod.MethodGet, 1, true, disable_ids).Ids;
-        }
+        //public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
+        //{
+        //    return ai.FindCards2Discard(from, to, "he", FunctionCard.HandlingMethod.MethodGet, 1, true, disable_ids).Ids;
+        //}
     }
 
     public class GuicaiAI : SkillEvent
@@ -448,7 +448,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             if (player.HasTreasure("JadeSeal")) return new List<Player>();
 
@@ -661,8 +661,16 @@ namespace SanguoshaServer.AI
         {
             if (!ai.WillShowForAttack() && !ai.WillShowForDefence()) return false;
             Player erzhang = ai.FindPlayerBySkill("guzheng");
-            if (erzhang != null && ai.IsEnemy(erzhang) && ai.WillSkipPlayPhase(player))
-                return false;
+            if (erzhang != null && ai.IsEnemy(erzhang) && ai.WillSkipPlayPhase(player) && !ai.HasSkill("qiaobian"))
+            {
+                List<int> card_list = player.ContainsTag("luoshen") ? (List<int>)player.GetTag("luoshen") : new List<int>();
+                List<int> subcards = new List<int>();
+                foreach (int id in card_list)
+                    if (ai.Room.GetCardPlace(id) == Player.Place.PlaceTable && !subcards.Contains(id))
+                        subcards.Add(id);
+                if (RoomLogic.GetMaxCards(ai.Room, player) - player.HandcardNum - subcards.Count < 0)
+                    return false;
+            }
 
             return true;
         }
@@ -1093,7 +1101,7 @@ namespace SanguoshaServer.AI
                         return to_discard;
                 }
             }
-            else if (phase == Player.PlayerPhase.Discard && !player.IsSkipped(Player.PlayerPhase.Discard) && ai.GetOverflow(player) > 1)
+            else if (phase == Player.PlayerPhase.Discard && !player.IsSkipped(Player.PlayerPhase.Discard) && player.HandcardNum > RoomLogic.GetMaxCards(room, player) + 1)
             {
                 player.SetFlags("AI_ConsideringQiaobianSkipDiscard");
                 return to_discard;
@@ -1146,7 +1154,7 @@ namespace SanguoshaServer.AI
             return new CardUseStruct();
         }
 
-        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data)
+        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
         {
             List<int> result = new List<int>();
             if (flags == "ej")
@@ -1156,9 +1164,10 @@ namespace SanguoshaServer.AI
                     result.Add(id);
             }
 
-            return result;
+            return null;
         }
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             List<Player> result = new List<Player>();
             if (ai.Room.GetTag("QiaobianTarget") != null && ai.Room.GetTag("QiaobianTarget") is Player from)
@@ -1443,7 +1452,7 @@ namespace SanguoshaServer.AI
             return room.GetCard(cards[0]);
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             Player winner = (Player)ai.Room.GetTag(Name);
             if (ai.Target[Name] != null && target.Contains(ai.Target[Name]))
@@ -1620,7 +1629,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             if (!ai.WillShowForMasochism()) return new List<Player>();
 
@@ -1686,7 +1695,7 @@ namespace SanguoshaServer.AI
                 }
             }
         }
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             if (!ai.WillShowForMasochism()) return new List<Player>();
 

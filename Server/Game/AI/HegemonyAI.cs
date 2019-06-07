@@ -5,6 +5,7 @@ using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using static SanguoshaServer.Game.FunctionCard;
 
 namespace SanguoshaServer.AI
 {
@@ -899,6 +900,7 @@ namespace SanguoshaServer.AI
                 {
                     if (id_tendency[p] != "unknown" && id_tendency[p] != "careerist")
                     {
+                        string tendecy = id_tendency[p];
                         if ((!lords.ContainsKey(id_tendency[p]) || lords[id_tendency[p]] == null || !lords[id_tendency[p]].Alive) && kingdom_pits[id_tendency[p]] <= 0)
                             id_tendency[p] = "careerist";
                     }
@@ -1190,11 +1192,11 @@ namespace SanguoshaServer.AI
 
         public override string AskForChoice(string skill_name, string choice, object data)
         {
-            if (skill_name.Contains("GameRule_AskForGeneral"))
+            if (choice.Contains("GameRule_AskForGeneral"))
             {
                 bool canShowHead = choice.Contains("GameRule_AskForGeneralShowHead");
                 bool canShowDeputy = choice.Contains("GameRule_AskForGeneralShowDeputy");
-                List<string> firstShow = new List<string>("luanji|qianhuan".Split('|'));
+                List<string> firstShow = new List<string>("luanji|qianhuan|xiongyi".Split('|'));
                 List<string> bothShow = new List<string>("luanji+shuangxiong|luanji+huoshui|huoji+jizhi|luoshen+fangzhu|guanxing+jizhi".Split('|'));
                 List<string> followShow = new List<string>("qianhuan|duoshi|rende|cunsi|jieyin|xiongyi|shouyue|hongfa".Split('|'));
                 int notshown = 0, shown = 0, allshown = 0, f = 0, e = 0, eAtt = 0;
@@ -1219,17 +1221,17 @@ namespace SanguoshaServer.AI
                     if (p.HasShownAllGenerals())
                         allshown++;
                 }
-                double showRate = (double)shown / 20;
+                double showRate = (double)shown / room.Setting.PlayerNum;
                 bool firstShowReward = false;
                 if (shown == 0)
                     firstShowReward = true;
 
 
-                if ((firstShowReward || WillShowForAttack()) && !WillSkipPlayPhase(Self))
+                if (WillShowForAttack() && !WillSkipPlayPhase(Self))
                 {
                     foreach (string _skill in bothShow)
                     {
-                        if (RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate > 0.7)
+                        if (RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate >= 0.5)
                         {
                             if (canShowHead)
                                 return "GameRule_AskForGeneralShowHead";
@@ -1239,17 +1241,18 @@ namespace SanguoshaServer.AI
                     }
                 }
 
+                //show for reward
                 if (firstShowReward && !WillSkipPlayPhase(Self))
                 {
-                    foreach (string _skill in firstShow)
+                    bool show = Shuffle.random(2, 3);
+                    if (show)
                     {
-                        if (RoomLogic.PlayerHasSkill(room, Self, _skill) && showRate > 0.8 && !Self.HasShownOneGeneral())
-                        {
-                            if (RoomLogic.InPlayerHeadSkills(Self, _skill) && canShowHead)
-                                return "GameRule_AskForGeneralShowHead";
-                            else if (canShowDeputy)
-                                return "GameRule_AskForGeneralShowDeputy";
-                        }
+                        double general2_value = Engine.GetGeneralValue(self.ActualGeneral2, "Hegemony");
+                        double general1_value = Engine.GetGeneralValue(self.ActualGeneral1, "Hegemony");
+                        if (general1_value < general2_value && canShowHead || !canShowDeputy)
+                            return "GameRule_AskForGeneralShowHead";
+                        else
+                            return "GameRule_AskForGeneralShowDeputy";
                     }
                 }
 
@@ -1502,6 +1505,31 @@ namespace SanguoshaServer.AI
             }
         }
 
+        public override int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+            {
+                List<int> result = e.OnCardsChosen(this, self, who, flags, 1, 1, disabled_ids);
+                if (result != null && result.Count == 1)
+                    return result[0];
+            }
+
+            UseCard c = Engine.GetCardUsage(reason);
+            if (c != null)
+            {
+                List<int> result = c.OnCardsChosen(this, self, who, flags, 1, 1, disabled_ids);
+                if (result != null && result.Count == 1)
+                    return result[0];
+            }
+
+            ScoreStruct score = FindCards2Discard(self, who, flags, method, 1, false, disabled_ids);
+            if (score.Ids != null && score.Ids.Count == 1)
+                return score.Ids[0];
+
+            return -1;
+        }
+
         private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
             { "collateral-slash", "Collateral" },
             { "@tiaoxin-slash", "TiaoxinCard" },
@@ -1545,7 +1573,25 @@ namespace SanguoshaServer.AI
 
             return base.AskForUseCard(pattern, prompt, method);
         }
+        public override List<Player> AskForPlayersChosen(List<Player> targets, string reason, int max_num, int min_num)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+            {
+                List<Player> result = e.OnPlayerChosen(this, self, targets, min_num, max_num);
+                if (result != null)
+                    return result;
+            }
+            UseCard u = Engine.GetCardUsage(reason);
+            if (u != null)
+            {
+                List<Player> result = u.OnPlayerChosen(this, self, targets, min_num, max_num);
+                if (result != null)
+                    return result;
+            }
 
+            return base.AskForPlayersChosen(targets, reason, max_num, min_num);
+        }
         public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
         {
             if (!to.Alive) return null;

@@ -670,7 +670,7 @@ namespace SanguoshaServer.Game
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
+            if (data is CardsMoveOneTimeStruct move && move.From.Alive && room.AskForSkillInvoke(ask_who, Name, move.From, info.SkillPosition))
             {
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, ((CardsMoveOneTimeStruct)data).From.Name);
                 room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
@@ -681,8 +681,7 @@ namespace SanguoshaServer.Game
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
-            if (move.From != null)
+            if (data is CardsMoveOneTimeStruct move && move.From.Alive)
                 room.DrawCards(move.From, new DrawCardStruct(1, ask_who, Name));
             return false;
         }

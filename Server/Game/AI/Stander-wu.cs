@@ -12,6 +12,7 @@ namespace SanguoshaServer.AI
             events = new List<SkillEvent>
             {
                 new BuquAI(),
+                new XiaojiAI(),
             };
 
             use_cards = new List<UseCard>
@@ -63,6 +64,17 @@ namespace SanguoshaServer.AI
                         ai.UpdatePlayerRelation(player, target, true);
                 }
             }
+        }
+    }
+
+    public class XiaojiAI : SkillEvent
+    {
+        public XiaojiAI() : base("xiaoji")
+        { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return true;
         }
     }
 }

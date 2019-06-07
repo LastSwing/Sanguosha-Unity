@@ -717,10 +717,6 @@ namespace SanguoshaServer.AI
                 }
             }
         }
-        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data)
-        {
-            return ai.FindCards2Discard(from, to, "hej", FunctionCard.HandlingMethod.MethodDiscard).Ids;
-        }
 
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
         {
@@ -823,10 +819,6 @@ namespace SanguoshaServer.AI
                     use.To = scores[0].Players;
                 }
             }
-        }
-        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data)
-        {
-            return ai.FindCards2Discard(from, to, "hej", FunctionCard.HandlingMethod.MethodGet).Ids;
         }
 
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
@@ -2736,15 +2728,6 @@ namespace SanguoshaServer.AI
             return !d.DoDamage;
         }
 
-        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids, object data)
-        {
-            ScoreStruct d = ai.FindCards2Discard(from, to, "he", FunctionCard.HandlingMethod.MethodDiscard, 1);
-            if (d.Ids.Count > 0)
-                return d.Ids;
-
-            return base.OnCardsChosen(ai, from, to, flags, min, max, disable_ids, data);
-        }
-
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
         {
             double value = ai.AjustWeaponRangeValue(player, card);
@@ -3305,7 +3288,7 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             Room room = ai.Room;
             foreach (Player p in room.GetOtherPlayers(player))

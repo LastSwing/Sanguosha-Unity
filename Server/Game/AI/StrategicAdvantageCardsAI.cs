@@ -350,7 +350,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> players, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> players, int min, int max)
         {
             Room room = ai.Room;
             CardUseStruct use = (CardUseStruct)room.GetTag("extra_target_skill");
@@ -473,7 +473,7 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max, object data)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             if (ai.Target[Name] != null)
                 return new List<Player> { ai.Target[Name] };
@@ -729,7 +729,10 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (target != null)
+            if (ai.HasSkill("jizhi"))
+                v += 2;
+
+            if (target != null && v > 0)
             {
                 use.Card = card;
                 use.To = new List<Player> { target };
@@ -1672,7 +1675,7 @@ namespace SanguoshaServer.AI
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardUseStruct use = new CardUseStruct();
-            List<int> ids = player.GetCards("he");
+            List<int> ids = player.GetCards("h");
             if (ids.Count == 0) return use;
             Room room = ai.Room;
             if (player.FaceUp)
@@ -1680,7 +1683,7 @@ namespace SanguoshaServer.AI
                 ai.SortByKeepValue(ref ids, false);
                 foreach (int id in ids)
                 {
-                    if (!ai.IsCard(id, "JadeSeal", player) && !ai.IsCard(id, "JadeSeal", player))
+                    if (!ai.IsCard(id, "JadeSeal", player))
                     {
                         use.Card = room.GetCard(id);
                         break;
@@ -1756,6 +1759,7 @@ namespace SanguoshaServer.AI
             {
                 use.Card = ai.Room.GetCard(player.Armor.Key);
             }
+
             return use;
         }
 

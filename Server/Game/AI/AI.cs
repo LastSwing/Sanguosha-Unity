@@ -461,7 +461,7 @@ namespace SanguoshaServer.AI
             return result;
         }
 
-        List<WrappedCard> GetViewAsCards(Player player, int id, Place place = Place.PlaceUnknown)
+        public List<WrappedCard> GetViewAsCards(Player player, int id, Place place = Place.PlaceUnknown)
         {
             List<WrappedCard> result = new List<WrappedCard>();
             WrappedCard card = room.GetCard(id);
@@ -611,9 +611,12 @@ namespace SanguoshaServer.AI
 
             bool reward = true;
             bool kill = true;
-            foreach (Player p in room.GetAlivePlayers())
+            foreach (Player p in room.GetOtherPlayers(self))
             {
-                if (p.HasShownOneGeneral())
+                if (HasSkill("xiongyi", p) && p.GetMark("@arise") > 0 && RoomLogic.WillBeFriendWith(room, self, p))
+                    return true;
+
+                    if (p.HasShownOneGeneral())
                     reward = false;
                 if (IsWeak(p) && id_tendency[p] != "unknown" && id_tendency[p] != id_tendency[self])
                     kill = true;
@@ -631,8 +634,11 @@ namespace SanguoshaServer.AI
             if (IsRoleExpose() || show_immediately || skill_invoke_postpond) return true;
 
             bool reward = true;
-            foreach (Player p in room.GetAlivePlayers())
+            foreach (Player p in room.GetOtherPlayers(self))
             {
+                if (HasSkill("xiongyi", p) && p.GetMark("@arise") > 0 && RoomLogic.WillBeFriendWith(room, self, p))
+                    return true;
+
                 if (p.HasShownOneGeneral())
                     reward = false;
             }
@@ -2774,12 +2780,19 @@ namespace SanguoshaServer.AI
             {
                 double value = 0;
 
-                value = damage.Damage * 4;
+                value = Math.Min(damage.Damage, to.Hp) * 4;
                 if (IsWeak(to))
                 {
                     value += 4;
-                    if (damage.Damage >= to.Hp && !CanSave(to, damage.Damage - to.Hp + 1))
-                        value += 10;
+                    if (damage.Damage > to.Hp && !CanSave(to, damage.Damage - to.Hp + 1))
+                    {
+                        int over_damage = damage.Damage - to.Hp;
+                        for (int i = 1; i <= over_damage; i++)
+                        {
+                            double x = HasSkill("buqu", to) ? 1 / (i^2) : 8 / (i^2);
+                            value += x;
+                        }
+                    }
                 }
 
                 if (CanResist(to, damage.Damage)) result_score.Score = 4;

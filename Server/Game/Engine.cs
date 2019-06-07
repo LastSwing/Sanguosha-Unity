@@ -210,6 +210,11 @@ namespace SanguoshaServer.Game
             dt = DB.GetData(sql, false);
             dt.TableName = "skill_classify";
             ai_values.Tables.Add(dt);
+
+            sql = "select * from ai_general_value";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "general_value";
+            ai_values.Tables.Add(dt);
         }
 
         private void LoatOthers()
@@ -900,6 +905,15 @@ namespace SanguoshaServer.Game
                 return double.Parse(rows[0]["value"].ToString());
 
             return 0;
+        }
+
+        public static double GetGeneralValue(string general, string mode)
+        {
+            DataRow[] rows = ai_values.Tables["general_value"].Select(string.Format("general = '{0}' and mode = '{1}'", general, mode));
+            if (rows.Length > 0)
+                return double.Parse(rows[0]["value"].ToString());
+
+            return 4;
         }
 
         public static SkillEvent GetSkillEvent(string skill)

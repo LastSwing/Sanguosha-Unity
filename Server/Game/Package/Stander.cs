@@ -720,14 +720,20 @@ namespace SanguoshaServer.Game
             events.Add(TriggerEvent.FinishJudge);
             frequency = Frequency.Compulsory;
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (player != null && data is JudgeStruct judge && judge.Reason == "luoshen" && judge.IsGood())
             {
                 List<int> luoshen_list = player.ContainsTag("luoshen") ? (List<int>)player.GetTag("luoshen") : new List<int>();
                 luoshen_list.Add(judge.Card.GetEffectiveId());
                 player.SetTag("luoshen", luoshen_list);
-
+            }
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player != null && data is JudgeStruct judge && judge.Reason == "luoshen" && judge.IsGood())
+            {
                 if (room.GetCardPlace(judge.Card.GetEffectiveId()) == Place.PlaceJudge)
                 {
                     TriggerStruct trigger = new TriggerStruct(Name, player)
@@ -1134,6 +1140,7 @@ namespace SanguoshaServer.Game
             {
                 room.BroadcastSkillInvoke("qiaobian", zhanghe, info.SkillPosition);
                 room.SkipPhase(zhanghe, change.To);
+
                 return info;
             }
 
@@ -6370,6 +6377,7 @@ namespace SanguoshaServer.Game
             bool duplicate = false;
             List<int> buqu = player.GetPile(Name);
             room.AddToPile(player, Name, id);
+            Thread.Sleep(500);
 
             foreach (int card_id in buqu)
             {
@@ -6400,6 +6408,7 @@ namespace SanguoshaServer.Game
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_PILE, null, Name, null);
                 List<int> ints = new List<int> { id };
                 room.ThrowCard(ref ints, reason, null);
+                Thread.Sleep(1000);
             }
             else
             {
