@@ -2,11 +2,12 @@
 using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using System.Collections.Generic;
 using System.Threading;
 using static CommonClass.Game.DamageStruct;
 using static CommonClass.Game.Player;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Scenario
 {
@@ -650,7 +651,7 @@ namespace SanguoshaServer.Scenario
                             room.RoomThread.Trigger(TriggerEvent.CardEffectConfirmed, room, effect.To, ref _effect);
 
                             room.SetTag("Global_CardEffected", _effect);                                         //for AI 
-                            if (effect.To.Alive || fcard.IsKindOf("Slash"))
+                            if (effect.To.Alive || fcard is Slash)
                                 fcard.OnEffect(room, effect);
 
                             room.RemoveTag("Global_CardEffected");

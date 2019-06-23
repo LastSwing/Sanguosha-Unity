@@ -96,7 +96,7 @@ namespace SanguoshaServer.Package
     }
 }
 
-namespace SanguoshaServer.Game
+namespace SanguoshaServer.Package
 {
     #region 技能卡
     public class DummyCard : SkillCard
@@ -1902,6 +1902,8 @@ namespace SanguoshaServer.Game
                         horses.Add("dhorse");
                     if (damage.To.GetOffensiveHorse() && RoomLogic.CanDiscard(room, damage.From, damage.To, damage.To.OffensiveHorse.Key))
                         horses.Add("ohorse");
+                    if (damage.To.GetSpecialEquip() && RoomLogic.CanDiscard(room, damage.From, damage.To, damage.To.Special.Key))
+                        horses.Add("shorse");
 
                     if (horses.Count == 0)
                         return false;
@@ -1919,6 +1921,8 @@ namespace SanguoshaServer.Game
                         room.ThrowCard(damage.To.DefensiveHorse.Key, damage.To, damage.From);
                     else if (horse_type == "ohorse")
                         room.ThrowCard(damage.To.OffensiveHorse.Key, damage.To, damage.From);
+                    else
+                        room.ThrowCard(damage.To.Special.Key, damage.To, damage.From);
                 }
             }
 

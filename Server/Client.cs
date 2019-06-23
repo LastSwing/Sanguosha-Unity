@@ -7,7 +7,8 @@ using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
-using static SanguoshaServer.Game.FunctionCard;
+using SanguoshaServer.Package;
+using static SanguoshaServer.Package.FunctionCard;
 using CommandType = CommonClassLibrary.CommandType;
 
 namespace SanguoshaServer

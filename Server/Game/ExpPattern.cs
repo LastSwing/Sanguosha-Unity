@@ -21,7 +21,7 @@ namespace SanguoshaServer.Game
     {
         public ExpPattern(string exp)
         {
-            string pattern = exp;
+            string pattern = exp ?? string.Empty;
             if (exp.EndsWith("!"))
                 pattern = pattern.Remove(exp.Length - 1);
             this.exp = pattern;

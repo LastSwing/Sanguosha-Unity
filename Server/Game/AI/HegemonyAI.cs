@@ -1,11 +1,12 @@
 ﻿using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.AI
 {
@@ -76,7 +77,9 @@ namespace SanguoshaServer.AI
             }
             if (triggerEvent == TriggerEvent.EventPhaseStart || triggerEvent == TriggerEvent.RemoveStateChanged
                 || triggerEvent == TriggerEvent.BuryVictim || triggerEvent == TriggerEvent.GeneralShown)
+            {
                 UpdatePlayers();
+            }
 
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
@@ -264,7 +267,6 @@ namespace SanguoshaServer.AI
                     if (choices[0] == "ViewTopCards")
                     {
                         guanxing = new KeyValuePair<Player, List<int>>();
-                        guanxing_dts.Clear();
                         if (open)
                         {
                             for (int index = 0; index < moves.Count; index++)
@@ -280,25 +282,6 @@ namespace SanguoshaServer.AI
                                     room.SetCardFlag(id, "visible2" + self.Name);
 
                             guanxing = new KeyValuePair<Player, List<int>>(player, moves);
-                            Player current = room.Current;
-                            if (current != null)
-                            {
-                                if (current.Phase < Player.PlayerPhase.Judge)
-                                    foreach (int id in current.JudgingArea)
-                                        guanxing_dts.Add(room.GetCard(id));
-                                Player next = null;
-                                int next_num = 1;
-                                while (next == null)
-                                {
-                                    Player p = room.GetNextAlive(current, next_num);
-                                    next_num++;
-                                    if (p.FaceUp)
-                                        next = p;
-                                }
-                                if (next != null && (next != current || current.Phase > Player.PlayerPhase.Judge))
-                                    foreach (int dt in next.JudgingArea)
-                                        guanxing_dts.Add(room.GetCard(dt));
-                            }
                         }
                     }
                     else
@@ -385,13 +368,12 @@ namespace SanguoshaServer.AI
             friends.Clear();
             enemies.Clear();
             priority_enemies.Clear();
-            FriendNoSelf.Clear();
 
             CountPlayers();
             UpdateGameProcess();
             UpdatePlayerLevel();
 
-            foreach (Player p in room.GetAlivePlayers())
+            foreach (Player p in room.Players)
             {
                 friends[p] = new List<Player>();
                 enemies[p] = new List<Player>();
@@ -420,9 +402,6 @@ namespace SanguoshaServer.AI
             CompareByLevel(ref priority_enemies);
             List<Player> players = enemies[self];
             CompareByLevel(ref players);
-
-            FriendNoSelf = friends[self];
-            friends[self].RemoveAll(t => t == self);
 
             string most = ProcessPublic.Split('>')[0];
             foreach (Player p1 in room.GetOtherPlayers(self))
@@ -1115,16 +1094,17 @@ namespace SanguoshaServer.AI
 
             to_use.Sort((x, y) => { return GetDynamicUsePriority(x) > GetDynamicUsePriority(y) ? -1 : 1; });
 
-            foreach (WrappedCard card in to_use)
+            foreach (CardUseStruct use in to_use)
             {
-                if (!RoomLogic.IsCardLimited(room, self, card, FunctionCard.HandlingMethod.MethodUse)
-                    || (card.CanRecast && !RoomLogic.IsCardLimited(room, self, card, FunctionCard.HandlingMethod.MethodRecast)))
+                WrappedCard card = use.Card;
+                if (!RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse)
+                    || (card.CanRecast && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodRecast)))
                 {
                     string class_name = card.Name.Contains("Slash") ? "Slash" : card.Name;
-                    UseCard use = Engine.GetCardUsage(class_name);
-                    if (use != null)
+                    UseCard _use = Engine.GetCardUsage(class_name);
+                    if (_use != null)
                     {
-                        use.Use(this, self, ref card_use, card);
+                        _use.Use(this, self, ref card_use, card);
                         if (card_use.Card != null)
                         {
                             to_use.Clear();
@@ -1192,6 +1172,7 @@ namespace SanguoshaServer.AI
 
         public override string AskForChoice(string skill_name, string choice, object data)
         {
+            bool trigger_skill = false;
             if (choice.Contains("GameRule_AskForGeneral"))
             {
                 bool canShowHead = choice.Contains("GameRule_AskForGeneralShowHead");
@@ -1357,9 +1338,25 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+
+                if (skill_name == "GameRule:TurnStart")
+                {
+                    string[] choices = choice.Split('+');
+                    List<string> new_choices = new List<string>();
+                    foreach (string cho in choices)
+                    {
+                        if (!cho.Contains("GameRule_AskForGeneralShow") && cho != "cancel")
+                        {
+                            trigger_skill = true;
+                            new_choices.Add(cho);
+                        }
+                    }
+                    if (trigger_skill)
+                        choice = string.Join("+", new_choices);
+                }
             }
 
-            if (skill_name == "GameRule:TriggerOrder")
+            if (skill_name == "GameRule:TriggerOrder" || trigger_skill)
             {
                 if (choice.Contains("duanbing")) return "duanbing";
                 if (choice.Contains("jieming")) return "jieming";
@@ -1573,6 +1570,28 @@ namespace SanguoshaServer.AI
 
             return base.AskForUseCard(pattern, prompt, method);
         }
+
+        public override List<int> AskForExchange(string reason, string pattern, int max_num, int min_num, string expand_pile)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+            {
+                List<int> result = e.OnExchange(this, self, pattern, min_num, max_num, expand_pile);
+                if (result != null)
+                    return result;
+            }
+            /*
+            UseCard u = Engine.GetCardUsage(reason);
+            if (u != null)
+            {
+                List<int> result
+                if (result != null)
+                    return result;
+            }
+            */
+            return base.AskForExchange(reason, pattern, max_num, min_num, expand_pile);
+        }
+
         public override List<Player> AskForPlayersChosen(List<Player> targets, string reason, int max_num, int min_num)
         {
             SkillEvent e = Engine.GetSkillEvent(reason);

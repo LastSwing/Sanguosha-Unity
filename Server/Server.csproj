@@ -98,6 +98,8 @@
     <Compile Include="Game\AchieveCollector.cs" />
     <Compile Include="Game\AI\AI.cs" />
     <Compile Include="Game\AI\AICore.cs" />
+    <Compile Include="Game\AI\LordCardsAI.cs" />
+    <Compile Include="Game\AI\TransformationAI.cs" />
     <Compile Include="Game\AI\HegemonyAI.cs" />
     <Compile Include="Game\AI\Stander-qun.cs" />
     <Compile Include="Game\AI\Stander-shu.cs" />
@@ -110,7 +112,7 @@
     <Compile Include="Game\Bot.cs" />
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
-    <Compile Include="Game\FunctionCard.cs" />
+    <Compile Include="Game\Package\FunctionCard.cs" />
     <Compile Include="Game\GameThread.cs" />
     <Compile Include="Game\General.cs" />
     <Compile Include="Game\Package\Authority.cs" />

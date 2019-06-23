@@ -239,7 +239,7 @@ namespace SanguoshaServer.Game
                                 {
                                     string reason = "GameRule:TriggerOrder";
                                     foreach (TriggerStruct skill in who_skills) {
-                                        if (skill.SkillName.Contains("GameRule_AskForGeneralShow"))
+                                        if (triggerEvent == TriggerEvent.EventPhaseStart && skill.SkillName.Contains("GameRule_AskForGeneralShow"))
                                         {
                                             reason = "GameRule:TurnStart";
                                             break;

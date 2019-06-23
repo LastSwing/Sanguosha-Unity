@@ -7,7 +7,7 @@ using CommonClassLibrary;
 using SanguoshaServer.Game;
 using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Package
 {
@@ -52,8 +52,8 @@ namespace SanguoshaServer.Package
                 new XiongsuanCard(),
                 new SanyaoCard(),
                 new YongjinCard(),
-                //new DiaoduequipCard(),
-                //new DiaoduCard(),
+                new DiaoduequipCard(),
+                new DiaoduCard(),
                 new LianziCard(),
                 new FlameMapCard(),
             };
@@ -65,10 +65,7 @@ namespace SanguoshaServer.Package
             };
         }
     }
-}
 
-namespace SanguoshaServer.Game
-{
     //xunyou
     public class Zhiyu : MasochismSkill
     {
@@ -753,6 +750,7 @@ namespace SanguoshaServer.Game
     {
         public Huashen() : base("huashen")
         {
+            //view_as_skill = new HuashenVS();
             events = new List<TriggerEvent> { TriggerEvent.GameStart };
             skill_type = SkillType.Wizzard;
         }
@@ -892,7 +890,7 @@ namespace SanguoshaServer.Game
             Huashen.RemoveHuashen(room, zuoci, huashens);
         }
     };
- 
+
     public class Xinsheng : MasochismSkill
     {
         public Xinsheng() : base("xinsheng")
@@ -1344,7 +1342,6 @@ namespace SanguoshaServer.Game
             return check && player.GetMark("@yong") >= 1;
         }
     }
-
     //lvfan
     public class DiaoduequipCard : SkillCard
     {
@@ -1817,12 +1814,14 @@ namespace SanguoshaServer.Game
         {
             skill_type = SkillType.Replenish;
         }
+        /*
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw)
                 return new TriggerStruct(Name, player);
             return new TriggerStruct();
         }
+        */
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             if (room.AskForSkillInvoke(player, Name))
@@ -1889,7 +1888,7 @@ namespace SanguoshaServer.Game
                 room.MoveCardTo(room.GetCard(id), player, Place.PlaceTable, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TURNOVER, player.Name, Name, null), false);
                 Thread.Sleep(400);
             }
-            AskForMoveCardsStruct result = room.AskForMoveCards(player, card_ids, new List<int>(), true, Name, 1, 4, false, true, new List<int>(), info.SkillPosition);
+            AskForMoveCardsStruct result = room.AskForMoveCards(player, card_ids, new List<int>(), true, Name, 1, 4, false, true, card_ids, info.SkillPosition);
 
             room.MoveCards(new List<CardsMoveStruct>{
                 new CardsMoveStruct(result.Bottom, player, Place.PlaceHand, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, player.Name, Name, null)) },
@@ -1902,11 +1901,14 @@ namespace SanguoshaServer.Game
         }
         public override bool MoveFilter(Room room, int id, List<int> downs)
         {
-            WrappedCard card = room.GetCard(id);
-            foreach (int card_id in downs) {
-                if (card.Suit == room.GetCard(card_id).Suit)
-                    return false;
+            if (id != -1)
+            {
+                WrappedCard card = room.GetCard(id);
+                foreach (int card_id in downs)
+                    if (card.Suit == room.GetCard(card_id).Suit)
+                        return false;
             }
+
             return true;
         }
     }

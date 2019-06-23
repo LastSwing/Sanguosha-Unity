@@ -62,8 +62,9 @@ namespace CommonClass.Game
 
         public void AddSubCard(WrappedCard card)
         {
-            if (card.Id >= 0 && !SubCards.Contains(card.Id))
-                SubCards.Add(card.Id);
+            foreach (int id in card.SubCards)
+                if (!SubCards.Contains(id))
+                    SubCards.Add(card.Id);
         }
         public void AddSubCard(int id)
         {
@@ -102,8 +103,8 @@ namespace CommonClass.Game
             Id = id;
             if (id > -1)
                 SubCards = new List<int> { id };
-            this.Suit = suit;
-            this.Number = number;
+            Suit = suit;
+            Number = number;
             CanRecast = can_recast;
             Transferable = transferable;
         }

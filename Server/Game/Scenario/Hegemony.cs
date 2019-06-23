@@ -522,18 +522,40 @@ namespace SanguoshaServer.Scenario
             return new TriggerStruct();
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent trigger_event, Room room, Player player, ref object data, Player target)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
+            List<TriggerStruct> result = new List<TriggerStruct>();
             if (player.Phase == PlayerPhase.Start && room.AliveCount() >= 4)
             {
-                foreach (string skill in player.GetSkills(true, false))
+                foreach (string skill in player.GetHeadSkillList(true, false))
                 {
                     Skill real_skill = Engine.GetSkill(skill);
                     if (real_skill != null && real_skill is BattleArraySkill baskill)
-                        return baskill.ViewAsSkill.IsEnabledAtPlay(room, player) ? new TriggerStruct(Name, player) : new TriggerStruct();
+                    {
+                        if (baskill.ViewAsSkill.IsEnabledAtPlay(room, player))
+                        {
+                            TriggerStruct trigger = new TriggerStruct(Name, player);
+                            trigger.SkillPosition = "head";
+                            result.Add(trigger);
+                        }
+                    }
+                }
+                foreach (string skill in player.GetDeputySkillList(true, false))
+                {
+                    Skill real_skill = Engine.GetSkill(skill);
+                    if (real_skill != null && real_skill is BattleArraySkill baskill)
+                    {
+                        if (baskill.ViewAsSkill.IsEnabledAtPlay(room, player))
+                        {
+                            TriggerStruct trigger = new TriggerStruct(Name, player);
+                            trigger.SkillPosition = "deputy";
+                            result.Add(trigger);
+                        }
+                    }
                 }
             }
-            return new TriggerStruct();
+
+            return result;
         }
     }
 

@@ -1,10 +1,9 @@
-﻿using CommonClass;
-using CommonClass.Game;
+﻿using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System.Collections.Generic;
 using static CommonClass.Game.Player;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Package
 {
@@ -61,10 +60,7 @@ namespace SanguoshaServer.Package
             };
         }
     }
-}
 
-namespace SanguoshaServer.Game
-{
     public class Tuntian : TriggerSkill
     {
         public Tuntian() : base("tuntian")
@@ -207,10 +203,12 @@ namespace SanguoshaServer.Game
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard shun = new WrappedCard("Snatch");
+            WrappedCard shun = new WrappedCard("Snatch")
+            {
+                Skill = Name,
+                ShowSkill = Name
+            };
             shun.AddSubCard(card);
-            shun.Skill = Name;
-            shun.ShowSkill = Name;
             shun = RoomLogic.ParseUseCard(room, shun);
             return shun;
         }
@@ -238,10 +236,12 @@ namespace SanguoshaServer.Game
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard c = new  WrappedCard("ZiliangCard");
+            WrappedCard c = new WrappedCard("ZiliangCard")
+            {
+                Skill = Name,
+                ShowSkill = Name
+            };
             c.AddSubCard(card);
-            c.Skill = Name;
-            c.ShowSkill = Name;
             return c;
         }
     }
@@ -1164,13 +1164,12 @@ namespace SanguoshaServer.Game
             events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime, TriggerEvent.BeforeCardsMove };
             frequency = Frequency.Compulsory;
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
-            if (move.From != null && base.Triggerable(move.From, room) && move.To_place != Place.DrawPileBottom)
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (data is CardsMoveOneTimeStruct move && move.From != null && move.To_place != Place.DrawPileBottom)
             {
-                int fldfid = -1;
-                foreach (int id in move.Card_ids)
+                int fldfid = -1; foreach (int id in move.Card_ids)
                 {
                     if (room.GetCard(id).Name == "DragonPhoenix")
                     {
@@ -1179,31 +1178,35 @@ namespace SanguoshaServer.Game
                     }
                 }
 
-                if (fldfid == -1)
-                    return new TriggerStruct();
-
-                if (triggerEvent == TriggerEvent.CardsMoveOneTime)
+                if (fldfid != -1)
                 {
-                    if (move.To_place == Place.DiscardPile || (move.To_place == Place.PlaceEquip && move.To != move.From))
-                        return new TriggerStruct(Name, move.From);
-                }
-                else if (triggerEvent == TriggerEvent.BeforeCardsMove)
-                {
-                    if ((move.From != null && (move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceHand ||
-                                                move.From_places[move.Card_ids.IndexOf(fldfid)] ==  Place.PlaceEquip))
-                                                && (move.To != move.From || (move.To_place != Place.PlaceHand && move.To_place != Place.PlaceEquip)))
+                    if (triggerEvent == TriggerEvent.CardsMoveOneTime && move.From != null && room.GetCardPlace(fldfid) == move.To_place
+                        && (move.To_place == Place.DiscardPile || (move.To_place == Place.PlaceEquip)))
                     {
-                        if (move.From_places[move.Card_ids.IndexOf(fldfid)] ==  Place.PlaceHand && move.To_place == Place.PlaceTable &&
-                                move.Reason.Reason ==  CardMoveReason.MoveReason.S_REASON_USE && move.Reason.CardString == RoomLogic.CardToString(room, room.GetCard(fldfid)))
-                            return new TriggerStruct();
+                        List<Player> lord_liubeis = RoomLogic.FindPlayersBySkillName(room, Name);
+                        foreach (Player p in lord_liubeis)
+                        {
+                            if (base.Triggerable(p, room) && (move.To_place == Place.DiscardPile || p != move.To))
+                                triggers.Add(new TriggerStruct(Name, p));
+                        }
+                    }
+                    else if (triggerEvent == TriggerEvent.BeforeCardsMove && base.Triggerable(move.From, room))
+                    {
+                        if ((move.From != null && (move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceHand ||
+                                                    move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceEquip))
+                                                    && (move.To != move.From || (move.To_place != Place.PlaceHand && move.To_place != Place.PlaceEquip)))
+                        {
+                            if (move.From_places[move.Card_ids.IndexOf(fldfid)] == Place.PlaceHand && move.To_place == Place.PlaceTable &&
+                                    move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_USE && move.Reason.CardString == RoomLogic.CardToString(room, room.GetCard(fldfid)))
+                                return triggers;
 
-                        return new TriggerStruct(Name, move.From);
+                            triggers.Add(new TriggerStruct(Name, move.From));
+                        }
                     }
                 }
             }
-            
 
-            return new TriggerStruct();
+            return triggers;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {

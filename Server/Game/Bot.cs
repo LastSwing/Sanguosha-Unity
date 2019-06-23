@@ -437,7 +437,7 @@ namespace SanguoshaServer.Game
             {
                 DataRow[] data1 = Engine.GetGeneralSkin(player.ActualGeneral1, room.Setting.GameMode);
 
-                bool head = data1.Length > 0 && (string.IsNullOrEmpty(player.ActualGeneral2) || Shuffle.random(1, 2));
+                bool head = data1.Length > 1 && (string.IsNullOrEmpty(player.ActualGeneral2) || Shuffle.random(1, 2));
                 if (head)
                 {
                     string name = player.ActualGeneral1;
@@ -451,11 +451,14 @@ namespace SanguoshaServer.Game
                 if (!string.IsNullOrEmpty(player.ActualGeneral2) && (!head || Shuffle.random(1, 2)))
                 {
                     DataRow[] data2 = Engine.GetGeneralSkin(player.ActualGeneral2, room.Setting.GameMode);
-                    Random ra = new Random();
-                    int result = ra.Next(0, data2.Length);
-                    player.DeputySkinId = result;
-                    if (player.General2Showed)
-                        room.BroadcastProperty(player, "DeputySkinId");
+                    if (data2.Length > 1)
+                    {
+                        Random ra = new Random();
+                        int result = ra.Next(1, data2.Length);
+                        player.DeputySkinId = result;
+                        if (player.General2Showed)
+                            room.BroadcastProperty(player, "DeputySkinId");
+                    }
                 }
             }
         }

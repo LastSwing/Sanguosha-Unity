@@ -1,15 +1,14 @@
 ﻿using CommonClass.Game;
+using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using static CommonClass.Game.Player;
 using static CommonClass.Game.WrappedCard;
-using static SanguoshaServer.Game.EquipCard;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.EquipCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Game
 {
@@ -109,17 +108,17 @@ namespace SanguoshaServer.Game
             Player next_p = from;
             while (next_p != other)
             {
-                next_p = room.GetNextAlive(next_p);
+                next_p = room.GetNextAlive(next_p, 1, false);
                 right++;
             }
             return right;
         }
 
-        public static int DistanceTo(Room room, Player from, Player other, WrappedCard card = null, bool ignore_remove = false)
+        public static int DistanceTo(Room room, Player from, Player other, WrappedCard card = null, bool include_remove = false)
         {
             if (from == other || !from.Alive || !other.Alive) return 0;
 
-            if (!ignore_remove && (from.Removed || other.Removed)) return -1;
+            if (!include_remove && (from.Removed || other.Removed)) return -1;
 
             int distance_fixed = Engine.GetFixedDistance(room, from, other);
             if (distance_fixed > 0) return distance_fixed;
@@ -258,7 +257,7 @@ namespace SanguoshaServer.Game
 
         public static int GetCardNumber(Room room, WrappedCard card)
         {
-            if (Engine.GetFunctionCard(card.Name)?.IsKindOf("SkillCard") == true)
+            if (Engine.GetFunctionCard(card.Name) is SkillCard)
                 return 0;
             else
             {
@@ -388,7 +387,27 @@ namespace SanguoshaServer.Game
 
         public static bool PlayerHasShownSkill(Room room, Player player, string skill)
         {
-            return PlayerHasShownSkill(room, player, Engine.GetSkill(skill));
+            bool check = true;
+            foreach (string str in skill.Split('+'))
+            {
+                bool _check = false;
+                foreach (string _str in skill.Split('|'))
+                {
+                    if (PlayerHasShownSkill(room, player, Engine.GetSkill(skill)))
+                    {
+                        _check = true;
+                        break;
+                    }
+                }
+
+                if (!_check)
+                {
+                    check = false;
+                    break;
+                }
+            }
+
+            return check;
         }
         public static bool PlayerHasShownSkill(Room room, Player player, Skill skill)
         {
@@ -825,7 +844,7 @@ namespace SanguoshaServer.Game
 
                         //@todo: sanity check required
                         if (!string.IsNullOrEmpty(pile_name))
-                            player.Piles[pile_name].Remove(card_id);
+                            player.PileChange(pile_name, new List<int> { card_id }, false);
 
                         break;
                     }

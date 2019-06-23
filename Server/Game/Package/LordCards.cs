@@ -1,5 +1,4 @@
-﻿using CommonClass;
-using CommonClass.Game;
+﻿using CommonClass.Game;
 using SanguoshaServer.Game;
 using System.Collections.Generic;
 
@@ -23,16 +22,13 @@ namespace SanguoshaServer.Package
                 new PeaceSpellSkill(),
                 new PeaceSpellSkillMaxCards(),
                 new LuminouSpearlSkill(),
-                new ZhihengVH(),
+                //new ZhihengVH(),
                 new DragonCarriageSkill(),
                 new DragonCarriageDistanceSkill()
             };
         }
     }
-}
 
-namespace SanguoshaServer.Game
-{
     public class DragonPhoenix : Weapon
     {
         public DragonPhoenix() : base("DragonPhoenix", 2)
@@ -482,9 +478,7 @@ namespace SanguoshaServer.Game
         }
         public override void OnUninstall(Room room, Player player, WrappedCard card)
         {
-            if (!player.GetAcquiredSkills().Contains("zhiheng") && (!player.OwnSkill("zhiheng")
-                || ((!RoomLogic.InPlayerHeadSkills(player, "zhiheng") || !player.General1Showed)
-                && (!RoomLogic.InPlayerDeputykills(player, "zhiheng") || !player.General2Showed))))
+            if (!RoomLogic.PlayerHasShownSkill(room, player, "zhiheng"))
                 player.ClearHistory("ZhihengCard");
             base.OnUninstall(room, player, card);
         }
@@ -503,20 +497,22 @@ namespace SanguoshaServer.Game
             if (cards.Count == 0)
                 return null;
 
-            WrappedCard zhiheng_card = new WrappedCard("ZhihengCard");
+            WrappedCard zhiheng_card = new WrappedCard("ZhihengCard")
+            {
+                Skill = "zhiheng",
+                Mute = true
+            };
             zhiheng_card.AddSubCards(cards);
-            zhiheng_card.Skill = "zhiheng";
             return zhiheng_card;
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
             return RoomLogic.CanDiscard(room, player, player, "he") && !player.HasUsed("ZhihengCard")
-                    && !player.GetAcquiredSkills().Contains("zhiheng") && (!player.OwnSkill("zhiheng")
-                        || !((RoomLogic.InPlayerHeadSkills(player, "zhiheng") && player.General1Showed)
-                        || (RoomLogic.InPlayerDeputykills(player, "zhiheng") && player.General2Showed)));
+                    && !RoomLogic.PlayerHasShownSkill(room, player, "zhiheng");
         }
     }
 
+    /*
     public class ZhihengVH : ViewHasSkill
     {
         public ZhihengVH() : base("zhiheng-viewhas")
@@ -526,6 +522,7 @@ namespace SanguoshaServer.Game
         }
         public override bool ViewHas(Room room, Player player, string skill_name) => player.HasTreasure("LuminouSpearl");
     }
+    */
 
     public class DragonCarriage : SpecialEquip
     {

@@ -55,7 +55,7 @@ namespace SanguoshaServer.Package
     }
 }
 
-namespace SanguoshaServer.Game
+namespace SanguoshaServer.Package
 {
     #region 装备
     public class Blade : Weapon
@@ -1555,6 +1555,7 @@ namespace SanguoshaServer.Game
             {
                 WrappedCard card = new WrappedCard("TransferCard")
                 {
+                    Skill = Name,
                     Mute = true
                 };
                 card.AddSubCards(cards);

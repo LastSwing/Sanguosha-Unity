@@ -158,6 +158,7 @@ namespace CommonClassLibrary
         S_COMMAND_ASK_PEACH,
         S_COMMAND_SET_MARK,
         S_COMMAND_SET_FLAG,
+        S_COMMAND_SET_STRINGMARK,
         S_COMMAND_NULLIFICATION,
         S_COMMAND_MULTIPLE_CHOICE,
         S_COMMAND_PINDIAN,
@@ -166,8 +167,8 @@ namespace CommonClassLibrary
         S_COMMAND_SKILL_GONGXIN,
         S_COMMAND_SET_PROPERTY,
         S_COMMAND_CHANGE_HP,
-        S_COMMAND_CHAIN_REMOVE,
-        S_COMMAND_OPERATE,           //#30
+        S_COMMAND_CHAIN_REMOVE,         //#30
+        S_COMMAND_OPERATE,
         S_COMMAND_CHEAT,
         S_COMMAND_SURRENDER,
         S_COMMAND_ENABLE_SURRENDER,
@@ -176,8 +177,8 @@ namespace CommonClassLibrary
         S_COMMAND_MOVE_CARD,
         S_COMMAND_GET_CARD,
         S_COMMAND_LOSE_CARD,
-        S_COMMAND_LOG_EVENT,
-        S_COMMAND_LOG_SKILL,            //#40
+        S_COMMAND_LOG_EVENT,            //#40
+        S_COMMAND_LOG_SKILL,
         S_COMMAND_UPDATE_CARD,
         S_COMMAND_SET_EMOTION,
         S_COMMAND_FILL_AMAZING_GRACE,
@@ -195,8 +196,8 @@ namespace CommonClassLibrary
         S_COMMAND_UPDATE_STATE_ITEM,
         S_COMMAND_SPEAK,
         S_COMMAND_ARRANGE_GENERAL,
-        S_COMMAND_FILL_GENERAL,
-        S_COMMAND_TAKE_GENERAL,         //#60
+        S_COMMAND_FILL_GENERAL,         //#60
+        S_COMMAND_TAKE_GENERAL,
         S_COMMAND_RECOVER_GENERAL,
         S_COMMAND_REVEAL_GENERAL,
         S_COMMAND_ANIMATE,

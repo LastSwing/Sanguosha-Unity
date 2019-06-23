@@ -1,11 +1,12 @@
 ﻿using CommonClass.Game;
 using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
 using static CommonClass.Game.WrappedCard;
 namespace SanguoshaServer.AI
 {
-    class StrategicAdvantageCardsAI : AIPackage
+    public class StrategicAdvantageCardsAI : AIPackage
     {
         public StrategicAdvantageCardsAI() : base("StrategicAdvantageCardsAI")
         {
@@ -14,6 +15,7 @@ namespace SanguoshaServer.AI
                 new TransferAI(),
                 new WoodenAI(),
                 new JadeAI(),
+                new HalberdChooseAI(),
             };
 
             use_cards = new List<UseCard>
@@ -244,7 +246,7 @@ namespace SanguoshaServer.AI
                             FunctionCard fcard = Engine.GetFunctionCard(c.Name);
                             foreach (Player p in targets)
                             {
-                                if (p.HasShownOneGeneral() && fcard.IsAvailable(room, p, c))
+                                if (p.HasShownOneGeneral() && fcard.IsAvailable(room, p, c) && !ai.GetPrioEnemies().Contains(p))
                                 {
                                     Player np = room.GetNextAlive(p);
                                     DamageStruct damage = new DamageStruct(c, p, np, 1, DamageStruct.DamageNature.Fire);
@@ -272,7 +274,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override WrappedCard GetTurnUse(TrustedAI ai, Player player)
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             if (player.HasFlag(Name)) return null;
 
@@ -281,7 +283,7 @@ namespace SanguoshaServer.AI
             {
                 WrappedCard card = room.GetCard(id);
                 if (card.Transferable)
-                    return new WrappedCard("TransferCard");
+                    return new List<WrappedCard> { new WrappedCard("TransferCard") { Skill = Name, Mute = true } };
             }
 
             return null;
@@ -296,7 +298,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
+        public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = ai.AjustWeaponRangeValue(player, card);
             foreach (Player p in ai.Room.GetOtherPlayers(player))
@@ -320,7 +322,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
+        public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = ai.AjustWeaponRangeValue(player, card);
             List<string> kingdoms = new List<string>();
@@ -402,7 +404,7 @@ namespace SanguoshaServer.AI
         public BreastPlateAI() : base("BreastPlate")
         { }
 
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
+        public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = 0;
             if (ai.IsWeak(player))
@@ -455,6 +457,13 @@ namespace SanguoshaServer.AI
             key = new List<string> { "playerChosen" };
         }
 
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            if (ai.HasSkill(TrustedAI.LoseEquipSkill, player) && ai.GetFriends(player).Count > 1)
+                return 6;
+
+            return 2;
+        }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice && ai.Self != player)
@@ -481,7 +490,7 @@ namespace SanguoshaServer.AI
             return new List<Player>();
         }
 
-        public override WrappedCard GetTurnUse(TrustedAI ai, Player player)
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             Room room = ai.Room;
             ai.Target[Name] = null;
@@ -505,10 +514,8 @@ namespace SanguoshaServer.AI
             {
                 List<Player> targets = new List<Player>();
                 foreach (Player p in ai.FriendNoSelf)
-                {
-                    if (p.Treasure.Key == -1)
+                    if (RoomLogic.CanPutEquip(p, room.GetCard(player.Treasure.Key)))
                         targets.Add(p);
-                }
 
                 Player next = null;
                 room.SortByActionOrder(ref targets);
@@ -526,18 +533,21 @@ namespace SanguoshaServer.AI
                     if (result.Key != null)
                     {
                         ai.Target[Name] = next;
-                        WrappedCard card = new WrappedCard("WoodenOxCard");
+                        WrappedCard card = new WrappedCard("WoodenOxCard") {Skill = Name };
                         card.AddSubCard(result.Value);
-                        return card;
+                        return new List<WrappedCard> { card };
                     }
                 }
                 else if (ai.HasSkill(TrustedAI.LoseEquipSkill) && targets.Count > 0)
                 {
                     ai.Target[Name] = targets[0];
                     ai.SortByUseValue(ref cards, false);
-                    WrappedCard card = new WrappedCard("WoodenOxCard");
+                    WrappedCard card = new WrappedCard("WoodenOxCard")
+                    {
+                        Skill = Name
+                    };
                     card.AddSubCard(cards[0]);
-                    return card;
+                    return new List<WrappedCard> { card };
                 }
                 else if (targets.Count > 0)
                 {
@@ -552,9 +562,12 @@ namespace SanguoshaServer.AI
                     if (result.Key != null)
                     {
                         ai.Target[Name] = result.Key;
-                        WrappedCard card = new WrappedCard("WoodenOxCard");
+                        WrappedCard card = new WrappedCard("WoodenOxCard")
+                        {
+                            Skill = Name
+                        };
                         card.AddSubCard(result.Value);
-                        return card;
+                        return new List<WrappedCard> { card };
                     }
                 }
             }
@@ -562,9 +575,12 @@ namespace SanguoshaServer.AI
             if (ai.GetOverflow(player) > 0)
             {
                 ai.SortByKeepValue(ref cards, false);
-                WrappedCard card = new WrappedCard("WoodenOxCard");
-                card.AddSubCard(cards[0]);
-                return card;
+                WrappedCard card = new WrappedCard("WoodenOxCard")
+                {
+                    Skill = Name
+                };
+                card.AddSubCard(cards[ai.GetOverflow(player) - 1]);
+                return new List<WrappedCard> { card };
             }
 
             return null;
@@ -576,8 +592,7 @@ namespace SanguoshaServer.AI
         public WoodenOxAI() : base("WoodenOx")
         {
         }
-
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
+        public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = 0;
             value += player.GetPile("wooden_ox").Count * 0.3;
@@ -622,7 +637,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, Player.Place place)
+        public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = 0;
 
@@ -868,7 +883,7 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            Player np = room.GetNextAlive(player, 1, false);
+            Player np = room.GetNextAlive(player, 1);
             if (ai.IsFriend(np)) return;
 
             List<Player> targets = RoomLogic.GetFormation(room, np);
@@ -888,14 +903,21 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (value > 4)
+                int hand = 0;
+                foreach (int id in card.SubCards)
+                    if (room.GetCardPlace(id) == Player.Place.PlaceHand && room.GetCardOwner(id) == player)
+                        hand++;
+
+
+                if (value > 4 || (value > 0 && hand > 0 && hand <= ai.GetOverflow(player)))
                 {
                     if (damage_done)
                     {
                         CardUseStruct new_use = new CardUseStruct
                         {
                             From = player,
-                            IsDummy = true
+                            IsDummy = true,
+                            To = new List<Player>()
                         };
 
                         List<WrappedCard> wrappeds = ai.GetCards("IronChain", player);
@@ -1373,12 +1395,12 @@ namespace SanguoshaServer.AI
 
                 if (win > 1)
                 {
-                    if (win == v_big)
+                    if (win == v_big && bigs.Count > 1)             //目标只有1个还不如重铸
                     {
                         ai.Choice[Name] = "big";
                         use.To.Add(bigs[0]);
                     }
-                    else if (win == v_small)
+                    else if (win == v_small && smalls.Count > 1)
                     {
                         ai.Choice[Name] = "small";
                         use.To.Add(smalls[0]);

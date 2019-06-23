@@ -62,9 +62,7 @@ namespace SanguoshaServer.Package
             };
         }
     }
-}
-namespace SanguoshaServer.Game
-{
+
     public class Xunxun : PhaseChangeSkill
     {
         public Xunxun() : base("xunxun")

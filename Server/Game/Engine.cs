@@ -8,8 +8,8 @@ using System.Linq;
 using static CommonClass.Game.WrappedCard;
 using SanguoshaServer.Scenario;
 using SanguoshaServer.Package;
-using static SanguoshaServer.Game.FunctionCard;
 using SanguoshaServer.AI;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Game
 {
@@ -748,7 +748,7 @@ namespace SanguoshaServer.Game
         public static Skill GetMainSkill(string skill_name)
         {
             Skill skill = GetSkill(skill_name);
-            if (skill != null && (skill.Visible || related_skills.Keys.Contains(skill_name))) return skill;
+            if (skill != null && (skill.Visible|| related_skills.Keys.Contains(skill_name))) return skill;
             foreach (string key in related_skills.Keys) {
                 foreach (string name in related_skills[key])
                     if (name == skill_name) return GetSkill(key);
@@ -1094,7 +1094,6 @@ namespace SanguoshaServer.Game
         }
         public static double GetCardUseValue(string name)
         {
-            Dictionary<string, double> result = new Dictionary<string, double>();
             DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
             if (rows.Length > 0) return double.Parse(rows[0]["use_value"].ToString());
 
@@ -1102,7 +1101,6 @@ namespace SanguoshaServer.Game
         }
         public static double GetCardKeepValue(string name)
         {
-            Dictionary<string, double> result = new Dictionary<string, double>();
             DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
             if (rows.Length > 0) return double.Parse(rows[0]["keep_value"].ToString());
 
@@ -1110,7 +1108,6 @@ namespace SanguoshaServer.Game
         }
         public static double GetCardPriority(string name)
         {
-            Dictionary<string, double> result = new Dictionary<string, double>();
             DataRow[] rows = ai_values.Tables["card_values"].Select(string.Format("card_name = '{0}'", name));
             if (rows.Length > 0) return double.Parse(rows[0]["priority"].ToString());
 

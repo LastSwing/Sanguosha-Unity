@@ -1,14 +1,12 @@
 ﻿using CommonClass.Game;
-using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using SanguoshaServer.Scenario;
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static CommonClass.Game.CardUseStruct;
 using static SanguoshaServer.Game.BattleArraySkill;
-using static SanguoshaServer.Game.FunctionCard;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Game
 {
@@ -154,12 +152,7 @@ namespace SanguoshaServer.Game
         public bool Attached_lord_skill => attached_lord_skill;
         public SkillType Skill_type => skill_type;
         public bool LordSkill => lord_skill;
-
-        public bool Visible
-        {
-            get { return !Name.StartsWith("#"); }
-        }
-
+        public bool Visible => !name.StartsWith("#");
         public virtual int GetEffectIndex(Room room, Player player, WrappedCard card)
         {
             return -1;
@@ -589,7 +582,7 @@ namespace SanguoshaServer.Game
                 foreach (int id in cards)
                 {
                     FunctionCard card = Engine.GetFunctionCard(Engine.GetRealCard(id).Name);
-                    if (card?.IsNDTrick() == false && card?.IsKindOf("TrickCard") == true && !all.Contains(card.Name))
+                    if (card?.IsNDTrick() == false && card is TrickCard && !all.Contains(card.Name))
                     {
                         all.Add(card.Name);
                     }
@@ -839,20 +832,6 @@ namespace SanguoshaServer.Game
             card.ClearSubCards();
             card.AddSubCards(cards);
             return card;
-        }
-    }
-
-    public class YijiCard : SkillCard
-    {
-        public YijiCard() : base("YijiCard")
-        {
-        }
-        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
-        {
-            return targets.Count == 0 && card.UserString.Split('+').Contains(to_select.Name);
-        }
-        public override void Use(Room room, CardUseStruct card_use)
-        {
         }
     }
 

@@ -377,6 +377,7 @@ namespace CommonClass.Game
             S_REASON_REMOVE_FROM_PILE = 0x2A,  //  cards moved out of game go back into discardpile
             S_REASON_JUDGEDONE = 0x3A,         //  judge card move into discardpile
             S_REASON_CHANGE_EQUIP = 0x4A,     //  replace existed equip
+            S_REASON_REMOVE_FROM_GAME = 0x5A, //  remove cards out of game, such as like add to player's plie
 
             S_MASK_BASIC_REASON = 0x0F,
         }
