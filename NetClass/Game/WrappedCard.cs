@@ -64,7 +64,7 @@ namespace CommonClass.Game
         {
             foreach (int id in card.SubCards)
                 if (!SubCards.Contains(id))
-                    SubCards.Add(card.Id);
+                    SubCards.Add(id);
         }
         public void AddSubCard(int id)
         {

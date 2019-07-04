@@ -503,6 +503,7 @@ namespace SanguoshaServer.Game
 
             return bots.Select(string.Format("id = '{0}'", result))[0];
         }
+        public static List<string> GetBotsNames() => new List<string>(bot_names);
 
         public static DataRow GetLines(string id)
         {
@@ -764,6 +765,8 @@ namespace SanguoshaServer.Game
                 if (flag == "armor" && skill.Armors.Contains(skill_name) && skill.ViewHas(room, player, skill_name))
                     skills.Add(skill);
                 else if (flag == "skill" && skill.Skills.Contains(skill_name) && skill.ViewHas(room, player, skill_name))
+                    skills.Add(skill);
+                else if (flag == "treasure" && skill.Treasures.Contains(skill_name) && skill.ViewHas(room, player, skill_name))
                     skills.Add(skill);
             }
 

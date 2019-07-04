@@ -65,10 +65,6 @@ namespace SanguoshaServer.AI
 
             return null;
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 5;
-        }
     }
 
     public class ZhihengCardAI : UseCard
@@ -76,6 +72,12 @@ namespace SanguoshaServer.AI
         public ZhihengCardAI() : base("ZhihengCard")
         {
         }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 4.2;
+        }
+
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             List<int> unpreferedCards = new List<int>();
@@ -145,6 +147,7 @@ namespace SanguoshaServer.AI
                     if (card_event != null)
                         basic += card_event.CardValue(ai, player, true, _c, Player.Place.PlaceEquip);
                     values[id] = basic;
+
                     if (Engine.GetFunctionCard(_c.Name) is Weapon)
                         weapons.Add(id);
                     else if (Engine.GetFunctionCard(_c.Name) is Armor)
@@ -358,10 +361,6 @@ namespace SanguoshaServer.AI
     {
         public KurouAI() : base("kurou")
         { }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 3;
-        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             if (ai.WillShowForAttack() && !player.HasUsed("KurouCard"))
@@ -395,6 +394,11 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             use.Card = card;
+        }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 3;
         }
     }
 
@@ -446,10 +450,6 @@ namespace SanguoshaServer.AI
         public FanjianAI() : base("fanjian")
         {
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 5;
-        }
         
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
@@ -464,6 +464,11 @@ namespace SanguoshaServer.AI
     {
         public FanjianCardAI() : base("FanjianCard")
         {}
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 5;
+        }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;
@@ -889,11 +894,6 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 2 - Engine.GetCardPriority(ai.Room.GetCard(card.GetEffectiveId()).Name);
-        }
-
         public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return - Engine.GetCardKeepValue(ai.Room.GetCard(card.GetEffectiveId()).Name);
@@ -953,19 +953,7 @@ namespace SanguoshaServer.AI
     {
         public JieyinAI() : base("jieyin")
         { }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            double cost = 0;
-            foreach (int id in card.SubCards)
-            {
-                double use_value = ai.GetUseValue(id, player);
-                if (ai.GetOverflow(player) > card.SubCards.IndexOf(id) && use_value > 0)
-                    use_value /= 4;
-                cost += use_value;
-            }
 
-            return cost > 8 ? 1 : 2.8;
-        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             ai.Target[Name] = null;
@@ -1053,6 +1041,20 @@ namespace SanguoshaServer.AI
         public JieyinCardAI() : base("JieyinCard")
         {
         }
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            double cost = 0;
+            foreach (int id in card.SubCards)
+            {
+                double use_value = ai.GetUseValue(id, player);
+                if (ai.GetOverflow(player) > card.SubCards.IndexOf(id) && use_value > 0)
+                    use_value /= 4;
+                cost += use_value;
+            }
+
+            return cost > 8 ? 1 : 2.8;
+        }
+
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             use.Card = card;
@@ -1149,6 +1151,24 @@ namespace SanguoshaServer.AI
                 return new List<Player> { tar };
 
             return new List<Player>();
+        }
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            return YinghunJAI.choice(ai, player);
+        }
+        public static string choice(TrustedAI ai, Player player)
+        {
+            Player target = null;
+            foreach (Player p in ai.Room.GetAlivePlayers())
+            {
+                if (p.HasFlag("YinghunTarget"))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            return ai.IsFriend(target) ? "dxt1" : "d1tx";
         }
     }
 
@@ -1254,32 +1274,7 @@ namespace SanguoshaServer.AI
     {
         public TianyiAI() : base("tianyi")
         { }
-
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            WrappedCard max = ai.GetMaxCard(player, new List<int>(player.HandCards), new List<string> { "Peach", "Analeptic", "Slash" });
-            int max_number = 0;
-            if (max != null)
-            {
-                max_number = max.Number;
-                if (ai.HasSkill("yingyang"))
-                    max_number = Math.Min(13, max_number + 3);
-
-                if (max_number >= 12) return 3.5;
-                if (max_number >= 8 && ai.FriendNoSelf.Count > 0)
-                {
-                    List<Player> friends = new List<Player>(ai.FriendNoSelf);
-                    ai.SortByHandcards(ref friends);
-                    foreach (Player p in friends)
-                    {
-                        if (ai.IsWeak(p) || p.HandcardNum <= p.MaxHp) continue;
-                        return 3.5;
-                    }
-                }
-            }
-
-            return 2;
-        }
+        
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
@@ -1453,7 +1448,31 @@ namespace SanguoshaServer.AI
     {
         public TianyiCardAI() : base("TianyiCard")
         { }
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            WrappedCard max = ai.GetMaxCard(player, new List<int>(player.HandCards), new List<string> { "Peach", "Analeptic", "Slash" });
+            int max_number = 0;
+            if (max != null)
+            {
+                max_number = max.Number;
+                if (ai.HasSkill("yingyang"))
+                    max_number = Math.Min(13, max_number + 3);
 
+                if (max_number >= 12) return 3.5;
+                if (max_number >= 8 && ai.FriendNoSelf.Count > 0)
+                {
+                    List<Player> friends = new List<Player>(ai.FriendNoSelf);
+                    ai.SortByHandcards(ref friends);
+                    foreach (Player p in friends)
+                    {
+                        if (ai.IsWeak(p) || p.HandcardNum <= p.MaxHp) continue;
+                        return 3.5;
+                    }
+                }
+            }
+
+            return 2;
+        }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             List<Player> enemies = ai.GetPrioEnemies();
@@ -1638,10 +1657,6 @@ namespace SanguoshaServer.AI
     {
         public DimengAI() : base("dimeng")
         { }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 2.8;
-        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             if (ai.WillShowForAttack() && ai.FriendNoSelf.Count > 0 && !player.HasUsed("DimengCard") && !player.IsNude())
@@ -1656,6 +1671,10 @@ namespace SanguoshaServer.AI
         public DimengCardAI() : base("DimengCard")
         { }
 
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 2.8;
+        }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
@@ -1718,10 +1737,6 @@ namespace SanguoshaServer.AI
         public ZhijianAI() : base("zhijian")
         {
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 8;
-        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             List<WrappedCard> ids = new List<WrappedCard>();
@@ -1766,7 +1781,11 @@ namespace SanguoshaServer.AI
         public ZhijianCardAI() : base("ZhijianCard")
         {
         }
-        
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 8;
+        }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;
@@ -1911,10 +1930,6 @@ namespace SanguoshaServer.AI
     public class FenxunAI : SkillEvent
     {
         public FenxunAI() : base("fenxun") { }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 8;
-        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             if (ai.WillShowForAttack() && !player.HasUsed("FenxunCard") && !player.IsNude())
@@ -1933,6 +1948,11 @@ namespace SanguoshaServer.AI
     public class FenxunCardAI : UseCard
     {
         public FenxunCardAI() : base("FenxunCard") { }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 8;
+        }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;

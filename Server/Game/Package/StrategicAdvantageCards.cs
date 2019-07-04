@@ -48,7 +48,7 @@ namespace SanguoshaServer.Package
                 new FightTogether(),
                 new AllianceFeast(),
                 new ThreatenEmperor(),
-                new ImperialOrder(),
+                new Edict(),
                 new OffensiveHorse("Jingfan")
             };
         }
@@ -215,7 +215,7 @@ namespace SanguoshaServer.Package
         public override bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card, List<Player> previous_targets, List<Player> selected_targets = null)
         {
             if (!Engine.MatchExpPattern(room, pattern, from, card) || from.GetMark("Equips_nullified_to_Yourself") > 0 || !from.HasWeapon(Name)
-                || card.SubCards.Contains(from.Weapon.Key))
+                || card.SubCards.Contains(from.Weapon.Key) || to.GetMark("Equips_of_Others_nullified_to_You") > 0)
                 return false;
 
             List<string> kingdoms = new List<string>();
@@ -223,17 +223,11 @@ namespace SanguoshaServer.Package
             if (selected_targets != null)
                 targets.AddRange(selected_targets);
             foreach (Player p in targets) {
-                if (!p.HasShownOneGeneral() || p.Role == "careerist")
-                    continue;
-                kingdoms.Add(p.Kingdom);
+                if (p.HasShownOneGeneral() && p.Role != "careerist")
+                    kingdoms.Add(p.Kingdom);
             }
-            if (to.GetMark("Equips_of_Others_nullified_to_You") > 0)
-                return false;
-            if (to.HasShownOneGeneral() && to.Role == "careerist") // careerist!
-                return false;
-            if (to.HasShownOneGeneral() && kingdoms.Contains(to.Kingdom))
-                return false;
-            return !targets.Contains(to);
+
+            return !targets.Contains(to) && (!to.HasShownOneGeneral() || to.Role == "careerist" || !kingdoms.Contains(to.Kingdom));
         }
     }
     public class HalberdTrigger : WeaponSkill
@@ -537,8 +531,13 @@ namespace SanguoshaServer.Package
     {
         public JadeSealViewAsSkill() : base("JadeSeal")
         {
-            response_pattern = "@@JadeSeal!";
         }
+
+        public override bool IsAvailable(Room room, Player invoker, CardUseStruct.CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == "@@JadeSeal!";
+        }
+
         public override WrappedCard ViewAs(Room room, Player player)
         {
             return new WrappedCard("JadeSealCard");
@@ -553,7 +552,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (!base.Triggerable(player, room) || !player.HasShownOneGeneral())
+            if (!RoomLogic.HasTreasureEffect(room, player, Name) || !player.HasShownOneGeneral())
                 return new TriggerStruct();
             if (triggerEvent == TriggerEvent.EventPhaseProceeding && player.Phase == PlayerPhase.Draw && (int)data >= 0)
             {
@@ -1398,9 +1397,9 @@ namespace SanguoshaServer.Package
         }
     }
     */
-    public class ImperialOrder : GlobalEffect
+    public class Edict : GlobalEffect
     {
-        public ImperialOrder() : base("ImperialOrder") { }
+        public Edict() : base("Edict") { }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             bool canUse = false;
@@ -1449,12 +1448,12 @@ namespace SanguoshaServer.Package
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
-            room.SetCardFlag(card_use.Card, "imperial_order_normal_use");
+            room.SetCardFlag(card_use.Card, "edict_normal_use");
             base.Use(room, card_use);
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            if (room.AskForCard(effect.To, Name, "EquipCard", "@imperial_order-equip") != null)
+            if (room.AskForCard(effect.To, Name, "EquipCard", "@edict-equip") != null)
                 return;
             List<string> choices = new List<string>();
             if (!effect.To.HasShownAllGenerals()

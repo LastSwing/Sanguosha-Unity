@@ -13,6 +13,7 @@ namespace SanguoshaServer.AI
                 new DragonPhoenixAI(),
                 new PeaceSpellAI(),
                 new LuminouSpearlAI(),
+                new DragonCarriageAI(),
             };
 
             events = new List<SkillEvent> { new LuminouSpearlSkillAI() };
@@ -85,7 +86,26 @@ namespace SanguoshaServer.AI
         }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            Room room = ai.Room;
+            Player target = null;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (ai.HasSkill("zhangwu", p))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            if (target != null && !ai.IsFriend(target, player) || !ai.HasSkill(TrustedAI.LoseEquipSkill, player))
+                return;
+
             ai.UseEquipCard(ref use, card);
+        }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return ai.GetEquipPriorityAdjust(card);
         }
     }
 
@@ -139,7 +159,31 @@ namespace SanguoshaServer.AI
         }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            ai.UseEquipCard(ref use, card);
+            Room room = ai.Room;
+            Player target = null;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (ai.HasSkill("wendao", p))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            bool will_use = true;
+            if (target != null && !ai.IsFriend(target, player))
+            {
+                will_use = false;
+                if (ai.GetOverflow(player) > 0 && room.GetCardPlace(card.GetEffectiveId()) == Player.Place.PlaceHand && room.GetCardOwner(card.GetEffectiveId()) == player)
+                    will_use = true;
+            }
+
+            if (will_use)
+                ai.UseEquipCard(ref use, card);
+        }
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return ai.GetEquipPriorityAdjust(card);
         }
     }
 
@@ -150,6 +194,20 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            Room room = ai.Room;
+            Player target = null;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (ai.HasSkill("jubao", p))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            if (target != null && !ai.IsFriend(target, player))
+                return;
+
             ai.UseEquipCard(ref use, card);
         }
 
@@ -186,6 +244,10 @@ namespace SanguoshaServer.AI
 
             return value;
         }
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return ai.GetEquipPriorityAdjust(card);
+        }
     }
     public class LuminouSpearlSkillAI : SkillEvent
     {
@@ -204,16 +266,23 @@ namespace SanguoshaServer.AI
     public class DragonCarriageAI : UseCard
     {
         public DragonCarriageAI() : base("DragonCarriage")
-        { }
+        {}
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            if (player.GetOffensiveHorse() && player.GetDefensiveHorse() && !ai.HasSkill(TrustedAI.LoseEquipSkill, player))
+                return;
+
             ai.UseEquipCard(ref use, card);
         }
 
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             return ai.HasSkill(TrustedAI.LoseEquipSkill, player) ? -4 : 0;
+        }
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return ai.GetEquipPriorityAdjust(card);
         }
     }
 }

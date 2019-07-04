@@ -104,6 +104,15 @@ namespace SanguoshaServer.Game
             }
         }
 
+        //等待游戏开始时的聊天
+        public static void IdleTalk(Room room, Client client)
+        {
+            DataRow row = Engine.GetLines(client.Profile.NickName);
+            string message = row["idle_talk"].ToString();
+            if (!string.IsNullOrEmpty(message))
+                room.Speak(client, message);
+        }
+
         public static void BotChat(TriggerEvent triggerEvent, Room room, Player player, object data)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == Player.PlayerPhase.Play)

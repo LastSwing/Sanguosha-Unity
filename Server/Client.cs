@@ -378,6 +378,7 @@ namespace SanguoshaServer
         public void InsertNewProfile(string NickName)
         {
             string sql = string.Format("select * from profile where NickName = '{0}'", NickName);
+
             DataTable dt = DB.GetData(sql);
             MyData data = new MyData
             {
@@ -385,7 +386,15 @@ namespace SanguoshaServer
                 Protocol = protocol.NickName,
                 Body = new List<string>() { "true" }
             };
-            if (dt.Rows.Count == 0)
+
+            //昵称重名
+            if (Engine.GetBotsNames().Contains(NickName) || dt.Rows.Count > 0)
+            {
+                //通知客户端
+                data.Body[0] = "false";
+                SendProfileReply(data);
+            }
+            else
             {
                 string new_sql = string.Format("insert into profile values ({0}, '{1}', 0, 0, 0, 0, 0, 0, 0, 0, 0)", UserID, NickName);
                 DB.UpdateData(new_sql);
@@ -394,13 +403,6 @@ namespace SanguoshaServer
                 SendProfileReply(data);
 
                 hall.InterHall(this, false);
-            }
-            //昵称重名
-            else
-            {
-                //通知客户端
-                data.Body[0] = "false";
-                SendProfileReply(data);
             }
         }
 
@@ -1721,8 +1723,8 @@ namespace SanguoshaServer
                 room.OutPut("open guhuo_popup_box");
                 args.ExInfo = guhuo_box;
             }
-            else if (pending_skill != null && pending_skill.Name == "huashen" && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0))
-                args.ExInfo = (List<string>)skill_owner.GetTag("huashen");
+            else if (pending_skill != null && pending_skill.Name == "yigui" && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0))
+                args.ExInfo = (List<string>)skill_owner.GetTag("spirit");
             else
                 args.ExInfo = ex_information;
 
@@ -2121,7 +2123,7 @@ namespace SanguoshaServer
 
                 //huashen
                 bool huashen = false;
-                if (pending_skill != null && pending_skill.Name == "huashen" && !guhuo_check && card == null && Engine.GetGeneral(args[2]) != null)
+                if (pending_skill != null && pending_skill.Name == "yigui" && !guhuo_check && card == null && Engine.GetGeneral(args[2]) != null)
                 {
                     huashen = HandleHuashen(skill_owner, args[2]);
                     success = huashen;
@@ -2355,7 +2357,7 @@ namespace SanguoshaServer
 
         private bool HandleHuashen(Player requestor, string general)
         {
-            List<string> huashens = requestor.ContainsTag("huashen") ? (List<string>)requestor.GetTag("huashen") : new List<string>();
+            List<string> huashens = requestor.ContainsTag("spirit") ? (List<string>)requestor.GetTag("spirit") : new List<string>();
             if (!huashens.Contains(general)) return false;
 
             WrappedCard card = new WrappedCard(general);

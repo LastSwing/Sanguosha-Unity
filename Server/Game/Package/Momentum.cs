@@ -339,71 +339,86 @@ namespace SanguoshaServer.Package
     {
         public Qianxi() : base("qianxi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.FinishJudge };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
             frequency = Frequency.Frequent;
             skill_type = SkillType.Attack;
         }
         public override bool CanPreShow() => false;
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room)
-                && player.Phase == Player.PlayerPhase.Start)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Start)
                 return new TriggerStruct(Name, player);
-            else if (triggerEvent == TriggerEvent.FinishJudge && data is JudgeStruct judge && judge.Reason == Name && player.Alive)
-            {
-                string color = WrappedCard.IsRed(judge.Card.Suit) ? "red" : "black";
-                player.SetTag(Name, color);
-                judge.Pattern = color;
-            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            return room.AskForSkillInvoke(player, Name, null, info.SkillPosition) ? info : new TriggerStruct();
+            if (room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            JudgeStruct judge = new JudgeStruct
+            room.DrawCards(target, 1, Name);
+            if (!target.IsNude())
             {
-                Reason = Name,
-                PlayAnimation = false,
-                Who = target
-            };
+                List<int> ids = room.AskForExchange(target, Name, 1, 1, "@qianxi", string.Empty, "..!", info.SkillPosition);
+                if (ids.Count != 1)
+                {
+                    foreach (int id in target.GetCards("he"))
+                    {
+                        if (RoomLogic.CanDiscard(room, target, target, id))
+                        {
+                            ids = new List<int> { id };
+                            break;
+                        }
+                    }
+                }
 
-            room.Judge(ref judge);
-            if (!target.Alive) return false;
-            string color = judge.Pattern;
-            List<Player> to_choose = new List<Player>();
-            foreach (Player p in room.GetOtherPlayers(target))
-            {
-                if (RoomLogic.DistanceTo(room, target, p) == 1)
-                    to_choose.Add(p);
+                if (ids.Count == 1)
+                {
+                    string color = WrappedCard.IsRed(room.GetCard(ids[0]).Suit) ? "red" : "black";
+                    room.ThrowCard(ids[0], target);
+                    List<Player> to_choose = new List<Player>();
+                    foreach (Player p in room.GetOtherPlayers(target))
+                    {
+                        if (RoomLogic.DistanceTo(room, target, p) == 1)
+                            to_choose.Add(p);
+                    }
+                    if (to_choose.Count == 0)
+                        return false;
+
+                    Player victim = room.AskForPlayerChosen(target, to_choose, Name, null, false, false, info.SkillPosition);
+                    room.DoAnimate(CommonClassLibrary.AnimateType.S_ANIMATE_INDICATE, target.Name, victim.Name);
+
+                    int index = 1;
+                    if (color == "black")
+                        index = 2;
+
+                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, Name, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", index, gsk.General, gsk.SkinId);
+
+                    string pattern = string.Format(".|{0}|.|hand$0", color);
+                    victim.SetFlags("QianxiTarget");
+                    room.AddPlayerMark(victim, "@qianxi_" + color);
+                    RoomLogic.SetPlayerCardLimitation(victim, "use,response", pattern, false);
+
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#Qianxi",
+                        From = victim.Name,
+                        Arg = "no_suit_" + color
+                    };
+                    room.SendLog(log);
+
+                }
             }
-            if (to_choose.Count == 0)
-                return false;
 
-            Player victim = room.AskForPlayerChosen(target, to_choose, Name, null, false, false, info.SkillPosition);
-            room.DoAnimate(CommonClassLibrary.AnimateType.S_ANIMATE_INDICATE, target.Name, victim.Name);
 
-            int index = 1;
-            if (color == "black")
-                index = 2;
-
-            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, Name, info.SkillPosition);
-            room.BroadcastSkillInvoke(Name, "male", index, gsk.General, gsk.SkinId);
-
-            string pattern = string.Format(".|{0}|.|hand$0", color);
-            victim.SetFlags("QianxiTarget");
-            room.AddPlayerMark(victim, "@qianxi_" + color);
-            RoomLogic.SetPlayerCardLimitation(victim, "use,response", pattern, false);
-
-            LogMessage log = new LogMessage
-            {
-                Type = "#Qianxi",
-                From = victim.Name,
-                Arg = "no_suit_" + color
-            };
-            room.SendLog(log);
 
             return false;
         }
@@ -1039,12 +1054,13 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.RemoveGeneral(player, false);
+            room.HandleAcquireDetachSkills(player, new List<string> { "-baoling" });
             player.MaxHp += 3;
             room.BroadcastProperty(player, "MaxHp");
 
             LogMessage log = new LogMessage
             {
-                Type = "#GainMaxHp",
+                Type = "$GainMaxHp",
                 From = player.Name,
                 Arg = "3"
             };
@@ -1084,7 +1100,7 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(dongzhuo, Name);
 
-            string result = room.AskForChoice(dongzhuo, "benghuai", "hp+maxhp");
+            string result = room.AskForChoice(dongzhuo, Name, "hp+maxhp");
             int index = (result == "hp") ? 2 : 1;
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, dongzhuo, Name, "head");
             room.BroadcastSkillInvoke(Name, "male", index, gsk.General, gsk.SkinId);
@@ -1107,7 +1123,7 @@ namespace SanguoshaServer.Package
         {
             if (base.Triggerable(player, room) && data is DamageStruct damage
              && damage.To != null && damage.To.HasShownOneGeneral() && damage.Card != null && player.Phase == PlayerPhase.Play
-                        && !RoomLogic.IsFriendWith(room, player, damage.To) && (player.HasShownOneGeneral() || !RoomLogic.WillBeFriendWith(room, player, damage.To))
+                        && !RoomLogic.IsFriendWith(room, player, damage.To) && (player.HasShownOneGeneral() || !RoomLogic.WillBeFriendWith(room, player, damage.To, Name))
                         && !damage.Transfer && !damage.Chain && !damage.To.ActualGeneral2.Contains("sujiang"))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
@@ -1118,9 +1134,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            if (data is DamageStruct damage && room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition))
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, ((DamageStruct)data).To.Name);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.To.Name);
                 return info;
             }
             return new TriggerStruct();
@@ -1266,7 +1282,8 @@ namespace SanguoshaServer.Package
             int num = RoomLogic.GetPlayerNumWithSameKingdom(room, player);
 
             string prompt = "@hongfa-tianbing:" + player.Name;
-            List<int> ints = room.AskForExchange(player, "hongfa2", player.GetPile("heavenly_army").Count, 0, prompt, "heavenly_army", null, "head");
+            player.SetMark("hongfa", 2);
+            List<int> ints = room.AskForExchange(player, "hongfa", player.GetPile("heavenly_army").Count, 0, prompt, "heavenly_army", null, "head");
 
             List<int> guanxing = room.GetNCards(num + ints.Count);
 
@@ -1348,7 +1365,7 @@ namespace SanguoshaServer.Package
                 else
                 {
                     Player zhangjiao = RoomLogic.GetLord(room, player.Kingdom);
-                    if (zhangjiao != null && base.Triggerable(zhangjiao, room))
+                    if (zhangjiao != null && zhangjiao.Alive && RoomLogic.PlayerHasShownSkill(room, zhangjiao, Name))
                         room.AttachSkillToPlayer(player, "hongfaslash");
                 }
             }
@@ -1374,7 +1391,8 @@ namespace SanguoshaServer.Package
             {
                 player.RemoveTag("hongfa_prevent");
                 //return room.askForUseCard(player, "@@hongfa1", "@hongfa-prevent", 1, Card::MethodNone);
-                List<int> ints = room.AskForExchange(player, "hongfa1", 1, 0, "@hongfa-prevent", "heavenly_army", null, "head");
+                player.SetMark(Name, 1);
+                List<int> ints = room.AskForExchange(player, "hongfa", 1, 0, "@hongfa-prevent", "heavenly_army", null, "head");
                 if (ints.Count > 0)
                 {
                     room.NotifySkillInvoked(player, Name);
@@ -1485,10 +1503,12 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard wd = new WrappedCard("WendaoCard");
+            WrappedCard wd = new WrappedCard("WendaoCard")
+            {
+                ShowSkill = Name,
+                Skill = Name
+            };
             wd.AddSubCard(card);
-            wd.ShowSkill = Name;
-            wd.Skill = Name;
             return wd;
         }
     }

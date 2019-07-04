@@ -251,7 +251,7 @@ namespace SanguoshaServer.Scenario
             return player.Kingdom == other.Kingdom;
         }
 
-        public override bool WillBeFriendWith(Room room, Player player, Player other)
+        public override bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null)
         {
             if (player == null || other == null)
                 return false;
@@ -263,7 +263,7 @@ namespace SanguoshaServer.Scenario
                 return false;
             if (!player.HasShownOneGeneral())
             {
-                if (WillbeRole(room, player) == "careerist") return false;
+                if (WillbeRole(room, player, show_skill) == "careerist") return false;
                 string kingdom = Engine.GetGeneral(player.ActualGeneral1).Kingdom;
                 if (Engine.GetGeneral(player.ActualGeneral1).IsLord(true) && kingdom == other.Kingdom) return true;
                 if (other.Role == "careerist") return false;
@@ -273,14 +273,16 @@ namespace SanguoshaServer.Scenario
             return false;
         }
 
-        public static string WillbeRole(Room room, Player player)
+        public static string WillbeRole(Room room, Player player, string show_skill = null)
         {
             string kingdom = player.Kingdom;
             string role = Engine.GetMappedRole(kingdom);
 
-            if (GetLord(room, player, true) != null)
+            Player lord = GetLord(room, player, true);
+            if (lord != null && (lord.General1Showed || (string.IsNullOrEmpty(show_skill) && player == lord)
+                || (!string.IsNullOrEmpty(show_skill) && player.GetHeadSkillList().Contains(show_skill))))
             {
-                if (GetLord(room, player, true).Alive)
+                if (lord.Alive)
                 {
                     return role;
                 }
@@ -534,8 +536,10 @@ namespace SanguoshaServer.Scenario
                     {
                         if (baskill.ViewAsSkill.IsEnabledAtPlay(room, player))
                         {
-                            TriggerStruct trigger = new TriggerStruct(Name, player);
-                            trigger.SkillPosition = "head";
+                            TriggerStruct trigger = new TriggerStruct(Name, player)
+                            {
+                                SkillPosition = "head"
+                            };
                             result.Add(trigger);
                         }
                     }
@@ -547,8 +551,10 @@ namespace SanguoshaServer.Scenario
                     {
                         if (baskill.ViewAsSkill.IsEnabledAtPlay(room, player))
                         {
-                            TriggerStruct trigger = new TriggerStruct(Name, player);
-                            trigger.SkillPosition = "deputy";
+                            TriggerStruct trigger = new TriggerStruct(Name, player)
+                            {
+                                SkillPosition = "deputy"
+                            };
                             result.Add(trigger);
                         }
                     }

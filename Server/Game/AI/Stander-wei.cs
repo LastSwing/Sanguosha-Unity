@@ -1261,14 +1261,6 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            Room room = ai.Room;
-            WrappedCard c = room.GetCard(card.GetEffectiveId());
-            double prio = Engine.GetCardPriority(card.Name) - Engine.GetCardPriority(c.Name);
-            return prio < 0 ? prio : 0;
-        }
-
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             if (!ai.WillShowForAttack() || player.HasFlag(Name)) return null;
@@ -1345,13 +1337,8 @@ namespace SanguoshaServer.AI
 
     public class QiangxiAI : SkillEvent
     {
-        public QiangxiAI() : base("Qiangxi")
+        public QiangxiAI() : base("qiangxi")
         {
-        }
-
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return player.GetWeapon() ? 3 : 0;
         }
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
@@ -1373,6 +1360,10 @@ namespace SanguoshaServer.AI
         {
         }
 
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return player.GetWeapon() ? 3 : 0;
+        }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;
@@ -1560,7 +1551,7 @@ namespace SanguoshaServer.AI
             ai.Target["quhu"] = null;
             WrappedCard max_card = ai.GetMaxCard(player, null, new List<string> { "Peach" });
             int peaches = ai.GetKnownCardsNums("Peach", "he", player);
-            if (max_card == null && peaches - player.GetLostHp() < 2) return;
+            if (max_card == null || peaches - player.GetLostHp() < 2) return;
 
             int max_point = max_card.Number;
             if (ai.HasSkill("yingyang"))
@@ -1722,6 +1713,48 @@ namespace SanguoshaServer.AI
             }
         }
 
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            double value = 0;
+            if (ai.HasSkill(Name, damage.To))
+            {
+                Room room = ai.Room;
+                Dictionary<Player, double> point = new Dictionary<Player, double>();
+                foreach (Player p in ai.GetFriends(damage.To))
+                {
+                    int count = p.HandcardNum;
+                    if (damage.Card != null)
+                    {
+                        foreach (int id in damage.Card.SubCards)
+                            if (room.GetCardOwner(id) == damage.From && room.GetCardPlace(id) == Player.Place.PlaceHand)
+                                count--;
+                    }
+                    if (p.MaxHp - count > 0)
+                    {
+                        double v = (p.MaxHp - count) * 1.5;
+                        if (ai.HasSkill(TrustedAI.CardneedSkill, p)) v *= 1.5;
+                        if (ai.Room.Current == p)
+                            v += 2;
+
+                        point.Add(p, v);
+                    }
+                }
+                List<Player> targets = new List<Player>(point.Keys);
+                if (targets.Count > 0)
+                {
+                    targets.Sort((x, y) => { return point[x] > point[y] ? -1 : 1; });
+                    value = point[targets[0]];
+                    if (damage.Damage >= damage.To.Hp) value /= 2;
+                    if (ai.IsEnemy(targets[0])) value = -value;
+                }
+            }
+
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = value
+            }; return score;
+        }
+
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             if (!ai.WillShowForMasochism()) return new List<Player>();
@@ -1771,6 +1804,65 @@ namespace SanguoshaServer.AI
         {
             key = new List<string> { "playerChosen" };
         }
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            double value = 0;
+            if (ai.HasSkill(Name, damage.To))
+            {
+                Room room = ai.Room;
+                foreach (Player p in ai.GetFriends(damage.To))
+                {
+                    if (p != damage.To && !p.FaceUp)
+                    {
+                        value = 5;
+                        break;
+                    }
+                }
+                if (value == 0)
+                {
+                    foreach (Player p in ai.GetEnemies(damage.To))
+                    {
+                        if (!ai.WillSkipPlayPhase(p) && p.FaceUp && p.HandcardNum > 3)
+                        {
+                            value = 6;
+                            break;
+                        }
+                    }
+                }
+
+                if (value == 0)
+                {
+                    foreach (Player p in ai.GetEnemies(damage.To))
+                    {
+                        if (!ai.WillSkipPlayPhase(p) && p.FaceUp)
+                        {
+                            value = 5;
+                            break;
+                        }
+                    }
+                }
+                if (value == 0)
+                {
+                    foreach (Player p in ai.GetEnemies(damage.To))
+                    {
+                        if (p.FaceUp)
+                        {
+                            value = 3;
+                            break;
+                        }
+                    }
+                }
+                if (damage.Damage >= damage.To.Hp) value /= 2;
+                if (!ai.IsFriend(damage.To)) value = -value;
+            }
+
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = value
+            };
+            return score;
+        }
+
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;

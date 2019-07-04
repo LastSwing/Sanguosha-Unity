@@ -345,9 +345,9 @@ namespace SanguoshaServer.Game
             return room.Scenario.IsFriendWith(room, player, other);
         }
 
-        public static bool WillBeFriendWith(Room room, Player player, Player other)
+        public static bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null)
         {
-            return room.Scenario.WillBeFriendWith(room, player, other);
+            return room.Scenario.WillBeFriendWith(room, player, other, show_skill);
         }
 
         public static bool PlayerHasSkill(Room room, Player player, string skill_name, bool include_lose = false)
@@ -391,9 +391,9 @@ namespace SanguoshaServer.Game
             foreach (string str in skill.Split('+'))
             {
                 bool _check = false;
-                foreach (string _str in skill.Split('|'))
+                foreach (string _str in str.Split('|'))
                 {
-                    if (PlayerHasShownSkill(room, player, Engine.GetSkill(skill)))
+                    if (PlayerHasShownSkill(room, player, Engine.GetSkill(_str)))
                     {
                         _check = true;
                         break;
@@ -796,22 +796,23 @@ namespace SanguoshaServer.Game
             return false;
         }
 
-        public static void RemovePlayerCard(Room room, Player player, WrappedCard card, Place place)
+        public static void RemovePlayerCard(Room room, Player player, int card_id, Place place)
         {
             switch (place)
             {
                 case Place.PlaceHand:
                     {
-                        player.HandCards.Remove(card.Id);
+                        player.HandCards.Remove(card_id);
                         break;
                     }
                 case Place.PlaceEquip:
                     {
+                        WrappedCard card = room.GetCard(card_id);
                         EquipCard equip = null;
                         if (Engine.GetFunctionCard(card.Name) is EquipCard)
                             equip = (EquipCard)Engine.GetFunctionCard(card.Name);
                         else
-                            equip = (EquipCard)Engine.GetFunctionCard(Engine.GetRealCard(card.Id).Name);
+                            equip = (EquipCard)Engine.GetFunctionCard(Engine.GetRealCard(card_id).Name);
                         equip.OnUninstall(room, player, card);
                         player.RemoveEquip((int)equip.EquipLocation());
                         bool show_log = true;
@@ -825,7 +826,7 @@ namespace SanguoshaServer.Game
                         {
                             LogMessage log = new LogMessage("$Uninstall")
                             {
-                                Card_str = card.GetEffectiveId().ToString(),
+                                Card_str = card_id.ToString(),
                                 From = player.Name
                             };
                             room.SendLog(log);
@@ -834,12 +835,11 @@ namespace SanguoshaServer.Game
                     }
                 case Place.PlaceDelayedTrick:
                     {
-                        player.RemoveDelayedTrick(card);
+                        player.JudgingArea.Remove(card_id);
                         break;
                     }
                 case Place.PlaceSpecial:
                     {
-                        int card_id = card.GetEffectiveId();
                         string pile_name = player.GetPileName(card_id);
 
                         //@todo: sanity check required
@@ -853,26 +853,26 @@ namespace SanguoshaServer.Game
             }
         }
 
-        public static void AddPlayerCard(Room room, Player player, WrappedCard card, Place place)
+        public static void AddPlayerCard(Room room, Player player, int card_id, Place place)
         {
             switch (place)
             {
                 case Place.PlaceHand:
                     {
-                        player.HandCards.Add(card.Id);
+                        player.HandCards.Add(card_id);
                         break;
                     }
                 case Place.PlaceEquip:
                     {
-                        WrappedCard wrapped = room.GetCard(card.Id);
-                        EquipCard equip = (EquipCard)Engine.GetFunctionCard(card.Name);
+                        WrappedCard wrapped = room.GetCard(card_id);
+                        EquipCard equip = (EquipCard)Engine.GetFunctionCard(wrapped.Name);
                         player.SetEquip(wrapped, (int)equip.EquipLocation());
                         equip.OnInstall(room, player, wrapped);
                         break;
                     }
                 case Place.PlaceDelayedTrick:
                     {
-                        player.AddDelayedTrick(card);
+                        player.JudgingArea.Add(card_id);
                         break;
                     }
                 default:
@@ -1092,7 +1092,7 @@ namespace SanguoshaServer.Game
             Player jade_seal_owner = null;
             foreach (Player p in players)
             {
-                if (p.HasTreasure("JadeSeal") && p.HasShownOneGeneral())
+                if (HasTreasureEffect(room, p, "JadeSeal") && p.HasShownOneGeneral())
                 {
                     jade_seal_owner = p;
                     break;
@@ -1164,9 +1164,15 @@ namespace SanguoshaServer.Game
             if (include_viewhas && Engine.ViewHas(room, player, armor_name, "armor").Count > 0)
                 return true;
 
-            if (!player.GetArmor()) return false;
-            if (player.Armor.Value == armor_name) return true;
-            return false;
+            return player.HasArmor(armor_name);
+        }
+
+        public static bool HasTreasureEffect(Room room, Player player, string treasure_name, bool include_viewhas = true)
+        {
+            if (include_viewhas && Engine.ViewHas(room, player, treasure_name, "treasure").Count > 0)
+                return true;
+
+            return player.HasTreasure(treasure_name);
         }
 
         public static int GetPlayerNumWithSameKingdom(Room room, Player player, string to_calculate = null)

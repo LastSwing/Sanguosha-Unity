@@ -31,7 +31,7 @@ namespace SanguoshaServer.Scenario
             throw new NotImplementedException();
         }
 
-        public override bool WillBeFriendWith(Room room, Player player, Player other)
+        public override bool WillBeFriendWith(Room room, Player player, Player other, string skill_name = null)
         {
             throw new NotImplementedException();
         }

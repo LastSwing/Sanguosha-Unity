@@ -339,6 +339,7 @@ namespace CommonClass.Game
             S_REASON_SHOW = 0x08,
             S_REASON_TRANSFER = 0x09,
             S_REASON_PUT = 0x0A,
+            S_REASON_ANNOUNCE = 0x0B,       //virtual skill card use
         //subcategory of use
             S_REASON_LETUSE = 0x11,           // use a card when self is not current
 

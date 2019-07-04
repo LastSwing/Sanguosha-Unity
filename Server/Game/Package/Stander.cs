@@ -379,7 +379,7 @@ namespace SanguoshaServer.Package
             JudgeStruct judge = new JudgeStruct
             {
                 Pattern = ".|heart",
-                Negative = true,
+                Negative = false,
                 Good = false,
                 Reason = Name,
                 PlayAnimation = true,
@@ -387,8 +387,7 @@ namespace SanguoshaServer.Package
             };
 
             room.Judge(ref judge);
-            if (from == null || !from.Alive) return;
-            if (judge.IsBad())
+            if (judge.IsGood() && from != null && from.Alive)
             {
                 bool discard = false;
                 if (from.HandcardNum >= 2)
@@ -2030,33 +2029,32 @@ namespace SanguoshaServer.Package
             }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                if (move.To != null && base.Triggerable(move.To, room) && move.To.IsKongcheng() && move.To_place == Place.PlaceHand && move.Card_ids.Count > 0
-                    && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_GIVE)
-                    return new TriggerStruct(Name, player);
+                if (move.To != null && base.Triggerable(move.To, room) && move.To_place == Place.PlaceHand && move.Card_ids.Count > 0
+                    && (move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_GIVE || move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE))
+                    return new TriggerStruct(Name, move.To);
             }
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (RoomLogic.PlayerHasShownSkill(room, player, Name) || room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            if (RoomLogic.PlayerHasShownSkill(room, ask_who, Name) || room.AskForSkillInvoke(ask_who, Name, null, info.SkillPosition))
             {
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
                 return info;
             }
             return new TriggerStruct();
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
             if (triggerEvent == TriggerEvent.TargetConfirming && data is CardUseStruct use)
             {
                 room.CancelTarget(ref use, player); // Room::cancelTarget(use, player);
-
                 data = use;
             }
             else if(triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                room.SendCompulsoryTriggerLog(move.To, Name);
-                room.AddToPile(move.To, Name, move.Card_ids, false);
+                room.AddToPile(ask_who, Name, new List<int>(move.Card_ids), false);
             }
 
             return false;
@@ -2167,7 +2165,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.SlashMissed && data is SlashEffectStruct effect)
             {
-                player.SetTag(Name, ask_who.Name);
+                ask_who.SetTag(Name, player.Name);
                 List<Player> targets = new List<Player>();
                 string prompt;
                 if (player == ask_who)
@@ -2297,7 +2295,6 @@ namespace SanguoshaServer.Package
             return false;
         }
 
-
         private void DoTieqi(Room room, Player target, Player source, ref CardUseStruct use, TriggerStruct info)
         {
             int index = use.To.IndexOf(target);
@@ -2353,7 +2350,7 @@ namespace SanguoshaServer.Package
             target.SetTag("tieqi_judge", judge.Card.Id);
 
             if (room.AskForCard(target, Name,
-                string.Format("..{0}", suit.Substring(1, 1).ToUpper()),
+                string.Format("..{0}", suit.Substring(0, 1).ToUpper()),
                 string.Format("@tieqi-discard:{0}:{1}_char", suit, suit), judge.Card) == null)
             {
                 LogMessage log = new LogMessage
@@ -3211,7 +3208,6 @@ namespace SanguoshaServer.Package
             WrappedCard fangquan = new WrappedCard("FangquanCard");
             fangquan.AddSubCard(card);
             fangquan.Skill = Name;
-            //fangquan.Skill = Name);
             return fangquan;
         }
     }
@@ -3891,7 +3887,6 @@ namespace SanguoshaServer.Package
             {
                 if (judge.Reason == "shuangxiong")
                 {
-                    judge.Pattern = WrappedCard.IsRed(judge.Card.Suit) ? "red" : "black";
                     if (room.GetCardPlace(judge.Card.GetEffectiveId()) == Place.PlaceJudge)
                     {
                         string head = (string)player.GetTag("shuangxiong");
@@ -3909,6 +3904,8 @@ namespace SanguoshaServer.Package
         {
             JudgeStruct judge = (JudgeStruct)data;
             room.ObtainCard(judge.Who, judge.Card);
+            judge.Pattern = WrappedCard.IsRed(judge.Card.Suit) ? "red" : "black";
+            data = judge;
 
             return false;
         }
@@ -4728,7 +4725,7 @@ namespace SanguoshaServer.Package
                 WrappedCard card = room.AskForUseCard(player, "@@lirang", "@lirang-distribute:::" + cards.Count.ToString(), -1, HandlingMethod.MethodNone, true, info.SkillPosition);
                 player.PileChange("#" + Name, cards, false);
 
-                if (card != null)
+                if (card != null && card.SubCards.Count > 0)
                 {
                     Player target = room.FindPlayer((string)player.GetTag("lirang_target"));
                     player.RemoveTag("lirang_target");
@@ -6024,6 +6021,8 @@ namespace SanguoshaServer.Package
             Player to = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "yinghun-invoke", true, true, info.SkillPosition);
             if (to != null)
             {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, to.Name);
                 player.SetTag("yinghun_target", to.Name);
                 return info;
             }

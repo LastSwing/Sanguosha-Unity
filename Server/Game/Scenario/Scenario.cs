@@ -29,7 +29,7 @@ namespace SanguoshaServer.Scenario
             return new RoomThread(room, rule);
         }
         public abstract bool IsFriendWith(Room room, Player player, Player other);
-        public abstract bool WillBeFriendWith(Room room, Player player, Player other);
+        public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
 
     }
 
@@ -191,17 +191,17 @@ namespace SanguoshaServer.Scenario
                         room.SetPlayerMark(p, "drank", 0);
                     }
                 }
-                if (room.ContainsTag("ImperialOrderInvoke") && (bool)room.GetTag("ImperialOrderInvoke"))
+                if (room.ContainsTag("EdictInvoke") && (bool)room.GetTag("EdictInvoke"))
                 {
-                    room.SetTag("ImperialOrderInvoke", false);
+                    room.SetTag("EdictInvoke", false);
                     LogMessage log = new LogMessage
                     {
-                        Type = "#ImperialOrderEffect",
+                        Type = "#EdictEffect",
                         From = player.Name,
-                        Arg = "imperial_order"
+                        Arg = "edict"
                     };
                     room.SendLog(log);
-                    WrappedCard io = (WrappedCard)room.GetTag("ImperialOrderCard");
+                    WrappedCard io = (WrappedCard)room.GetTag("EdictCard");
                     if (io != null)
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(io.Name);
@@ -467,25 +467,26 @@ namespace SanguoshaServer.Scenario
                 case TriggerEvent.EventAcquireSkill:
                 case TriggerEvent.EventLoseSkill:
                     InfoStruct info = (InfoStruct)data;
-                        string skill_name = info.Info;
-                        Skill skill = Engine.GetSkill(skill_name);
-                        bool refilter = skill is FilterSkill;
+                    string skill_name = info.Info;
+                    Skill skill = Engine.GetSkill(skill_name);
+                    bool refilter = skill is FilterSkill;
 
-                        if (!refilter && skill is TriggerSkill)
-                        {
-                            TriggerSkill trigger = (TriggerSkill)skill;
+                    if (!refilter && skill is TriggerSkill)
+                    {
+                        TriggerSkill trigger = (TriggerSkill)skill;
                         ViewAsSkill vsskill = trigger.ViewAsSkill;
-                            if (vsskill != null && (vsskill is FilterSkill))
-                                refilter = true;
-                        }
+                        if (vsskill != null && (vsskill is FilterSkill))
+                            refilter = true;
+                    }
 
-                        if (refilter)
-                            room.FilterCards(player, player.GetCards("he"), triggerEvent == TriggerEvent.EventLoseSkill);
+                    if (refilter)
+                        room.FilterCards(player, player.GetCards("he"), triggerEvent == TriggerEvent.EventLoseSkill);
 
-                        break;
+                    CheckBigKingdoms(room);
+                    break;
                 case TriggerEvent.PostHpReduced:
-                        if (player.Hp > 0 || player.HasFlag("Global_Dying")) // newest GameRule -- a player cannot enter dying when it is dying.
-                            break;
+                    if (player.Hp > 0 || player.HasFlag("Global_Dying")) // newest GameRule -- a player cannot enter dying when it is dying.
+                        break;
                     if (data is DamageStruct damage)
                     {
                         room.EnterDying(player, damage);
@@ -864,7 +865,7 @@ namespace SanguoshaServer.Scenario
                                 else
                                 {
                                     WrappedCard card = room.GetCard(move.Card_ids[0]);
-                                    if (card.Name == "ImperialOrder" && !card.HasFlag("imperial_order_normal_use"))
+                                    if (card.Name == "Edict" && !card.HasFlag("edict_order_normal_use"))
                                         should_find_io = true; // use card isn't IO
                                 }
                             }
@@ -872,18 +873,18 @@ namespace SanguoshaServer.Scenario
                             {
                                 foreach (int id in move.Card_ids) {
                                     WrappedCard card = room.GetCard(id);
-                                    if (card.Name == "ImperialOrder")
+                                    if (card.Name == "Edict")
                                     {
                                         room.MoveCardTo(card, null, Place.PlaceTable, true);
-                                        room.AddToPile(room.Players[0], "#imperial_order", card, false);
+                                        room.AddToPile(room.Players[0], "#edict", card, false);
                                         LogMessage log = new LogMessage
                                         {
-                                            Type = "#RemoveImperialOrder",
-                                            Arg = "imperial_order"
+                                            Type = "#RemoveEdict",
+                                            Arg = "edict"
                                         };
                                         room.SendLog(log);
-                                        room.SetTag("ImperialOrderInvoke", true);
-                                        room.SetTag("ImperialOrderCard", card);
+                                        room.SetTag("EdictInvoke", true);
+                                        room.SetTag("EdictCard", card);
                                         int i = move.Card_ids.IndexOf(id);
                                         move.From_places.RemoveAt(i);
                                         move.Open.RemoveAt(i);

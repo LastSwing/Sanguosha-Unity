@@ -487,12 +487,12 @@ namespace SanguoshaServer.AI
             if (card.Name == "Peach" && room.BloodBattle)
             {
                 WrappedCard slash = new WrappedCard("Slash");
-                slash.AddSubCard(card);
+                slash.AddSubCard(id);
                 slash = RoomLogic.ParseUseCard(room, slash);
                 result.Add(slash);
 
                 WrappedCard jink = new WrappedCard("Jink");
-                jink.AddSubCard(card);
+                jink.AddSubCard(id);
                 jink = RoomLogic.ParseUseCard(room, jink);
                 result.Add(jink);
             }
@@ -742,7 +742,7 @@ namespace SanguoshaServer.AI
 
         public double GetLostEquipEffect(Player player, List<int> except = null)
         {
-            List<int> ids = new List<int>(player.GetEquips());
+            List<int> ids = player.GetEquips();
 
             List<double> values = new List<double>();
             foreach (int id in ids)
@@ -1559,7 +1559,20 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (damage.From == null || !damage.From.HasWeapon("QinggangSword") || damage.Card == null || !damage.Card.Name.Contains("Slash"))
+                bool armor_ignore = false;
+                if (from != null && damage.Card != null && damage.Card.Name.Contains("Slash"))
+                {
+                    if (from.HasWeapon("QinggangSword"))
+                        armor_ignore = true;
+                    else if (HasSkill("paoxiao|paoxiao_fz", from))
+                    {
+                        Player lord = FindPlayerBySkill("shouyue");
+                        if (lord != null && RoomLogic.PlayerHasShownSkill(room, lord, "shouyue") && RoomLogic.WillBeFriendWith(room, from, lord))
+                            armor_ignore = true;
+                    }
+                }
+
+                if (!armor_ignore)
                 {
                     if (damage.Damage > 0 && damage.Nature == DamageStruct.DamageNature.Fire && HasArmorEffect(to, "Vine")) damage.Damage += 1;
                     if (damage.Damage > 1 && HasArmorEffect(to, "SilverLion")) damage.Damage = 1;
@@ -1644,9 +1657,9 @@ namespace SanguoshaServer.AI
             defense += player.GetPile("wooden_ox").Count * 0.25;
             if (!for_attack)
             {
-                if (player.GetTreasure() && player.Treasure.Value == "LuminouSpearl")
+                if (player.HasTreasure("LuminouSpearl"))
                     defense += 1;
-                if (player.GetTreasure() && player.Treasure.Value == "JadeSeal")
+                if (RoomLogic.HasTreasureEffect(room, player, "JadeSeal"))
                     defense += 1;
             }
 
@@ -2046,7 +2059,7 @@ namespace SanguoshaServer.AI
                 skills = GetKnownSkills(player);
 
             int count = 2;
-            if (player.HasTreasure("JadeSeal") && player.HasShownOneGeneral()) count++;
+            if (RoomLogic.HasTreasureEffect(room, player, "JadeSeal") && player.HasShownOneGeneral()) count++;
             foreach (string skill in skills)
             {
                 if (skill == "luoyi") count--;
@@ -2335,9 +2348,12 @@ namespace SanguoshaServer.AI
                         if (drank_values.Count > 0)
                             drank_value = drank_values[0].Score;
 
-                        SkillEvent ev = Engine.GetSkillEvent(analeptic.Skill);
-                        if (ev != null)
-                            drank_value += ev.TargetValueAdjust(this, analeptic, player);
+                        foreach (string skill in GetKnownSkills(player))
+                        {
+                            SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                            if (skill_e != null)
+                                drank_value += skill_e.TargetValueAdjust(this, analeptic, player);
+                        }
 
                         room.OutPut(string.Format("{0} 喝酒后的分数由 {1} 提高至 {2}", player.SceenName, best, drank_value));
 
@@ -2587,10 +2603,7 @@ namespace SanguoshaServer.AI
                         Players = _targets,
                         Score = use_value
                     };
-
-                    SkillEvent e = Engine.GetSkillEvent(slash.Skill);
-                    if (e != null)
-                        result_score.Score += e.UseValueAjust(this, player, _targets, slash);
+                    
 
                     values.Add(result_score);
                 }
@@ -2931,12 +2944,25 @@ namespace SanguoshaServer.AI
             UseCard ev = Engine.GetCardUsage(card.Name);
             if (ev != null && !ev.IsCardEffect(this, card, from, to)) return false;
 
-            if (card.Name.Contains("Slash") && HasArmorEffect(to, "RenwangShield") && WrappedCard.IsBlack(card.Suit))
+            bool armor_ignore = false;
+            if (from != null && card.Name.Contains("Slash"))
+            {
+                if (from.HasWeapon("QinggangSword"))
+                    armor_ignore = true;
+                else if (HasSkill("paoxiao|paoxiao_fz", from))
+                {
+                    Player lord = FindPlayerBySkill("shouyue");
+                    if (lord != null && RoomLogic.PlayerHasShownSkill(room, lord, "shouyue") && RoomLogic.WillBeFriendWith(room, from, lord))
+                        armor_ignore = true;
+                }
+            }
+
+            if (!armor_ignore && card.Name.Contains("Slash") && HasArmorEffect(to, "RenwangShield") && WrappedCard.IsBlack(card.Suit))
             {
                 if (!HasSkill("jianchu", from) || !to.HasArmor("RenwangShield") || IsFriend(from, to))
                     return false;
             }
-            if (HasArmorEffect(to, "Vine") && (card.Name == "SavageAssault" || card.Name == "ArcheryAttack" || card.Name == "Slash"))
+            if (HasArmorEffect(to, "Vine") && (card.Name == "SavageAssault" || card.Name == "ArcheryAttack" || (card.Name == "Slash" && !armor_ignore)))
                 return false;
 
             return true;
@@ -3303,6 +3329,8 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     double value = GetUseValue(id, current, dest_place);
+                    if (HasSkill(ActiveCardneedSkill, current))
+                        value += 1;
                     if (value >= 6 && value > point)
                     {
                         point = value;
@@ -3333,6 +3361,8 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     double value = GetKeepValue(id, target, dest_place);
+                    if (HasSkill(CardneedSkill, target))
+                        value += 1;
                     if (value >= 6 && value > point)
                     {
                         point = value;
@@ -3353,6 +3383,8 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     double value = GetUseValue(id, p, dest_place);
+                    if (HasSkill(CardneedSkill, p))
+                        value += 1;
                     if (value >= 6 && value > point)
                     {
                         point = value;
@@ -3376,6 +3408,8 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     double value = GetUseValue(id, target, dest_place);
+                    if (HasSkill(CardneedSkill, target))
+                        value += 1;
                     if (value >= 6 && value > point)
                     {
                         point = value;
@@ -3868,98 +3902,20 @@ namespace SanguoshaServer.AI
         {
             WrappedCard card = use.Card;
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-            double v = 0;
-            if (fcard is EquipCard)
-            {
-                if (HasSkill(LoseEquipSkill))
-                    return 15;
-                else if (fcard is Armor && !self.GetArmor())
-                    v = Engine.GetCardPriority(card.Name) + 5.2;
-                else if (fcard is Weapon && !self.GetWeapon())
-                    v = Engine.GetCardPriority(card.Name) + 3;
-                else if (fcard is DefensiveHorse && !self.GetDefensiveHorse())
-                    v = 5.8;
-                else if (fcard is OffensiveHorse && !self.GetOffensiveHorse())
-                    v = 5.5;
-                else if (fcard is Treasure && !self.GetTreasure())
-                {
-                    v = 5.6;
-                    if (fcard is JadeSeal) v += 0.1;
-                }
-                return v;
-            }
-            v = Engine.GetCardPriority(card.Name);
-            return AdjustUsePriority(use, v);
-        }
-        public virtual double AdjustUsePriority(CardUseStruct use, double value)
-        {
-            WrappedCard card = use.Card;
-            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            double v = Engine.GetCardPriority(card.Name);
+
+            UseCard e = Engine.GetCardUsage(card.Name);
+            if (e != null)
+                v += e.UsePriorityAjust(this, self, use.To, card);
+
             if (fcard is SkillCard)
-            {
-                SkillEvent e = Engine.GetSkillEvent(card.Skill);
-                if (e != null)
-                    return value += e.UsePriorityAjust(this, self, use.To, card);
-
-                return value;
-            }
-
-            if (fcard is Slash)
-            {
-                if (card.Skill == "Spear")
-                    value -= 0.1f;
-                if (WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)))
-                    value -= 0.05f;
-                if (card.Name != "Slash")
-                {
-                    if (slash_avail == 1)
-                    {
-                        value += 0.05;
-                        if (fcard is FireSlash)
-                        {
-                            foreach (Player enemy in enemies[self])
-                            {
-                                if (HasArmorEffect(enemy, "Vine") || enemy.GetMark("@gale") > 0)
-                                {
-                                    value += 0.07f;
-                                    break;
-                                }
-                            }
-                        }
-                        else if (fcard is ThunderSlash)
-                        {
-                            foreach (Player enemy in enemies[self])
-                            {
-                                if (enemy.GetMark("@fog") > 0)
-                                {
-                                    value += 0.07;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    else
-                        value -= 0.05f;
-                }
-                if (HasSkill("jiang") && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)))
-                    value += 0.21;
-                if (slash_avail == 1)
-                {
-                    value += Math.Min(0.5, Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, self, card) * 0.1);
-                    double point = 0;
-                    foreach (Player p in room.GetOtherPlayers(self))
-                        if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, self, p, card))
-                            point += 1;
-
-                    value += Math.Min(point * 0.05, 0.5);
-                }
-            }
+                return v;
 
             if (self.GetHandPile().Contains(card.GetEffectiveId()))
-                value += 0.1;
-            value += (13 - RoomLogic.GetCardNumber(room, card)) / 10000;
+                v += 0.1;
+            v += (13 - RoomLogic.GetCardNumber(room, card)) / 10000;
 
-            return value;
+            return v;
         }
 
         public double GetDynamicUsePriority(CardUseStruct use)
@@ -3968,23 +3924,14 @@ namespace SanguoshaServer.AI
             if (card == null) return 0;
             if (card.HasFlag("AIGlobal_KillOff")) return 15;
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-            if (fcard is Slash)
-            {
-                foreach (Player p in GetFriends(self))
-                    if (RoomLogic.PlayerHasShownSkill(room, p, "yongjue") && RoomLogic.IsFriendWith(room, self, p))
-                        return 12;
-            }
-            else if (fcard is AmazingGrace)
+
+            if (fcard is AmazingGrace)
             {
                 Player zhugeliang = RoomLogic.FindPlayerBySkillName(room, "kongcheng");
                 if (zhugeliang != null && IsEnemy(zhugeliang) && zhugeliang.IsKongcheng())
                     return Math.Max(Engine.GetCardPriority("Slash"), Engine.GetCardPriority("Duel")) + 0.1f;
             }
             else if (fcard is Peach && RoomLogic.PlayerHasSkill(room, self, "kuanggu")) return 1.01;
-            else if (fcard is DelayedTrick && !string.IsNullOrEmpty(card.Skill))
-            {
-                return Engine.GetCardPriority(card.Name) - 0.01;
-            }
             else if (fcard is Duel)
             {
                 if (HasCrossbowEffect(self) || RoomLogic.CanSlashWithoutCrossBow(room, self)
@@ -4735,6 +4682,48 @@ namespace SanguoshaServer.AI
             return false;
         }
 
+        public virtual double GetEquipPriorityAdjust(WrappedCard card)
+        {
+            double value = 0;
+            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            if (fcard is EquipCard)
+            {
+                if (card.Name == "SilverLion" && self.IsWounded())
+                    value += 2;
+
+                if (fcard is Treasure && ((self.HasTreasure("WoodenOX") && !self.HasUsed("WoodenOxCard") && FriendNoSelf.Count > 0)
+                    || (self.HasTreasure("LuminouSpearl")) && !self.HasUsed("ZhihengCard")))
+                {
+                    value -= 9;
+                }
+                else if (HasSkill(LoseEquipSkill))
+                {
+                    value += 9;
+                    if (card.Name == "DragonCarriage")
+                        value -= 2;
+                }
+                else if (GetSameEquip(card, self) != null)
+                {
+                    if (((HasSkill("zhiheng") && WillShowForAttack()) || self.HasTreasure("LuminouSpearl")) && !self.HasUsed("ZhihengCard"))
+                        value -= 15;
+                    else if (!(fcard is Weapon))
+                    {
+                        value -= 3;
+                    }
+                    else if (fcard is Weapon && !self.HasUsed("Slash"))
+                    {
+                        value -= 1;
+                    }
+                }
+
+                foreach (Player p in room.GetAlivePlayers())
+                    if (HasSkill("diaodu", p) && RoomLogic.WillBeFriendWith(room, p, self, "diaodu"))
+                        value += 1;
+            }
+
+            return value;
+        }
+
         public virtual void UseEquipCard(ref CardUseStruct use, WrappedCard card)
         {
             //第一步，判断这张卡牌是否是当前最值得使用的（可被技能转化为其他卡牌）
@@ -4819,7 +4808,7 @@ namespace SanguoshaServer.AI
             List<WrappedCard> sames = FindSameEquipCards(card);
             sames.Add(card);
 
-            //如果白银狮子价值最高，则先用（通常是角色已受伤）
+            //如果白银狮子价值最高，则先用（通常是角色已受伤)
             SortByUseValue(ref sames);
             if (sames[0].Name == "SilverLion")
             {
@@ -4830,14 +4819,25 @@ namespace SanguoshaServer.AI
             //1、小鸡等失去装备时有技能发动的
             //2、需要空城时装备卡手的
             //3、手牌溢出不留给二张的
+            //4、有吕范能摸牌的
             //情况2和3时只从手牌中判断
             bool use_same = false;
             bool guzheng = false;
             Player erzhang = FindPlayerBySkill("guzheng");
             if (erzhang != null && erzhang != self && IsFriend(erzhang) || id_tendency[self] == "wu")
                 guzheng = true;
-            if (HasSkill(LoseEquipSkill)) use_same = true;
-            if (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1))
+
+            bool lv_fan = false;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (HasSkill("diaodu", p) && RoomLogic.WillBeFriendWith(room, p, self, "diaodu"))
+                {
+                    lv_fan = true;
+                    break;
+                }
+            }
+
+            if (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill))
             {
                 use_same = true;
                 sames = FindSameEquipCards(card, true);
@@ -4877,7 +4877,7 @@ namespace SanguoshaServer.AI
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
             if (fcard is EquipCard equip)
             {
-                List<int> ids = self.HandCards;
+                List<int> ids = new List<int>(self.HandCards);
                 if (!hand_only)
                     ids.AddRange(self.GetHandPile());
 
@@ -5030,13 +5030,74 @@ namespace SanguoshaServer.AI
             pre_drink = null;
         }
 
-        public Player AddExtraSlashTarget(List<Player> targets, CardUseStruct use)
+        public Player AddExtraSlashTarget(List<Player> targets, CardUseStruct use, List<Player> selected = null)
         {
+            selected = selected ?? new List<Player>();
             WrappedCard card = use.Card;
-            List<Player> current_targets = use.To;
+            List<Player> current_targets = new List<Player>(use.To);
+            current_targets.AddRange(selected);
             List<Player> result = new List<Player>();
 
-            List<ScoreStruct> scores = CaculateSlashIncome(Self, new List<WrappedCard> { card }, targets);
+            Dictionary<Player, ScoreStruct> available_targets = new Dictionary<Player, ScoreStruct>();
+            foreach (Player target in targets)
+            {
+                if (!RoomLogic.CanSlash(room, self, target, card, 0, current_targets) || SlashProhibit(card, target, self)) continue;
+                available_targets.Add(target, SlashIsEffective(card, target));
+            }
+
+            bool chain = false;
+            foreach (Player p in current_targets)
+            {
+                if (p.Chained)
+                {
+                    chain = true;
+                    break;
+                }
+            }
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player target in available_targets.Keys)
+            {
+                double use_value = 0;
+
+                ScoreStruct score = available_targets[target];
+                if (score.Score == 0) continue;
+                use_value += score.Score;
+                foreach (string skill in GetKnownSkills(target))
+                {
+                    SkillEvent ev = Engine.GetSkillEvent(skill);
+                    if (ev != null)
+                        use_value += ev.TargetValueAdjust(this, card, target);
+                }
+
+                if (IsFriend(target) && target.Chained && chain && score.Damage.Damage > 0)
+                        use_value -= 10;
+
+                if (score.DoDamage)
+                {
+                    if (IsGoodSpreadStarter(score.Damage) && score.Info != "miss" && score.Rate > 0.5 && !chain)
+                    {
+                        chain = true;
+                        use_value += 6;
+                    }
+                    else if (!IsGoodSpreadStarter(score.Damage) && score.Damage.Damage > 0 && !chain
+                             && target.Chained && score.Info != "miss" && score.Damage.Nature != DamageStruct.DamageNature.Normal)
+                    {
+                        chain = true;
+                        use_value -= 6;
+                    }
+                }
+
+                ScoreStruct result_score = new ScoreStruct
+                {
+                    Card = card,
+                    Players = new List<Player> { target },
+                    Score = use_value
+                };
+
+                scores.Add(result_score);
+            }
+
+            CompareByScore(ref scores);
             if (scores.Count > 0 && scores[0].Score > 0)
             {
                 return scores[0].Players[0];
@@ -5085,7 +5146,7 @@ namespace SanguoshaServer.AI
             SkillEvent e = Engine.GetSkillEvent(reason);
             if (e != null)
             {
-                result = e.OnMoveCards(this, self, upcards, downcards, min_num, max_num);
+                result = e.OnMoveCards(this, self, new List<int>(upcards), new List<int>(downcards), min_num, max_num);
                 if (result.Top.Count > 0 || result.Bottom.Count > 0)
                 {
                     GuanxingDebug(upcards, downcards, result.Top, result.Bottom);
@@ -5141,6 +5202,27 @@ namespace SanguoshaServer.AI
         }
         public virtual int AskForAG(List<int> card_ids, bool refusable, string reason)
         {
+            if (reason == "AmazingGrace")
+            {
+                double best = -1000;
+                int result = -1;
+                foreach (int id in card_ids)
+                {
+                    double value = GetUseValue(id, self, Player.Place.PlaceHand);
+                    if (value > best)
+                    {
+                        best = value;
+                        result = id;
+                    }
+                }
+                if (best > 0 && result != -1)
+                    return result;
+            }
+
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+                return e.OnPickAG(this, self, card_ids, refusable);
+
             if (refusable)
                 return -1;
 
@@ -5194,7 +5276,7 @@ namespace SanguoshaServer.AI
 
                 foreach (WrappedCard card in cards)
                 {
-                    if (card.Name == "Peach" && f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                    if (card.Name == "Peach" && !room.BloodBattle && f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
                         return card;
                 }
             }

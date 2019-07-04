@@ -98,7 +98,9 @@
     <Compile Include="Game\AchieveCollector.cs" />
     <Compile Include="Game\AI\AI.cs" />
     <Compile Include="Game\AI\AICore.cs" />
+    <Compile Include="Game\AI\AuthorityAI.cs" />
     <Compile Include="Game\AI\LordCardsAI.cs" />
+    <Compile Include="Game\AI\MomentumAI.cs" />
     <Compile Include="Game\AI\TransformationAI.cs" />
     <Compile Include="Game\AI\HegemonyAI.cs" />
     <Compile Include="Game\AI\Stander-qun.cs" />

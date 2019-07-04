@@ -680,8 +680,9 @@ namespace SanguoshaServer.Package
         public override void DoPreAction(Room room, WrappedCard card)
         {
             List<int> card_ids = room.GetNCards(room.GetAllPlayers().Count);
-            room.FillAG("AmazingGrace", card_ids);
-            room.SetTag("AmazingGrace", card_ids);
+            room.SetTag(Name, card_ids);
+            room.SetTag("AmazingGraceOrigin", new List<int>(card_ids));
+            room.FillAG(Name, card_ids);
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
@@ -692,23 +693,25 @@ namespace SanguoshaServer.Package
         private void ClearRestCards(Room room)
         {
             room.ClearAG();
-            List<int> ag_list = room.ContainsTag("AmazingGrace") ? (List<int>)room.GetTag("AmazingGrace") : new List<int>();
+            List<int> ag_list =  (List<int>)room.GetTag(Name);
+            room.RemoveTag("AmazingGraceOrigin");
+            room.RemoveTag(Name);
             if (ag_list.Count == 0) return;
 
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, null, "AmazingGrace", null);
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, null, Name, null);
             room.ThrowCard(ref ag_list, reason, null);
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "amazing_grace");
-            List<int> card_ids = room.ContainsTag("AmazingGrace") ? (List<int>)room.GetTag("AmazingGrace") : new List<int>();
+            List<int> card_ids = (List<int>)room.GetTag(Name);
 
-            int card_id = room.AskForAG(effect.To, card_ids, false, Name);
+            int card_id = room.AskForAG(effect.To, new List<int>(card_ids), false, Name);
             card_ids.Remove(card_id);
 
             room.TakeAG(effect.To, card_id);
 
-            room.SetTag("AmazingGrace", card_ids);
+            room.SetTag(Name, card_ids);
         }
     }
     public class SavageAssault : AOE
@@ -1435,7 +1438,10 @@ namespace SanguoshaServer.Package
                     room.Damage(new DamageStruct(effect.Card, effect.From, effect.To, 1, DamageStruct.DamageNature.Fire));
                 }
                 else
-                    effect.From.SetFlags("FireAttackFailed_" + effect.To.Name); // For AI
+                {
+                    effect.From.SetFlags("FireAttackFailedPlayer_" + effect.To.Name); // For AI
+                    effect.From.SetFlags("FireAttackFailed_" + suit_str); // For AI
+                }
             }
         }
     }
@@ -2192,7 +2198,10 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard c = new WrappedCard("TribladeSkillCard");
+            WrappedCard c = new WrappedCard("TribladeSkillCard")
+            {
+                Skill = Name
+            };
             c.AddSubCard(card);
             return c;
         }
@@ -2428,7 +2437,7 @@ namespace SanguoshaServer.Package
         {
             room.SetPlayerMark(use.From, "@companion", 0);
             room.DetachSkillFromPlayer(use.From, "companion");
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, use.From.Name, null, use.Card.Skill, null)
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_ANNOUNCE, use.From.Name, null, use.Card.Skill, null)
             {
                 CardString = RoomLogic.CardToString(room, use.Card),
                 General = RoomLogic.GetGeneralSkin(room, use.From, "companion", "head")
@@ -2441,6 +2450,7 @@ namespace SanguoshaServer.Package
                 Is_last_handcard = false,
             };
             room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, use.Card), move);
+            Thread.Sleep(1000);
 
             WrappedCard peach = new WrappedCard("Peach")
             {
@@ -2462,7 +2472,7 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
         {
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_ANNOUNCE, player.Name, null, card.Skill, null)
             {
                 CardString = RoomLogic.CardToString(room, card),
                 General = RoomLogic.GetGeneralSkin(room, player, "companion", "head")
@@ -2475,6 +2485,7 @@ namespace SanguoshaServer.Package
                 Is_last_handcard = false,
             };
             room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+            Thread.Sleep(1000);
 
             room.SetPlayerMark(player, "@companion", 0);
             room.DetachSkillFromPlayer(player, "companion");
@@ -2529,7 +2540,7 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             WrappedCard card = card_use.Card;
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_ANNOUNCE, player.Name, null, card.Skill, null)
             {
                 CardString = RoomLogic.CardToString(room, card),
                 General = RoomLogic.GetGeneralSkin(room, player, "magatama", "head")
@@ -2542,6 +2553,8 @@ namespace SanguoshaServer.Package
                 Is_last_handcard = false,
             };
             room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+            Thread.Sleep(1000);
+
             room.SetPlayerMark(player, "@megatama", 0);
             room.DetachSkillFromPlayer(player, "megatama");
             if (player.Phase == PlayerPhase.Play)
@@ -2629,7 +2642,7 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             WrappedCard card = card_use.Card;
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card.Skill, null)
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_ANNOUNCE, player.Name, null, card.Skill, null)
             {
                 CardString = RoomLogic.CardToString(room, card),
                 General = RoomLogic.GetGeneralSkin(room, player, "pioneer", "head")
@@ -2642,6 +2655,7 @@ namespace SanguoshaServer.Package
                 Is_last_handcard = false,
             };
             room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card), move);
+            Thread.Sleep(1000);
 
             room.SetPlayerMark(player, "@pioneer", 0);
             room.DetachSkillFromPlayer(player, "pioneer");

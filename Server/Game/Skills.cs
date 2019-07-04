@@ -451,7 +451,8 @@ namespace SanguoshaServer.Game
 
         public TreasureSkill(string name) : base(name) { }
 
-        public override int GetPriority() => 2; public override bool Triggerable(Player target, Room room)
+        public override int GetPriority() => 2;
+        public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;
             return target.HasTreasure(Name);
@@ -602,10 +603,12 @@ namespace SanguoshaServer.Game
         public bool Global => global;
         public List<string> Skills => viewhas_skills;
         public List<string> Armors => viewhas_armors;
+        public List<string> Treasures => viewhas_treasure;
 
         protected bool global;
         protected List<string> viewhas_skills = new List<string>();
         protected List<string> viewhas_armors = new List<string>();
+        protected List<string> viewhas_treasure = new List<string>();
         public ViewHasSkill(string name) : base(name)
         {
         }

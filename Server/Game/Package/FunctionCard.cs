@@ -525,7 +525,7 @@ namespace SanguoshaServer.Package
     public abstract class DelayedTrick : TrickCard
     {
         protected JudgeStruct judge = new JudgeStruct();
-        private bool movable;
+        private readonly bool movable;
         public DelayedTrick(string name, bool movable = false) : base(name)
         {
             this.movable = movable;

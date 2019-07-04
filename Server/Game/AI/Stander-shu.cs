@@ -4,6 +4,7 @@ using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.AI
 {
@@ -224,16 +225,7 @@ namespace SanguoshaServer.AI
 
             return null;
         }
-
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            string card_name = player.HasFlag("rende_judged") && player.GetMark(Name) < 2 ? ai.Choice[Name] : string.Empty;
-            if (!string.IsNullOrEmpty(card_name))
-                return 8;
-
-            return 0;
-        }
-
+        
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;
@@ -372,6 +364,15 @@ namespace SanguoshaServer.AI
                 }
             }
         }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            string card_name = player.HasFlag("rende_judged") && player.GetMark("rende") < 2 ? ai.Choice["rende"] : string.Empty;
+            if (!string.IsNullOrEmpty(card_name))
+                return 8;
+
+            return 0;
+        }
     }
 
     public class NiepanAI : SkillEvent
@@ -382,7 +383,15 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (ai.CanSave(player, 1 - player.Hp))
+            Room room = ai.Room;
+            int count = 0;
+            List<WrappedCard> analeptics = ai.GetCards("Analeptic", player, true);
+            analeptics.AddRange(ai.GetCards("Peach", player, true));
+            foreach (WrappedCard card in analeptics)
+                if (!RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse) && RoomLogic.IsProhibited(room, player, player, card) == null)
+                    count++;
+
+            if (count >= 1 - player.Hp)
                 return false;
 
             return true;
@@ -425,14 +434,6 @@ namespace SanguoshaServer.AI
             }
 
             return null;
-        }
-
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            Room room = ai.Room;
-            WrappedCard c = room.GetCard(card.GetEffectiveId());
-            double prio = Engine.GetCardPriority(card.Name) - Engine.GetCardPriority(c.Name);
-            return prio < 0 ? prio : 0;
         }
 
         public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
@@ -488,14 +489,6 @@ namespace SanguoshaServer.AI
                 }
             }
             return null;
-        }
-
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            Room room = ai.Room;
-            WrappedCard c = room.GetCard(card.GetEffectiveId());
-            double prio = Engine.GetCardPriority(card.Name) - Engine.GetCardPriority(c.Name);
-            return prio < 0 ? prio : 0;
         }
 
         public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
@@ -604,12 +597,31 @@ namespace SanguoshaServer.AI
             return null;
         }
 
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        {
+            double value = 0;
+            if (card.Name.Contains("Slash") && ai.HasSkill(Name, to) && to.HandcardNum + to.GetPile("wooden_ox").Count >= 3 && !ai.IsLackCard(to, "Jink"))
+            {
+                foreach (Player p in ai.Room.GetOtherPlayers(ai.Self))
+                {
+                    if (p == to) continue;
+                    if (ai.IsFriend(p, to) && p.IsWounded())
+                    {
+                        value += ai.IsFriend(p) ? 3 : -3;
+                        break;
+                    }
+                }
+            }
+
+            return value;
+        }
+
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
-            if (player.ContainsTag(Name) && player.GetTag(Name) is string user__name)
+            if (player.ContainsTag(Name) && player.GetTag(Name) is string user_name)
             {
                 Room room = ai.Room;
-                Player user = room.FindPlayer(user__name);
+                Player user = room.FindPlayer(user_name);
                 if (user != null)
                 {
                     if (user == player)
@@ -661,7 +673,8 @@ namespace SanguoshaServer.AI
             }
             else if (card.Name == "Jink")
             {
-                if (ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+                if (ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE
+                    && ai.Room.GetRoomState().GetCurrentCardUsePattern() == "Jink")
                 {
                     foreach (Player p in ai.FriendNoSelf)
                         if (p.IsWounded())
@@ -814,13 +827,6 @@ namespace SanguoshaServer.AI
             }
 
             return null;
-        }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            Room room = ai.Room;
-            WrappedCard c = room.GetCard(card.GetEffectiveId());
-            double prio = Engine.GetCardPriority(card.Name) - Engine.GetCardPriority(c.Name);
-            return prio < 0 ? prio : 0;
         }
     }
 
@@ -1150,6 +1156,7 @@ namespace SanguoshaServer.AI
             if (ai.Target[Name] != null && !string.IsNullOrEmpty(ai.Choice[Name]) && int.TryParse(ai.Choice[Name], out int id) && id > -1)
             {
                 use.Card = new WrappedCard("FangquanCard");
+                use.Card.Skill = Name;
                 use.Card.AddSubCard(id);
                 use.To = new List<Player> { ai.Target[Name] };
             }

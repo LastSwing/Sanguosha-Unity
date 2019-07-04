@@ -483,8 +483,13 @@ namespace CommonClass.Game
 
         public void RemoveStringMark(string mark)
         {
-            if (StringMarks.ContainsKey(mark))
-                StringMarks.Remove(mark);
+            if (mark == ".")
+                StringMarks.Clear();
+            else
+            {
+                if (StringMarks.ContainsKey(mark))
+                    StringMarks.Remove(mark);
+            }
         }
 
         public string GetStringMark(string mark)

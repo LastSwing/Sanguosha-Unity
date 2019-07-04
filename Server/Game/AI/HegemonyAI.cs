@@ -402,6 +402,7 @@ namespace SanguoshaServer.AI
             CompareByLevel(ref priority_enemies);
             List<Player> players = enemies[self];
             CompareByLevel(ref players);
+            enemies[self] = players;
 
             string most = ProcessPublic.Split('>')[0];
             foreach (Player p1 in room.GetOtherPlayers(self))
@@ -940,8 +941,9 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in room.GetOtherPlayers(self))
             {
+                string id = id_tendency[p];
                 PlayersLevel[p] = 1;                                                               // level defualt to 1
-                if (id_tendency[self] != "careerist" && id_tendency[self] == id_tendency[p])        // same kingdom or tendency should be friends
+                if (id_tendency[self] != "careerist" && id_tendency[self] == id)        // same kingdom or tendency should be friends
                     PlayersLevel[p] = -1;
                 else if (id_tendency[p] == "unknown")
                 {                                             // when tendency is unknown
@@ -962,7 +964,7 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {                                                                            // when id clearly but not same as "me"
-                    string id = id_tendency[p];
+
                     string big = Process.Split('>')[0];
                     if (big == id || big == p.Name
                             || big == id_tendency[self] || big == self.Name)
@@ -1090,6 +1092,7 @@ namespace SanguoshaServer.AI
         //服务器操作响应
         public override void Activate(ref CardUseStruct card_use)
         {
+            UpdatePlayers();
             to_use = GetTurnUse();
 
             to_use.Sort((x, y) => { return GetDynamicUsePriority(x) > GetDynamicUsePriority(y) ? -1 : 1; });
@@ -1161,13 +1164,37 @@ namespace SanguoshaServer.AI
                     FunctionCard f_peach = Engine.GetFunctionCard("Peach");
                     foreach (WrappedCard card in peaches)
                     {
-                        if (f_peach.IsAvailable(room, self, card))
+                        if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
                             return card;
                     }
                 }
+                else
+                {
+                    if (dying.GetMark("@nirvana") > 0 || dying.GetMark("@jizhao") > 0) return null;
+                    if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
+                        return null;
+
+                    List<WrappedCard> peaches = GetCards("Peach", self);
+                    peaches.AddRange(GetCards("Analeptic", self));
+
+                    double best = -1000;
+                    WrappedCard result = null;
+                    foreach (WrappedCard card in peaches)
+                    {
+                        double value = GetUseValue(card, self);
+                        if (card.Name == "Peach") value -= 2;
+                        if (value > best)
+                        {
+                            best = value;
+                            result = card;
+                        }
+                    }
+
+                    if (result != null) return result;
+                }
             }
 
-            return base.AskForSinglePeach(dying);
+            return null;
         }
 
         public override string AskForChoice(string skill_name, string choice, object data)
@@ -1300,7 +1327,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (Self.HasTreasure("JadeSeal") && !Self.HasShownOneGeneral())
+                if ((Self.HasTreasure("JadeSeal") || HasSkill("yongsi")) && !Self.HasShownOneGeneral())
                 {
                     if (canShowHead)
                         return "GameRule_AskForGeneralShowHead";
@@ -1358,6 +1385,7 @@ namespace SanguoshaServer.AI
 
             if (skill_name == "GameRule:TriggerOrder" || trigger_skill)
             {
+                if (choice.Contains("qianxi")) return "qianxi";
                 if (choice.Contains("duanbing")) return "duanbing";
                 if (choice.Contains("jieming")) return "jieming";
                 if (choice.Contains("fankui") && choice.Contains("ganglie")) return "fankui";
@@ -1410,8 +1438,12 @@ namespace SanguoshaServer.AI
                         return "tiandu";
                 }
                 if (choice.Contains("yiji")) return "yiji";
+                if (choice.Contains("hunshang")) return "hunshang";
+                if (choice.Contains("yinghun_sunjian")) return "yinghun_sunjian";
+                if (choice.Contains("yinghun_sunce")) return "yinghun_sunce";
                 if (choice.Contains("yingzi_zhouyu")) return "yingzi_zhouyu";
                 if (choice.Contains("yingzi_sunce")) return "yingzi_sunce";
+                if (choice.Contains("yingziextra")) return "yingziextra";
                 string[] skillnames = choice.Split('+');
                 return skillnames[0];
             }
@@ -1429,6 +1461,9 @@ namespace SanguoshaServer.AI
 
         public override bool AskForSkillInvoke(string skill_name, object data)
         {
+            if (skill_name == "userdefine:changetolord")
+                return Shuffle.random(2, 3);
+
             UseCard card = Engine.GetCardUsage(skill_name);
             if (card != null)
                 return card.OnSkillInvoke(this, self, data);
@@ -1597,14 +1632,14 @@ namespace SanguoshaServer.AI
             SkillEvent e = Engine.GetSkillEvent(reason);
             if (e != null)
             {
-                List<Player> result = e.OnPlayerChosen(this, self, targets, min_num, max_num);
+                List<Player> result = e.OnPlayerChosen(this, self, new List<Player>(targets), min_num, max_num);
                 if (result != null)
                     return result;
             }
             UseCard u = Engine.GetCardUsage(reason);
             if (u != null)
             {
-                List<Player> result = u.OnPlayerChosen(this, self, targets, min_num, max_num);
+                List<Player> result = u.OnPlayerChosen(this, self, new List<Player>(targets), min_num, max_num);
                 if (result != null)
                     return result;
             }
@@ -1719,136 +1754,6 @@ namespace SanguoshaServer.AI
                 }
             }
             return null;
-
-            /*
-
-
-    if ("snatch|dismantlement"):match(trick: objectName()) and to:isAllNude() then return nil end
-
-
-    if from then
-        local damage = { }
-            damage.from = from
-            damage.to = to
-
-        damage.card = trick
-
-
-        if (trick:isKindOf("Duel") or trick:isKindOf("AOE")) and not self: damageIsEffective(to, sgs.DamageStruct_Normal) then return nil end
-
-
-        if (trick:isKindOf("Duel") or trick:isKindOf("FireAttack") or trick:isKindOf("AOE")) and self:isFriend(to) then
-
-            if self:getDamagedEffects(damage) then
-
-                return nil
-
-            end
-        end
-
-    end
-
-    if (trick:isKindOf("Duel") or trick:isKindOf("FireAttack") or trick:isKindOf("AOE")) and self:needToLoseHp(to, from) and self:isFriend(to) then
-
-        return nil
-
-    end
-
-    local callback = sgs.ai_nullification[trick: getClassName()]
-
-    if type(callback) == "function" then
-        local shouldUse, single = callback(self, trick, from, to, positive, keep)
-
-        if self.room:getTag("NullifyingTimes"):toInt() > 0 then single = true end
-
-        if shouldUse and not single then
-
-            local heg_null_card = self:getCard("HegNullification")
-
-            if heg_null_card then null_card = heg_null_card end
-        end
-
-        return shouldUse and null_card
-
-    end
-
-
-    if keep then--要为被乐的友方保留无懈
-
-        if not self: isFriend(to) or not self: isWeak(to) then return nil end
-      end
-
-
-    if positive then
-
-        if from and (trick: isKindOf("FireAttack") or trick:isKindOf("Duel")) and self:cantbeHurt(to, from) and self:isWeak(to) and self:isFriend(to) then
-
-            return null_card
-
-        end
-
-        local isEnemyFrom = from and self:isEnemy(from)
-
-
-        if isEnemyFrom and self.player: hasSkill("kongcheng") and self.player: getHandcardNum() == 1 and self.player: isLastHandCard(null_card) and trick:isKindOf("SingleTargetTrick") then
-
-            return null_card
-
-
-        elseif trick:isKindOf("GodSalvation") then
-
-            if self:isEnemy(to) and self:evaluateKingdom(to) ~= "unknown" and self:isWeak(to) then return null_card end
-        end
-
-	else
-
-        if from and from:objectName() == self.player:objectName() then return end
-
-
-        if (trick:isKindOf("FireAttack") or trick:isKindOf("Duel")) and self:cantbeHurt(to, from) then
-
-            if isEnemyFrom then return null_card end
-        end
-
-        --[[看不懂原版这一段
-
-        if from and from:objectName() == to:objectName() then
-
-            if self:isFriend(from) then return null_card else return end
-
-        end
-        --]]
-		if trick:isKindOf("Duel") then
-
-            if trick:getSkillName() == "lijian" then
-
-                if self:isEnemy(to) and(self: isWeak(to) or null_num > 1 or self: getOverflow() > 0 or not self: isWeak()) then return null_card end
-
-                return
-            end
-
-            return from and self:isFriend(from) and not self: isFriend(to) and null_card
-
-        elseif trick:isKindOf("GodSalvation") then
-
-            if self:isFriend(to) and self:isWeak(to) then return null_card end
-        elseif trick: isKindOf("AmazingGrace") then
-
-            if self:isFriend(to) then return null_card end
-        elseif not(trick: isKindOf("GlobalEffect") or trick: isKindOf("AOE")) then
-
-            if from and self:isFriend(from) and not self: isFriend(to) then
-
-                if ("snatch|dismantlement"):match(trick: objectName()) and to:isNude() then
-                 elseif trick: isKindOf("FireAttack") and to:isKongcheng() then
-				else return null_card end
-            end
-
-        end
-    end
-
-    return
-                */
         }
     }
 }
