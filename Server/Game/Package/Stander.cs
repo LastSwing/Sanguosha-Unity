@@ -1098,7 +1098,11 @@ namespace SanguoshaServer.Package
     {
         public QiaobianViewAsSkill() : base("qiaobian")
         {
-            response_pattern = "@@qiaobian";
+        }
+
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == "@@qiaobian";
         }
         public override WrappedCard ViewAs(Room room, Player player)
         {
@@ -2405,6 +2409,8 @@ namespace SanguoshaServer.Package
 
         public override bool Invalid(Room room, Player player, string skill)
         {
+            Skill s = Engine.GetSkill(skill);
+            if (s != null && s.SkillFrequency == Frequency.Compulsory) return false;
             if (player.GetMark("@tieqi1") > 0)
             {
                 if (player.HeadSkills.ContainsKey(skill) && (!player.DeputySkills.ContainsKey(skill) || player.GetMark("@tieqi2") > 0))
@@ -2854,7 +2860,7 @@ namespace SanguoshaServer.Package
                 Type = "#Skillnullify",
                 From = player.Name,
                 Arg = avoid_skill,
-                Arg2 = "savage_assault"
+                Arg2 = "SavageAssault"
             };
             room.SendLog(log);
 
@@ -2914,7 +2920,7 @@ namespace SanguoshaServer.Package
                 || room.AskForSkillInvoke(ask_who, Name,null, info.SkillPosition));
             if (invoke)
             {
-                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
                 return info;
             }
@@ -5741,7 +5747,6 @@ namespace SanguoshaServer.Package
         public LiuliCard() : base("LiuliCard")
         {
         }
-        //mute = true;
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             if (targets.Count > 0)
@@ -5759,7 +5764,8 @@ namespace SanguoshaServer.Package
                 }
             }
 
-            WrappedCard slash = (WrappedCard)room.GetTag("liuli");
+            CardUseStruct use = (CardUseStruct)room.GetTag("liuli");
+            WrappedCard slash = use.Card;
             if (from != null && RoomLogic.IsProhibited(room, from, to_select, slash) != null)
                 return false;
 
@@ -5783,9 +5789,12 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard liuli_card = new WrappedCard("LiuliCard");
+            WrappedCard liuli_card = new WrappedCard("LiuliCard")
+            {
+                Skill = Name,
+                Mute = true
+            };
             liuli_card.AddSubCard(card);
-            liuli_card.Skill = Name;
             return liuli_card;
         }
     }
@@ -5834,7 +5843,10 @@ namespace SanguoshaServer.Package
             room.RemoveTag(Name);
             use.From.SetFlags("-LiuliSlashSource");
             if (c != null)
+            {
+                room.BroadcastSkillInvoke(Name, daqiao, info.SkillPosition);
                 return info;
+            }
 
             return new TriggerStruct();
         }
@@ -6845,6 +6857,7 @@ namespace SanguoshaServer.Package
                 if (result.Count > 0)
                 {
                     room.BroadcastSkillInvoke(Name, erzhang, info.SkillPosition);
+                    room.NotifySkillInvoked(erzhang, Name);
                     int to_back = result[0];
                     room.ObtainCard(player, room.GetCard(to_back));
                     cards.Remove(to_back);

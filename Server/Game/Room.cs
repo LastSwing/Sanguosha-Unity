@@ -1396,6 +1396,7 @@ namespace SanguoshaServer.Game
             HandleUsedGeneral(general_name);
 
             RemoveGeneral(player, false);
+            Thread.Sleep(1000);
             object void_data = null;
             List<TriggerSkill> game_start = new List<TriggerSkill>();
             foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))

@@ -435,7 +435,7 @@ namespace SanguoshaServer.Package
         static bool IsSpecificAssignee(Room room, Player player, Player from, WrappedCard slash)
         {
             if (from.HasFlag("slashTargetFix") && player.HasFlag("SlashAssignee")) return true;
-            else if (from.Phase == PlayerPhase.Play && room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
+            else if (from.Phase == PlayerPhase.Play && room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_PLAY
                 && !IsAvailable(room, from, slash, false))
             {
                 if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.SpecificAssignee, from, player, slash))
@@ -2670,9 +2670,10 @@ namespace SanguoshaServer.Package
             }
             if (targets.Count > 0)
             {
-                Player target = room.AskForPlayerChosen(player, targets, "pioneer", "@pioneer-view", true);
+                Player target = room.AskForPlayerChosen(player, targets, "pioneer", "@pioneer-view", false);
                 if (target != null)
                 {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
                     List<string> choices = new List<string>();
                     if (!target.General1Showed)
                         choices.Add("head_general");

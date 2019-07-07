@@ -681,7 +681,7 @@ namespace SanguoshaServer.Package
         public JieyueCard() : base("JieyueCard") {}
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && (!to_select.HasShownOneGeneral() || to_select.Kingdom != "wei");
+            return to_select != Self && targets.Count == 0 && (!to_select.HasShownOneGeneral() || to_select.Kingdom != "wei");
         }
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
@@ -715,17 +715,9 @@ namespace SanguoshaServer.Package
         public Zhengpi() : base("zhengpi")
         {
             view_as_skill = new ZhengpiVS();
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
             skill_type = SkillType.Attack;
         }
-
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-                foreach (Player p in room.GetAlivePlayers())
-                    p.SetFlags("-zhengpi_target");
-        }
-
         public override bool Triggerable(Player target, Room room)
         {
             return target.Phase == PlayerPhase.Play && base.Triggerable(target, room);
@@ -736,12 +728,9 @@ namespace SanguoshaServer.Package
             WrappedCard card = room.AskForUseCard(player, "@@zhengpi", "@zhengpi-target", -1, FunctionCard.HandlingMethod.MethodUse, true, info.SkillPosition);
             if (card != null)
             {
-                if (card.SubCards.Count == 1 && player.ContainsTag(Name) && player.GetTag(Name) is string target_name)
-                {
-                    Player target = room.FindPlayer(target_name);
-                    if (target != null)
-                        room.ObtainCard(target, new List<int>(card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target_name, Name, string.Empty));
-                }
+                if (card.SubCards.Count == 1 && room.ContainsTag(Name) && room.GetTag(Name) is Player target)
+                    room.ObtainCard(target, new List<int>(card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty));
+
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }
@@ -794,8 +783,7 @@ namespace SanguoshaServer.Package
                     };
                     room.SendLog(log);
 
-                    player.SetFlags(Name);
-                    target.SetFlags("zhengpi_target");
+                    player.SetFlags("zhengpi_" + target.Name);
                 }
             }
             return false;
@@ -846,7 +834,10 @@ namespace SanguoshaServer.Package
 
             if (check)
             {
-                WrappedCard card = new WrappedCard("ZhengpiCard");
+                WrappedCard card = new WrappedCard("ZhengpiCard")
+                {
+                    Skill = Name
+                };
                 card.AddSubCards(cards);
                 return card;
             }
@@ -860,7 +851,7 @@ namespace SanguoshaServer.Package
         public ZhengpiCard() : base("ZhengpiCard") { }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (Self.HasFlag("Zhengpi"))
+            if (Self.HasFlag("zhengpi") || to_select == Self || targets.Count > 0)
                 return false;
             else
                 return to_select.HasShownOneGeneral() ? card.SubCards.Count == 1 : card.SubCards.Count == 0;
@@ -868,7 +859,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
-            return targets.Count == 1;
+            return (Self.HasFlag("zhengpi") && targets.Count == 0) || (!Self.HasFlag("zhengpi") && targets.Count == 1);
         }
 
         public override void OnUse(Room room, CardUseStruct card_use)
@@ -884,7 +875,7 @@ namespace SanguoshaServer.Package
                 log.SetTos(card_use.To);
                 room.SendLog(log);
 
-                card_use.From.SetTag("zhengpi", card_use.To[0].Name);
+                room.SetTag("zhengpi", card_use.To[0]);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, card_use.From.Name, card_use.To[0].Name);
 
                 if (card_use.To[0].HasShownOneGeneral())
@@ -897,11 +888,12 @@ namespace SanguoshaServer.Package
     {
         public ZhengpiTar() : base("zhengpi-target")
         {
+            pattern = ".";
         }
 
         public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
         {
-            if (from.HasFlag("zhengpi") && to != null && !to.HasShownOneGeneral() && to.HasFlag("zhengpi_target"))
+            if (to != null && !to.HasShownOneGeneral() && from.HasFlag("zhengpi_" + to.Name))
                 return true;
 
             return false;
@@ -909,7 +901,7 @@ namespace SanguoshaServer.Package
 
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
         {
-            if (from.HasFlag("zhengpi") && to != null && !to.HasShownOneGeneral() && to.HasFlag("zhengpi_target"))
+            if (to != null && !to.HasShownOneGeneral() && from.HasFlag("zhengpi_" + to.Name))
                 return true;
 
             return false;
@@ -1224,7 +1216,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (room.GetRoomState().GetCurrentCardUsePattern() == "@@weidi!")
+            if (room.GetRoomState().GetCurrentCardUsePattern() == "@@weidi!" || to_select == Self)
                 return false;
             else
                 return to_select.HasFlag("weidi_get") && targets.Count == 0;
@@ -1541,12 +1533,15 @@ namespace SanguoshaServer.Package
                     break;
                 }
             }
-
             List<int> ids = new List<int>(card_use.Card.SubCards);
             room.FillAG("xuanhuo", ids, card_use.From, null, null, "@xuanhuo-give:" + target.Name);
             int id = room.AskForAG(card_use.From, ids, false, "xuanhuo");
             room.ClearAG(card_use.From);
             room.ObtainCard(target, new List<int> { id }, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "xuanhuo"), false);
+
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, "xuanhuo");
+            room.BroadcastSkillInvoke("xuanhuo", "male", -1, gsk.General, gsk.SkinId);
+
             ids.Remove(id);
             room.ThrowCard(ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, card_use.From.Name), card_use.From);
 

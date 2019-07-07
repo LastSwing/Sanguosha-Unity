@@ -652,7 +652,7 @@ namespace SanguoshaServer.AI
     {
         public HongfaAI() : base("hongfa") { }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 4;
         }

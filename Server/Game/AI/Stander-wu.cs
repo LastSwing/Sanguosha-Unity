@@ -894,7 +894,7 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return - Engine.GetCardKeepValue(ai.Room.GetCard(card.GetEffectiveId()).Name);
         }
@@ -1755,7 +1755,9 @@ namespace SanguoshaServer.AI
                 }
                 if (fcard is EquipCard)
                 {
-                    ids.Add(new WrappedCard("ZhijianCard") { Skill = Name, ShowSkill = Name });
+                    WrappedCard card = new WrappedCard("ZhijianCard") { Skill = Name, ShowSkill = Name };
+                    card.AddSubCard(id);
+                    ids.Add(card);
                 }
             }
 
@@ -1807,32 +1809,27 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             List<Player> friends = new List<Player>(ai.FriendNoSelf);
             ai.SortByDefense(ref friends, false);
-            foreach (int id in player.HandCards)
-            {
-                WrappedCard equip = room.GetCard(id);
-                FunctionCard fcard = Engine.GetFunctionCard(equip.Name);
-                if (fcard is EquipCard)
-                {
-                    foreach (Player p in friends)
-                    {
-                        if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && RoomLogic.CanPutEquip(p, card))
-                        {
-                            card.AddSubCard(id);
-                            use.Card = card;
-                            use.To.Add(p);
-                            return;
-                        }
-                    }
 
-                    foreach (Player p in friends)
+            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card.GetEffectiveId()).Name);
+            if (fcard is EquipCard)
+            {
+                foreach (Player p in friends)
+                {
+                    if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())))
                     {
-                        if (RoomLogic.CanPutEquip(p, card))
-                        {
-                            card.AddSubCard(id);
-                            use.Card = card;
-                            use.To.Add(p);
-                            return;
-                        }
+                        use.Card = card;
+                        use.To.Add(p);
+                        return;
+                    }
+                }
+
+                foreach (Player p in friends)
+                {
+                    if (RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())))
+                    {
+                        use.Card = card;
+                        use.To.Add(p);
+                        return;
                     }
                 }
             }

@@ -59,7 +59,7 @@ namespace SanguoshaServer.AI
 
         //当卡牌是通过技能转化而来时，1、使用“杀”时的分数调整；2、use value分数调整（主要作用是响应卡牌时，调整使用的优先级，比如
         //响应杀，应该优先使用龙胆转化而来的闪
-        public virtual double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 0;
+        public virtual double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 0;
         public virtual bool IsProhibit(TrustedAI ai, Player player, Player to, WrappedCard card) => false;
         public virtual bool IsCancelTarget(TrustedAI ai, WrappedCard card, Player from, Player to) => false;
         public virtual bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to) => true;

@@ -1023,6 +1023,7 @@ namespace SanguoshaServer.Package
             if (invoke)
             {
                 room.BroadcastSkillInvoke(Name, yuji, info.SkillPosition);
+                room.NotifySkillInvoked(yuji, Name);
                 return info;
             }
 

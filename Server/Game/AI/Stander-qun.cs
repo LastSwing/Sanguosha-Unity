@@ -74,7 +74,7 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             int id = card.GetEffectiveId();
             Room room = ai.Room;

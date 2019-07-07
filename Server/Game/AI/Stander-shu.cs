@@ -491,7 +491,7 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return -1;
         }
@@ -654,7 +654,7 @@ namespace SanguoshaServer.AI
             return new List<Player>();
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             if (card.Name.Contains("Slash"))
             {
@@ -780,7 +780,7 @@ namespace SanguoshaServer.AI
             return 0;
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             int id = card.GetEffectiveId();
             Room room = ai.Room;

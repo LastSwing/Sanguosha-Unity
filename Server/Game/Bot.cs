@@ -352,10 +352,18 @@ namespace SanguoshaServer.Game
                     if (speak)
                     {
                         string message = row["death1"].ToString();
-                        if (!string.IsNullOrEmpty(message) && (!message.Contains("%1") || death.Damage.From != null))
+                        if (!string.IsNullOrEmpty(message))
                         {
-                            message = message.Replace("%1", death.Damage.From.SceenName);
-                            room.Speak(client, message);
+                            if (message.Contains("%1"))
+                            {
+                                if (death.Damage.From != null)
+                                    message = message.Replace("%1", death.Damage.From.SceenName);
+                                else
+                                    message = string.Empty;
+                            }
+
+                            if (!string.IsNullOrEmpty(message))
+                                room.Speak(client, message);
                         }
                     }
                     else
@@ -420,11 +428,18 @@ namespace SanguoshaServer.Game
                     if (speak)
                     {
                         string message = row["damaged1"].ToString();
-                        if (!string.IsNullOrEmpty(message) && (!message.Contains("%1") || damage.From != null))
+                        if (!string.IsNullOrEmpty(message))
                         {
-                            message = message.Replace("%1", damage.From.SceenName);
+                            if (message.Contains("%1"))
+                            {
+                                if (damage.From != null)
+                                    message = message.Replace("%1", damage.From.SceenName);
+                                else
+                                    message = string.Empty;
+                            }
+                            if (!string.IsNullOrEmpty(message))
+                                room.Speak(client, message);
                         }
-                        room.Speak(client, message);
                     }
                     else
                     {

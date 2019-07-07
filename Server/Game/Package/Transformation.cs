@@ -53,7 +53,7 @@ namespace SanguoshaServer.Package
                 new SanyaoCard(),
                 new YongjinCard(),
                 //new DiaoduequipCard(),
-                //new DiaoduCard(),
+                new DiaoduCard(),
                 new LianziCard(),
                 new FlameMapCard(),
                 new YiguiCard(),
@@ -557,7 +557,6 @@ namespace SanguoshaServer.Package
             {
                 Type = "#wanwei",
                 From = player.Name,
-                To = new List<string> { move.To?.Name },
                 Arg = num.ToString(),
                 Arg2 = get ? "get" : "dismantled"
             };
@@ -942,11 +941,14 @@ namespace SanguoshaServer.Package
         {
             string[] strs = use.Card.UserString.Split('_');
             //move general card
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, use.From, "yigui", use.Card.SkillPosition);
+            room.BroadcastSkillInvoke("yigui", "male", 2, gsk.General, gsk.SkinId);
+
             Yigui.RemoveHuashen(room, use.From, new List<string> { strs[1] });
 
             WrappedCard _card = new WrappedCard(strs[0])
             {
-                Skill = "yigui",
+                Skill = "_yigui",
                 ShowSkill = "yigui",
                 UserString = strs[1]
             };
@@ -964,11 +966,13 @@ namespace SanguoshaServer.Package
             string[] strs = card.UserString.Split('_');
 
             //move general card
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, "yigui", card.SkillPosition);
+            room.BroadcastSkillInvoke("yigui", "male", 2, gsk.General, gsk.SkinId);
             Yigui.RemoveHuashen(room, player, new List<string> { strs[1] });
 
             WrappedCard _card = new WrappedCard(strs[0])
             {
-                Skill = "yigui",
+                Skill = "_yigui",
                 ShowSkill = "yigui",
                 UserString = strs[1]
             };
@@ -1510,6 +1514,7 @@ namespace SanguoshaServer.Package
         }
     }
     //lvfan
+    /*
      public class Diaodu : TriggerSkill
     {
         public Diaodu() : base("diaodu")
@@ -1622,6 +1627,124 @@ namespace SanguoshaServer.Package
             }
 
             return false;
+        }
+    }
+    */
+
+    public class Diaodu : TriggerSkill
+    {
+        public Diaodu() : base("diaodu")
+        {
+            view_as_skill = new DiaoduVS();
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed };
+            skill_type = SkillType.Replenish;
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> result = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && player.Alive)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is EquipCard)
+                {
+                    List<Player> lfs = RoomLogic.FindPlayersBySkillName(room, Name);
+                    foreach (Player p in lfs)
+                    {
+                        if (RoomLogic.IsFriendWith(room, player, p))
+                            result.Add(new TriggerStruct(Name, player, p));
+                    }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play && base.Triggerable(player, room))
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (RoomLogic.IsFriendWith(room, player, p) && p.HasEquip() && RoomLogic.CanGetCard(room, player, p, "e"))
+                        return new List<TriggerStruct> { new TriggerStruct(Name, player) };
+            }
+
+            return result;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && player.Alive && room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, info.SkillOwner, player.Name);
+                room.BroadcastSkillInvoke(Name, room.FindPlayer(info.SkillOwner), info.SkillPosition);
+                return info;
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart)
+                room.AskForUseCard(player, "@@diaodu", "@diaodu", -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && ask_who.Alive)
+                room.DrawCards(ask_who, 1, Name);
+
+            return false;
+        }
+    }
+
+    public class DiaoduVS : ViewAsSkill
+    {
+        public DiaoduVS() : base("diaodu") { response_pattern = "@@diaodu"; }
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            return selected.Count == 0 && Engine.GetFunctionCard(to_select.Name) is EquipCard;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            WrappedCard card = new WrappedCard("DiaoduCard")
+            {
+                Skill = Name,
+                ShowSkill = Name
+            };
+            card.AddSubCards(cards);
+
+            return card;
+        }
+    }
+
+    public class DiaoduCard : SkillCard
+    {
+        public DiaoduCard() : base("DiaoduCard")
+        { }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (targets.Count > 0 || to_select == Self) return false;
+
+            return card.SubCards.Count == 0 && to_select.HasEquip() && RoomLogic.IsFriendWith(room, to_select, Self)
+                && RoomLogic.CanGetCard(room, Self, to_select, "e") || card.SubCards.Count == 1;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            Player target = card_use.To[0];
+            if (card_use.Card.SubCards.Count == 0 && target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
+            {
+                int id = room.AskForCardChosen(player, target, "e", Name, false, HandlingMethod.MethodGet); List<int> ids = new List<int> { id };
+                room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, Name, string.Empty));
+
+                if (ids.Count == 1 && room.GetCardPlace(ids[0]) == Place.PlaceHand && room.GetCardOwner(ids[0]) == player)
+                {
+                    List<Player> targets = room.GetOtherPlayers(target);
+                    targets.Remove(player);
+
+                    player.SetTag(Name, id);
+                    Player second = room.AskForPlayerChosen(player, targets, Name, "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
+                    player.RemoveTag(Name);
+                    if (second != null)
+                        room.ObtainCard(second, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, Name, string.Empty));
+                }
+            }
+            else if (card_use.Card.SubCards.Count == 1)
+                room.ObtainCard(target, new List<int>(card_use.Card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty));
         }
     }
 

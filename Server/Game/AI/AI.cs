@@ -64,6 +64,7 @@ namespace SanguoshaServer.AI
         protected Dictionary<Player, List<int>> pre_discard = new Dictionary<Player, List<int>>();
         protected List<Player> pre_ignore_armor = new List<Player>();
         protected Dictionary<Player, string> pre_disable = new Dictionary<Player, string>();
+        protected Dictionary<Player, string> pre_noncom_invalid = new Dictionary<Player, string>();
         protected Dictionary<Player, List<string>> card_lack = new Dictionary<Player, List<string>>();
         protected WrappedCard pre_drink;
 
@@ -117,6 +118,7 @@ namespace SanguoshaServer.AI
                 wooden_cards[p] = new List<int>();
                 pre_discard[p] = new List<int>();
                 pre_disable[p] = string.Empty;
+                pre_noncom_invalid[p] = string.Empty;
                 card_lack[p] = new List<string>();
             }
         }
@@ -228,9 +230,15 @@ namespace SanguoshaServer.AI
             from = from ?? self;
             List<Skill> skills = new List<Skill>();
             if (!pre_disable[to].Contains("h"))
-                skills = RoomLogic.GetHeadActivedSkills(room, to, true, !(IsKnown(self, to, "h") && IsKnown(from, to, "h")));
+            {
+                foreach (Skill skill in RoomLogic.GetHeadActivedSkills(room, to, true, !(IsKnown(self, to, "h") && IsKnown(from, to, "h"))))
+                    if (to.HeadAcquiredSkills.Contains(skill.Name) || !pre_noncom_invalid[to].Contains("h") || skill.SkillFrequency != Skill.Frequency.Compulsory)
+                        skills.Add(skill);
+            }
             if (!string.IsNullOrEmpty(to.General2) && !pre_disable[to].Contains("d"))
-                skills.AddRange(RoomLogic.GetDeputyActivedSkills(room, to, true, !(IsKnown(self, to, "d") && IsKnown(from, to, "d"))));
+                foreach (Skill skill in RoomLogic.GetDeputyActivedSkills(room, to, true, !(IsKnown(self, to, "d") && IsKnown(from, to, "d"))))
+                    if (to.DeputyAcquiredSkills.Contains(skill.Name) || !pre_noncom_invalid[to].Contains("d") || skill.SkillFrequency != Skill.Frequency.Compulsory)
+                        skills.Add(skill);
 
             List<string> skill_names = new List<string>();
             foreach (Skill skill in skills)
@@ -1762,7 +1770,7 @@ namespace SanguoshaServer.AI
 
             SkillEvent ev = Engine.GetSkillEvent(card.Skill);
             if (ev != null)
-                basic += ev.UseValueAjust(this, player, new List<Player>(), card);
+                basic += ev.UseValueAdjust(this, player, new List<Player>(), card);
 
             return basic;
         }
@@ -2450,6 +2458,7 @@ namespace SanguoshaServer.AI
             {
                 pre_discard[p].Clear();
                 pre_disable[p] = string.Empty;
+                pre_noncom_invalid[p] = string.Empty;
             }
 
             pre_ignore_armor.Clear();
@@ -2699,14 +2708,14 @@ namespace SanguoshaServer.AI
             }
 
             //判断铁骑需要预封锁的武将
-            if (HasSkill("tieqi", from) && WillShowForAttack() && to.HasShownOneGeneral())
+            if (HasSkill("tieqi|tieqi_fz", from) && WillShowForAttack() && to.HasShownOneGeneral())
             {
                 double g1 = to.General1Showed ? GetGeneralStength(to, true, false) : 0;
                 double g2 = to.General2Showed ? GetGeneralStength(to, false, false) : 0;
-                if (to.General1Showed && !pre_disable[to].Contains("h") && (g1 > g2 || !to.General2Showed))
-                    pre_disable[to] = pre_disable[to] + "h";
-                else if (to.General2Showed && !pre_disable[to].Contains("d") && (g2 > g1 || !to.General1Showed))
-                    pre_disable[to] = pre_disable[to] + "d";
+                if (to.General1Showed && !pre_noncom_invalid[to].Contains("h") && (g1 > g2 || !to.General2Showed))
+                    pre_noncom_invalid[to] = pre_noncom_invalid[to] + "h";
+                else if (to.General2Showed && !pre_noncom_invalid[to].Contains("d") && (g2 > g1 || !to.General1Showed))
+                    pre_noncom_invalid[to] = pre_noncom_invalid[to] + "d";
             }
 
             if (IsCancelTarget(card, to, from)) return new ScoreStruct();
@@ -2743,9 +2752,9 @@ namespace SanguoshaServer.AI
             if (!IsFriend(to, from))
             {
                 int jink_need = HasSkill("wushuang", from) ? 2 : 1;
-                if (HasSkill("tieqi", from)) force_hit = 7 / 10;
+                if (HasSkill("tieqi|tieqi_fz", from)) force_hit = 7 / 10;
                 if (HasSkill("jianchu", from) && to.HasEquip()) force_hit = 1;
-                if (HasSkill("liegong", from) && from.Phase == PlayerPhase.Play)
+                if (HasSkill("liegong_fz", from) && from.Phase == PlayerPhase.Play)
                 {
                     bool weapon = from.GetWeapon() && !card.SubCards.Contains(from.Weapon.Key);
                     if (to.HandcardNum >= from.Hp || to.HandcardNum <= RoomLogic.GetAttackRange(room, from, weapon))

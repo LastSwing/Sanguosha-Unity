@@ -1110,6 +1110,16 @@ namespace SanguoshaServer.AI
                         _use.Use(this, self, ref card_use, card);
                         if (card_use.Card != null)
                         {
+                            //左慈技能还原
+                            if (card_use.Card.Skill == "yigui")
+                            {
+                                card_use.Card = new WrappedCard("YiguiCard")
+                                {
+                                    Skill = "yigui",
+                                    UserString = string.Format("{0}_{1}", card_use.Card.Name, card_use.Card.UserString)
+                                };
+                            }
+
                             to_use.Clear();
                             return;
                         }
@@ -1156,12 +1166,13 @@ namespace SanguoshaServer.AI
 
         public override WrappedCard AskForSinglePeach(Player dying)
         {
+            FunctionCard f_peach = Engine.GetFunctionCard("Peach");
+            FunctionCard f_ana = Engine.GetFunctionCard("Analeptic");
             if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
             {
                 if (self != dying)
                 {
                     List<WrappedCard> peaches = GetCards("Peach", self);
-                    FunctionCard f_peach = Engine.GetFunctionCard("Peach");
                     foreach (WrappedCard card in peaches)
                     {
                         if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
@@ -1174,8 +1185,13 @@ namespace SanguoshaServer.AI
                     if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
                         return null;
 
-                    List<WrappedCard> peaches = GetCards("Peach", self);
-                    peaches.AddRange(GetCards("Analeptic", self));
+                    List<WrappedCard> peaches = new List<WrappedCard>();
+                    foreach (WrappedCard card in GetCards("Peach", self))
+                        if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                            peaches.Add(card);
+                    foreach (WrappedCard card in GetCards("Analeptic", self))
+                        if (f_ana.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                            peaches.Add(card);
 
                     double best = -1000;
                     WrappedCard result = null;
@@ -1188,6 +1204,16 @@ namespace SanguoshaServer.AI
                             best = value;
                             result = card;
                         }
+                    }
+
+                    //左慈技能的复原
+                    if (result != null && result.Skill == "yigui")
+                    {
+                        result = new WrappedCard("YiguiCard")
+                        {
+                            Skill = "yigui",
+                            UserString = string.Format("{0}_{1}", result.Name, result.UserString)
+                        };
                     }
 
                     if (result != null) return result;
@@ -1578,11 +1604,36 @@ namespace SanguoshaServer.AI
                     string skill_name = result.Groups[1].ToString();
                     UseCard card = Engine.GetCardUsage(skill_name);
                     if (card != null)
-                        return card.OnResponding(this, self, pattern, prompt, method);
+                    {
+                        CardUseStruct use = card.OnResponding(this, self, pattern, prompt, method);
+                        //左慈技能的复原
+                        if (use.Card != null && use.Card.Skill == "yigui")
+                        {
+                            use.Card = new WrappedCard("YiguiCard")
+                            {
+                                Skill = "yigui",
+                                UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
+                            };
+                        }
+                        return use;
+                    }
 
                     SkillEvent skill = Engine.GetSkillEvent(skill_name);
                     if (skill != null)
-                        return skill.OnResponding(this, self, pattern, prompt, method);
+                    {
+                        CardUseStruct use = skill.OnResponding(this, self, pattern, prompt, method);
+                        //左慈技能的复原
+                        if (use.Card != null && use.Card.Skill == "yigui")
+                        {
+                            use.Card = new WrappedCard("YiguiCard")
+                            {
+                                Skill = "yigui",
+                                UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
+                            };
+                        }
+
+                        return use;
+                    }
                 }
             }
             else
@@ -1594,11 +1645,36 @@ namespace SanguoshaServer.AI
                         string skill_name = prompt_keys[key];
                         UseCard card = Engine.GetCardUsage(skill_name);
                         if (card != null)
-                            return card.OnResponding(this, self, pattern, prompt, method);
+                        {
+                            CardUseStruct use = card.OnResponding(this, self, pattern, prompt, method);
+                            //左慈技能的复原
+                            if (use.Card != null && use.Card.Skill == "yigui")
+                            {
+                                use.Card = new WrappedCard("YiguiCard")
+                                {
+                                    Skill = "yigui",
+                                    UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
+                                };
+                            }
+                            return use;
+                        }
 
                         SkillEvent skill = Engine.GetSkillEvent(skill_name);
                         if (skill != null)
-                            return skill.OnResponding(this, self, pattern, prompt, method);
+                        {
+                            CardUseStruct use = skill.OnResponding(this, self, pattern, prompt, method);
+                            //左慈技能的复原
+                            if (use.Card != null && use.Card.Skill == "yigui")
+                            {
+                                use.Card = new WrappedCard("YiguiCard")
+                                {
+                                    Skill = "yigui",
+                                    UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
+                                };
+                            }
+
+                            return use;
+                        }
                     }
                 }
             }
@@ -1648,6 +1724,7 @@ namespace SanguoshaServer.AI
         }
         public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
         {
+            Choice["HegNullification"] = null;
             if (!to.Alive) return null;
 
             List<WrappedCard> nullcards = GetCards("Nullification", self);
@@ -1745,6 +1822,7 @@ namespace SanguoshaServer.AI
                         {
                             if (card.Name == "HegNullification")
                             {
+                                Choice["HegNullification"] = "all";
                                 null_card = card;
                                 break;
                             }

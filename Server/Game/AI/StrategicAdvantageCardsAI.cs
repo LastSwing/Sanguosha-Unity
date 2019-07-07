@@ -1015,7 +1015,7 @@ namespace SanguoshaServer.AI
                 bool damage_done = false;
                 foreach (Player p in targets)
                 {
-                    if (!ai.IsCancelTarget(card, p, player) && ai.IsCardEffect(card, p, player))
+                    if (!ai.IsCancelTarget(card, p, player) && ai.IsCardEffect(card, p, player) && RoomLogic.IsProhibited(room, player, p, card) == null)
                     {
                         DamageStruct damage = new DamageStruct(card, player, p, 1, DamageStruct.DamageNature.Fire);
                         ScoreStruct score = ai.GetDamageScore(damage);

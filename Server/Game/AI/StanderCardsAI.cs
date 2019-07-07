@@ -712,7 +712,7 @@ namespace SanguoshaServer.AI
             foreach (Player friend in ai.GetFriends(player))
             {
                 good += 10 * ai.GetKnownCardsNums("Nullification", "he", friend, player);
-                if (!ai.IsCancelTarget(card, friend, player) && ai.IsCardEffect(card, friend, player))
+                if (!ai.IsCancelTarget(card, friend, player) && ai.IsCardEffect(card, friend, player) && RoomLogic.IsProhibited(room, player, friend, card) == null)
                 {
                     if (friend.IsWounded())
                     {
@@ -730,8 +730,9 @@ namespace SanguoshaServer.AI
 
             foreach (Player enemy in ai.GetEnemies(player))
             {
-                good += 10 * ai.GetKnownCardsNums("Nullification", "he", enemy, player);
-                if (!ai.IsCancelTarget(card, enemy, player) && ai.IsCardEffect(card, enemy, player))
+                good -= 10 * ai.GetKnownCardsNums("Nullification", "he", enemy, player);
+                if (!ai.IsCancelTarget(card, enemy, player) && ai.IsCardEffect(card, enemy, player)
+                    && ai.IsCardEffect(card, enemy, player) && RoomLogic.IsProhibited(room, player, enemy, card) == null)
                 {
                     if (enemy.IsWounded())
                     {
@@ -2724,6 +2725,18 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class HegNullificationAI : UseCard
+    {
+        public HegNullificationAI() : base("HegNullification") { }
+        public override string OnChoice(TrustedAI ai, Player player, string choices, object data)
+        {
+            if (!string.IsNullOrEmpty(ai.Choice[Name]))
+                return ai.Choice[Name];
+
+            return "single";
+        }
+    }
+
     public class CrossBowAI : UseCard
     {
         public CrossBowAI() : base("CrossBow")
@@ -2862,7 +2875,7 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UseValueAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             Room room = ai.Room;
             double value = 0;

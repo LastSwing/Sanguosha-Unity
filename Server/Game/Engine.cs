@@ -858,7 +858,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    ExpPattern p = new ExpPattern(skill.Pattern);
+                    CardPattern p = GetPattern(skill.Pattern);
                     if (p.Match(from, room, card) && skill.GetDistanceLimit(room, from, to, card)) return true;
                 }
             }
@@ -866,7 +866,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    ExpPattern p = new ExpPattern(skill.Pattern);
+                    CardPattern p = GetPattern(skill.Pattern);
                     if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card)) return true;
                 }
             }
@@ -874,7 +874,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    ExpPattern p = new ExpPattern(skill.Pattern);
+                    CardPattern p = GetPattern(skill.Pattern);
                     if (p.Match(from, room, card) && skill.IgnoreCount(room, from, card)) return true;
                 }
             }
