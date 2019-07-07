@@ -1068,7 +1068,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            if (RoomLogic.IsVirtualCard(room, card) && card.Skill == "yigui" && to != null && to.HasShownOneGeneral())
+            if (RoomLogic.IsVirtualCard(room, card) && card.GetSkillName() == "yigui" && to != null && to.HasShownOneGeneral())
             {
                 General general = Engine.GetGeneral(card.UserString);
                 if (general == null)
