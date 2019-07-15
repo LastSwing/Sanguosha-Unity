@@ -1339,7 +1339,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             ask_who.RemoveMark("ThreatenEmperorExtraTurn");
-            if (room.AskForCard(ask_who, Name, ".!", "@threaten_emperor", data, Name) != null)
+            if (room.AskForCard(ask_who, Name, ".", "@threaten_emperor", data, Name) != null)
                 return info;
             return new TriggerStruct();
         }

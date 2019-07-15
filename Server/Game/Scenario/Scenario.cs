@@ -1,6 +1,7 @@
 ﻿using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
+using SanguoshaServer.AI;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
 using System.Collections.Generic;
@@ -20,17 +21,17 @@ namespace SanguoshaServer.Scenario
         protected List<string> loyalists, rebels, renegades;
         protected GameRule rule;
         protected bool random_seat;
-        
         public abstract void Assign(Room room);
         public abstract void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile);
-        public abstract List<string> GetWinners(Room room);
+        public abstract void PrepareForPlayers(Room room);
+        public abstract void OnChooseGeneralReply(Room room, Client client);
         public virtual RoomThread GetThread(Room room)
         {
             return new RoomThread(room, rule);
         }
         public abstract bool IsFriendWith(Room room, Player player, Player other);
         public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
-
+        public abstract TrustedAI GetAI(Room room, Player player);
     }
 
     public abstract class GameRule : TriggerSkill
@@ -218,7 +219,7 @@ namespace SanguoshaServer.Scenario
             }
             else if (change.To == PlayerPhase.Start)
             {
-                if (!player.General1Showed && Engine.GetGeneral(player.ActualGeneral1).IsLord())
+                if (!player.General1Showed && Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).IsLord())
                     room.ShowGeneral(player);
             }
         }
@@ -248,7 +249,7 @@ namespace SanguoshaServer.Scenario
                 WrappedCard card = card_use.Card;
                 if (fcard.HasPreact)
                 {
-                    fcard.DoPreAction(room, card);
+                    fcard.DoPreAction(room, player, card);
                     data = card_use;
                 }
 
@@ -347,13 +348,13 @@ namespace SanguoshaServer.Scenario
                 killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);
                 int kill_count = killer.GetMark("multi_kill_count");
                 if (kill_count > 1 && kill_count < 8)
-                    room.SetEmotion(killer, string.Format("multi_kill{0}", kill_count));
+                    room.SetEmotion(killer, string.Format("kill{0}", kill_count));
                 else if (kill_count > 7)
                     room.SetEmotion(killer, "zylove");
                 RewardAndPunish(room, killer, player);
             }
 
-            if (Engine.GetGeneral(player.General1).IsLord() && player == death.Who)
+            if (Engine.GetGeneral(player.General1, room.Setting.GameMode).IsLord() && player == death.Who)
             {
                 foreach (Player p in room.GetOtherPlayers(player, true)) {
                     if (p.Kingdom == player.Kingdom)

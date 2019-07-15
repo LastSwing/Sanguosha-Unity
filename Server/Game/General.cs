@@ -16,38 +16,38 @@ namespace SanguoshaServer.Game
         
         public bool Hidden => hidden;
 
-        private string name;
-        private Gender gender;
+        private readonly string name;
+        private readonly Gender gender;
 
-        private string kingdom;
-        private int double_max_hp;
-        private bool classic_lord;
-        private bool hegemony_lord;
-        private bool hidden;
+        private readonly string kingdom;
+        private readonly int double_max_hp;
+        private bool lord;
+        private string package_name;
+        private readonly bool hidden;
 
-        public General(string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false)
+        public General(string name, string kingdom, bool lord, string pack, int double_max_hp, bool male, bool hidden)
         {
             this.name = name;
             this.kingdom = kingdom;
             this.double_max_hp = double_max_hp;
-            this.gender = male ? Gender.Male : Gender.Female;
+            gender = male ? Gender.Male : Gender.Female;
             this.hidden = hidden;
-            this.hegemony_lord = hegemony_lord;
-            this.classic_lord = classic_lord;
+            package_name = pack;
+            this.lord = lord;
         }
 
-        public bool IsLord(bool hegemony_mod = true) => hegemony_mod ? hegemony_lord : classic_lord;
+        public bool IsLord() => lord;
         public int GetMaxHpHead() => double_max_hp + Head_max_hp_adjusted_value;
         public int GetMaxHpDeputy() => double_max_hp + Deputy_max_hp_adjusted_value;
 
         public bool CompanionWith(string name)
         {
-            General other = Engine.GetGeneral(name);
-            if (other == null) return false;
+            General other = Engine.GetGeneral(name, "Hegemony");
+            if (other == null || package_name != "Hegemony") return false;
 
             if (kingdom != other.Kingdom)
                 return false;
-            return hegemony_lord || other.hegemony_lord || Companions.Contains(name)
+            return lord || other.lord || Companions.Contains(name)
                 || other.Companions.Contains(Name);
         }
 

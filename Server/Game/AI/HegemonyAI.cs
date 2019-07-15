@@ -23,9 +23,8 @@ namespace SanguoshaServer.AI
                     skill_events[skill] = e;
             }
 
-            foreach (int id in room.DrawPile)
+            foreach (FunctionCard card in room.AvailableFunctionCards)
             {
-                WrappedCard card = room.GetCard(id);
                 SkillEvent e = Engine.GetSkillEvent(card.Name);
                 if (e != null)
                     skill_events[card.Name] = e;
@@ -244,14 +243,19 @@ namespace SanguoshaServer.AI
                 }
                 else if (choices[1] == "showCards")
                 {
-                    int id = int.Parse(choices[1]);
+                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[1].Split('+')));
                     if (choices[choices.Count - 1] == "all")
                     {
-                        if (!public_handcards[player].Contains(id)) public_handcards[player].Add(id);
-                        if (!private_handcards[player].Contains(id)) private_handcards[player].Add(id);
+                        foreach (int id in ids)
+                        {
+                            if (!public_handcards[player].Contains(id)) public_handcards[player].Add(id);
+                            if (!private_handcards[player].Contains(id)) private_handcards[player].Add(id);
+                        }
                     }
-                    else if (choices[choices.Count - 1] == self.Name && !private_handcards[player].Contains(id))
-                        private_handcards[player].Add(id);
+                    else if (choices[choices.Count - 1] == self.Name)
+                        foreach (int id in ids)
+                        if (!private_handcards[player].Contains(id))
+                            private_handcards[player].Add(id);
                 }
                 else if (choices[0] == "cardShow")
                 {
@@ -563,7 +567,7 @@ namespace SanguoshaServer.AI
                 foreach (Player p in kingdoms[kingdom])
                 {
                     skills.AddRange(GetKnownSkills(p, true, self, true));
-                    if (Engine.GetGeneral(p.ActualGeneral1).IsLord())
+                    if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                     {
                         if (kingdom != "shu")
                             kingdom_value[kingdom] += kingdoms[kingdom].Count * 1.5;
@@ -597,7 +601,7 @@ namespace SanguoshaServer.AI
                     {
                         if (RoomLogic.PlayerHasShownSkill(room, p, skill))
                             skills.Add(skill);
-                        if (Engine.GetGeneral(p.ActualGeneral1).IsLord())
+                        if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                         {
                             if (kingdom != "shu")
                                 kingdom_value_public[kingdom] += kingdoms_public[kingdom].Count * 1.5;
@@ -770,14 +774,14 @@ namespace SanguoshaServer.AI
                 else
                     anjiangs.Add(p);
 
-                if (IsKnown(self, p, "h") && Engine.GetGeneral(p.ActualGeneral1).IsLord())
+                if (IsKnown(self, p, "h") && Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                 {    //find lord
-                    string kingdom = Engine.GetGeneral(p.ActualGeneral1).Kingdom;
+                    string kingdom = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom;
                     lords[kingdom] = p;
                     id_tendency[p] = kingdom;
                 }
 
-                if (p.General1Showed && Engine.GetGeneral(p.ActualGeneral1).IsLord())
+                if (p.General1Showed && Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                     lords_public[p.Kingdom] = p;
             }
 
@@ -905,7 +909,7 @@ namespace SanguoshaServer.AI
 
             if (!self.HasShownOneGeneral() && id_tendency[self] != "careerist")
             {                // show general when lack of pit
-                string kingdom = Engine.GetGeneral(self.ActualGeneral1).Kingdom;
+                string kingdom = Engine.GetGeneral(self.ActualGeneral1, room.Setting.GameMode).Kingdom;
                 List<Player> others = new List<Player>();
                 bool friends = false;                                                           // find shown friends
                 foreach (Player p in room.GetOtherPlayers(self))
@@ -1230,7 +1234,7 @@ namespace SanguoshaServer.AI
             {
                 bool canShowHead = choice.Contains("GameRule_AskForGeneralShowHead");
                 bool canShowDeputy = choice.Contains("GameRule_AskForGeneralShowDeputy");
-                List<string> firstShow = new List<string>("luanji|qianhuan|xiongyi".Split('|'));
+                List<string> firstShow = new List<string>("luanji|qianhuan|xiongyi|yongsi|xuanhuo".Split('|'));
                 List<string> bothShow = new List<string>("luanji+shuangxiong|luanji+huoshui|huoji+jizhi|luoshen+fangzhu|guanxing+jizhi".Split('|'));
                 List<string> followShow = new List<string>("qianhuan|duoshi|rende|cunsi|jieyin|xiongyi|shouyue|hongfa".Split('|'));
                 int notshown = 0, shown = 0, allshown = 0, f = 0, e = 0, eAtt = 0;
@@ -1326,9 +1330,9 @@ namespace SanguoshaServer.AI
                 {
                     if (RoomLogic.PlayerHasSkill(room, p, "jieyin") && (p.IsWounded() || Self.IsWounded()) && Self.PlayerGender != Player.Gender.Male)
                     {
-                        if (!Self.General1Showed && Engine.GetGeneral(Self.ActualGeneral1).IsMale() && canShowHead)
+                        if (!Self.General1Showed && Engine.GetGeneral(Self.ActualGeneral1, room.Setting.GameMode).IsMale() && canShowHead)
                             return "GameRule_AskForGeneralShowHead";
-                        else if (!Self.General1Showed && !Self.General2Showed && Engine.GetGeneral(Self.ActualGeneral2).IsMale() && canShowDeputy)
+                        else if (!Self.General1Showed && !Self.General2Showed && Engine.GetGeneral(Self.ActualGeneral2, room.Setting.GameMode).IsMale() && canShowDeputy)
                             return "GameRule_AskForGeneralShowDeputy";
                     }
                 }
@@ -1470,6 +1474,8 @@ namespace SanguoshaServer.AI
                 if (choice.Contains("yingzi_zhouyu")) return "yingzi_zhouyu";
                 if (choice.Contains("yingzi_sunce")) return "yingzi_sunce";
                 if (choice.Contains("yingziextra")) return "yingziextra";
+                if (choice.Contains("jieyue")) return "jieyue";
+                if (choice.Contains("tianxiang")) return "tianxiang";
                 string[] skillnames = choice.Split('+');
                 return skillnames[0];
             }
@@ -1590,7 +1596,9 @@ namespace SanguoshaServer.AI
 
         private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
             { "collateral-slash", "Collateral" },
-            { "@tiaoxin-slash", "TiaoxinCard" },
+            { "@tiaoxin-slash", "tiaoxin" },
+            { "@luanwu-slash", "luanwu" },
+            { "@kill_victim", "BeltsheChao" },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)
@@ -1743,7 +1751,12 @@ namespace SanguoshaServer.AI
 
             int null_num = nullcards.Count;
             SortByUseValue(ref nullcards);
-            WrappedCard null_card = nullcards[0];
+            WrappedCard null_card = null;
+            foreach (WrappedCard c in nullcards)
+                if (!RoomLogic.IsCardLimited(room, self, c, HandlingMethod.MethodUse))
+                    null_card = c;
+
+            if (null_card == null) return null;
 
             FunctionCard fcard = Engine.GetFunctionCard(trick.Name);
             if (HasSkill("kongcheng") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
@@ -1764,7 +1777,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (WrappedCard card in nullcards)
                 {
-                    if (card.Name != "HegNullification")
+                    if (card.Name != "HegNullification" && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
                     {
                         null_card = card;
                         break;
@@ -1820,7 +1833,7 @@ namespace SanguoshaServer.AI
                     {
                         foreach (WrappedCard card in nullcards)
                         {
-                            if (card.Name == "HegNullification")
+                            if (card.Name == "HegNullification" && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
                             {
                                 Choice["HegNullification"] = "all";
                                 null_card = card;

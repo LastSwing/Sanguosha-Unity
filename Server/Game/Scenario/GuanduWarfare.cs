@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using CommonClass.Game;
+using SanguoshaServer.AI;
 using SanguoshaServer.Game;
 
 namespace SanguoshaServer.Scenario
@@ -16,12 +17,22 @@ namespace SanguoshaServer.Scenario
             throw new NotImplementedException();
         }
 
-        public override List<string> GetWinners(Room room)
+        public override TrustedAI GetAI(Room room, Player player)
+        {
+            return new StupidAI(room, player);
+        }
+
+        public override bool IsFriendWith(Room room, Player player, Player other)
         {
             throw new NotImplementedException();
         }
 
-        public override bool IsFriendWith(Room room, Player player, Player other)
+        public override void OnChooseGeneralReply(Room room, Client client)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void PrepareForPlayers(Room room)
         {
             throw new NotImplementedException();
         }

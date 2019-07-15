@@ -58,7 +58,7 @@ namespace SanguoshaServer.AI
         public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
         {
             Room room = ai.Room;
-            if (player.Phase == Player.PlayerPhase.NotActive && (player.GetHandPile().Contains(id) || place == Player.Place.PlaceHand)
+            if (player.Phase == Player.PlayerPhase.NotActive && (player.GetHandPile().Contains(id) || place == Player.Place.PlaceHand || place == Player.Place.PlaceEquip)
                 && WrappedCard.IsRed(room.GetCard(id).Suit) && (room.BloodBattle || room.GetCard(id).Name != "Peach"))
             {
                 WrappedCard peach = new WrappedCard("Peach")
@@ -94,7 +94,8 @@ namespace SanguoshaServer.AI
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
             Room room = ai.Room;
-            if (!isUse && ai.HasSkill(Name, player) && !RoomLogic.IsVirtualCard(room, card) && (player.GetHandPile().Contains(card.GetEffectiveId()) || place == Player.Place.PlaceHand)
+            if (!isUse && ai.HasSkill(Name, player) && !RoomLogic.IsVirtualCard(room, card)
+                && (player.GetHandPile().Contains(card.GetEffectiveId()) || place == Player.Place.PlaceHand || place == Player.Place.PlaceEquip)
                 && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)) && (ai.Room.BloodBattle || card.Name != "Peach"))
             {
                 return 0.7;
@@ -508,6 +509,27 @@ namespace SanguoshaServer.AI
 
             return null;
         }
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            Room room = ai.Room;
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+                if (p.HasFlag("SlashAssignee"))
+                    targets.Add(p);
+
+            if (targets.Count > 0)
+            {
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, null, targets);
+                if (scores.Count > 0 && scores[0].Score > -2 && scores[0].Card != null)
+                {
+                    use.Card = scores[0].Card;
+                    use.To = scores[0].Players;
+                }
+            }
+
+            return use;
+        }
     }
 
     public class LuanwuCardAI : UseCard
@@ -905,7 +927,7 @@ namespace SanguoshaServer.AI
                 foreach (int id in player.GetEquips())
                 {
                     WrappedCard card = room.GetCard(id);
-                    if (WrappedCard.IsBlack(card.Suit) && !RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodResponse, false))
+                    if (!card.HasFlag("using") && WrappedCard.IsBlack(card.Suit) && !RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodResponse, false))
                         ids.Add(id);
                 }
                 foreach (int id in player.GetHandPile())
@@ -952,6 +974,150 @@ namespace SanguoshaServer.AI
             }
 
             return use;
+        }
+
+        public static bool HasSpade(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            foreach (int id in player.GetEquips())
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Spade && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+
+            List<int> ids = ai.GetKnownCards(player);
+            ids.AddRange(ai.GetKnownHandPileCards(player));
+            foreach (int id in ids)
+            {
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Spade && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+            }
+
+            int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+            if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+            return count > 2;
+        }
+
+        public static bool HasClub(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            foreach (int id in player.GetEquips())
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Club && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+
+            List<int> ids = ai.GetKnownCards(player);
+            ids.AddRange(ai.GetKnownHandPileCards(player));
+            foreach (int id in ids)
+            {
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Club && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+            }
+
+            int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+            if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+            return count > 3;
+        }
+
+        public override bool CanRetrial(TrustedAI ai, string pattern, Player player, Player judge_who)
+        {
+            Room room = ai.Room;
+            if (pattern == "leiji")
+            {
+                if (ai.IsFriend(player, judge_who))
+                    return HasClub(ai, player);
+                else
+                    return HasSpade(ai, player);
+            }
+            else if (pattern == "SupplyShortage")
+            {
+                if (ai.IsFriend(player, judge_who))
+                    return HasClub(ai, player);
+                else
+                    return HasSpade(ai, player);
+            }
+            else if (pattern == "Indulgence" && ai.IsEnemy(player, judge_who))
+            {
+                foreach (int id in player.GetEquips())
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (WrappedCard.IsBlack(card.Suit) && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                        return true;
+                }
+
+                List<int> ids = ai.GetKnownCards(player);
+                ids.AddRange(ai.GetKnownHandPileCards(player));
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (WrappedCard.IsBlack(card.Suit) && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                        return true;
+                }
+
+                int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                    count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                if (count > 2) return true;
+            }
+            else if (pattern == "Lightning")
+            {
+                if (ai.IsFriend(player, judge_who))
+                {
+                    foreach (int id in player.GetEquips())
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (WrappedCard.IsBlack(card.Suit) && !(card.Suit == WrappedCard.CardSuit.Spade && card.Number == 1 && card.Number >= 10)
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (WrappedCard.IsBlack(card.Suit) && (card.Suit != WrappedCard.CardSuit.Spade || card.Number == 1 || card.Number >= 10)
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 2) return true;
+                }
+                else
+                {
+                    foreach (int id in player.GetEquips())
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit == WrappedCard.CardSuit.Spade && card.Number > 1 && card.Number < 10
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit == WrappedCard.CardSuit.Spade && card.Number > 1 && card.Number < 10
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 4) return true;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -1438,7 +1604,7 @@ namespace SanguoshaServer.AI
             string[] skills = string.Format("{0}|{1}|{2}", TrustedAI.MasochismSkill, TrustedAI.DefenseSkill, TrustedAI.SaveSkill).Split('|');
             foreach (string general in generals)
             {
-                General g = Engine.GetGeneral(general);
+                General g = Engine.GetGeneral(general, ai.Room.Setting.GameMode);
                 foreach (string skill in skills)
                 {
                     if (g.HasSkill(skill, ai.Room.Setting.GameMode, first))

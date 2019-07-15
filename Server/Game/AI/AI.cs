@@ -435,7 +435,7 @@ namespace SanguoshaServer.AI
                 }
             }
             else
-                ids = private_handcards[player];
+                ids = new List<int>(private_handcards[player]);
 
             foreach (int id in player.GetHandPile(false))
             {
@@ -2217,7 +2217,7 @@ namespace SanguoshaServer.AI
             foreach (int id in card_ids)
             {
                 WrappedCard card_x = Engine.GetRealCard(id);
-                if (RoomLogic.IsCardLimited(room, self, room.GetCard(id), HandlingMethod.MethodResponse)) continue;
+                if (card_x.HasFlag("using") || RoomLogic.IsCardLimited(room, self, room.GetCard(id), HandlingMethod.MethodResponse)) continue;
                 bool is_peach = IsFriend(who) && HasSkill("tiandu", who) || IsCard(id, "Peach", who, self);
                 if (HasSkill("hongyan", who) && card_x.Suit == WrappedCard.CardSuit.Spade)
                 {
@@ -2281,10 +2281,10 @@ namespace SanguoshaServer.AI
                     else
                         break;
                 }
-                else if (IsFriend(who) && judge.Negative != (new ExpPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
+                else if (IsFriend(who) && judge.Negative != (Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
                            && !(self_card && DontRespondPeachInJudge(judge) && is_peach))
                     can_use.Add(id);
-                else if (IsEnemy(who) && judge.Negative == (new ExpPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
+                else if (IsEnemy(who) && judge.Negative == (Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
                         && !(self_card && DontRespondPeachInJudge(judge) && is_peach))
                     can_use.Add(id);
             }
@@ -2794,7 +2794,10 @@ namespace SanguoshaServer.AI
                         }
                         if (HasSkill("qingguo", to) && !no_black)
                             rate -= 2;
+
                         int count = to.HandcardNum - GetKnownCards(to).Count;
+                        if (RoomLogic.IsHandCardLimited(room, to, HandlingMethod.MethodUse)) count = 0;
+
                         count += to.GetHandPile(true).Count - GetKnownHandPileCards(to).Count;
                         if (no_red)
                         {
@@ -2977,8 +2980,17 @@ namespace SanguoshaServer.AI
             return true;
         }
 
-        public ScoreStruct GetDamageScore(DamageStruct damage, DamageStruct.DamageStep step = DamageStruct.DamageStep.Caused)
+        public ScoreStruct GetDamageScore(DamageStruct _damage, DamageStruct.DamageStep step = DamageStruct.DamageStep.Caused)
         {
+            DamageStruct damage = new DamageStruct(_damage.Card, _damage.From, _damage.To, _damage.Damage, _damage.Nature)
+            {
+                Reason = _damage.Reason,
+                Steped = _damage.Steped,
+                Transfer = _damage.Transfer,
+                TransferReason = _damage.TransferReason,
+                Chain = _damage.Chain
+            };
+
             damage.Damage = DamageEffect(damage, step);
             Player from = damage.From;
             Player to = damage.To;
@@ -3259,6 +3271,7 @@ namespace SanguoshaServer.AI
         public bool RetrialCardMatch(Player retrialer, Player judge_who, string reason, int id)
         {
             WrappedCard card = room.GetCard(id);
+            if (card.HasFlag("using")) return false;
             WrappedCard.CardSuit suit = (RoomLogic.PlayerHasShownSkill(room, judge_who, "hongyan") && card.Suit == WrappedCard.CardSuit.Spade ? WrappedCard.CardSuit.Heart : card.Suit);
             if (IsFriend(retrialer, judge_who))
             {
@@ -3544,9 +3557,17 @@ namespace SanguoshaServer.AI
                     enemies++;
                 if (IsFriend(p))
                 {
+                    int p_count = 0;
                     if (!wansha)
-                        peach_num += GetKnownCardsNums("Peach", "he", p, self);
-                    null_num += GetKnownCardsNums("Nullification", "he", p, self);
+                    {
+                        foreach (WrappedCard c in GetCards("Peach", p, true))
+                            if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodUse))
+                                p_count++;
+                    }
+
+                    foreach (WrappedCard c in GetCards("Nullification", p, true))
+                        if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodUse))
+                            null_num ++;
                 }
                 else
                     null_num -= GetKnownCardsNums("Nullification", "he", p, self);
@@ -3626,12 +3647,18 @@ namespace SanguoshaServer.AI
 
                     if (basic_rate < 1)
                     {
-                        int count = GetKnownCardsNums(pattern, "he", p, self);
+                        int count = 0;
+                        foreach (WrappedCard c in GetCards(pattern, p, true))
+                            if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodResponse))
+                                count++;
+
                         if (count > 0)
                             hit_rate = 0;
                         else
                         {
                             count = p.HandcardNum + p.GetHandPile().Count - GetKnownHandPileCards(p).Count;
+                            if (RoomLogic.IsHandCardLimited(room, p, HandlingMethod.MethodResponse)) count -= p.HandcardNum;
+
                             hit_rate = Math.Max(0, 1 - count / rate);
                         }
 
@@ -4821,6 +4848,15 @@ namespace SanguoshaServer.AI
             SortByUseValue(ref sames);
             if (sames[0].Name == "SilverLion")
             {
+                if (HasSkill("bazhen"))
+                {
+                    if (self.IsWounded() && (!self.GetArmor() || self.HasArmor("EightDiagram"))
+                        && sames.Count == 1 && GetKnownCardsNums("AwaitExhausted", "he", self) == 0)
+                        return;
+                    if (!self.IsWounded() && WillShowForDefence())
+                        return;
+                }
+
                 use.Card = sames[0];
                 return;
             }
@@ -4856,10 +4892,11 @@ namespace SanguoshaServer.AI
             if (!use_same)
             {
                 WrappedCard same = GetSameEquip(card, self);
+                double value = GetUseValue(sames[0], self);
                 if (same != null)
                 {
                     bool keep = false;
-                    if (GetUseValue(sames[0], self) < 1)      //如果替换的装备增加的价值不大于1，则保留
+                    if (value < 1)      //如果替换的装备增加的价值不大于1，则保留
                         keep = true;
                     else if (GetOverflow(self) <= 0 && room.GetCardPlace(sames[0].GetEffectiveId()) == Place.PlaceHand)     //手牌不溢出，不是防具也保留
                     {
@@ -4871,7 +4908,10 @@ namespace SanguoshaServer.AI
                         return;
                 }
 
-                use.Card = sames[0];
+                if (HasSkill("bazhen") && !WillShowForDefence())
+                    value += 2;
+
+                if (value > 0) use.Card = sames[0];
             }
             else
             {

@@ -393,7 +393,7 @@ namespace SanguoshaServer.Package
                         return false;
 
                     Player victim = room.AskForPlayerChosen(target, to_choose, Name, null, false, false, info.SkillPosition);
-                    room.DoAnimate(CommonClassLibrary.AnimateType.S_ANIMATE_INDICATE, target.Name, victim.Name);
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, target.Name, victim.Name);
 
                     int index = 1;
                     if (color == "black")
@@ -542,7 +542,7 @@ namespace SanguoshaServer.Package
                     Recover = 1,
                     Who = player
                 };
-                room.Recover(player, recover);
+                room.Recover(player, recover, true);
             }
             return false;
         }

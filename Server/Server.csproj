@@ -99,6 +99,7 @@
     <Compile Include="Game\AI\AI.cs" />
     <Compile Include="Game\AI\AICore.cs" />
     <Compile Include="Game\AI\AuthorityAI.cs" />
+    <Compile Include="Game\AI\ClassicAI.cs" />
     <Compile Include="Game\AI\LordCardsAI.cs" />
     <Compile Include="Game\AI\MomentumAI.cs" />
     <Compile Include="Game\AI\TransformationAI.cs" />
@@ -114,6 +115,8 @@
     <Compile Include="Game\Bot.cs" />
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
+    <Compile Include="Game\Package\ClassicStander.cs" />
+    <Compile Include="Game\Package\ClassicStanderCards.cs" />
     <Compile Include="Game\Package\FunctionCard.cs" />
     <Compile Include="Game\GameThread.cs" />
     <Compile Include="Game\General.cs" />
@@ -122,6 +125,7 @@
     <Compile Include="Game\Package\GuanduCards.cs" />
     <Compile Include="Game\Package\GuanduLimited.cs" />
     <Compile Include="Game\Package\LordCards.cs" />
+    <Compile Include="Game\Package\ManeuveringCards.cs" />
     <Compile Include="Game\Package\Momentum.cs" />
     <Compile Include="Game\Package\Package.cs" />
     <Compile Include="Game\Package\Stander.cs" />
@@ -130,6 +134,7 @@
     <Compile Include="Game\Package\Transformation.cs" />
     <Compile Include="Game\Room.cs" />
     <Compile Include="Game\RoomLogic.cs" />
+    <Compile Include="Game\Scenario\Classic.cs" />
     <Compile Include="Game\Scenario\GuanduWarfare.cs" />
     <Compile Include="Game\Scenario\Hegemony.cs" />
     <Compile Include="Game\Scenario\Scenario.cs" />

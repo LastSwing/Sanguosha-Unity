@@ -54,6 +54,7 @@ namespace CommonClass.Game
         public string ShowSkill { get; set; } = string.Empty;
         public List<string> Flags { get; set; } = new List<string>();
         public bool Modified { get; set; } = false;
+        public bool Cancelable { get; set; } = true;
 
         private bool _extraTarget = true;
         private bool _distanceLimited = true;
@@ -115,7 +116,7 @@ namespace CommonClass.Game
             {
                 return Name == other.Name && Id == other.Id && Suit == other.Suit && Number == other.Number && Skill == other.Skill
                     && ShowSkill == other.ShowSkill && UserString == other.UserString && DistanceLimited == other.DistanceLimited && ExtraTarget == other.ExtraTarget
-                    && CanRecast == other.CanRecast && Transferable == other.Transferable && SubCards.SequenceEqual(other.SubCards);
+                    && CanRecast == other.CanRecast && Transferable == other.Transferable && SubCards.SequenceEqual(other.SubCards) && Cancelable == other.Cancelable;
             }
 
             return false;
@@ -147,6 +148,7 @@ namespace CommonClass.Game
             Flags = card.Flags;
             DistanceLimited = card.DistanceLimited;
             ExtraTarget = card.ExtraTarget;
+            Cancelable = card.Cancelable;
         }
 
         public void SetFlags(string flag)
@@ -306,12 +308,12 @@ namespace CommonClass.Game
 
         public void SetSuit(CardSuit suit)
         {
-            this.Suit = suit;
+            Suit = suit;
         }
 
         public void SetNumber(int number)
         {
-            this.Number = number;
+            Number = number;
         }
 
     }

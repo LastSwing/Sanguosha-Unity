@@ -2127,7 +2127,16 @@ namespace SanguoshaServer.AI
             {
                 List<WrappedCard> slashes = ai.GetCards("Slash", player);
                 if (slashes.Count > 0)
-                    use.Card = slashes[0];
+                {
+                    foreach (WrappedCard card in slashes)
+                    {
+                        if (!RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodResponse))
+                        {
+                            use.Card = card;
+                            return use;
+                        }
+                    }
+                }
             }
 
             return use;
@@ -2173,27 +2182,27 @@ namespace SanguoshaServer.AI
                 return false;
             else
             {
-                if (ai.GetKnownCardsNums("Slash", "he", who) > 0)
-                    return true;
-                else
-                {
-                    double rate = 4;
-                    bool no_red = who.GetMark("@qianxi_red") > 0;
-                    bool no_black = who.GetMark("@qianxi_black") > 0;
-                    if (no_black)
-                        rate = 9;
-                    if (no_red)
-                        rate = 5;
-                    double fix = 0;
-                    if (ai.HasSkill("wusheng", who) && !no_red)
-                        fix += 2;
-                    if (ai.HasSkill("longdan", who) && !no_red)
-                        fix += 2.5;
+                foreach (WrappedCard card in ai.GetCards("Slash", who))
+                    if (!RoomLogic.IsCardLimited(ai.Room, who, card, FunctionCard.HandlingMethod.MethodResponse))
+                        return true;
 
-                    double count = (who.HandcardNum - ai.GetKnownCards(who).Count) / (rate - fix)
-                        + (who.GetHandPile().Count - ai.GetKnownHandPileCards(who).Count) / (4 - fix);
-                    return count >= 1 ? true : false;
-                }
+                double rate = 4;
+                bool no_red = who.GetMark("@qianxi_red") > 0;
+                bool no_black = who.GetMark("@qianxi_black") > 0;
+                if (no_black)
+                    rate = 9;
+                if (no_red)
+                    rate = 5;
+                double fix = 0;
+                if (ai.HasSkill("wusheng", who) && !no_red)
+                    fix += 2;
+                if (ai.HasSkill("longdan", who) && !no_red)
+                    fix += 2.5;
+
+                double count = (RoomLogic.IsHandCardLimited(ai.Room, who, FunctionCard.HandlingMethod.MethodResponse) ? 0 : (who.HandcardNum - ai.GetKnownCards(who).Count)) / (rate - fix)
+                    + (who.GetHandPile().Count - ai.GetKnownHandPileCards(who).Count) / (4 - fix);
+                return count >= 1 ? true : false;
+
             }
         }
 
@@ -2276,7 +2285,16 @@ namespace SanguoshaServer.AI
             {
                 List<WrappedCard> jinks = ai.GetCards("Jink", player);
                 if (jinks.Count > 0)
-                    use.Card = jinks[0];
+                {
+                    foreach (WrappedCard card in jinks)
+                    {
+                        if (!RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodResponse))
+                        {
+                            use.Card = card;
+                            return use;
+                        }
+                    }
+                }
             }
 
             return use;
@@ -2327,25 +2345,25 @@ namespace SanguoshaServer.AI
                 return false;
             else
             {
-                if (ai.GetKnownCardsNums("Jink", "he", who) > 0)
-                    return true;
-                else
-                {
-                    double rate = 5;
-                    if (no_red)
-                        rate = 0;
-                    double fix = 0;
-                    if (ai.HasSkill("qingguo", who) && !no_black)
-                        fix += 2.5;
-                    if (ai.HasSkill("longdan", who))
-                        fix += 1.5;
-                    if (fix > 0 && rate == 0)
-                        rate = 7;
+                foreach (WrappedCard card in ai.GetCards("Jink", who))
+                    if (!RoomLogic.IsCardLimited(ai.Room, who, card, FunctionCard.HandlingMethod.MethodResponse))
+                        return true;
 
-                    double count = (who.HandcardNum - ai.GetKnownCards(who).Count) / (rate - fix)
-                        + (who.GetHandPile().Count - ai.GetKnownHandPileCards(who).Count) / (5 - fix) + basic;
-                    return count >= 1 ? true : false;
-                }
+                double rate = 5;
+                if (no_red)
+                    rate = 0;
+                double fix = 0;
+                if (ai.HasSkill("qingguo", who) && !no_black)
+                    fix += 2.5;
+                if (ai.HasSkill("longdan", who))
+                    fix += 1.5;
+                if (fix > 0 && rate == 0)
+                    rate = 7;
+
+                double count = (RoomLogic.IsHandCardLimited(ai.Room, who, FunctionCard.HandlingMethod.MethodResponse) ? 0 : (who.HandcardNum - ai.GetKnownCards(who).Count)) / (rate - fix)
+                    + (who.GetHandPile().Count - ai.GetKnownHandPileCards(who).Count) / (5 - fix) + basic;
+                return count >= 1 ? true : false;
+
             }
         }
 
@@ -3360,7 +3378,7 @@ namespace SanguoshaServer.AI
                 if (use && place != Player.Place.PlaceEquip)
                     value += 3;
             }
-            if (ai.HasSkill("kurou|duanliang|xiongshuan", player))
+            if (ai.HasSkill("kurou|duanliang|xiongsuan", player))
                 value += 1.2;
 
             return value;

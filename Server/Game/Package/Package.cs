@@ -42,10 +42,11 @@ namespace SanguoshaServer.Package
         protected string name;
         protected List<FunctionCard> cards = new List<FunctionCard>();
         Dictionary<string, CardPattern> patterns = new Dictionary<string, CardPattern>();
-
+        protected Dictionary<string, List<string>> related_skills = new Dictionary<string, List<string>>();
         public List<Skill> Skills => skills;
         public string Name => name;
         public List<FunctionCard> Cards => cards;
+        public Dictionary<string, List<string>> RelatedSkills => related_skills;
         public CardPackage(string name)
         {
             this.name = name;

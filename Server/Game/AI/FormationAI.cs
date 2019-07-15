@@ -192,6 +192,36 @@ namespace SanguoshaServer.AI
 
             return null;
         }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            string target_name = prompt.Split(':')[1];
+            Room room = ai.Room;
+            Player target = room.FindPlayer(target_name);
+            if (target != null)
+            {
+                if (ai.IsFriend(target))
+                {
+                    foreach (int id in player.GetEquips())
+                    {
+                        if (ai.GetKeepValue(id, player) < 0 && RoomLogic.CanDiscard(room, target, player, id))
+                            return use;
+                    }
+
+                    System.Diagnostics.Debug.Assert(room.GetAI(target) == null, "ai挑衅目标错误");
+                }
+                
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, null, new List<Player> { target });
+                if (scores.Count > 0 && scores[0].Score > -2 && scores[0].Card != null)
+                {
+                    use.Card = scores[0].Card;
+                    use.To.Add(target);
+                }
+            }
+
+            return use;
+        }
     }
 
     public class TiaoxinCardAI : UseCard
@@ -257,6 +287,7 @@ namespace SanguoshaServer.AI
             }
         }
     }
+
     public class YizhiAI : SkillEvent
     {
         public YizhiAI() : base("yizhi")

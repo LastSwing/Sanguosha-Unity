@@ -67,7 +67,7 @@ namespace SanguoshaServer.Game
                 AddTriggerSkill(skill);
             foreach (TriggerSkill skill in Engine.GetPublicTriggerSkills())
                 AddTriggerSkill(skill);
-            foreach (TriggerSkill skill in Engine.GetEquipTriggerSkills(room.Setting.CardPackage))
+            foreach (TriggerSkill skill in Engine.GetEquipTriggerSkills())
                 AddTriggerSkill(skill);
 
             string winner = game_rule.GetWinner(room);

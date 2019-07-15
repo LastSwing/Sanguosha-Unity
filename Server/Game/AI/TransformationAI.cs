@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using CommonClass.Game;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
@@ -388,6 +389,11 @@ namespace SanguoshaServer.AI
                 ScoreStruct get = ai.FindCards2Discard(player, damage.To, "ej", HandlingMethod.MethodGet);
                 ScoreStruct score = ai.GetDamageScore(damage);
 
+                if (get.Score < score.Score)
+                {
+                    Debug.Assert(ai.IsEnemy(damage.To));
+                }
+
                 return get.Score >= score.Score;
             }
 
@@ -573,7 +579,7 @@ namespace SanguoshaServer.AI
             bool slash = !player.HasFlag("yigui_Slash");
             foreach (string general in (List<string>)player.GetTag("spirit"))
             {
-                string kingdom = Engine.GetGeneral(general).Kingdom;
+                string kingdom = Engine.GetGeneral(general, room.Setting.GameMode).Kingdom;
                 if (kingdom != "qun" && slash)
                 {
                     WrappedCard Slash = new WrappedCard("Slash")
@@ -682,7 +688,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
-                    string kingdom = Engine.GetGeneral(general).Kingdom;
+                    string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
                     if (kingdom != "qun")
                     {
                         WrappedCard slash = new WrappedCard("Slash")
@@ -722,7 +728,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
-                    string kingdom = Engine.GetGeneral(general).Kingdom;
+                    string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
                     if (kingdom == "qun")
                     {
                         WrappedCard card = new WrappedCard("Analeptic")
@@ -919,9 +925,11 @@ namespace SanguoshaServer.AI
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            CardUseStruct use = new CardUseStruct();
-            use.From = player;
-            use.To = new List<Player>();
+            CardUseStruct use = new CardUseStruct
+            {
+                From = player,
+                To = new List<Player>()
+            };
             Room room = ai.Room;
             List<int> ids = new List<int>();
             foreach (int id in player.GetCards("he"))
@@ -1155,7 +1163,7 @@ namespace SanguoshaServer.AI
         {
             if (!player.HasUsed("FlamemapCard"))
             {
-                WrappedCard slash = new WrappedCard("FlameMapCard")
+                WrappedCard slash = new WrappedCard("FlamemapCard")
                 {
                     Mute = true,
                     ShowSkill = "showforviewhas"

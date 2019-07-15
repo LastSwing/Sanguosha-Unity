@@ -500,6 +500,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             WrappedCard card = room.GetCard(id);
+            if (card.HasFlag("using")) return null;
             Player lord = RoomLogic.GetLord(room, player.Kingdom);
             bool any = true;
             if (lord == null || !RoomLogic.PlayerHasSkill(room, lord, "shouyue") || !lord.General1Showed)
@@ -712,11 +713,11 @@ namespace SanguoshaServer.AI
                     return choices[0];
                 else
                 {
-                    General general1 = Engine.GetGeneral(p.General1);
+                    General general1 = Engine.GetGeneral(p.General1, room.Setting.GameMode);
                     if (general1.HasSkill(TrustedAI.MasochismSkill, room.Setting.GameMode, true))
                         return choices[0];
 
-                    General general2 = Engine.GetGeneral(p.General2);
+                    General general2 = Engine.GetGeneral(p.General2, room.Setting.GameMode);
                     if (general2.HasSkill(TrustedAI.MasochismSkill, room.Setting.GameMode, false))
                         return choices[0];
 
@@ -736,6 +737,13 @@ namespace SanguoshaServer.AI
     {
         public BazhenAI() : base("bazhen")
         {
+        }
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && Engine.GetFunctionCard(card.Name) is Armor)
+                return -Engine.GetCardKeepValue("EightDiagram");
+
+            return 0;
         }
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
@@ -1155,8 +1163,10 @@ namespace SanguoshaServer.AI
 
             if (ai.Target[Name] != null && !string.IsNullOrEmpty(ai.Choice[Name]) && int.TryParse(ai.Choice[Name], out int id) && id > -1)
             {
-                use.Card = new WrappedCard("FangquanCard");
-                use.Card.Skill = Name;
+                use.Card = new WrappedCard("FangquanCard")
+                {
+                    Skill = Name
+                };
                 use.Card.AddSubCard(id);
                 use.To = new List<Player> { ai.Target[Name] };
             }

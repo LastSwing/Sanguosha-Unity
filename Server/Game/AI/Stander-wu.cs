@@ -1154,9 +1154,9 @@ namespace SanguoshaServer.AI
         }
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
-            return YinghunJAI.choice(ai, player);
+            return Choice(ai, player);
         }
-        public static string choice(TrustedAI ai, Player player)
+        public static string Choice(TrustedAI ai, Player player)
         {
             Player target = null;
             foreach (Player p in ai.Room.GetAlivePlayers())

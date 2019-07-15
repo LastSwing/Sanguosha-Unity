@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data;
 using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
+using SanguoshaServer.AI;
 using SanguoshaServer.Game;
-using SanguoshaServer.Package;
 using static CommonClass.Game.Player;
 using CommandType = CommonClassLibrary.CommandType;
 
@@ -18,12 +17,19 @@ namespace SanguoshaServer.Scenario
             mode_name = "Hegemony";
             rule = new HegemonyRule();
         }
+        public override TrustedAI GetAI(Room room, Player player)
+        {
+            return new SmartAI(room, player);
+        }
+
         public override void Assign(Room room)
         {
             AssignGeneralsForPlayers(room, out Dictionary <Player, List<string> > options);
 
             List<Client> receivers = new List<Client>();
-            foreach (Player player in options.Keys) {
+            foreach (Player player in options.Keys)
+            {
+                player.SetTag("generals", JsonUntity.Object2Json(options[player]));
                 List<string> args = new List<string>
                 {
                     player.Name,
@@ -52,6 +58,7 @@ namespace SanguoshaServer.Scenario
             room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             foreach (Player player in options.Keys) {
+                player.RemoveTag("generals");
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
                 List<string> reply = room.GetClient(player).ClientReply;
@@ -82,10 +89,10 @@ namespace SanguoshaServer.Scenario
                 if (!string.IsNullOrEmpty(player.General1))
                 {
                     string name = player.General1;
-                    player.Kingdom = Engine.GetGeneral(player.General1).Kingdom;
+                    player.Kingdom = Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom;
                     string role = Engine.GetMappedRole(player.Kingdom);
                     if (string.IsNullOrEmpty(role))
-                        role = Engine.GetGeneral(player.General1).Kingdom;
+                        role = Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom;
                     names.Add(name);
                     player.ActualGeneral1 = name;
                     player.Role = role;
@@ -124,8 +131,8 @@ namespace SanguoshaServer.Scenario
 
             foreach (Player player in players)
             {
-                General general1 = Engine.GetGeneral(player.ActualGeneral1);
-                General general2 = Engine.GetGeneral(player.ActualGeneral2);
+                General general1 = Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode);
+                General general2 = Engine.GetGeneral(player.ActualGeneral2, room.Setting.GameMode);
 
                 if (general1.CompanionWith(player.ActualGeneral2))
                     player.AddMark("CompanionEffect");
@@ -144,7 +151,7 @@ namespace SanguoshaServer.Scenario
 
         private bool SetPlayerGeneral(Room room, Player player, string generalName, bool isFirst)
         {
-            General general = Engine.GetGeneral(generalName);
+            General general = Engine.GetGeneral(generalName, room.Setting.GameMode);
             if (general == null)
             {
                 return false;
@@ -157,7 +164,7 @@ namespace SanguoshaServer.Scenario
             {
                 player.General1 = general.Name;
             }
-            else if (general.Kingdom != Engine.GetGeneral(player.General1).Kingdom)
+            else if (general.Kingdom != Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom)
             {
                 return false;
             }
@@ -188,11 +195,6 @@ namespace SanguoshaServer.Scenario
                 }
                 options.Add(player, choices);
             }
-        }
-
-        public override List<string> GetWinners(Room room)
-        {
-            throw new NotImplementedException();
         }
 
         public override void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile)
@@ -264,8 +266,8 @@ namespace SanguoshaServer.Scenario
             if (!player.HasShownOneGeneral())
             {
                 if (WillbeRole(room, player, show_skill) == "careerist") return false;
-                string kingdom = Engine.GetGeneral(player.ActualGeneral1).Kingdom;
-                if (Engine.GetGeneral(player.ActualGeneral1).IsLord(true) && kingdom == other.Kingdom) return true;
+                string kingdom = Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom;
+                if (Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).IsLord() && kingdom == other.Kingdom) return true;
                 if (other.Role == "careerist") return false;
                 if (kingdom == other.Kingdom) return true;
             }
@@ -305,17 +307,92 @@ namespace SanguoshaServer.Scenario
 
         public static Player GetLord(Room room, Player judger, bool include_death = false)
         {
-            if (Engine.GetGeneral(judger.ActualGeneral1).IsLord(true))
+            if (Engine.GetGeneral(judger.ActualGeneral1, room.Setting.GameMode).IsLord())
                 return judger;
 
             foreach (Player p in room.Players)
             {
                 if (p == judger || (!include_death && !p.Alive)) continue;
-                if (p.General1Showed && p.Kingdom == Engine.GetGeneral(judger.ActualGeneral1).Kingdom && Engine.GetGeneral(p.General1).IsLord(true))
+                if (p.General1Showed && p.Kingdom == Engine.GetGeneral(judger.ActualGeneral1, room.Setting.GameMode).Kingdom
+                    && Engine.GetGeneral(p.General1, room.Setting.GameMode).IsLord())
                     return p;
             }
 
             return null;
+        }
+
+        public override void PrepareForPlayers(Room room)
+        {
+            foreach (Player player in room.Players)
+            {
+                string general1_name = player.ActualGeneral1;
+                if (!player.DuanChang.Contains("head"))
+                {
+                    foreach (string skill in Engine.GetGeneralSkills(general1_name, Name, true))
+                        room.AddPlayerSkill(player, skill);
+                }
+                string general2_name = player.ActualGeneral2;
+                if (!string.IsNullOrEmpty(general2_name) && general2_name != general1_name && !player.DuanChang.Contains("deputy"))
+                {
+                    foreach (string skill in Engine.GetGeneralSkills(general2_name, Name, false))
+                        room.AddPlayerSkill(player, skill, false);
+                }
+
+                //技能预亮
+                //if (player->isAutoPreshow())
+                //    player->setSkillsPreshowed("hd");
+                room.NotifyPlayerPreshow(player);
+                if (room.GetClient(player).Status == Client.GameStatus.bot)
+                {
+                    player.SetSkillsPreshowed("hd");
+                }
+
+                if (!player.HasShownOneGeneral())
+                    player.PlayerGender = Gender.Sexless;
+                else
+                    player.PlayerGender = player.General1Showed ? Engine.GetGeneral(player.General1, room.Setting.GameMode).GeneralGender
+                        : Engine.GetGeneral(player.General2, room.Setting.GameMode).GeneralGender;
+            }
+        }
+
+        public override void OnChooseGeneralReply(Room room, Client client)
+        {
+            Player player = room.GetPlayers(client)[0];
+            List<string> options = JsonUntity.Json2List<string>((string)player.GetTag("generals"));
+            List<string> reply = client.ClientReply;
+            bool success = true;
+            string generalName = string.Empty;
+            if (!room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
+                success = false;
+            else
+            {
+                generalName = reply[0];
+                string[] generals = generalName.Split('+');
+                if (generals.Length != 2 || (!options.Contains(Engine.GetMainGeneral(generals[0])) && room.GetClient(player).UserRight < 3)
+                    || (!options.Contains(Engine.GetMainGeneral(generals[1])) && room.GetClient(player).UserRight < 3)
+                    || !SetPlayerGeneral(room, player, generals[0], true)
+                    || !SetPlayerGeneral(room, player, generals[1], false))
+                {
+                    success = false;
+                }
+            }
+
+            if (!success)
+            {
+                List<string> default_generals = GeneralSelctor.GeInstance().SelectGenerals(room, options);
+                SetPlayerGeneral(room, player, default_generals[0], true);
+                SetPlayerGeneral(room, player, default_generals[1], false);
+            }
+            
+            if (!string.IsNullOrEmpty(player.General1))
+            {
+                string name = player.General1;
+                string kingdom = Engine.GetGeneral(name, room.Setting.GameMode).Kingdom;
+                room.NotifyProperty(room.GetClient(player), player, "ActualGeneral1", name);
+                room.NotifyProperty(room.GetClient(player), player, "Kingdom", kingdom);
+            }
+            if (!string.IsNullOrEmpty(player.General2))
+                room.NotifyProperty(room.GetClient(player), player, "ActualGeneral2", player.General2);
         }
     }
 
@@ -345,8 +422,8 @@ namespace SanguoshaServer.Scenario
             if (assign_kingdom) {
                 foreach (string name in candidates) {
                     if (string.IsNullOrEmpty(kingdom))
-                        kingdom = Engine.GetGeneral(name).Kingdom;
-                    else if (kingdom != Engine.GetGeneral(name).Kingdom) {
+                        kingdom = Engine.GetGeneral(name, room.Setting.GameMode).Kingdom;
+                    else if (kingdom != Engine.GetGeneral(name, room.Setting.GameMode).Kingdom) {
                         kingdom = string.Empty;
                         break;
                     }
@@ -360,7 +437,7 @@ namespace SanguoshaServer.Scenario
                     subs.Add(name);
                     Shuffle.shuffle<string>(ref subs);
                     foreach (string general in subs) {
-                        if (string.IsNullOrEmpty(kingdom) || Engine.GetGeneral(general).Kingdom == kingdom) {
+                        if (string.IsNullOrEmpty(kingdom) || Engine.GetGeneral(general, room.Setting.GameMode).Kingdom == kingdom) {
                             generals.Add(general);
                             break;
                         }
@@ -408,7 +485,7 @@ namespace SanguoshaServer.Scenario
                     continue;
                 }
 
-                if (first == second || Engine.GetGeneral(first).Kingdom != Engine.GetGeneral(second).Kingdom) continue;
+                if (first == second || Engine.GetGeneral(first, room.Setting.GameMode).Kingdom != Engine.GetGeneral(second, room.Setting.GameMode).Kingdom) continue;
                 DataRow[] rows1 = pair_value.Select(string.Format("general1 = '{0}' and general2 = '{1}'", first, second));
                 if (rows1.Length > 0)
                 {
@@ -416,8 +493,8 @@ namespace SanguoshaServer.Scenario
                     points[string.Format("{0}+{1}", first, second)] = int.Parse(rows1[0]["value1"].ToString());
                 }
                 else {
-                    General general1 = Engine.GetGeneral(first);
-                    General general2 = Engine.GetGeneral(second);
+                    General general1 = Engine.GetGeneral(first, room.Setting.GameMode);
+                    General general2 = Engine.GetGeneral(second, room.Setting.GameMode);
                     double general2_value = Engine.GetGeneralValue(second, "Hegemony");
                     double v = Engine.GetGeneralValue(first, "Hegemony") + general2_value;
 
@@ -427,7 +504,7 @@ namespace SanguoshaServer.Scenario
 
                     if (room.Setting.LordConvert) {
                         string lord = "lord_" + first;
-                        General lord_general = Engine.GetGeneral(lord);
+                        General lord_general = Engine.GetGeneral(lord, room.Setting.GameMode);
                         if (lord_general != null)
                             v += 5;
                     }
@@ -593,7 +670,7 @@ namespace SanguoshaServer.Scenario
                     bool has_diff_kingdoms = false;
                     string left_kingdom = null;
                     foreach (Player p in players) {
-                        left_kingdom = Engine.GetGeneral(p.ActualGeneral1).Kingdom;
+                        left_kingdom = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom;
                         foreach (Player p2 in players)
                     {
                             if (p == p2) continue;
@@ -610,7 +687,8 @@ namespace SanguoshaServer.Scenario
                             }
                             if (!p.HasShownOneGeneral() && !p2.HasShownOneGeneral())
                             {
-                                if (Engine.GetGeneral(p.ActualGeneral1).Kingdom != Engine.GetGeneral(p2.ActualGeneral1).Kingdom)
+                                if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom
+                                != Engine.GetGeneral(p2.ActualGeneral1, room.Setting.GameMode).Kingdom)
                                 {
                                     has_diff_kingdoms = true;
                                     break;  // if neither shown and not friend, hehe.
@@ -640,15 +718,15 @@ namespace SanguoshaServer.Scenario
                                 if (p.Kingdom == left_kingdom && p.Role != "careerist")
                                     all++;
                             }
-                            else if (Engine.GetGeneral(p.ActualGeneral1).Kingdom == left_kingdom)
+                            else if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom == left_kingdom)
                                 all++;
                         }
 
                         foreach (Player p in room.Players) {
-                            if (Engine.GetGeneral(p.ActualGeneral1).IsLord(true))
+                            if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                             {
                                 if (p.Alive && p.General1Showed)                //the lord has shown
-                                    lords.Add(Engine.GetGeneral(p.ActualGeneral1).Kingdom);
+                                    lords.Add(Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom);
                                 else if (!p.Alive && p.Kingdom == left_kingdom)   //the lord is dead, all careerist
                                     return null;
                                 else if (p.Alive && !p.HasShownOneGeneral() && all > room.Players.Count / 2) //the lord not yet shown

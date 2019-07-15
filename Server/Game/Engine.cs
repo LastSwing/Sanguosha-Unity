@@ -33,7 +33,7 @@ namespace SanguoshaServer.Game
         private static DataSet ai_values = new DataSet();
         private static Dictionary<string, List<int>> mode_card_ids = new Dictionary<string, List<int>>();
         private static Dictionary<string, List<int>> package_card_ids = new Dictionary<string, List<int>>();
-        private static Dictionary<string, General> generals = new Dictionary<string, General>();
+        private static Dictionary<string, Dictionary<string, General>> generals = new Dictionary<string, Dictionary<string, General>>();
         private static Dictionary<string, List<string>> pack_generals = new Dictionary<string, List<string>>();
         private static Dictionary<string, List<string>> related_skills = new Dictionary<string, List<string>>();
         private static Dictionary<string, List<string>> convert_pairs = new Dictionary<string, List<string>>();
@@ -93,43 +93,53 @@ namespace SanguoshaServer.Game
                 {
                     //反射创建
                     Type t = Type.GetType("SanguoshaServer.Package." + package);
-                    GeneralPackage pack = (GeneralPackage)Activator.CreateInstance(t);
-                    foreach (FunctionCard card  in pack.SkillCards)
-                        function_cards.Add(card.Name, card);
-                    foreach (string key in pack.RelatedSkills.Keys)
-                        related_skills.Add(key, pack.RelatedSkills[key]);
-                    foreach (string key in pack.ConvertPairs.Keys)
+                    if (t != null)
                     {
-                        if (convert_pairs.ContainsKey(key))
-                            convert_pairs[key].AddRange(pack.ConvertPairs[key]);
-                        else
-                            convert_pairs.Add(key, pack.ConvertPairs[key]);
+                        GeneralPackage pack = (GeneralPackage)Activator.CreateInstance(t);
+                        foreach (FunctionCard card in pack.SkillCards)
+                            function_cards.Add(card.Name, card);
+                        foreach (string key in pack.RelatedSkills.Keys)
+                            related_skills.Add(key, pack.RelatedSkills[key]);
+                        foreach (string key in pack.ConvertPairs.Keys)
+                        {
+                            if (convert_pairs.ContainsKey(key))
+                                convert_pairs[key].AddRange(pack.ConvertPairs[key]);
+                            else
+                                convert_pairs.Add(key, pack.ConvertPairs[key]);
+                        }
+                        AddSkills(pack.Skills);
+                        foreach (string key in pack.Patterns.Keys)
+                            patterns.Add(key, pack.Patterns[key]);
                     }
-                    AddSkills(pack.Skills);
-                    foreach (string key in pack.Patterns.Keys)
-                        patterns.Add(key, pack.Patterns[key]);
                 }
                 //创建卡牌包中的卡牌、技能卡、技能
                 foreach (string package in mode.CardPackage)
                 {
                     //反射创建
                     Type t = Type.GetType("SanguoshaServer.Package." + package);
-                    CardPackage pack = (CardPackage)Activator.CreateInstance(t);
-                    foreach (FunctionCard card in pack.Cards)
-                        if (!function_cards.ContainsKey(card.Name))
-                            function_cards.Add(card.Name, card);
-
-                    AddSkills(pack.Skills);
-                    foreach (Skill skill in pack.Skills)
+                    if (t != null)
                     {
-                        if (skill is TriggerSkill trigger)
+                        CardPackage pack = (CardPackage)Activator.CreateInstance(t);
+                        foreach (FunctionCard card in pack.Cards)
+                            if (!function_cards.ContainsKey(card.Name))
+                                function_cards.Add(card.Name, card);
+
+                        AddSkills(pack.Skills);
+                        foreach (Skill skill in pack.Skills)
                         {
-                            if (pack_equip_triggerskills.ContainsKey(package))
-                                pack_equip_triggerskills[package].Add(trigger);
-                            else
-                                pack_equip_triggerskills[package] = new List<TriggerSkill> { trigger };
+                            if (skill is TriggerSkill trigger)
+                            {
+                                if (pack_equip_triggerskills.ContainsKey(package))
+                                    pack_equip_triggerskills[package].Add(trigger);
+                                else
+                                    pack_equip_triggerskills[package] = new List<TriggerSkill> { trigger };
+                            }
                         }
+
+                        foreach (string key in pack.RelatedSkills.Keys)
+                            related_skills.Add(key, pack.RelatedSkills[key]);
                     }
+
                 }
                 //创建AI
                 foreach (string package in mode.GeneralPackage)
@@ -330,8 +340,13 @@ namespace SanguoshaServer.Game
             dt = dView.ToTable();
             foreach (DataRow r in dt.Rows)
             {
-                if (bool.Parse(r["enable"].ToString()))
-                    game_modes[r["mode"].ToString()].GeneralPackage.Add(r["package_name"].ToString());
+                bool enable = bool.Parse(r["enable"].ToString());
+                if (enable)
+                {
+                    string mode_name = r["mode"].ToString();
+                    string package_name = r["package_name"].ToString();
+                    game_modes[mode_name].GeneralPackage.Add(package_name);
+                }
             }
             //读取模式对应的卡牌包
             sql = "select * from card_package";
@@ -437,48 +452,43 @@ namespace SanguoshaServer.Game
             File.AppendAllText("gamedata/generalinfo.json", JsonUntity.DataSet2Json(general_data));
 
             //生成武将模板
-            foreach (DataRow row in table.Rows)
-            {
-                string name = row["general_name"].ToString();
-                string kingdom = row["kingdom"].ToString();
-                int double_max_hp = int.Parse(row["HP"].ToString());
-                bool hegemony_lord = bool.Parse(row["hegemony_lord"].ToString());
-                bool classic_lord = bool.Parse(row["classic_lord"].ToString());
-                bool male = bool.Parse(row["sex"].ToString());
-                bool hidden = bool.Parse(row["hidden"].ToString());
-                int hp_adjust = int.Parse(row["adjust_hp"].ToString());
-                //string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false
-
-                General general = new General(name, kingdom, classic_lord, hegemony_lord, double_max_hp, male, hidden);
-                if (hp_adjust > 0)
-                    general.Head_max_hp_adjusted_value = - hp_adjust;
-                else
-                    general.Deputy_max_hp_adjusted_value = hp_adjust;
-
-                generals.Add(name, general);
-                string companion = row["companion"].ToString();
-                if (!string.IsNullOrEmpty(companion))
-                    generals[name].Companions.AddRange(companion.Split(','));
-            }
-
-            //国战模式
             foreach (string mode in game_modes.Keys)
             {
+                generals[mode] = new Dictionary<string, General>();
                 foreach (string pack in game_modes[mode].GeneralPackage)
                 {
-                    DataRow[] rows = table.Select("package = '" + pack + "'");
                     List<string> general_names = new List<string>();
+                    DataRow[] rows = table.Select(string.Format("package = '{0}'", pack));
                     foreach (DataRow row in rows)
                     {
-                        general_names.Add(row["general_name"].ToString());
+                        string name = row["general_name"].ToString();
+                        string kingdom = row["kingdom"].ToString();
+                        int double_max_hp = int.Parse(row["HP"].ToString());
+                        bool lord = bool.Parse(row["lord"].ToString());
+                        bool male = bool.Parse(row["sex"].ToString());
+                        bool hidden = bool.Parse(row["hidden"].ToString());
+                        int hp_adjust = int.Parse(row["adjust_hp"].ToString());
+                        //string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false
+
+                        General general = new General(name, kingdom, lord, pack, double_max_hp, male, hidden);
+                        if (hp_adjust > 0)
+                            general.Head_max_hp_adjusted_value = -hp_adjust;
+                        else
+                            general.Deputy_max_hp_adjusted_value = hp_adjust;
+
+                        string companion = row["companion"].ToString();
+                        if (!string.IsNullOrEmpty(companion))
+                            general.Companions.AddRange(companion.Split(','));
+
+                        generals[mode].Add(name, general);              //按模式分类武将
+                        general_names.Add(name);
                     }
-                    //File.AppendAllText("gamedata/result.json", string.Format("{0}:{1}", pack, general_names.Count));
                     pack_generals[pack] = general_names;                //按卡牌包给武将分类
                 }
             }
 
             File.Delete("gamedata/generals.json");
-            File.AppendAllText("gamedata/generals.json", JsonUntity.Dictionary2Json<string, List<string>>(pack_generals));
+            File.AppendAllText("gamedata/generals.json", JsonUntity.Dictionary2Json(pack_generals));
         }
 
         public static GameScenario GetScenario(string name)
@@ -525,12 +535,8 @@ namespace SanguoshaServer.Game
         {
             List<int> ids = new List<int>();
             foreach (string name in package_card_ids.Keys)
-            {
                 if (packages.Contains(name))
-                {
                     ids.AddRange(package_card_ids[name]);
-                }
-            }
 
             return ids;
         }
@@ -570,7 +576,7 @@ namespace SanguoshaServer.Game
         #endregion
 
         #region 武将相关
-        public static List<string> GetGenerals(List<string> packages, bool include_hidden = true)
+        public static List<string> GetGenerals(List<string> packages, string mode, bool include_hidden = true)
         {
             List<string> generals = new List<string>();
             foreach (string key in pack_generals.Keys)
@@ -579,7 +585,7 @@ namespace SanguoshaServer.Game
                 {
                     foreach (string name in pack_generals[key])
                     {
-                        General general = GetGeneral(name);
+                        General general = GetGeneral(name, mode);
                         if (general != null && (include_hidden || !general.Hidden))
                             generals.Add(general.Name);
                     }
@@ -608,10 +614,10 @@ namespace SanguoshaServer.Game
             return general_name;
         }
 
-        public static General GetGeneral(string name)
+        public static General GetGeneral(string name, string mode)
         {
-            if (generals.ContainsKey(name))
-                return generals[name];
+            if (generals.ContainsKey(mode) && generals[mode].ContainsKey(name))
+                return generals[mode][name];
             else
                 return null;
         }
@@ -737,11 +743,10 @@ namespace SanguoshaServer.Game
         }
 
         public static List<TriggerSkill> GetPublicTriggerSkills() => public_trigger_skills;
-        public static List<Skill> GetEquipTriggerSkills(List<string> packs)
+        public static List<Skill> GetEquipTriggerSkills()
         {
             List<Skill> skills = new List<Skill>();
             foreach (string p in pack_equip_triggerskills.Keys)
-                if (packs.Contains(p))
                     skills.AddRange(pack_equip_triggerskills[p]);
 
             return skills;
@@ -831,7 +836,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    ExpPattern p = new ExpPattern(skill.Pattern);
+                    CardPattern p = Engine.GetPattern(skill.Pattern);
                     if (p.Match(from, room, card))
                     {
                         int residue = skill.GetResidueNum(room, from, card);
@@ -844,7 +849,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    ExpPattern p = new ExpPattern(skill.Pattern);
+                    CardPattern p = Engine.GetPattern(skill.Pattern);
                     if (p.Match(from, room, card))
                         x += skill.GetExtraTargetNum(room, from, card);
                 }

@@ -246,7 +246,7 @@ namespace CommonClass.Game
         }
         public void SetTos(List<Player> to_players)
         {
-            To.Clear();
+            To = new List<string>();
             foreach (Player p in to_players)
                 To.Add(p.Name);
         }
@@ -286,6 +286,7 @@ namespace CommonClass.Game
 
         public CardMoveReason()
         {
+            Reason = MoveReason.S_REASON_UNKNOWN;
         }
         public CardMoveReason(MoveReason moveReason, string playerId)
         {

@@ -21,6 +21,7 @@ namespace SanguoshaServer.AI
                 new CunsiAI(),
                 new YongjueAI(),
                 new JiangAI(),
+                new YingyangAI(),
                 new HunshangAI(),
                 new YinghunSCAI(),
                 new DuanxieAI(),
@@ -99,7 +100,7 @@ namespace SanguoshaServer.AI
 
     public class QianxiAI : SkillEvent
     {
-        public QianxiAI() : base("qiangxi")
+        public QianxiAI() : base("qianxi")
         { }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
@@ -118,6 +119,15 @@ namespace SanguoshaServer.AI
             }
 
             return false;
+        }
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            int id = LijianAI.FindLijianCard(ai, player);
+            if (id > -1)
+                return new List<int> { id };
+
+            return new List<int>();
         }
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
@@ -336,7 +346,7 @@ namespace SanguoshaServer.AI
 
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
-            return YinghunJAI.choice(ai, player);
+            return YinghunJAI.Choice(ai, player);
         }
     }
 

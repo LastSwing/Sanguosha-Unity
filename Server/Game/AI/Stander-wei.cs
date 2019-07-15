@@ -271,6 +271,174 @@ namespace SanguoshaServer.AI
 
             return use;
         }
+
+        public static bool HasSpade(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+
+            List<int> ids = ai.GetKnownCards(player);
+            ids.AddRange(ai.GetKnownHandPileCards(player));
+            foreach (int id in ids)
+            {
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Spade && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+            }
+
+            int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+            if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+            return count > 2;
+        }
+
+        public static bool HasClub(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+
+            List<int> ids = ai.GetKnownCards(player);
+            ids.AddRange(ai.GetKnownHandPileCards(player));
+            foreach (int id in ids)
+            {
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Club && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+            }
+
+            int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+            if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+            return count > 3;
+        }
+        public static bool HasHeart(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+
+            List<int> ids = ai.GetKnownCards(player);
+            ids.AddRange(ai.GetKnownHandPileCards(player));
+            foreach (int id in ids)
+            {
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Heart && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                    return true;
+            }
+
+            int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+            if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+            return count > 3;
+        }
+
+        public override bool CanRetrial(TrustedAI ai, string pattern, Player player, Player judge_who)
+        {
+            Room room = ai.Room;
+            if (pattern == "leiji")
+            {
+                if (ai.IsFriend(player, judge_who))
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit != WrappedCard.CardSuit.Spade && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 1) return true;
+                }
+                else
+                    return HasSpade(ai, player);
+            }
+            else if (pattern == "SupplyShortage")
+            {
+                if (ai.IsFriend(player, judge_who))
+                    return HasClub(ai, player);
+                else
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit != WrappedCard.CardSuit.Club && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 1) return true;
+                }
+            }
+            else if (pattern == "Indulgence")
+            {
+                if (ai.IsFriend(player, judge_who))
+                    return HasHeart(ai, player);
+                else
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit != WrappedCard.CardSuit.Heart && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 1) return true;
+                }
+            }
+            else if (pattern == "Lightning")
+            {
+                if (ai.IsFriend(player, judge_who))
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if ((card.Suit != WrappedCard.CardSuit.Spade || card.Number == 1 || card.Number >= 10)
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 1) return true;
+                }
+                else
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit == WrappedCard.CardSuit.Spade && card.Number > 1 && card.Number < 10
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 4) return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     public class GanglieAI : SkillEvent

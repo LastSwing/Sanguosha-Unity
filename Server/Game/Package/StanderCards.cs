@@ -1,5 +1,4 @@
-﻿using CommonClass;
-using CommonClass.Game;
+﻿using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System.Collections.Generic;
@@ -123,6 +122,16 @@ namespace SanguoshaServer.Package
 
         public override string GetSubtype() => "attack_card";
 
+        public override void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
+        {
+            //方天画戟多杀动画耦合
+            if (use.To.Count > 1 && use.From.HasWeapon("ClassicHalberd")
+                && use.Card.SubCards.Count > 0 && use.From.IsLastHandCard(use.Card, true) && !use.Card.SubCards.Contains(use.From.Weapon.Key))
+                room.SetEmotion(use.From, "halberd");
+
+            base.OnCardAnnounce(room, use, ignore_rule);
+        }
+
         public override void OnUse(Room room, CardUseStruct use)
         {
             Player player = use.From;
@@ -143,8 +152,16 @@ namespace SanguoshaServer.Package
             if (RoomLogic.IsVirtualCard(room, card) && player.HasWeapon(card.Skill))
             {
                 room.SetEmotion(player, card.Skill.ToLower());
-                Thread.Sleep(400);
+                Thread.Sleep(200);
                 card.SetFlags(card.Skill);
+            }
+
+            //青龙偃月刀追杀动画耦合
+            if (player.HasWeapon("ClassicBlade") && room.GetCard(player.Weapon.Key).HasFlag("using"))
+            {
+                room.SetCardFlag(player.Weapon.Key, "-using");
+                room.SetEmotion(player, "blade");
+                Thread.Sleep(200);
             }
 
             string color = WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)) ? "red_" : "black_";
@@ -655,9 +672,13 @@ namespace SanguoshaServer.Package
         {
             return effect.To.IsWounded() && base.IsCancelable(room, effect);
         }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            room.SetEmotion(card_use.From, "god_salvation");
+            base.Use(room, card_use);
+        }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.SetEmotion(effect.From, "god_salvation");
             if (effect.To.IsWounded())
             {
                 RecoverStruct recover = new RecoverStruct
@@ -666,7 +687,7 @@ namespace SanguoshaServer.Package
                     Card = effect.Card,
                     Who = effect.From
                 };
-                room.Recover(effect.To, recover);
+                room.Recover(effect.To, recover, true);
             }
         }
     }
@@ -677,8 +698,9 @@ namespace SanguoshaServer.Package
             has_preact = true;
         }
 
-        public override void DoPreAction(Room room, WrappedCard card)
+        public override void DoPreAction(Room room, Player player, WrappedCard card)
         {
+            room.SetEmotion(player, "amazine_grace");
             List<int> card_ids = room.GetNCards(room.GetAllPlayers().Count);
             room.SetTag(Name, card_ids);
             room.SetTag("AmazingGraceOrigin", new List<int>(card_ids));
@@ -748,9 +770,14 @@ namespace SanguoshaServer.Package
     public class ArcheryAttack : AOE
     {
         public ArcheryAttack() : base("ArcheryAttack") { }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            room.SetEmotion(card_use.From, "archer_attacking");
+            base.Use(room, card_use);
+        }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.SetEmotion(effect.From, "archery_attack");
+            room.SetEmotion(effect.To, "archer_attacked");
             WrappedCard jink = room.AskForCard(effect.To, Name, "jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (jink != null && jink.Skill != "EightDiagram")
@@ -1202,10 +1229,13 @@ namespace SanguoshaServer.Package
             if (!(ftrick is Nullification))
             {
                 tos.Add(to);
-                log.To = new List<string>();
+                log.SetTos(tos);
                 foreach (Player p in tos)
-                    log.To.Add(p.Name);
+                    room.SetEmotion(p, "nullification");
             }
+            else
+                room.SetEmotion(card_use.To[0], "nullification");
+
             room.SendLog(log);
 
             thread.Trigger(TriggerEvent.CardUsedAnnounced, room, player, ref data);
@@ -1395,7 +1425,10 @@ namespace SanguoshaServer.Package
             if (use.To == null || use.To.Count == 0)
                 DoRecast(room, use);
             else
+            {
+                room.SetEmotion(use.From, "chain");
                 base.OnUse(room, use);
+            }
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
@@ -1424,7 +1457,6 @@ namespace SanguoshaServer.Package
             if (effect.To.IsKongcheng()) return;
 
             int id = room.AskForCardShow(effect.To, effect.From, Name, effect);
-            room.SetEmotion(effect.From, "fire_attack");
             room.ShowCard(effect.To, id, Name);
 
             string suit_str = WrappedCard.GetSuitString(RoomLogic.GetCardSuit(room, room.GetCard(id)));
@@ -1435,6 +1467,7 @@ namespace SanguoshaServer.Package
                 WrappedCard card_to_throw = room.AskForCard(effect.From, Name, pattern, prompt, effect);
                 if (card_to_throw != null)
                 {
+                    room.SetEmotion(effect.From, "fire_attack");
                     room.Damage(new DamageStruct(effect.Card, effect.From, effect.To, 1, DamageStruct.DamageNature.Fire));
                 }
                 else
@@ -1617,6 +1650,7 @@ namespace SanguoshaServer.Package
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
+            room.SetEmotion(effect.From, "knownboth");
             List<string> choices = new List<string>();
             if (!effect.To.IsKongcheng())
                 choices.Add("handcards");
@@ -1670,6 +1704,8 @@ namespace SanguoshaServer.Package
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
+            room.SetEmotion(effect.From, "befriendattacking");
+            room.SetEmotion(effect.To, "befriendattacking");
             room.DrawCards(effect.To, new DrawCardStruct(1, effect.From, Name));
             room.DrawCards(effect.From, new DrawCardStruct(3, effect.From, Name));
         }

@@ -55,7 +55,7 @@ namespace SanguoshaServer.Package
                 //new DiaoduequipCard(),
                 new DiaoduCard(),
                 new LianziCard(),
-                new FlameMapCard(),
+                new FlamemapCard(),
                 new YiguiCard(),
             };
             related_skills = new Dictionary<string, List<string>>
@@ -1013,7 +1013,7 @@ namespace SanguoshaServer.Package
                 if (fcard.Name.Contains("Nullification") || fcard.Name == "Jink" || player.HasFlag("yigui_" + flag)
                     || (!(fcard is BasicCard) && !(fcard is TrickCard)) || fcard is DelayedTrick) continue;
                 WrappedCard card = new WrappedCard(fcard.Name);
-                if (!string.IsNullOrEmpty(general_name) && Engine.GetGeneral(general_name) != null)
+                if (!string.IsNullOrEmpty(general_name) && Engine.GetGeneral(general_name, room.Setting.GameMode) != null)
                 {
                     card.Skill = Name;
                     card.UserString = general_name;
@@ -1028,7 +1028,7 @@ namespace SanguoshaServer.Package
 
         public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
         {
-            if (cards.Count == 1 && Engine.GetFunctionCard(cards[0].Name) == null && Engine.GetGeneral(cards[0].Name) != null)
+            if (cards.Count == 1 && Engine.GetFunctionCard(cards[0].Name) == null && Engine.GetGeneral(cards[0].Name, room.Setting.GameMode) != null)
             {
                 List<WrappedCard> vcards = GetAvailableGuhuo(room, player, room.GetRoomState().GetCurrentCardUseReason(),
                     room.GetRoomState().GetCurrentCardUsePattern(), cards[0].Name);
@@ -1070,11 +1070,11 @@ namespace SanguoshaServer.Package
         {
             if (RoomLogic.IsVirtualCard(room, card) && card.GetSkillName() == "yigui" && to != null && to.HasShownOneGeneral())
             {
-                General general = Engine.GetGeneral(card.UserString);
+                General general = Engine.GetGeneral(card.UserString, room.Setting.GameMode);
                 if (general == null)
                     room.OutPut("化身卡出错 " + card.UserString);
 
-                return general != null && general.Kingdom != Engine.GetGeneral(to.ActualGeneral1).Kingdom;
+                return general != null && general.Kingdom != Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom;
             }
 
             return false;
@@ -1936,9 +1936,9 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-    public class FlameMapCard:SkillCard
+    public class FlamemapCard:SkillCard
     {
-        public FlameMapCard() : base("FlameMapCard")
+        public FlamemapCard() : base("FlamemapCard")
         {
             target_fixed = true;
         }
@@ -1965,14 +1965,14 @@ namespace SanguoshaServer.Package
         {
             Player sunquan = RoomLogic.GetLord(room, player.Kingdom);
             if (sunquan != null && RoomLogic.PlayerHasShownSkill(room, sunquan, "jiahe") && RoomLogic.WillBeFriendWith(room, player, sunquan)
-                && !player.HasUsed("FlameMapCard") && player.CanShowGeneral(null))
+                && !player.HasUsed("FlamemapCard") && player.CanShowGeneral(null))
                 return true;
 
             return false;
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard slash = new WrappedCard("FlameMapCard");
+            WrappedCard slash = new WrappedCard("FlamemapCard");
             slash.AddSubCard(card);
             slash.Mute = true;
             slash.ShowSkill = "showforviewhas";

@@ -85,7 +85,7 @@ namespace SanguoshaServer.Game
             this.RoomId = room_id;
             Setting = setting;
             Scenario = Engine.GetScenario(setting.GameMode);
-            _m_roomState = new RoomState(false);
+            _m_roomState = new RoomState();
             timer.Elapsed += Timer1_Elapsed;
 
             if (Scenario != null)
@@ -146,7 +146,8 @@ namespace SanguoshaServer.Game
 
                 List<int> card_ids = GetNCards(n, true);
 
-                CardsMoveStruct move = new CardsMoveStruct(card_ids, player, Place.PlaceHand, new CardMoveReason());
+                CardsMoveStruct move = new CardsMoveStruct(card_ids, player, Place.PlaceHand,
+                    new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DRAW, reason.Who != null ? reason.Who.Name : string.Empty, player.Name, reason.Reason, string.Empty));
                 moves.Add(move);
             }
             MoveCardsAtomic(moves, false);
@@ -1385,18 +1386,22 @@ namespace SanguoshaServer.Game
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
             List<string> available = new List<string>();
             foreach (string name in Generals)
-                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name).Kingdom == player.Kingdom)
+                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom == player.Kingdom)
                     available.Add(name);
             if (available.Count == 0) return;
 
-            Shuffle.shuffle<string>(ref available);
-            string general_name = available[0];
-
+            RemoveGeneral(player, false);
             HandleUsedGeneral("-" + player.ActualGeneral2);
+            Thread.Sleep(1000);
+
+            Shuffle.shuffle(ref available);
+            List<string> generals = new List<string>();
+            for (int i = 0; i <= Math.Min(3, available.Count); i++)
+                generals.Add(available[i]);
+
+            string general_name = AskForGeneral(player, generals, null, true, "transform", null, true, true);
             HandleUsedGeneral(general_name);
 
-            RemoveGeneral(player, false);
-            Thread.Sleep(1000);
             object void_data = null;
             List<TriggerSkill> game_start = new List<TriggerSkill>();
             foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))
@@ -2452,6 +2457,8 @@ namespace SanguoshaServer.Game
                             timer.Enabled = false;
                             _waitHandle.Set();
                         }
+                        else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL)
+                            OnChooseGeneralReply(player);
                     }
                 }
 
@@ -2459,6 +2466,11 @@ namespace SanguoshaServer.Game
                 if (success && replies.ContainsKey(player.ExpectedReplyCommand))
                     replies[player.ExpectedReplyCommand](player);
             }
+        }
+
+        private void OnChooseGeneralReply(Client client)
+        {
+            Scenario.OnChooseGeneralReply(this, client);
         }
 
         private void OnRaceReply(Client client)
@@ -2702,9 +2714,9 @@ namespace SanguoshaServer.Game
             }
 
             //加载武将
-            Generals = Engine.GetGenerals(Setting.GeneralPackage, false);
+            Generals = Engine.GetGenerals(Setting.GeneralPackage, Setting.GameMode, false);
             //加载本局游戏技能
-            foreach (string general in Engine.GetGenerals(Setting.GeneralPackage))
+            foreach (string general in Engine.GetGenerals(Setting.GeneralPackage, Setting.GameMode))
             {
                 foreach (string skill in Engine.GetGeneralSkills(general, Setting.GameMode))
                 {
@@ -2748,7 +2760,7 @@ namespace SanguoshaServer.Game
                     player.Status = "online";
                     TrustedAI ai = null;
                     if (client.UserRight >= 3)
-                        ai = new SmartAI(this, player);
+                        ai = Scenario.GetAI(this, player);
                     else
                         ai = new TrustedAI(this, player);
                     player_ai.Add(player, ai);
@@ -2756,7 +2768,7 @@ namespace SanguoshaServer.Game
                 else if (client.Status == Client.GameStatus.bot)
                 {
                     player.Status = "bot";
-                    player_ai.Add(player, new SmartAI(this, player));
+                    player_ai.Add(player, Scenario.GetAI(this, player));
                 }
 
                 players.Add(JsonUntity.Object2Json(player));
@@ -2786,35 +2798,7 @@ namespace SanguoshaServer.Game
 
         public void PreparePlayers()
         {
-            foreach (Player player in m_players)
-            {
-                string general1_name = player.ActualGeneral1;
-                if (!player.DuanChang.Contains("head"))
-                {
-                    foreach (string skill in Engine.GetGeneralSkills(general1_name, Scenario.Name, true))
-                        AddPlayerSkill(player, skill);
-                }
-                string general2_name = player.ActualGeneral2;
-                if (!string.IsNullOrEmpty(general2_name) && general2_name != general1_name && !player.DuanChang.Contains("deputy"))
-                {
-                    foreach (string skill in Engine.GetGeneralSkills(general2_name, Scenario.Name, false))
-                        AddPlayerSkill(player, skill, false);
-                }
-
-                //技能预亮
-                //if (player->isAutoPreshow())
-                //    player->setSkillsPreshowed("hd");
-                NotifyPlayerPreshow(player);
-                if (GetClient(player).Status == Client.GameStatus.bot)
-                {
-                    player.SetSkillsPreshowed("hd");
-                }
-
-                if (!player.HasShownOneGeneral())
-                    player.PlayerGender = Gender.Sexless;
-                else
-                    player.PlayerGender = player.General1Showed ? Engine.GetGeneral(player.General1).GeneralGender : Engine.GetGeneral(player.General2).GeneralGender;
-            }
+            Scenario.PrepareForPlayers(this);
         }
 
         public void AddPlayerSkill(Player player, string skill_name, bool head_skill = true)
@@ -3122,6 +3106,8 @@ namespace SanguoshaServer.Game
                     _player.Piles = player.Piles;
                     foreach (string mark in player.Marks.Keys)
                         _player.SetMark(mark, player.GetMark(mark));
+
+                    _player.SetFlags("marshal");
                 }
                 else
                 {
@@ -3730,11 +3716,11 @@ namespace SanguoshaServer.Game
                 NotifyProperty(p, player, "General1");
 
             if (new_general != "anjiang")
-                player.PlayerGender = Engine.GetGeneral(new_general).GeneralGender;
+                player.PlayerGender = Engine.GetGeneral(new_general, Setting.GameMode).GeneralGender;
             else
             {
                 if (player.General2Showed)
-                    player.PlayerGender = Engine.GetGeneral(player.General2).GeneralGender;
+                    player.PlayerGender = Engine.GetGeneral(player.General2, Setting.GameMode).GeneralGender;
                 else
                     player.PlayerGender = Gender.Sexless;
             }
@@ -3757,7 +3743,7 @@ namespace SanguoshaServer.Game
             {
                 if (new_general != "anjiang")
                 {
-                    player.PlayerGender = Engine.GetGeneral(new_general).GeneralGender;
+                    player.PlayerGender = Engine.GetGeneral(new_general, Setting.GameMode).GeneralGender;
                 }
                 else
                 {
@@ -3804,8 +3790,8 @@ namespace SanguoshaServer.Game
                     foreach (string skill_name in player.GetHeadSkillList())
                     {
                         Skill skill = Engine.GetSkill(skill_name);
-                        if (skill != null && skill.SkillFrequency == Skill.Frequency.Limited
-                            && !string.IsNullOrEmpty(skill.LimitMark) && (!skill.LordSkill || IsLord(player)))
+                        if (skill != null && skill.SkillFrequency == Frequency.Limited
+                            && !string.IsNullOrEmpty(skill.LimitMark) && (!skill.LordSkill || Engine.GetGeneral(player.General1, Setting.GameMode).IsLord()))
                         {
                             List<string> args = new List<string>
                             {
@@ -3832,7 +3818,7 @@ namespace SanguoshaServer.Game
                     BroadcastProperty(player, "Role");
                 }
 
-                if (IsLord(player))
+                if (Engine.GetGeneral(player.General1, Setting.GameMode).IsLord())
                 {
                     string kingdom = player.Kingdom;
                     foreach (Player p in m_players)
@@ -3876,7 +3862,7 @@ namespace SanguoshaServer.Game
                     {
                         Skill skill = Engine.GetSkill(skill_name);
                         if (skill != null && skill.SkillFrequency == Skill.Frequency.Limited
-                            && !string.IsNullOrEmpty(skill.LimitMark) && (!skill.LordSkill || IsLord(player)))
+                            && !string.IsNullOrEmpty(skill.LimitMark) && (!skill.LordSkill || Engine.GetGeneral(player.General1, Setting.GameMode).IsLord()))
                         {
                             List<string> args = new List<string>
                             {
@@ -3922,12 +3908,6 @@ namespace SanguoshaServer.Game
             }
 
             FilterCards(player, player.GetCards("he"), true);
-        }
-
-        public bool IsLord(Player player, bool hegemony_mod = true)
-        {
-            General g1 = Engine.GetGeneral(player.ActualGeneral1);
-            return g1 != null ? g1.IsLord(hegemony_mod) : false;
         }
 
         public void SendLog(LogMessage log, List<Player> except = null)
@@ -4613,7 +4593,7 @@ namespace SanguoshaServer.Game
                             break;
                         }
                     }
-                    General lord_general = Engine.GetGeneral(lord);
+                    General lord_general = Engine.GetGeneral(lord, Setting.GameMode);
                     if (check && lord_general != null)
                         lords.Add(p);
                 }
@@ -5160,11 +5140,10 @@ namespace SanguoshaServer.Game
             RoomThread.Trigger(TriggerEvent.GameOverJudge, this, victim, ref data);
             RoomThread.Trigger(TriggerEvent.Death, this, victim, ref data);
 
-            //DoNotify(GetClient(victim), CommandType.S_COMMAND_SET_DASHBOARD_SHADOW, new List<string> { victim.Name });
-
             victim.DetachAllSkills();
             RoomThread.Trigger(TriggerEvent.BuryVictim, this, victim, ref data);
 
+            /*
             if (!victim.Alive)
             {
                 bool expose_roles = true;
@@ -5191,6 +5170,7 @@ namespace SanguoshaServer.Game
                     }
                 }
             }
+            */
         }
 
         public void SendDamageLog(DamageStruct data)
@@ -5507,7 +5487,6 @@ namespace SanguoshaServer.Game
             CardResponseStruct resp = new CardResponseStruct();
             string pattern = _pattern.Split(':')[0];
             if (player == null || !player.Alive) return resp;
-
 
             WrappedCard card = null;
             CardUseStruct.CardUseReason use_reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE;
@@ -6452,7 +6431,7 @@ namespace SanguoshaServer.Game
             to_discard = new List<int>(result);
         }
 
-        public void Activate(Player player, out CardUseStruct card_use)
+        public void Activate(Player player, out CardUseStruct card_use, bool add_index = true)
         {
             //tryPause();
             Thread.Sleep(300);
@@ -6472,6 +6451,7 @@ namespace SanguoshaServer.Game
 
             _m_roomState.SetCurrentCardUsePattern("..");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY);
+            if (add_index) _m_roomState.SetGlobalResponseID();
 
             TrustedAI ai = GetAI(player);
             if (ai != null)
@@ -6506,7 +6486,7 @@ namespace SanguoshaServer.Game
                     if (player.Alive)
                     {
                         DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
-                        Activate(player, out card_use);
+                        Activate(player, out card_use, false);
                         return;
                     }
                 }
@@ -6584,7 +6564,8 @@ namespace SanguoshaServer.Game
             card_use.Card = card;
             fcard = Engine.GetFunctionCard(card.Name);
             if (card_use.From.Phase == PlayerPhase.Play && add_history
-                    && (!(fcard is Slash) || _m_roomState.GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+                    && (!(fcard is Slash) || _m_roomState.GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
+                    || card_use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
                     && !Engine.CorrectCardTarget(this, TargetModSkill.ModType.History, card_use.From, null, card))
             {
                 card_use.AddHistory = true;
@@ -6802,6 +6783,7 @@ namespace SanguoshaServer.Game
                         From_places = new List<Place> { Place.DrawPile },
                         To = player,
                         To_place = Place.PlaceHand,
+                        Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, player.Name),
                         Card_ids = new List<int> { card_id }
                     };
                     object data = move;
@@ -6920,7 +6902,7 @@ namespace SanguoshaServer.Game
         }
 
         public WrappedCard AskForUseCard(Player player, string _pattern, string prompt, int notice_index = -1,
-            HandlingMethod method = HandlingMethod.MethodUse, bool addHistory = true, string position = null)
+            HandlingMethod method = HandlingMethod.MethodUse, bool addHistory = true, string position = null, bool add_index = true)
         {
 
             //tryPause();
@@ -6938,6 +6920,7 @@ namespace SanguoshaServer.Game
                 _m_roomState.SetCurrentResponseSkill(result.Groups[2].ToString());
             else
                 _m_roomState.SetCurrentResponseSkill(null);
+            if (add_index) _m_roomState.SetGlobalResponseID();
             CardUseStruct card_use = new CardUseStruct
             {
                 IsOwnerUse = true,
@@ -6981,7 +6964,7 @@ namespace SanguoshaServer.Game
                 object decisionData = card_use;
                 RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
                 if (!UseCard(card_use, addHistory))
-                    return AskForUseCard(player, _pattern, prompt, notice_index, method, addHistory);
+                    return AskForUseCard(player, _pattern, prompt, notice_index, method, addHistory, position, false);
 
                 decisionData = string.Format("cardUsed:{0}:{1}:{2}", pattern, prompt, RoomLogic.CardToString(this, card_use.Card));
                 RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
@@ -7210,6 +7193,10 @@ namespace SanguoshaServer.Game
                 DoAnimate(AnimateType.S_ANIMATE_NULLIFICATION, repliedPlayer.Name, to.Name);
 
             CardUseStruct use = new CardUseStruct(card, repliedPlayer, new List<Player>());
+            if (to != null && positive)
+                use.To.Add(to);
+            else if (!positive)
+                use.To.Add(from);
 
             List<string> infos = new List<string> { from != null ? from.Name : string.Empty, RoomLogic.CardToString(this, trick), to != null ? to.Name : string.Empty };
             use.Pattern = string.Join("->", infos);
@@ -7482,16 +7469,11 @@ namespace SanguoshaServer.Game
             return ids[0];
         }
 
-        public void ShowCard(Player player, int card_id, string reason, Player only_viewer = null)
+        public void ShowCards(Player player, List<int> card_ids, string reason, Player only_viewer = null)
         {
-            if (GetCardOwner(card_id) != player) return;
 
-            //tryPause();
-            Thread.Sleep(300);
-            List<int> ids = new List<int> { card_id };
-            List<string> show_arg = new List<string> { player.Name, JsonUntity.Object2Json(ids), reason };
-
-            WrappedCard card = (WrappedCard)GetCard(card_id);
+            List<string> show_arg = new List<string> { player.Name, JsonUntity.Object2Json(card_ids), reason };
+            
             if (only_viewer != null)
             {
                 List<Client> players = new List<Client> { GetClient(only_viewer) };
@@ -7502,13 +7484,25 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                if (card_id >= 0)
-                    GetCard(card_id).SetFlags("visible");
+                foreach (int card_id in card_ids)
+                    if (card_id >= 0)
+                        GetCard(card_id).SetFlags("visible");
+
                 DoBroadcastNotify(CommandType.S_COMMAND_SHOW_CARD, show_arg);
             }
 
-            object decisionData = string.Format("showCards:{0}:{1}", card_id, only_viewer != null ? only_viewer.Name : "all");
+            object decisionData = string.Format("showCards:{0}:{1}", string.Join("+", JsonUntity.IntList2StringList(card_ids)), only_viewer != null ? only_viewer.Name : "all");
             RoomThread.Trigger(TriggerEvent.ChoiceMade, this, player, ref decisionData);
+        }
+
+        public void ShowCard(Player player, int card_id, string reason, Player only_viewer = null)
+        {
+            if (GetCardOwner(card_id) != player) return;
+
+            //tryPause();
+            Thread.Sleep(300);
+            List<int> ids = new List<int> { card_id };
+            ShowCards(player, ids, reason, only_viewer);
         }
 
         public void ShowAllCards(Player player, Player to = null, string reason = null, string position = null)
@@ -7808,7 +7802,7 @@ namespace SanguoshaServer.Game
 
             if (string.IsNullOrEmpty(default_choice))
             {
-                Shuffle.shuffle<string>(ref generals);
+                Shuffle.shuffle(ref generals);
                 default_choice = generals[0];
 
                 if (!single_result)
@@ -7819,7 +7813,7 @@ namespace SanguoshaServer.Game
                     {
                         foreach (string name2 in heros)
                         {
-                            if (name1 != name2 && Engine.GetGeneral(name1).Kingdom == Engine.GetGeneral(name2).Kingdom)
+                            if (name1 != name2 && Engine.GetGeneral(name1, Setting.GameMode).Kingdom == Engine.GetGeneral(name2, Setting.GameMode).Kingdom)
                             {
                                 default_choice = name1 + "+" + name2;
                                 good = true;
@@ -7851,7 +7845,14 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                List<string> options = new List<string> { player.Name, skill_name, JsonUntity.Object2Json(generals), single_result.ToString(), can_convert.ToString(), assign_kingdom.ToString() };
+                List<string> options = new List<string> {
+                    player.Name,
+                    skill_name,
+                    JsonUntity.Object2Json(generals),
+                    single_result.ToString(),
+                    can_convert.ToString(),
+                    assign_kingdom.ToString()
+                };
                 bool success = DoRequest(player, CommandType.S_COMMAND_CHOOSE_GENERAL, options, true);
 
                 List<string> clientResponse = GetClient(player).ClientReply;
@@ -7923,11 +7924,11 @@ namespace SanguoshaServer.Game
 
                 ChangePlayerGeneral(player, "anjiang");
                 player.ActualGeneral1 = general1_name;
-                player.Kingdom = Engine.GetGeneral(general1_name).Kingdom;
+                player.Kingdom = Engine.GetGeneral(general1_name, Setting.GameMode).Kingdom;
                 NotifyProperty(GetClient(player), player, "ActualGeneral1");
                 NotifyProperty(GetClient(player), player, "General1");
 
-                max_hp += Engine.GetGeneral(general1_name).GetMaxHpHead();
+                max_hp += Engine.GetGeneral(general1_name, Setting.GameMode).GetMaxHpHead();
                 names[0] = general1_name;
                 player.General1Showed = false;
                 BroadcastProperty(player, "General1Showed");
@@ -7958,11 +7959,11 @@ namespace SanguoshaServer.Game
                 ChangePlayerGeneral2(player, "anjiang");
                 player.ActualGeneral2 = general2_name;
                 if (string.IsNullOrEmpty(general1_name))
-                    player.Kingdom = Engine.GetGeneral(general2_name).Kingdom;
+                    player.Kingdom = Engine.GetGeneral(general2_name, Setting.GameMode).Kingdom;
                 NotifyProperty(GetClient(player), player, "ActualGeneral2");
                 NotifyProperty(GetClient(player), player, "General2");
 
-                max_hp += Engine.GetGeneral(general2_name).GetMaxHpDeputy();
+                max_hp += Engine.GetGeneral(general2_name, Setting.GameMode).GetMaxHpDeputy();
                 names[1] = general2_name;
                 player.General2Showed = false;
                 BroadcastProperty(player, "General2Showed");
@@ -7990,7 +7991,7 @@ namespace SanguoshaServer.Game
                 NotifyProperty(GetClient(player), player, "Kingdom");
             else
                 BroadcastProperty(player, "Kingdom");
-            string role = Engine.GetMappedRole(string.IsNullOrEmpty(kingdom) ? Engine.GetGeneral(general1_name).Kingdom : kingdom);
+            string role = Engine.GetMappedRole(string.IsNullOrEmpty(kingdom) ? Engine.GetGeneral(general1_name, Setting.GameMode).Kingdom : kingdom);
             player.Role = role;
             if (string.IsNullOrEmpty(show_flags))
                 NotifyProperty(GetClient(player), player, "Role");
@@ -8019,7 +8020,7 @@ namespace SanguoshaServer.Game
                 SetPlayerChained(player, false, false);
                 player.FaceUp = true;
                 BroadcastProperty(player, "FaceUp");
-                if (Engine.GetGeneral(general1_name).CompanionWith(general2_name))
+                if (Engine.GetGeneral(general1_name, Setting.GameMode).CompanionWith(general2_name))
                     SetPlayerMark(player, "CompanionEffect", 1);
             }
 
@@ -8087,7 +8088,7 @@ namespace SanguoshaServer.Game
                 from_general = player.ActualGeneral1;
                 if (from_general.Contains("sujiang")) return;
                 RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
-                Gender gender = Engine.GetGeneral(from_general).GeneralGender;
+                Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
                 player.ActualGeneral1 = general_name;
@@ -8119,7 +8120,7 @@ namespace SanguoshaServer.Game
                 from_general = player.ActualGeneral2;
                 if (from_general.Contains("sujiang")) return;
                 RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
-                Gender gender = Engine.GetGeneral(from_general).GeneralGender;
+                Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
                 player.ActualGeneral2 = general_name;
@@ -8180,7 +8181,7 @@ namespace SanguoshaServer.Game
             if (string.IsNullOrEmpty(judge.Pattern))
                 judge.UpdateResult(true);
             else
-                judge.UpdateResult(judge.Good == new ExpPattern(judge.Pattern).Match(judge.Who, this, judge.Card));
+                judge.UpdateResult(judge.Good == Engine.GetPattern(judge.Pattern).Match(judge.Who, this, judge.Card));
         }
 
         public void Retrial(WrappedCard card, Player player, ref JudgeStruct judge, string skill_name, bool exchange = false, string position = null)
@@ -9069,6 +9070,7 @@ namespace SanguoshaServer.Game
                 // dirty hack for temporary convenience.
                 player.General1Showed = false;
                 BroadcastProperty(player, "General1Showed");
+                player.SetSkillsPreshowed("h", true);
                 NotifyPlayerPreshow(player, "h");
 
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, "anjiang", false.ToString(), false.ToString() };
@@ -9093,6 +9095,7 @@ namespace SanguoshaServer.Game
                 // dirty hack for temporary convenience.
                 player.General2Showed = false;
                 BroadcastProperty(player, "General2Showed");
+                player.SetSkillsPreshowed("d", true);
                 NotifyPlayerPreshow(player, "d");
 
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, "anjiang", true.ToString(), false.ToString() };

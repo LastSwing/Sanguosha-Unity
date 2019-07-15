@@ -2123,7 +2123,7 @@ namespace SanguoshaServer
 
                 //huashen
                 bool huashen = false;
-                if (pending_skill != null && pending_skill.Name == "yigui" && !guhuo_check && card == null && Engine.GetGeneral(args[2]) != null)
+                if (pending_skill != null && pending_skill.Name == "yigui" && !guhuo_check && card == null && Engine.GetGeneral(args[2], room.Setting.GameMode) != null)
                 {
                     huashen = HandleHuashen(skill_owner, args[2]);
                     success = huashen;

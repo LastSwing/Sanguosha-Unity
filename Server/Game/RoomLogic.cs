@@ -546,6 +546,20 @@ namespace SanguoshaServer.Game
             player.Limitation = limitation;
         }
 
+        public static bool IsHandCardLimited(Room room, Player player, HandlingMethod method)
+        {
+            if (method == HandlingMethod.MethodNone)
+                return false;
+
+            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
+            if (!limitation.ContainsKey((int)method)) return false;
+
+            foreach (string pattern in limitation[(int)method])
+                if (pattern.Contains(".|.|.|hand")) return true;
+
+            return false;
+        }
+
         public static bool IsCardLimited(Room room, Player player, WrappedCard card, HandlingMethod method, bool isHandcard = false)
         {
             if (method == HandlingMethod.MethodNone)
@@ -564,7 +578,7 @@ namespace SanguoshaServer.Game
                         string _pattern = pattern.Split('$')[0];
                         if (isHandcard)
                             _pattern = _pattern.Replace("hand", ".");
-                        ExpPattern p = new ExpPattern(_pattern);
+                        CardPattern p = Engine.GetPattern(_pattern);
                         if (p.Match(player, room, c)) return true;
                     }
                 }
@@ -602,9 +616,9 @@ namespace SanguoshaServer.Game
                     result.General = position == "head" ? player.ActualGeneral1 : player.ActualGeneral2;
                     result.SkinId = position == "head" ? player.HeadSkinId : player.DeputySkinId;
                 }
-                else if (skill.Attached_lord_skill && GetLord(room, Engine.GetGeneral(player.ActualGeneral1).Kingdom) != null)
+                else if (skill.Attached_lord_skill && GetLord(room, Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom) != null)
                 {
-                    Player lord = GetLord(room, Engine.GetGeneral(player.ActualGeneral1).Kingdom);
+                    Player lord = GetLord(room, Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom);
                     result.General = lord.ActualGeneral1;
                     result.SkinId = lord.HeadSkinId;
                 }
@@ -640,7 +654,7 @@ namespace SanguoshaServer.Game
             List<Player> players = include_dead ? room.Players : room.GetAlivePlayers();
             foreach (Player p in players)
             {
-                General g = Engine.GetGeneral(p.ActualGeneral1);
+                General g = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode);
                 if (g.IsLord() && g.Kingdom == kingdom)
                     return p;
             }

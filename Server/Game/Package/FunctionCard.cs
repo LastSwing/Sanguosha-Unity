@@ -73,7 +73,7 @@ namespace SanguoshaServer.Package
             return TargetFilter(room, selected, to_select, Self, card);
         }
 
-        public virtual void DoPreAction(Room room, WrappedCard card)
+        public virtual void DoPreAction(Room room, Player player, WrappedCard card)
         {
         }
 
@@ -354,7 +354,7 @@ namespace SanguoshaServer.Package
         {
             return card;
         }
-        public virtual bool IsCancelable(Room room, CardEffectStruct effect) => false;
+        public virtual bool IsCancelable(Room room, CardEffectStruct effect) => effect.Card != null && effect.Card.Cancelable;
     }
     public abstract class BasicCard : FunctionCard
     {
@@ -371,15 +371,9 @@ namespace SanguoshaServer.Package
         public TrickCard(string name) : base(name)
         {
             type_id = CardType.TypeTrick;
-            cancelable = true;
             handling_method = HandlingMethod.MethodUse;
         }
-        void SetCancelable(bool cancelable) => this.cancelable = cancelable;
-
-        public override bool IsCancelable(Room room, CardEffectStruct effect) => cancelable;
         public abstract override string GetSubtype();
-
-        private bool cancelable;
     }
 
     public class GlobalEffect : TrickCard
@@ -879,6 +873,7 @@ namespace SanguoshaServer.Package
         {
             this.range = range;
         }
+
         public int Range => range;
         public override string GetSubtype() => "weapon";
         public override Location EquipLocation() => Location.WeaponLocation;
