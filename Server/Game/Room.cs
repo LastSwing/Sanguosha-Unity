@@ -376,7 +376,10 @@ namespace SanguoshaServer.Game
         public WrappedCard GetCard(int id)
         {
             if (m_cards.ContainsKey(id))
+            {
+                Debug.Assert(m_cards[id] != null, id.ToString());
                 return m_cards[id];
+            }
 
             return null;
         }
@@ -1964,6 +1967,7 @@ namespace SanguoshaServer.Game
 
                 Clients.Add(client);
                 client.GameRoom = RoomId;
+                client.RoleReserved = string.Empty;
 
                 SendRoomSetting2Client(client);
 
@@ -2025,6 +2029,7 @@ namespace SanguoshaServer.Game
 
                 Host.GameRoom = RoomId;
                 Host.Status = Client.GameStatus.ready;
+                Host.RoleReserved = string.Empty;
 
                 SendRoomSetting2Client(Host);
 
@@ -2674,7 +2679,7 @@ namespace SanguoshaServer.Game
         private void GameStart(Client client, List<string> data)
         {
             bool check = true;
-            if (IsFull() && Host == client)
+            if (Scenario.IsFull(this) && Host == client)
             {
                 foreach (Client c in Clients)
                 {
@@ -6142,8 +6147,19 @@ namespace SanguoshaServer.Game
         }
 
         public bool AskForDiscard(Player player, string reason, int discard_num, int min_num, bool optional = false,
-                         bool include_equip = false, string prompt = null, bool notify_skill = false, string position = null)
+            bool include_equip = false, string prompt = null, bool notify_skill = false, string position = null)
         {
+            string flag = "h";
+            if (include_equip) flag = "he";
+            List<int> ids = player.GetCards(flag);
+
+            return AskForDiscard(player, ids, reason, discard_num, min_num, optional, prompt, notify_skill, position);
+        }
+
+        public bool AskForDiscard(Player player, List<int> ids, string reason, int discard_num, int min_num, bool optional = false,
+                         string prompt = null, bool notify_skill = false, string position = null)
+        {
+            ids = ids ?? new List<int>(player.HandCards);
             if (!player.Alive) return false;
 
             //tryPause();
@@ -6155,22 +6171,13 @@ namespace SanguoshaServer.Game
             if (!optional)
             {
                 List<int> jilei_list = new List<int>();
-                List<WrappedCard> handcards = RoomLogic.GetPlayerHandcards(this, player);
-                foreach (WrappedCard card in handcards)
+                foreach (int id in ids)
                 {
+                    WrappedCard card = GetCard(id);
                     if (!RoomLogic.IsJilei(this, player, card))
                         dummy.Add(card.Id);
                     else
                         jilei_list.Add(card.Id);
-                }
-                if (include_equip)
-                {
-                    List<WrappedCard> equips = RoomLogic.GetPlayerEquips(this, player);
-                    foreach (WrappedCard card in equips)
-                    {
-                        if (!RoomLogic.IsJilei(this, player, card))
-                            dummy.Add(card.Id);
-                    }
                 }
 
                 int card_num = dummy.Count;
@@ -6236,14 +6243,14 @@ namespace SanguoshaServer.Game
             List<int> to_discard = new List<int>();
             if (ai != null)
             {
-                to_discard = ai.AskForDiscard(reason, discard_num, min_num, optional, include_equip);
+                to_discard = ai.AskForDiscard(ids, reason, discard_num, min_num, optional);
                 if (optional && to_discard.Count > 0)
                     Thread.Sleep(400);
             }
             else
             {
                 Client client = GetClient(player);
-                success = client.DiscardRequest(this, player, prompt, reason, position, discard_num, min_num, include_equip, optional);
+                success = client.DiscardRequest(this, player, ids, prompt, reason, position, discard_num, min_num, optional);
 
                 List<string> clientReply = client.ClientReply;
                 string str = success && clientReply != null && clientReply.Count > 0 ? clientReply[0] : null;
@@ -6263,7 +6270,7 @@ namespace SanguoshaServer.Game
                     return false;
                 }
                 // time is up, and the server choose the cards to discard
-                to_discard = ForceToDiscard(player, discard_num, include_equip, true, to_discard);
+                to_discard = ForceToDiscard(player, ids, discard_num, true, to_discard);
             }
 
             if (to_discard.Count == 0) return false;
@@ -6289,19 +6296,16 @@ namespace SanguoshaServer.Game
             return true;
         }
 
-        public List<int> ForceToDiscard(Player player, int discard_num, bool include_equip, bool is_discard = true, List<int> reserved_discard = null)
+        public List<int> ForceToDiscard(Player player, List<int> ids, int discard_num, bool is_discard = true, List<int> reserved_discard = null)
         {
-            List<int> to_discard = reserved_discard ?? new List<int>();
-            List<WrappedCard> all_cards = RoomLogic.GetPlayerHandcards(this, player);
-            if (include_equip)
-                all_cards.AddRange(RoomLogic.GetPlayerEquips(this, player));
-
+            List<int> to_discard = reserved_discard ?? new List<int>(), all_cards = new List<int>(ids);
+            
             Shuffle.shuffle(ref all_cards);
 
             for (int i = 0; i < all_cards.Count; i++)
             {
-                if (!to_discard.Contains(all_cards[i].Id) && (!is_discard || !RoomLogic.IsJilei(this, player, all_cards[i])))
-                    to_discard.Add(all_cards[i].Id);
+                if (!to_discard.Contains(all_cards[i]) && (!is_discard || !RoomLogic.IsJilei(this, player, GetCard(all_cards[i]))))
+                    to_discard.Add(all_cards[i]);
                 if (to_discard.Count == discard_num)
                     break;
             }
@@ -6440,7 +6444,6 @@ namespace SanguoshaServer.Game
             if (player.HasFlag("Global_PlayPhaseTerminated"))
             {
                 player.SetFlags("-Global_PlayPhaseTerminated");
-                card_use.Card = null;
                 return;
             }
 
@@ -6565,7 +6568,7 @@ namespace SanguoshaServer.Game
             fcard = Engine.GetFunctionCard(card.Name);
             if (card_use.From.Phase == PlayerPhase.Play && add_history
                     && (!(fcard is Slash) || _m_roomState.GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
-                    || card_use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+                    || card_use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || card_use.Pattern == "@@rende")
                     && !Engine.CorrectCardTarget(this, TargetModSkill.ModType.History, card_use.From, null, card))
             {
                 card_use.AddHistory = true;
@@ -6663,7 +6666,7 @@ namespace SanguoshaServer.Game
         public void ThrowAllHandCards(Player player)
         {
             int card_length = player.HandcardNum;
-            AskForDiscard(player, null, card_length, card_length);
+            AskForDiscard(player, null, null, card_length, card_length);
         }
         public void ThrowAllEquips(Player player)
         {
@@ -6680,7 +6683,7 @@ namespace SanguoshaServer.Game
         public void ThrowAllHandCardsAndEquips(Player player)
         {
             int card_length = player.GetCardCount(true);
-            AskForDiscard(player, null, card_length, card_length, false, true);
+            AskForDiscard(player, "gamerule", card_length, card_length, false, true);
         }
         public void ThrowAllCards(Player player)
         {

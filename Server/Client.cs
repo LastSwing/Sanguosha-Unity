@@ -74,13 +74,13 @@ namespace SanguoshaServer
         public MsgPackSession Session {
             get { return session; }
         }
-
         public List<string> CommandArgs { get; set; }
         public bool IsClientResponseReady { get; set; }
         public List<string> ClientReply { get; set; }
         public CommandType ExpectedReplyCommand { get; set; }
         public bool IsWaitingReply { get; set; }
         public List<string> CheatArgs { get; set; }
+        public string RoleReserved { get; set; } = string.Empty;
 
         //public int ExpectedReplySerial { get; set; }
         public Mutex mutex = new Mutex();
@@ -646,7 +646,7 @@ namespace SanguoshaServer
             return room.DoRequest(room.GetPlayers(this)[0], type, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
 
-        public bool DiscardRequest(Room room, Player player, string prompt, string reason, string position, int discard_num, int min_num, bool include_equip, bool optional)
+        public bool DiscardRequest(Room room, Player player, List<int> ids, string prompt, string reason, string position, int discard_num, int min_num, bool optional)
         {
             this.room = room;
             m_do_request = true;
@@ -659,19 +659,30 @@ namespace SanguoshaServer
 
             discard_skill.Optional = optional;
             discard_skill.Reserved.Clear();
-            discard_skill.Include_equip = include_equip;
+            discard_skill.AvailableCards = new List<int>(ids);
             discard_skill.Num = discard_num;
             discard_skill.MinNum = min_num;
             skill_invoke = true;
 
-            ex_information = new List<string> { min_num.ToString(), discard_num.ToString(), include_equip ? "yes" : "no" };
-            cancel_able = optional;
-
             equip_cards.Clear();
-            if (include_equip)
-                equip_cards[player] = RoomLogic.GetPlayerEquips(room, player);
+            equip_cards[player] = new List<WrappedCard>();
             hand_cards.Clear();
-            hand_cards[player] = RoomLogic.GetPlayerHandcards(room, player);
+            hand_cards[player] = new List<WrappedCard>();
+            string mark = "no";
+            foreach (int id in ids)
+            {
+                WrappedCard card = room.GetCard(id);
+                if (room.GetCardPlace(id) == Player.Place.PlaceEquip)
+                {
+                    mark = "yes";
+                    equip_cards[player].Add(card);
+                }
+                else
+                    hand_cards[player].Add(card);
+            }
+
+            ex_information = new List<string> { min_num.ToString(), discard_num.ToString(), mark };
+            cancel_able = optional;
 
             HandleInfos();
             m_do_request = false;

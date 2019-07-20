@@ -492,7 +492,7 @@ namespace SanguoshaServer.AI
         {
             List<WrappedCard> result = new List<WrappedCard>();
             WrappedCard card = room.GetCard(id);
-            if (card.Name == "Peach" && room.BloodBattle)
+            if (card.Name == "Peach" && room.BloodBattle && room.Setting.GameMode == "Hegemony")
             {
                 WrappedCard slash = new WrappedCard("Slash");
                 slash.AddSubCard(id);
@@ -1593,11 +1593,11 @@ namespace SanguoshaServer.AI
         }
         public bool MaySave(Player player)
         {
-            Player next = room.GetNextAlive(room.Current);
+            Player next = room.GetNextAlive(room.Current, 1, false);
             List<Player> enemies = new List<Player>();
             while (next != player)
             {
-                if (IsEnemy(next, player) && !WillSkipPlayPhase(next) && RoomLogic.CanSlash(room, next, player))
+                if (IsEnemy(next, player) && !WillSkipPlayPhase(next))
                     enemies.Add(next);
                 next = room.GetNextAlive(next);
             }
@@ -3018,7 +3018,7 @@ namespace SanguoshaServer.AI
             {
                 double value = 0;
                 value = Math.Min(damage.Damage, to.Hp) * 3.5;
-                if (room.BloodBattle) value *= 1.35;                    //鏖战状态下应给予伤害加分
+                if (room.BloodBattle && room.Setting.GameMode == "Hegemony") value *= 1.35;                    //鏖战状态下应给予伤害加分
                 if (IsWeak(to))
                 {
                     value += 4;
@@ -3847,7 +3847,7 @@ namespace SanguoshaServer.AI
             foreach (WrappedCard card in RoomLogic.GetPlayerHandcards(room, self))
             {
                 WrappedCard _card = card;
-                if (card.Name == "Peach" && room.BloodBattle)
+                if (card.Name == "Peach" && room.BloodBattle && room.Setting.GameMode == "Hegemony")
                 {
                     WrappedCard vs_slash = new WrappedCard("Slash");
                     vs_slash.AddSubCard(card);
@@ -3860,7 +3860,7 @@ namespace SanguoshaServer.AI
             foreach (int id in self.GetHandPile())
             {
                 WrappedCard card = room.GetCard(id);
-                if (card.Name == "Peach" && room.BloodBattle)
+                if (card.Name == "Peach" && room.BloodBattle && room.Setting.GameMode == "Hegemony")
                 {
                     WrappedCard vs_slash = new WrappedCard("Slash");
                     vs_slash.AddSubCard(card);
@@ -5175,13 +5175,13 @@ namespace SanguoshaServer.AI
             Shuffle.shuffle<string>(ref choices);
             return choices[0];
         }
-        public virtual List<int> AskForDiscard(string reason, int discard_num, int min_num, bool optional, bool include_equip)
+        public virtual List<int> AskForDiscard(List<int> ids, string reason, int discard_num, int min_num, bool optional)
         {
             List<int> to_discard = new List<int>();
             if (optional)
                 return to_discard;
             else
-                return room.ForceToDiscard(self, discard_num, include_equip, self.HasFlag("Global_AIDiscardExchanging"));
+                return room.ForceToDiscard(self, ids, discard_num, self.HasFlag("Global_AIDiscardExchanging"));
         }
         public virtual AskForMoveCardsStruct AskForMoveCards(List<int> upcards, List<int> downcards, string reason, int min_num, int max_num)
         {
@@ -5227,7 +5227,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (result != null && result.Name == "Peach" && room.BloodBattle)
+            if (result != null && result.Name == "Peach" && room.BloodBattle && room.Setting.GameMode == "Hegemony")
             {
                 WrappedCard slash = new WrappedCard("Slash");
                 slash.AddSubCard(result);

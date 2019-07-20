@@ -123,7 +123,7 @@ namespace SanguoshaServer.AI
             return score;
         }
 
-        public override List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip)
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> cards, int min, int max, bool option)
         {
             Room room = ai.Room;
             List<int> ids = new List<int>();

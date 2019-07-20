@@ -335,10 +335,12 @@ namespace SanguoshaServer.Package
             return -target.GetMark("@hengjiang");
         }
     }
+    
     public class Qianxi : TriggerSkill
     {
         public Qianxi() : base("qianxi")
         {
+
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
             frequency = Frequency.Frequent;
             skill_type = SkillType.Attack;
@@ -382,6 +384,7 @@ namespace SanguoshaServer.Package
                 if (ids.Count == 1)
                 {
                     string color = WrappedCard.IsRed(room.GetCard(ids[0]).Suit) ? "red" : "black";
+                    target.SetTag(Name, color);
                     room.ThrowCard(ids[0], target);
                     List<Player> to_choose = new List<Player>();
                     foreach (Player p in room.GetOtherPlayers(target))
@@ -394,13 +397,6 @@ namespace SanguoshaServer.Package
 
                     Player victim = room.AskForPlayerChosen(target, to_choose, Name, null, false, false, info.SkillPosition);
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, target.Name, victim.Name);
-
-                    int index = 1;
-                    if (color == "black")
-                        index = 2;
-
-                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, Name, info.SkillPosition);
-                    room.BroadcastSkillInvoke(Name, "male", index, gsk.General, gsk.SkinId);
 
                     string pattern = string.Format(".|{0}|.|hand$0", color);
                     victim.SetFlags("QianxiTarget");
@@ -430,22 +426,29 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.Death };
             frequency = Frequency.Compulsory;
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (!player.ContainsTag("qianxi")) return new TriggerStruct();
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+            if (player.ContainsTag("qianxi") && player.GetTag("qianxi") is string color)
             {
+                bool clear = triggerEvent == TriggerEvent.Death;
+                if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+                    clear = true;
 
-                string color = (string)player.GetTag("qianxi");
-                foreach (Player p in room.GetOtherPlayers(player))
+                if (clear)
                 {
-                    if (p.HasFlag("QianxiTarget"))
+                    foreach (Player p in room.GetOtherPlayers(player))
                     {
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Format(".|{0}|.|hand$0", color));
-                        room.SetPlayerMark(p, "@qianxi_" + color, 0);
+                        if (p.HasFlag("QianxiTarget"))
+                        {
+                            RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Format(".|{0}|.|hand$0", color));
+                            room.SetPlayerMark(p, "@qianxi_" + color, 0);
+                        }
                     }
                 }
             }
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
             return new TriggerStruct();
         }
     }

@@ -542,7 +542,7 @@ namespace SanguoshaServer.AI
             return true;
         }
 
-        public override List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip)
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> cards, int min, int max, bool option)
         {
             List<int> result = new List<int>();
             Room room = ai.Room;
@@ -949,7 +949,7 @@ namespace SanguoshaServer.AI
                         {
                             if (p.Hp <= 1 && (!RoomLogic.InMyAttackRange(room, player, p) || ai.GetCards("Slash", player).Count == 0 || RoomLogic.PlayerContainsTrick(room, player, "Indulgence")))
                             {
-                                use.Card = new WrappedCard("ShensuCard");
+                                use.Card = new WrappedCard("ShensuCard") { Skill = Name };
                                 use.To = scores[0].Players;
                                 return use;
                             }
@@ -973,7 +973,7 @@ namespace SanguoshaServer.AI
                     {
                         if (scores.Count > 0 && scores[0].Score > 3)
                         {
-                            use.Card = new WrappedCard("ShensuCard");
+                            use.Card = new WrappedCard("ShensuCard") { Skill = Name };
                             use.To = scores[0].Players;
                             return use;
                         }
@@ -990,7 +990,7 @@ namespace SanguoshaServer.AI
                             {
                                 if (scores.Count > 0 && scores[0].Score > 0)
                                 {
-                                    use.Card = new WrappedCard("ShensuCard");
+                                    use.Card = new WrappedCard("ShensuCard") { Skill = Name };
                                     use.To = scores[0].Players;
                                     return use;
                                 }
@@ -1002,7 +1002,7 @@ namespace SanguoshaServer.AI
                                         if (fcard.TargetFilter(room, new List<Player>(), p, player, slash)
                                             && (!ai.IsFriend(p) || ai.IsCancelTarget(slash, p, player) || !ai.IsCardEffect(slash, p, player)))
                                         {
-                                            use.Card = new WrappedCard("ShensuCard");
+                                            use.Card = new WrappedCard("ShensuCard") { Skill = Name };
                                             use.To.Add(p);
                                             return use;
                                         }
@@ -1060,7 +1060,7 @@ namespace SanguoshaServer.AI
                         ai.CompareByScore(ref scores);
                         if (scores[0].Score > value && scores[0].Score > 4)
                         {
-                            use.Card = new WrappedCard("ShensuCard");
+                            use.Card = new WrappedCard("ShensuCard") { Skill = Name };
                             use.Card.AddSubCards(scores[0].Card.SubCards);
                             use.To = scores[0].Players;
                             return use;
@@ -1190,7 +1190,7 @@ namespace SanguoshaServer.AI
             return new KeyValuePair<int, Player>(-1, null);
         }
 
-        public override List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip)
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
         {
             List<int> to_discard = new List<int>();
             if (!ai.WillShowForAttack()) return to_discard;
@@ -1499,7 +1499,7 @@ namespace SanguoshaServer.AI
                     return new List<int>(card.Id);
             }
 
-            return ai.AskForDiscard(string.Empty, 1, 1, false, false);
+            return ai.AskForDiscard(player.GetCards("h"), string.Empty,  1, 1, false);
         }
     }
 

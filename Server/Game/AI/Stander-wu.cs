@@ -833,6 +833,17 @@ namespace SanguoshaServer.AI
 
             return true;
         }
+
+        public override bool IsCancelTarget(TrustedAI ai, WrappedCard card, Player from, Player to)
+        {
+            if (to != null && ai.HasSkill(Name, to) && card.Name == "Snatch" && !RoomLogic.PlayerHasShownSkill(ai.Room, to, Name) && ai.IsFriend(from, to))
+                return false;
+
+            if (to != null && ai.HasSkill(Name, to) && (card.Name == "Snatch" || card.Name == "Indulgence"))
+                return true;
+
+            return false;
+        }
     }
     public class DuoshiAI : SkillEvent
     {

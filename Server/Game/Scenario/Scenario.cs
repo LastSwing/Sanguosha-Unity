@@ -4,6 +4,7 @@ using CommonClassLibrary;
 using SanguoshaServer.AI;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using static CommonClass.Game.DamageStruct;
@@ -32,6 +33,11 @@ namespace SanguoshaServer.Scenario
         public abstract bool IsFriendWith(Room room, Player player, Player other);
         public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
         public abstract TrustedAI GetAI(Room room, Player player);
+
+        public virtual bool IsFull(Room room)
+        {
+            return room.Clients.Count >= room.Setting.PlayerNum;
+        }
     }
 
     public abstract class GameRule : TriggerSkill
@@ -150,9 +156,14 @@ namespace SanguoshaServer.Scenario
                     }
                 case PlayerPhase.Discard:
                     {
-                        int discard_num = player.HandcardNum - RoomLogic.GetMaxCards(room, player);
+                        List<int> handcards = new List<int>();
+                        foreach (int id in player.HandCards)
+                            if (!Engine.IgnoreHandCard(room, player, id))
+                                handcards.Add(id);
+
+                        int discard_num = handcards.Count - RoomLogic.GetMaxCards(room, player);
                         if (discard_num > 0)
-                            room.AskForDiscard(player, "gamerule", discard_num, discard_num);
+                            room.AskForDiscard(player, handcards, "gamerule", discard_num, discard_num);
                         
                         break;
                     }

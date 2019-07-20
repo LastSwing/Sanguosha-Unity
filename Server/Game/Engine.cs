@@ -542,8 +542,12 @@ namespace SanguoshaServer.Game
         }
         public static WrappedCard GetRealCard(int id)
         {
+            System.Diagnostics.Debug.Assert(id > -1);
             if (wrapped_cards.ContainsKey(id))
+            {
+                System.Diagnostics.Debug.Assert(wrapped_cards[id] != null);
                 return wrapped_cards[id];
+            }
             else
                 return null;
         }
@@ -1003,6 +1007,15 @@ namespace SanguoshaServer.Game
             }
 
             return extra;
+        }
+
+        public static bool IgnoreHandCard(Room room, Player player, int card_id)
+        {
+            foreach (MaxCardsSkill skill in maxcards_skills)
+                if (skill.Ingnore(room, player, card_id))
+                    return true;
+
+            return false;
         }
         #endregion
 

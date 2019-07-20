@@ -383,6 +383,14 @@ namespace SanguoshaServer
                 case protocol.UpdateRoom:
                     client.RequstReady(bool.Parse(data.Body[0]));
                     break;
+                case protocol.RoleReserved:
+                    if (client.UserRight >= 2 && RId2Room.ContainsKey(client.GameRoom))
+                    {
+                        room = RId2Room[client.GameRoom];
+                        if (!room.GameStarted && room.Setting.GameMode == "Classic")
+                            client.RoleReserved = data.Body[0];
+                    }
+                    break;
                 case protocol.KickOff:
                     room = RId2Room.ContainsKey(client.GameRoom) ? RId2Room[client.GameRoom] : null;
                     if (room != null && room.Host == client && !room.GameStarted)

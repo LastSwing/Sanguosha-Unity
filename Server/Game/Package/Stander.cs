@@ -393,7 +393,7 @@ namespace SanguoshaServer.Package
                 if (from.HandcardNum >= 2)
                 {
                     from.SetFlags("ganglie_invoker");
-                    discard = room.AskForDiscard(from, Name, 2, 2, true);
+                    discard = room.AskForDiscard(from, null, Name, 2, 2, true);
                     from.SetFlags("-ganglie_invoker");
                 }
                 if (!discard)
@@ -1615,14 +1615,13 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            List<int> ints = new List<int>(room.AskForExchange(ask_who, Name, 1, 0, "@xiaoguo", null, "BasicCard!", info.SkillPosition));
+            List<int> ints = new List<int>(room.AskForExchange(ask_who, Name, 1, 0, "@xiaoguo:" + player.Name, null, "BasicCard!", info.SkillPosition));
             if (ints.Count == 1)
             {
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null);
                 room.ThrowCard(ref ints, reason, ask_who, null, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
-                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
-                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
                 return info;
             }
             return new TriggerStruct();
@@ -1633,15 +1632,15 @@ namespace SanguoshaServer.Package
             room.SetTag(Name, ask_who);
             WrappedCard card = room.AskForCard(player, Name, ".Equip", "@xiaoguo-discard", null);
             room.RemoveTag(Name);
-            if (card != null)
+            if (card == null)
             {
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
-                room.Damage(new DamageStruct("xiaoguo", ask_who, player));
+                room.Damage(new DamageStruct(Name, ask_who, player));
             }
-            else
-            {
-                room.BroadcastSkillInvoke(Name, "male", 3, gsk.General, gsk.SkinId);
-            }
+            //else
+            //{
+            //    room.BroadcastSkillInvoke(Name, "male", 3, gsk.General, gsk.SkinId);
+            //}
             return false;
         }
     }
@@ -2699,7 +2698,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player pangtong, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.ThrowAllHandCardsAndEquips(pangtong);
+            room.AskForDiscard(pangtong, Name, pangtong.HandcardNum, pangtong.HandcardNum, false, true);
             List<int> ids = pangtong.JudgingArea;
 
             room.ThrowCard(ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, pangtong.Name), null);
@@ -5561,6 +5560,7 @@ namespace SanguoshaServer.Package
         public KurouCard() : base("KurouCard")
         {
             target_fixed = true;
+            will_throw = true;
         }
         public override void Use(Room room, CardUseStruct card_use)
         {

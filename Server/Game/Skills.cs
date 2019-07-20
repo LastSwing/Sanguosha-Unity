@@ -714,9 +714,8 @@ namespace SanguoshaServer.Game
 
         public int Num { get; set; }
         public int MinNum { get; set; }
-        public bool Include_equip { get; set; }
         public bool Optional { get; set; }
-
+        public List<int> AvailableCards { get; set; }
         public List<int> Reserved { get; set; } = new List<int>();
 
         public bool IsFull()
@@ -726,13 +725,10 @@ namespace SanguoshaServer.Game
 
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
-            if (selected.Count + Reserved.Count >= Num)
+            if (selected.Count + Reserved.Count >= Num || !AvailableCards.Contains(to_select.Id))
                 return false;
 
-            if (!Include_equip && player.HasEquip(to_select.Name))
-                return false;
-
-            if (RoomLogic.IsCardLimited(room, player, to_select, FunctionCard.HandlingMethod.MethodDiscard) || Reserved.Contains(to_select.Id))
+            if (RoomLogic.IsCardLimited(room, player, to_select, HandlingMethod.MethodDiscard) || Reserved.Contains(to_select.Id))
                 return false;
 
             return true;
@@ -898,6 +894,7 @@ namespace SanguoshaServer.Game
         { }
         public virtual int GetExtra(Room room, Player target) => 0;
         public virtual int GetFixed(Room room, Player target) => -1;
+        public virtual bool Ingnore(Room room, Player player, int card_id) => false;
     }
     public class TargetModSkill : Skill
     {

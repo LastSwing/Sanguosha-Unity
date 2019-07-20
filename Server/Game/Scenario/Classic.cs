@@ -20,6 +20,11 @@ namespace SanguoshaServer.Scenario
             mode_name = "Classic";
             rule = new ClassicRule();
         }
+
+        public override bool IsFull(Room room)
+        {
+            return room.Clients.Count >= 4;
+        }
         public override TrustedAI GetAI(Room room, Player player)
         {
             return new StupidAI(room, player);
@@ -52,14 +57,74 @@ namespace SanguoshaServer.Scenario
                 roles.Add("rebel");
                 roles.Add("rebel");
             }
+            List<Player> all = new List<Player>(room.Players);
+            all.Remove(lord);
+
+            //点选内奸的玩家
+            List<Player> to_choose = new List<Player>();
+            foreach (Player p in room.Players)
+                if (p.GetRoleEnum() != PlayerRole.Lord && room.GetClient(p).RoleReserved == "renegade")
+                    to_choose.Add(p);
+
+            if (to_choose.Count > 0)
+            {
+                List<string> renegades = roles.FindAll(t => t == "renegade");
+                Shuffle.shuffle(ref to_choose);
+                for (int i = 0; i < Math.Min(to_choose.Count, renegades.Count); i++)
+                {
+                    to_choose[i].Role = "renegade";
+                    roles.Remove("renegade");
+                    all.Remove(to_choose[i]);
+                }
+            }
+
+            //点选忠臣的玩家
+            to_choose.Clear();
+            foreach (Player p in room.Players)
+                if (p.GetRoleEnum() != PlayerRole.Lord && room.GetClient(p).RoleReserved == "loyalist")
+                    to_choose.Add(p);
+
+            if (to_choose.Count > 0)
+            {
+                List<string> loyalists = roles.FindAll(t => t == "loyalist");
+                Shuffle.shuffle(ref to_choose);
+                for (int i = 0; i < Math.Min(loyalists.Count, to_choose.Count); i++)
+                {
+                    to_choose[i].Role = "loyalist";
+                    roles.Remove("loyalist");
+                    all.Remove(to_choose[i]);
+                }
+            }
+            //点选反贼的玩家
+            to_choose.Clear();
+            foreach (Player p in room.Players)
+                if (p.GetRoleEnum() != PlayerRole.Lord && room.GetClient(p).RoleReserved == "rebel")
+                    to_choose.Add(p);
+
+            if (to_choose.Count > 0)
+            {
+                List<string> rebels = roles.FindAll(t => t == "rebel");
+                Shuffle.shuffle(ref to_choose);
+                for (int i = 0; i < Math.Min(rebels.Count, to_choose.Count); i++)
+                {
+                    to_choose[i].Role = "rebel";
+                    roles.Remove("rebel");
+                    all.Remove(to_choose[i]);
+                }
+            }
+
+            //为剩余玩家随机身份
+            if (roles.Count > 0)
+            {
+                Shuffle.shuffle(ref roles);
+                for (int i = 0; i < all.Count; i++)
+                    all[i].Role = roles[i];
+            }
 
             //通知各玩家身份
-            Shuffle.shuffle(ref roles);
-            for (int i = 1; i < room.Players.Count; i++)
-            {
-                room.Players[i].Role = roles[i - 1];
-                room.NotifyProperty(room.GetClient(room.Players[i]), room.Players[i], "Role");
-            }
+            foreach (Player p in room.Players)
+                room.NotifyProperty(room.GetClient(p), p, "Role");
+
             room.UpdateStateItem();
 
             Thread.Sleep(2500);
@@ -69,9 +134,12 @@ namespace SanguoshaServer.Scenario
             string lord_general = room.AskForGeneral(lord, new List<string>(options[lord]), string.Empty, true, string.Empty, null, true);
             lord.General1 = lord_general;
             lord.ActualGeneral1 = lord_general;
-            lord.Kingdom = Engine.GetGeneral(lord_general, room.Setting.GameMode).Kingdom;
+            General lord_gen = Engine.GetGeneral(lord_general, room.Setting.GameMode);
+            lord.PlayerGender = lord_gen.GeneralGender;
+            lord.Kingdom = lord_gen.Kingdom;
             lord.General1Showed = true;
             room.BroadcastProperty(lord, "General1");
+            room.BroadcastProperty(lord, "PlayerGender");
             room.NotifyProperty(room.GetClient(lord), lord, "ActualGeneral1");
             room.BroadcastProperty(lord, "Kingdom");
             room.BroadcastProperty(lord, "General1Showed");
@@ -82,7 +150,6 @@ namespace SanguoshaServer.Scenario
             //技能预亮
             lord.SetSkillsPreshowed("hd");
             room.NotifyPlayerPreshow(lord);
-            lord.PlayerGender = Engine.GetGeneral(lord.General1, room.Setting.GameMode).GeneralGender;
             //主公神将选国籍
             string choice = "wei+qun+shu+wu";
             List<string> prompts = new List<string> { "@choose-kingdom" };
@@ -97,7 +164,7 @@ namespace SanguoshaServer.Scenario
             List<Player> players = new List<Player>();
             foreach (Player player in options.Keys)
             {
-                if (player.Role == "lord") continue;
+                if (player.GetRoleEnum() == PlayerRole.Lord) continue;
                 player.SetTag("generals", JsonUntity.Object2Json(options[player]));
                 List<string> args = new List<string>
                 {
@@ -154,10 +221,11 @@ namespace SanguoshaServer.Scenario
                 room.NotifyProperty(room.GetClient(player), player, "ActualGeneral1");
                 room.BroadcastProperty(player, "Kingdom");
                 room.BroadcastProperty(player, "General1Showed");
+                player.PlayerGender = Engine.GetGeneral(player.General1, room.Setting.GameMode).GeneralGender;
+                room.BroadcastProperty(player, "PlayerGender");
 
                 player.SetSkillsPreshowed("hd");
                 room.NotifyPlayerPreshow(player);
-                player.PlayerGender = Engine.GetGeneral(player.General1, room.Setting.GameMode).GeneralGender;
                 List<string> names = new List<string> { player.General1 };
                 room.SetTag(player.Name, names);
                 room.HandleUsedGeneral(player.General1);
@@ -248,7 +316,7 @@ namespace SanguoshaServer.Scenario
 
             foreach (Player player in room.Players)
             {
-                if (player.Role == "lord")
+                if (player.GetRoleEnum() == PlayerRole.Lord)
                 {
                     List<string> choices = new List<string>();
                     Shuffle.shuffle(ref generals);
@@ -274,7 +342,7 @@ namespace SanguoshaServer.Scenario
 
             foreach (Player player in room.Players)
             {
-                if (player.Role == "lord") continue;
+                if (player.GetRoleEnum() == PlayerRole.Lord) continue;
                 List<string> choices = new List<string>();
                 for (int i = 0; i < max_choice; i++)
                 {
@@ -296,8 +364,31 @@ namespace SanguoshaServer.Scenario
         }
         private void AdjustSeats(Room room, ref List<Player> room_players)
         {
-            List<Client> clients = room.Clients;
+            //首先从点选主公的玩家中选出1号位
+            List<Client> lords = new List<Client>();
+            foreach (Client client in room.Clients)
+            {
+                if (client.RoleReserved == "lord")
+                    lords.Add(client);
+            }
+
+            //没人点选则首先从未指定身份的玩家中选出
+            if (lords.Count == 0)
+            {
+                foreach (Client client in room.Clients)
+                    if (string.IsNullOrEmpty(client.RoleReserved))
+                        lords.Add(client);
+            }
+            //若所有人都有点选非主公身份，则需要随机牺牲一人
+            if (lords.Count == 0) lords = new List<Client>(room.Clients);
+            Shuffle.shuffle(ref lords);
+            Client lord = lords[0];
+
+            //为所有玩家分配座次
+            List<Client> clients = new List<Client>(room.Clients);
+            clients.Remove(lord);
             Shuffle.shuffle(ref clients);
+            clients.Insert(0, lord);
 
             for (int i = 0; i < clients.Count; i++)
             {
@@ -344,7 +435,7 @@ namespace SanguoshaServer.Scenario
                     room.NotifyPlayerPreshow(player);
                 }
 
-                int max_hp = Engine.GetGeneral(general1_name, room.Setting.GameMode).DoubleMaxHp + (player.Role == "lord" ? 1 : 0);
+                int max_hp = Engine.GetGeneral(general1_name, room.Setting.GameMode).DoubleMaxHp + (player.GetRoleEnum() == PlayerRole.Lord ? 1 : 0);
                 player.MaxHp = max_hp;
                 player.Hp = player.MaxHp;
 
@@ -391,7 +482,7 @@ namespace SanguoshaServer.Scenario
             bool lord_dead = false;
             foreach (Player p in room.Players)
             {
-                if (p.Role == "lord" && !p.Alive)
+                if (p.GetRoleEnum() == PlayerRole.Lord && !p.Alive)
                 {
                     lord_dead = true;
                     break;
@@ -399,12 +490,12 @@ namespace SanguoshaServer.Scenario
             }
             if (lord_dead)
             {
-                if (players.Count == 1 && players[0].Role == "renegade")
+                if (players.Count == 1 && players[0].GetRoleEnum() == PlayerRole.Renegade)
                     winners.Add(players[0].Name);
                 else
                 {
                     foreach (Player p in room.Players)
-                        if (p.Role == "rebel")
+                        if (p.GetRoleEnum() == PlayerRole.Rebel)
                             winners.Add(p.Name);
                 }
             }
@@ -413,7 +504,7 @@ namespace SanguoshaServer.Scenario
                 bool check = true;
                 foreach (Player p in players)
                 {
-                    if (p.Role == "rebel" || p.Role == "renegade")
+                    if (p.GetRoleEnum() == PlayerRole.Rebel || p.GetRoleEnum() == PlayerRole.Renegade)
                     {
                         check = false;
                         break;
@@ -422,7 +513,7 @@ namespace SanguoshaServer.Scenario
                 if (check)
                 {
                     foreach (Player p in room.Players)
-                        if (p.Role == "lord" || p.Role == "loyalist")
+                        if (p.GetRoleEnum() == PlayerRole.Lord || p.GetRoleEnum() == PlayerRole.Loyalist)
                             winners.Add(p.Name);
                 }
             }
@@ -437,7 +528,44 @@ namespace SanguoshaServer.Scenario
         public override void CheckBigKingdoms(Room room)
         {
         }
+        protected override void OnBuryVictim(Room room, Player player, ref object data)
+        {
+            DeathStruct death = (DeathStruct)data;
+            room.BuryPlayer(player);
 
+            if (room.ContainsTag("SkipNormalDeathProcess") && (bool)room.GetTag("SkipNormalDeathProcess"))
+                return;
+
+            Player killer = death.Damage.From ?? null;
+            if (killer != null)
+            {
+                killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);
+                int kill_count = killer.GetMark("multi_kill_count");
+                if (kill_count > 1 && kill_count < 8)
+                    room.SetEmotion(killer, string.Format("kill{0}", kill_count));
+                else if (kill_count > 7)
+                    room.SetEmotion(killer, "zylove");
+                RewardAndPunish(room, killer, player);
+            }
+
+            if (room.AliveCount() == 2)
+            {
+                bool check = false;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.GetRoleEnum() == PlayerRole.Renegade)
+                    {
+                        check = true;
+                        break;
+                    }
+                }
+                if (check)
+                {
+                    room.DoBroadcastNotify(CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
+                    Thread.Sleep(3000);
+                }
+            }
+        }
         protected override void OnDeath(Room room, Player player, ref object data)
         {
         }
@@ -446,9 +574,9 @@ namespace SanguoshaServer.Scenario
         {
             if (!killer.Alive) return;
 
-            if (victim.Role == "rebel")
+            if (victim.GetRoleEnum() == PlayerRole.Rebel)
                 room.DrawCards(killer, 3, "gamerule");
-            if (victim.Role == "loyalist" && killer.Role == "lord")
+            if (victim.GetRoleEnum() == PlayerRole.Loyalist && killer.GetRoleEnum() == PlayerRole.Lord)
                 room.ThrowAllHandCardsAndEquips(killer);
         }
     }

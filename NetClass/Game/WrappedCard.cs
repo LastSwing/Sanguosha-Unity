@@ -132,9 +132,7 @@ namespace CommonClass.Game
         //当卡牌的功能改变时，如红颜或当作延时锦囊使用
         public void TakeOver(WrappedCard card)
         {
-            if (SubCards.Count != 1)
-                return;
-
+            System.Diagnostics.Debug.Assert(SubCards.Count == 1);
             SubCards = card.SubCards;
             Modified = true;
             Name = card.Name;

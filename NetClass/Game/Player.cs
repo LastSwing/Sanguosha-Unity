@@ -30,7 +30,7 @@ namespace CommonClass.Game
         };
         public enum PlayerRole
         {
-            Lord, Loyalist, Rebel, Renegade
+            Lord, Loyalist, Rebel, Renegade, Unknown
         };
 
         public enum Gender
@@ -66,7 +66,7 @@ namespace CommonClass.Game
             }
         }
         public string Kingdom { set; get; }
-        public string Role { set; get; }
+        public string Role { set; get; } = string.Empty;
         public bool RoleShown { set; get; } = false;
         public string Status { set; get; }
         public int Seat { set; get; }
@@ -933,7 +933,7 @@ namespace CommonClass.Game
             }
             else
             {
-                foreach (int card_id in  HandCards) {
+                foreach (int card_id in HandCards) {
                     if (!card.SubCards.Contains(card_id))
                         return false;
                 }
@@ -957,7 +957,10 @@ namespace CommonClass.Game
         };
         public PlayerRole GetRoleEnum()
         {
-            return role_map[Role];
+            if (role_map.ContainsKey(Role))
+                return role_map[Role];
+            else
+                return PlayerRole.Unknown;
         }
     }
 }

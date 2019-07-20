@@ -1507,24 +1507,21 @@ namespace SanguoshaServer.AI
             return base.AskForSkillInvoke(skill_name, data);
         }
 
-        public override List<int> AskForDiscard(string reason, int discard_num, int min_num, bool optional, bool include_equip)
+        public override List<int> AskForDiscard(List<int> ids, string reason, int discard_num, int min_num, bool optional)
         {
             List<int> result;
             SkillEvent skill = Engine.GetSkillEvent(reason);
             if (skill != null)
             {
-                result = skill.OnDiscard(this, self, min_num, discard_num, optional, include_equip);
+                result = skill.OnDiscard(this, self, ids, min_num, discard_num, optional);
                 if (result != null)
                     return result;
             }
+
             result = new List<int>();
             if (optional)
                 return result;
             {
-                List<int> ids = new List<int>(self.HandCards);
-                if (include_equip)
-                    ids.AddRange(self.GetEquips());
-
                 bool use = self.FaceUp;
                 if (use && (room.Current != self || self.Phase > Player.PlayerPhase.Play || self.GetMark("ThreatenEmperorExtraTurn") == 0))
                 {

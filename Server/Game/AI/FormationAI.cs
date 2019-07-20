@@ -616,7 +616,7 @@ namespace SanguoshaServer.AI
         public ZhenduAI() : base("zhendu")
         { }
 
-        public override List<int> OnDiscard(TrustedAI ai, Player player, int min, int max, bool option, bool include_equip)
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> cards, int min, int max, bool option)
         {
             if (!ai.WillShowForAttack()) return new List<int>();
 

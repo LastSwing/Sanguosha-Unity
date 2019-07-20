@@ -82,6 +82,10 @@ namespace CommonClassLibrary
         //服务器端格式 Body[0] = host id, Body[1] = clients[0].profile, Body[2] = clients[0].status ..以此类推
         #endregion
         UpdateRoom,
+        #region 客户端向服务器发送身份点选信息
+        //客户端格式 Body[0] = "lord" or "rebel"
+        #endregion
+        RoleReserved,
 
         //Game                  type == TypeGameControll
         GameRequest,

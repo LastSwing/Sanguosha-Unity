@@ -1727,18 +1727,14 @@ namespace SanguoshaServer.Package
     }
     public class DoubleSwordSkill : WeaponSkill
     {
-        public DoubleSwordSkill() : base("DoubleSwordSkill")
+        public DoubleSwordSkill() : base("DoubleSword")
         {
             events = new List<TriggerEvent> { TriggerEvent.TargetChosen };
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            CardUseStruct use = (CardUseStruct)data;
-            if (!base.Triggerable(player, room))
-                return new TriggerStruct();
-
-            if (use.Card != null)
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash)
