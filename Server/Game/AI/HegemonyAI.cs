@@ -1176,6 +1176,11 @@ namespace SanguoshaServer.AI
             {
                 if (self != dying)
                 {
+                    if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) ||
+                        (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
+                    if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
+                        return null;
+
                     List<WrappedCard> peaches = GetCards("Peach", self);
                     foreach (WrappedCard card in peaches)
                     {
@@ -1185,10 +1190,6 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {
-                    if (dying.GetMark("@nirvana") > 0 || dying.GetMark("@jizhao") > 0) return null;
-                    if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
-                        return null;
-
                     List<WrappedCard> peaches = new List<WrappedCard>();
                     foreach (WrappedCard card in GetCards("Peach", self))
                         if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
@@ -1237,6 +1238,23 @@ namespace SanguoshaServer.AI
                 List<string> firstShow = new List<string>("luanji|qianhuan|xiongyi|yongsi|xuanhuo".Split('|'));
                 List<string> bothShow = new List<string>("luanji+shuangxiong|luanji+huoshui|huoji+jizhi|luoshen+fangzhu|guanxing+jizhi".Split('|'));
                 List<string> followShow = new List<string>("qianhuan|duoshi|rende|cunsi|jieyin|xiongyi|shouyue|hongfa".Split('|'));
+
+                if (skill_name == "summon")
+                {
+                    if (canShowHead && Engine.GetGeneral(self.ActualGeneral1, room.Setting.GameMode).IsLord())
+                        return "GameRule_AskForGeneralShowHead";
+                    foreach (string first in firstShow)
+                    {
+                        if (canShowHead && self.GetHeadSkillList().Contains(first))
+                            return "GameRule_AskForGeneralShowHead";
+                        if (canShowDeputy && self.GetDeputySkillList().Contains(first))
+                            return "GameRule_AskForGeneralShowDeputy";
+                    }
+
+                    if (canShowHead) return "GameRule_AskForGeneralShowHead";
+                    else return "GameRule_AskForGeneralShowDeputy";
+                }
+
                 int notshown = 0, shown = 0, allshown = 0, f = 0, e = 0, eAtt = 0;
 
                 foreach (Player p in room.GetAlivePlayers())

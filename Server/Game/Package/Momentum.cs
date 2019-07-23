@@ -52,7 +52,8 @@ namespace SanguoshaServer.Package
                 new CunsiCard(),
                 new DuanxieCard(),
                 new FengshiSummon(),
-                new WendaoCard()
+                new WendaoCard(),
+                new HongfaCard(),
             };
             related_skills = new Dictionary<string, List<string>> {
                 { "hengjiang", new List<string>{"#hengjiang-draw", "#hengjiang-fail"} },
@@ -1328,14 +1329,79 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard slash = new WrappedCard("Slash");
+            WrappedCard slash = new WrappedCard("HongfaCard");
             slash.AddSubCard(card);
-            slash.Skill = "hongfa";
-            slash.ShowSkill = "showforviewhas";
-            slash = RoomLogic.ParseUseCard(room, slash);
             return slash;
         }
     }
+
+    public class HongfaCard : SkillCard
+    {
+        public HongfaCard() : base("HongfaCard")
+        {
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
+                return false;
+
+            FunctionCard fcard = Engine.GetFunctionCard("Slash");
+            WrappedCard slash = new WrappedCard("Slash");
+            slash.AddSubCards(card.SubCards);
+            slash = RoomLogic.ParseUseCard(room, slash);
+            return fcard.TargetFilter(room, targets, to_select, Self, slash);
+        }
+
+        public override WrappedCard Validate(Room room, CardUseStruct use)
+        {
+            if (!use.From.HasShownOneGeneral())
+                ShowGeneral(room, use.From);
+
+            Player zhangjiao = RoomLogic.GetLord(room, use.From.Kingdom);
+            if (zhangjiao != null)
+            {
+                room.BroadcastSkillInvoke("hongfa", zhangjiao);
+                room.NotifySkillInvoked(zhangjiao, "hongfa");
+            }
+
+            WrappedCard slash = new WrappedCard("Slash");
+            slash.AddSubCards(use.Card.SubCards);
+            slash = RoomLogic.ParseUseCard(room, slash);
+            return slash;
+        }
+
+        public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
+        {
+            if (!player.HasShownOneGeneral())
+                ShowGeneral(room, player);
+
+            Player zhangjiao = RoomLogic.GetLord(room, player.Kingdom);
+            if (zhangjiao != null)
+            {
+                room.BroadcastSkillInvoke("hongfa", zhangjiao);
+                room.NotifySkillInvoked(zhangjiao, "hongfa");
+            }
+
+            WrappedCard slash = new WrappedCard("Slash");
+            slash.AddSubCards(card.SubCards);
+            slash = RoomLogic.ParseUseCard(room, slash);
+            return slash;
+        }
+
+        public static void ShowGeneral(Room room, Player player)
+        {
+            List<TriggerStruct> q = new List<TriggerStruct>();
+            if (player.CanShowGeneral("h"))
+                q.Add(new TriggerStruct("GameRule_AskForGeneralShowHead", player));
+            if (player.CanShowGeneral("d"))
+                q.Add(new TriggerStruct("GameRule_AskForGeneralShowDeputy", player));
+
+            TriggerStruct name = room.AskForSkillTrigger(player, "GameRule:ShowGeneral", q, false, null, false);
+            room.ShowGeneral(player, name.SkillName == "GameRule_AskForGeneralShowHead" ? true : false, true, true, false);
+        }
+    }
+
     public class Hongfa : TriggerSkill
     {
         public Hongfa() : base("hongfa")
@@ -1381,7 +1447,7 @@ namespace SanguoshaServer.Package
             else if (triggerEvent == TriggerEvent.Death && player != null && RoomLogic.PlayerHasSkill(room, player, Name))
             {
                 foreach (Player p in room.GetAlivePlayers())
-                    room.DetachSkillFromPlayer(p, "hongfaslash");
+                    room.DetachSkillFromPlayer(p, "hongfaslash", false, true);
             }
 
             return new TriggerStruct();
@@ -1451,7 +1517,7 @@ namespace SanguoshaServer.Package
         {
             foreach (Player p in room.GetAlivePlayers())
             {
-                room.DetachSkillFromPlayer(p, "hongfaslash");
+                room.DetachSkillFromPlayer(p, "hongfaslash", false, true);
             }
         }
     }

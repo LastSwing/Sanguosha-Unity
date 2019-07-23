@@ -1609,18 +1609,14 @@ namespace SanguoshaServer.AI
             {
                 int least = 1000;
                 foreach (Player p in room.GetOtherPlayers(player))
-                    least = Math.Min(player.HandcardNum, least);
+                    least = Math.Min(p.HandcardNum, least);
 
-                bool check = false;
                 foreach (Player p in ai.FriendNoSelf)
                 {
                     if (p.HandcardNum == least)
-                    {
-                        check = true;
-                        break;
-                    }
+                        return true;
                 }
-                return check;
+                return false;
             }
             else
                 return true;
@@ -1822,11 +1818,15 @@ namespace SanguoshaServer.AI
             ai.SortByDefense(ref friends, false);
 
             FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card.GetEffectiveId()).Name);
+            WrappedCard equip_card = room.GetCard(card.SubCards[0]);
+            EquipCard equip = (EquipCard)fcard;
+            int equip_index = (int)equip.EquipLocation();
+
             if (fcard is EquipCard)
             {
                 foreach (Player p in friends)
                 {
-                    if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())))
+                    if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())) && p.GetEquip(equip_index) < 0)
                     {
                         use.Card = card;
                         use.To.Add(p);
@@ -1836,7 +1836,7 @@ namespace SanguoshaServer.AI
 
                 foreach (Player p in friends)
                 {
-                    if (RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())))
+                    if (RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())) && p.GetEquip(equip_index) < 0)
                     {
                         use.Card = card;
                         use.To.Add(p);

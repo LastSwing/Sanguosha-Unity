@@ -818,7 +818,7 @@ namespace SanguoshaServer.AI
                     double value = ai.IsFriend(p) ? -v : v;
                     foreach (Player _p in room.GetOtherPlayers(p))
                     {
-                        if (RoomLogic.CanPutEquip(_p, room.GetCard(id)))
+                        if (RoomLogic.CanPutEquip(_p, room.GetCard(id)) && ai.GetSameEquip(room.GetCard(id), _p) == null)
                         {
                             double _v = ai.GetUseValue(id, _p);
                             double _value = value + (ai.IsFriend(_p) ? _v : -_v);
@@ -889,7 +889,8 @@ namespace SanguoshaServer.AI
                         {
                             EquipCard fcard = (EquipCard)Engine.GetFunctionCard(room.GetCard(id).Name);
                             int location = (int)fcard.EquipLocation();
-                            if (ai.IsFriend(_p) && RoomLogic.CanPutEquip(_p, room.GetCard(id)) && (!player_location.ContainsKey(_p) || !player_location[_p].Contains(location)))
+                            if (ai.IsFriend(_p) && RoomLogic.CanPutEquip(_p, room.GetCard(id)) && ai.GetSameEquip(room.GetCard(id), _p) == null
+                                && (!player_location.ContainsKey(_p) || !player_location[_p].Contains(location)))
                             {
                                 count++;
                                 List<int> locations = player_location.ContainsKey(_p) ? new List<int>(player_location[_p]) : new List<int>();
@@ -1166,7 +1167,6 @@ namespace SanguoshaServer.AI
                 WrappedCard slash = new WrappedCard("FlamemapCard")
                 {
                     Mute = true,
-                    ShowSkill = "showforviewhas"
                 };
                 return new List<WrappedCard> { slash };
             }
@@ -1248,7 +1248,7 @@ namespace SanguoshaServer.AI
                 }
 
                 Player lord = ai.FindPlayerBySkill("jiahe");
-                if (lord.GetPile("flame_map").Count < 5 && ai.GetKeepValue(ids[0], player) < 7)
+                if (lord != null && lord.GetPile("flame_map").Count < 5 && ai.GetKeepValue(ids[0], player) < 7)
                 {
                     card.AddSubCard(ids[0]);
                     use.Card = card;
@@ -1328,7 +1328,7 @@ namespace SanguoshaServer.AI
             {
                 int least = 1000;
                 foreach (Player p in room.GetOtherPlayers(player))
-                    least = Math.Min(player.HandcardNum, least);
+                    least = Math.Min(p.HandcardNum, least);
 
                 bool check = false;
                 foreach (Player p in ai.FriendNoSelf)

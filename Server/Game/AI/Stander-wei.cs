@@ -85,6 +85,8 @@ namespace SanguoshaServer.AI
                         score.Score /= 4;    
                 }
 
+                if (ai.WillSkipPlayPhase(damage.To)) score.Score /= 1.5;
+
                 if (ai.IsEnemy(damage.To))
                     score.Score = -score.Score;
             }
@@ -264,6 +266,7 @@ namespace SanguoshaServer.AI
             CardUseStruct use = new CardUseStruct();
             if (data is JudgeStruct judge)
             {
+                if (ai.IsEnemy(judge.Who) && (!ai.IsSituationClear() || !ai.GetPrioEnemies().Contains(judge.Who))) return use;
                 int id = ai.GetRetrialCardId(player.GetCards("h"), judge);
                 if (id >= 0)
                     use.Card = ai.Room.GetCard(id);
@@ -657,6 +660,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in enemies)
             {
+                if (!RoomLogic.CanGetCard(room, player, p, "h")) continue;
                 List<int> ids = ai.GetKnownCards(p);
                 foreach (int id in ids)
                 {
@@ -674,6 +678,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in enemies)
                 {
+                    if (!RoomLogic.CanGetCard(room, player, p, "h")) continue;
                     if (ai.HasSkill("jijiu|qingnang|leiji|jieyin|beige|kanpo|liuli|qiaobian|zhiheng|guidao|tianxiang|lijian", p))
                         result.Add(p);
 
@@ -684,6 +689,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in enemies)
                 {
+                    if (!RoomLogic.CanGetCard(room, player, p, "h")) continue;
                     int x = p.HandcardNum;
                     bool good = true;
                     if (x == 1 && ai.NeedKongcheng(p))
@@ -831,9 +837,14 @@ namespace SanguoshaServer.AI
             {
                 int n = ai.DamageEffect(damage, DamageStruct.DamageStep.Done);
                 if (n < damage.To.Hp || damage.To.Removed)
-                {
                     score.Score = 4;
-                }
+
+                double numerator = 0.6;
+                if (!ai.WillSkipPlayPhase(damage.To)) numerator += 0.3;
+                foreach (Player p in ai.GetFriends(damage.To))
+                    if (p != damage.To && !ai.WillSkipPlayPhase(p))
+                        numerator += 0.1;
+                score.Score *= numerator;
 
                 if (ai.IsEnemy(damage.To))
                     score.Score = -score.Score;
@@ -1903,6 +1914,8 @@ namespace SanguoshaServer.AI
                         if (ai.HasSkill(TrustedAI.CardneedSkill, p)) v *= 1.5;
                         if (ai.Room.Current == p)
                             v += 2;
+                        if (ai.WillSkipPlayPhase(p))
+                            v /= 1.5;
 
                         point.Add(p, v);
                     }

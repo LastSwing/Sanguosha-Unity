@@ -1564,13 +1564,13 @@ namespace SanguoshaServer.Package
                 if (RoomLogic.PlayerHasSkill(room, player, Name))
                 {
                     foreach (Player p in room.GetAlivePlayers())
-                        room.DetachSkillFromPlayer(p, "xuanhuovs");
+                        room.DetachSkillFromPlayer(p, "xuanhuovs", false, true);
                 }
                 else if (!player.General1.Contains("sujiang") && Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).IsLord())
                 {
                     foreach (Player p in room.GetAlivePlayers())
                         if (RoomLogic.IsFriendWith(room, player, p))
-                            room.DetachSkillFromPlayer(p, "xuanhuovs");
+                            room.DetachSkillFromPlayer(p, "xuanhuovs", false, true);
                 }
             }
             else if (triggerEvent == TriggerEvent.DFDebut)
@@ -1601,7 +1601,7 @@ namespace SanguoshaServer.Package
         public override void OnSkillDetached(Room room, Player player, object data)
         {
             foreach (Player p in room.GetAlivePlayers())
-                room.DetachSkillFromPlayer(p, "xuanhuovs");
+                room.DetachSkillFromPlayer(p, "xuanhuovs", false, true);
         }
     }
 
@@ -1712,7 +1712,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return pattern == "Slash";
+            return Engine.GetPattern(pattern).GetPatternString() == "Slash";
         }
         public override bool ViewFilter(Room room, WrappedCard card, Player player)
         {

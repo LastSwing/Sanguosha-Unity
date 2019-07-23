@@ -51,6 +51,7 @@ namespace CommonClassLibrary
         Message2Hall, 
         Message2Client,
         Message2Room,
+        MessageSystem,
 
         //ServerData            //type == TypeUserProfile
         NickName,               //昵称命名

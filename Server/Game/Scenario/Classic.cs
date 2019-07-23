@@ -427,8 +427,11 @@ namespace SanguoshaServer.Scenario
                 if (player.Role != "lord")
                 {
                     foreach (string skill in Engine.GetGeneralSkills(general1_name, Name, true))
-                        if (!skill.StartsWith("$"))
+                    {
+                        Skill s = Engine.GetSkill(skill);
+                        if (s != null && !s.LordSkill)
                             room.AddPlayerSkill(player, skill);
+                    }
 
                     //技能预亮
                     player.SetSkillsPreshowed("hd");

@@ -5,6 +5,7 @@ using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
 
@@ -2373,9 +2374,7 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-
-            //if (values.Count > 0)
-            //   room.OutPut(string.Format("{0}, value is {1}", process, values[0].Score));
+            
             if (values.Count > 0 && values[0].Score > 0)
             {
                 if (!player.HasShownOneGeneral())
@@ -2445,6 +2444,17 @@ namespace SanguoshaServer.AI
                     }
                     else
                     {
+                        //ai debug log
+                        foreach (Player p in values[0].Players)
+                        {
+                            if (RoomLogic.IsFriendWith(room, player, p))
+                            {
+                                File.AppendAllText("ai_slash_log.txt", string.Format("{0},{1} use Slash {2} number{3} against {4},{5} {8} and value is {6} and ai judge target is my {7}\r\n",
+                                    player.ActualGeneral1, player.ActualGeneral2, WrappedCard.GetSuitString(values[0].Card.Suit), values[0].Card.Number, p.ActualGeneral1, p.ActualGeneral2,
+                                    values[0].Score, IsFriend(player, p) ? "friend" : "enemy", p.Chained ? "chained" : string.Empty));
+                            }
+                        }
+
                         use.From = player;
                         use.To = values[0].Players;
                         use.Card = values[0].Card;
@@ -2476,7 +2486,7 @@ namespace SanguoshaServer.AI
             {
                 if (!slash.Name.Contains("Slash") || !fcard.IsAvailable(room, player, slash)) continue;
                 cards.Add(slash);
-                if (player.HasWeapon("Fan") && slash.Name == "slash" && !slash.SubCards.Contains(player.Weapon.Key))
+                if (player.HasWeapon("Fan") && slash.Name == "Slash" && !slash.SubCards.Contains(player.Weapon.Key))
                 {
                     WrappedCard fire_slash = new WrappedCard("FireSlash")
                     {
@@ -2495,7 +2505,8 @@ namespace SanguoshaServer.AI
             foreach (WrappedCard slash in cards)
             {
                 if (!fcard.IsAvailable(room, player, slash)) continue;
-                double value = GetUseValue(slash, self);
+                //use value的比重应减小
+                double value = (GetUseValue(slash, self) - Engine.GetCardUseValue(slash.Name)) / 2;
 
                 int extra = Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, player, slash);
                 Dictionary<Player, ScoreStruct> available_targets = new Dictionary<Player, ScoreStruct>();
@@ -2552,7 +2563,7 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
-                    if (use_value != 0) use_value += value;
+                    if (use_value >= 0) use_value += value;
 
                     if (_targets.Count == 1 && !IsFriend(_targets[0]) && use_value >= 4)
                     {            //yuji?
@@ -2871,7 +2882,7 @@ namespace SanguoshaServer.AI
                 List<WrappedCard> jinks = GetCards("Jink", to);
                 foreach (WrappedCard jink_card in jinks)
                     if (!RoomLogic.IsCardLimited(room, to, jink_card, HandlingMethod.MethodUse)) jink = jink + 1;
-                if (!IsLackCard(to, "jink"))
+                if (!IsLackCard(to, "Jink"))
                 {
                     int rate = 5;
                     if (HasSkill("longdan|qingguo", to)) rate = 2;
@@ -3083,8 +3094,20 @@ namespace SanguoshaServer.AI
                 else if (!IsSituationClear() && value > 0)
                     value /= 2;
 
-                if (IsFriend(to) && value > 0)
-                    room.OutPut(string.Format("{0}: damage to friend {1} value {2}", self.SceenName, to.SceenName, value));
+                //ai debug log
+                if ((RoomLogic.IsFriendWith(room, self, to) || IsFriend(to)) && value > 0)
+                {
+                    string damage_from = damage.From != null ? string.Format("{0},{1} has skills {2}", damage.From.General1Showed ? damage.From.ActualGeneral1 : "hidden head",
+                        damage.From.General2Showed ? damage.From.ActualGeneral2 : "hidden deputy", string.Join(",", GetKnownSkills(damage.From))) : "no damage from";
+                    string damage_str = string.Format("nature {0} count {1} reason {2}", damage.Nature == DamageStruct.DamageNature.Normal ? "normal" : damage.Nature == DamageStruct.DamageNature.Fire ?
+                        "fire" : "thunder", damage.Damage, damage.Card != null ? damage.Card.Name : damage.Reason);
+                    string damage_to =  string.Format("{0},{1} has skills {2}", damage.To.General1Showed ? damage.To.ActualGeneral1 : "hidden head",
+                        damage.To.General2Showed ? damage.To.ActualGeneral2 : "hidden deputy", string.Join(",", GetKnownSkills(damage.To)));
+                    string self_str = string.Format("{0},{1}", self.ActualGeneral1, self.ActualGeneral2);
+
+                    File.AppendAllText("ai_damage_log.txt", string.Format("{0} judge damage {1} against {2} {6} and value is {3} and ai judge target is my {4} and I'm {5}\r\n",
+                        damage_from, damage_str, damage_to, value, IsFriend(self, to) ? "friend" : "enemy", self_str, to.Chained ? "chained" : string.Empty));
+                }
 
                 result_score.Score = value;
             }
@@ -4871,6 +4894,9 @@ namespace SanguoshaServer.AI
             Player erzhang = FindPlayerBySkill("guzheng");
             if (erzhang != null && erzhang != self && IsFriend(erzhang) || id_tendency[self] == "wu")
                 guzheng = true;
+            
+            if (HasSkill("lirang") && FriendNoSelf.Count > 0)
+                guzheng = true;
 
             bool lv_fan = false;
             foreach (Player p in room.GetAlivePlayers())
@@ -5172,7 +5198,7 @@ namespace SanguoshaServer.AI
         {
             List<string> choices = new List<string>(choice.Split('+'));
             if (choices.Contains("cancel")) return "cancel";
-            Shuffle.shuffle<string>(ref choices);
+            Shuffle.shuffle(ref choices);
             return choices[0];
         }
         public virtual List<int> AskForDiscard(List<int> ids, string reason, int discard_num, int min_num, bool optional)
@@ -5209,7 +5235,7 @@ namespace SanguoshaServer.AI
         public virtual List<int> AskForCardsChosen(List<Player> targets, string flags, string reason, int min, int max, List<int> disabled_ids) => new List<int>();
         public virtual WrappedCard AskForCard(string reason, string pattern, string prompt, object data)
         {
-            if (!pattern.Contains("slash") && !pattern.Contains("jink") && !pattern.Contains("peach") && !pattern.Contains("analeptic"))
+            if (!pattern.Contains("Slash") && !pattern.Contains("Jink") && !pattern.Contains("Peach") && !pattern.Contains("Analeptic"))
                 return null;
 
             List<WrappedCard> cards = RoomLogic.GetPlayerHandcards(room, self);

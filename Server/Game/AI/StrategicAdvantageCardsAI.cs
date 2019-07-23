@@ -587,7 +587,7 @@ namespace SanguoshaServer.AI
             {
                 List<Player> targets = new List<Player>();
                 foreach (Player p in ai.FriendNoSelf)
-                    if (RoomLogic.CanPutEquip(p, room.GetCard(player.Treasure.Key)))
+                    if (RoomLogic.CanPutEquip(p, room.GetCard(player.Treasure.Key)) && ai.GetSameEquip(room.GetCard(player.Treasure.Key), p) == null)
                         targets.Add(p);
 
                 Player next = null;
@@ -1347,27 +1347,38 @@ namespace SanguoshaServer.AI
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
 
-            int ed = 0, no = 0;
+            double ed = 0, no = 0;
             bool single = true;
             if (positive)
             {
                 if (to.Chained)
                 {
-                    if (ai.IsEnemy(to) && (ai.HasSkill(TrustedAI.CardneedSkill, to) || ai.HasSkill(TrustedAI.PrioritySkill, to)
-                            || ai.HasSkill(TrustedAI.WizardHarmSkill, to)))
+                    if (ai.IsEnemy(to))
                     {
+                        int count = 0;
                         foreach (Player p in targets)
-                            if (p.Chained)
-                                ed++;
-                            else
-                                no++;
+                        {
+                            if (RoomLogic.IsFriendWith(room, to, p) && ai.IsCardEffect(trick, p, from))
+                            {
+                                if (p.Chained)
+                                {
+                                    count++;
+                                    ed++;
+                                    if (ai.HasSkill(TrustedAI.CardneedSkill, to) || ai.HasSkill(TrustedAI.PrioritySkill, to)
+                                            || ai.HasSkill(TrustedAI.WizardHarmSkill, to))
+                                        ed += 0.5;
+                                }
+                                else if (RoomLogic.CanBeChainedBy(room, p, from))
+                                    no++;
+                            }
+                        }
+                        
+                        if (count > 1 && ed > no && (ai.GetCards("HegNullification", player).Count > 0 || (room.NullTimes > 0 && room.HegNull)))
+                        {
+                            result.Null = true;
+                            result.Heg = room.NullTimes == 0;
+                        }
                     }
-
-                    if (targets.Count > 0 && ed > no)
-                        single = false;
-
-                    result.Null = true;
-                    result.Heg = single;
                 }
                 else
                 {
@@ -1375,7 +1386,7 @@ namespace SanguoshaServer.AI
                     bool use = false;
                     foreach (Player p in room.GetAlivePlayers())
                     {
-                        if (ai.HasArmorEffect(p, "Vine") && (p.Chained || targets.Contains(p)))
+                        if (ai.HasArmorEffect(p, "Vine") && (p.Chained || (targets.Contains(p) && ai.IsCardEffect(trick, p, from) && RoomLogic.CanBeChainedBy(room, p, from))))
                         {
                             vine = p;
                             break;
@@ -1388,29 +1399,46 @@ namespace SanguoshaServer.AI
                     {
                         if (to == vine || vine.Chained || heg_null_card)
                             use = true;
+
+                        int count = 0;
                         foreach (Player p in targets)
                         {
-                            if (p.Chained)
-                                ed++;
-                            else
-                                no++;
+                            if (RoomLogic.IsFriendWith(room, to, p) && ai.IsCardEffect(trick, p, from))
+                            {
+                                if (p.Chained)
+                                    ed++;
+                                else if (RoomLogic.CanBeChainedBy(room, p, from))
+                                {
+                                    no++;
+                                    count++;
+                                }
+                            }
                         }
-                        if (targets.Count > 0 && no >= ed)
+
+                        if (count > 1 && no >= ed && room.NullTimes == 0)
                             single = false;
 
                     }
                     else if (RoomLogic.IsFriendWith(room, player, to) && heg_null_card)
                     {
                         no = 1;
+                        int count = 0;
                         foreach (Player p in targets)
                         {
+                            if (!RoomLogic.IsFriendWith(room, to, p) || !ai.IsCardEffect(trick, p, from)) continue;
                             if (p.Chained)
                                 ed++;
-                            else
+                            else if (RoomLogic.CanBeChainedBy(room, p, from))
+                            {
+                                count++;
                                 no++;
+                            }
                         }
-                        if (targets.Count > 0 && no >= ed)
+                        if (count > 1 && no >= ed)
+                        {
                             use = true;
+                            single = room.NullTimes == 0;
+                        }
 
                     }
                     result.Null = use;
@@ -1419,8 +1447,27 @@ namespace SanguoshaServer.AI
             }
             else
             {
-                if (RoomLogic.IsFriendWith(room, player, to) && to.Chained && !keep)
-                    result.Null = true;
+                if (RoomLogic.IsFriendWith(room, player, to) && to.Chained && !keep && room.NullTimes > 0 && room.HegNull)
+                {
+                    int count = 0;
+                    foreach (Player p in targets)
+                    {
+                        if (RoomLogic.IsFriendWith(room, to, p))
+                        {
+                            if (p.Chained)
+                            {
+                                ed++;
+                                count++;
+                            }
+                            else
+                            {
+                                no++;
+                            }
+                        }
+                    }
+                    if (count > 1 && ed >= no)
+                        result.Null = true;
+                }
             }
 
             return result;

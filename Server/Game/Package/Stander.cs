@@ -776,7 +776,7 @@ namespace SanguoshaServer.Package
         public Qingguo() : base("qingguo")
         {
             filter_pattern = ".|black|.|hand";
-            response_pattern = "jink";
+            response_pattern = "Jink";
             response_or_use = true;
             skill_type = SkillType.Defense;
         }
@@ -1691,7 +1691,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.IsKongcheng();
+            return !player.IsKongcheng() && !player.HasUsed("RendeCard");
         }
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
@@ -1777,7 +1777,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return pattern == "Slash";
+            return Engine.GetPattern(pattern).GetPatternString() == "Slash";
         }
         public override bool ViewFilter(Room room, WrappedCard card, Player player)
         {
@@ -2036,7 +2036,7 @@ namespace SanguoshaServer.Package
             }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                if (move.To != null && base.Triggerable(move.To, room) && move.To_place == Place.PlaceHand && move.Card_ids.Count > 0
+                if (move.To != null && base.Triggerable(move.To, room) && move.To.Phase == PlayerPhase.NotActive && move.To_place == Place.PlaceHand && move.Card_ids.Count > 0
                     && (move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_GIVE || move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE))
                     return new TriggerStruct(Name, move.To);
             }
@@ -6051,7 +6051,6 @@ namespace SanguoshaServer.Package
             Player to = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "yinghun-invoke", true, true, info.SkillPosition);
             if (to != null)
             {
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, to.Name);
                 player.SetTag("yinghun_target", to.Name);
                 return info;
@@ -6076,7 +6075,7 @@ namespace SanguoshaServer.Package
                 {
                     to.SetFlags("YinghunTarget");
                     List<string> descriptions = new List<string> { "#yinghun::" + to.Name, "@d1tx:::" + x.ToString(), "@dxt1:::" + x.ToString() };
-                    string choice = room.AskForChoice(sunjian, "yinghun",  "d1tx+dxt1", descriptions);
+                    string choice = room.AskForChoice(sunjian, Name,  "d1tx+dxt1", descriptions);
                     to.SetFlags("-YinghunTarget");
                     if (choice.Contains("d1tx"))
                     {

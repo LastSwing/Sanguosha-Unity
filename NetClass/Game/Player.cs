@@ -124,7 +124,7 @@ namespace CommonClass.Game
             Status = other.Status;
             MaxHp = other.Hp;
             Hp = other.Hp;
-            Seat = other.Seat;
+            Seat = (int)other.GetTag("Seat");
             DisableShow = other.DisableShow;
             FaceUp = other.FaceUp;
             Removed = other.Removed;

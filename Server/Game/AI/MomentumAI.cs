@@ -258,12 +258,20 @@ namespace SanguoshaServer.AI
         public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
         {
             double value = 0;
-            if ((card.Name.Contains("Slash") || card.Name == "Duel") && ai.HasSkill(Name, to))
+            if ((card.Name.Contains("Slash") && WrappedCard.IsRed(card.Suit) || card.Name == "Duel") && ai.HasSkill(Name, to))
             {
                 value += ai.IsFriend(to) ? 2 : -2;
             }
 
             return value;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && (card.Name.Contains("Slash") && WrappedCard.IsRed(card.Suit) || card.Name == "Duel") && isUse)
+                return 1.5;
+
+            return 0;
         }
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
@@ -689,13 +697,13 @@ namespace SanguoshaServer.AI
             {
                 foreach (int id in jiaozhu.GetPile("heavenly_army"))
                 {
-                    WrappedCard slash = new WrappedCard("Slash")
-                    {
-                        Skill = "hongfa",
-                        ShowSkill = "showforviewhas"
-                    };
+                    WrappedCard hongfa = new WrappedCard("HongfaCard");
+                    hongfa.AddSubCard(id);
+
+                    WrappedCard slash = new WrappedCard("Slash");
                     slash.AddSubCard(id);
                     slash = RoomLogic.ParseUseCard(room, slash);
+                    slash.UserString = RoomLogic.CardToString(room, hongfa);
                     result.Add(slash);
                 }
             }
@@ -712,13 +720,13 @@ namespace SanguoshaServer.AI
             {
                 foreach (int id in jiaozhu.GetPile("heavenly_army"))
                 {
-                    WrappedCard slash = new WrappedCard("Slash")
-                    {
-                        Skill = "hongfa",
-                        ShowSkill = "showforviewhas"
-                    };
+                    WrappedCard hongfa = new WrappedCard("HongfaCard");
+                    hongfa.AddSubCard(id);
+
+                    WrappedCard slash = new WrappedCard("Slash");
                     slash.AddSubCard(id);
                     slash = RoomLogic.ParseUseCard(room, slash);
+                    slash.UserString = RoomLogic.CardToString(room, hongfa);
                     result.Add(slash);
                 }
             }

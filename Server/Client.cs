@@ -200,9 +200,7 @@ namespace SanguoshaServer
         {
             byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeMessage));
             if (session != null)
-            {
                 session.Send(bytes, 0, bytes.Length);
-            }
         }
         #endregion
 
@@ -222,7 +220,7 @@ namespace SanguoshaServer
                     userID = int.Parse(dr.Rows[0]["uid"].ToString());
                     userName = UserName;
                     user_right = int.Parse(dr.Rows[0]["User_Right"].ToString());
-                    GameRoom = int.Parse(dr.Rows[0]["roomID"].ToString());
+                    GameRoom = int.TryParse(dr.Rows[0]["roomID"].ToString(), out int result) ? result : -1;
 
                     //更新LastIP
                     string sql = string.Format("update account set lastIP = '{1}' where uid = {0}", UserID, IP);
@@ -396,7 +394,7 @@ namespace SanguoshaServer
             }
             else
             {
-                string new_sql = string.Format("insert into profile values ({0}, '{1}', 0, 0, 0, 0, 0, 0, 0, 0, 0)", UserID, NickName);
+                string new_sql = string.Format("insert into profile (uid, NickName) values ({0}, '{1}')", UserID, NickName);
                 DB.UpdateData(new_sql);
 
                 //data.Body[0] = "true";

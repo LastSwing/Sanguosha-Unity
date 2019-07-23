@@ -677,16 +677,20 @@ namespace SanguoshaServer.Game
             SetPlayerMark(player, mark, value);
         }
 
-        public void SetPlayerStringMark(Player player, string mark, string value)
+        public void SetPlayerStringMark(Player player, string mark, string value, Client except = null)
         {
             player.SetStringMark(mark, value);
-            DoBroadcastNotify(CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark, value });
+            foreach (Client client in Clients)
+                if (client != except)
+                    DoNotify(client, CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark, value });
         }
 
-        public void RemovePlayerStringMark(Player player, string mark)
+        public void RemovePlayerStringMark(Player player, string mark, Client except = null)
         {
             player.RemoveStringMark(mark);
-            DoBroadcastNotify(CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark });
+            foreach (Client client in Clients)
+                if (client != except)
+                    DoNotify(client, CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark });
         }
 
         public void SetPlayerDisableShow(Player player, string flags, string reason)
@@ -1985,6 +1989,7 @@ namespace SanguoshaServer.Game
                     client.Status = Client.GameStatus.online;
 
                 //通知room中的其他玩家
+                RoomMessage.NotifyPlayerJoinorLeave(this, client, true);
                 UpdateClientsInfo();
 
                 //测试
@@ -2060,6 +2065,7 @@ namespace SanguoshaServer.Game
 
             return -1;
         }
+
         private void UpdateClientsInfo()
         {
             List<string> info = new List<string> { Host.UserID.ToString() };
@@ -2133,6 +2139,7 @@ namespace SanguoshaServer.Game
                         RomoveClientOnGamePlay(client);
 
                         //通知room中的其他玩家
+                        RoomMessage.NotifyPlayerDisconnected(this, client);
                         UpdateClientsInfo();
                     }
                 }
@@ -2185,6 +2192,7 @@ namespace SanguoshaServer.Game
                     RomoveClientOnGamePlay(client);
 
                     //通知room中的其他玩家
+                    RoomMessage.NotifyPlayerJoinorLeave(this, client, false);
                     UpdateClientsInfo();
                 }
                 else
@@ -2699,6 +2707,7 @@ namespace SanguoshaServer.Game
         public void Run()
         {
             GameStarted = true;
+            hall.BroadCastRoom(this);
             PrepareForStart();
             PreparePlayers();
             _alivePlayers = new List<Player>(m_players);
@@ -2746,6 +2755,10 @@ namespace SanguoshaServer.Game
 
             //游戏卡牌、玩家身份、座次由剧本函数生成
             Scenario.PrepareForStart(this, ref m_players, ref pile1, ref m_drawPile);
+            //保存玩家原始座次信息
+            foreach (Player p in m_players)
+                p.SetTag("Seat", p.Seat);
+
             //更新游戏卡牌信息，通知客户端
             PrepareCards();
             foreach (int id in pile1)
@@ -2946,10 +2959,10 @@ namespace SanguoshaServer.Game
                     bot.LeaveRoom += OnClientLeave;
 
                     seat2clients[index] = bot;
+                    RoomMessage.NotifyPlayerJoinorLeave(this, bot, true);
                     UpdateClientsInfo();
 
-                    //Speak(bot, string.Format("大家好，我是{0}，我超爱水饺的", profile.NickName));
-                    Speak(bot, Bot.GetGreeting(profile.NickName));
+                    Bot.SayHellow(this, bot);
                 }
             }
         }
@@ -3111,6 +3124,12 @@ namespace SanguoshaServer.Game
                     _player.Piles = player.Piles;
                     foreach (string mark in player.Marks.Keys)
                         _player.SetMark(mark, player.GetMark(mark));
+                    foreach (string mark in player.StringMarks.Keys)
+                        if (mark != "spirit")
+                            _player.SetMark(mark, player.GetMark(mark));
+
+                    if (player.ContainsTag("spirit"))
+                        _player.SetTag("spirit", player.GetTag("spirit"));
 
                     _player.SetFlags("marshal");
                 }
@@ -3151,6 +3170,8 @@ namespace SanguoshaServer.Game
                                     invisebale_marks.Add(skill.LimitMark);
                             }
                         }
+                        foreach (string mark in player.StringMarks.Keys)
+                                _player.SetMark(mark, player.GetMark(mark));
                     }
                     if (player.HasShownOneGeneral())
                     {
@@ -3978,55 +3999,50 @@ namespace SanguoshaServer.Game
             if (string.IsNullOrEmpty(skill_name)) return false;
             bool result = false;
             int type = 0;
-            if (skill_name == "showforviewhas" && !player.HasShownOneGeneral())            //this is for some skills that player doesnt own but need to show, such as hongfa-slash
-                type = 1;
-
-            if (type == 0)
+            Skill skill = Engine.GetSkill(skill_name);
+            if (skill == null)
             {
-                Skill skill = Engine.GetSkill(skill_name);
-                if (skill == null)
-                {
-                    return false;
-                }
+                return false;
+            }
 
-                List<Skill> heads = RoomLogic.GetHeadActivedSkills(this, player, false);
-                List<Skill> deputys = RoomLogic.GetDeputyActivedSkills(this, player, false);
+            List<Skill> heads = RoomLogic.GetHeadActivedSkills(this, player, false);
+            List<Skill> deputys = RoomLogic.GetDeputyActivedSkills(this, player, false);
 
-                if (heads.Contains(skill) || deputys.Contains(skill))
+            if (heads.Contains(skill) || deputys.Contains(skill))
+            {
+                bool head = heads.Contains(skill);
+                if (!string.IsNullOrEmpty(skill_position))
+                    head = skill_position == "head" ? true : false;
+                if (head && !player.General1Showed)
                 {
-                    bool head = heads.Contains(skill);
-                    if (!string.IsNullOrEmpty(skill_position))
-                        head = skill_position == "head" ? true : false;
-                    if (head && !player.General1Showed)
-                    {
-                        ShowGeneral(player, true);
-                        result = true;
-                    }
-                    if (!head && !player.General2Showed)
-                    {
-                        ShowGeneral(player, false);
-                        result = true;
-                    }
+                    ShowGeneral(player, true);
+                    result = true;
                 }
-                else if (!RoomLogic.PlayerHasShownSkill(this, player, skill))
+                if (!head && !player.General2Showed)
                 {
-                    List<ViewHasSkill> vhskills = Engine.ViewHas(this, player, skill.Name, "skill");
-                    foreach (ViewHasSkill vhskill in vhskills)
-                    {
-                        if (!vhskill.Global)
-                        {
-                            type = 1;
-                            break;
-                        }
-                    }
-                }
-
-                //当某玩家首次亮出技能时bot聊天
-                if (result)
-                {
-                    Bot.OnSkillShow(this, player, skill_name);
+                    ShowGeneral(player, false);
+                    result = true;
                 }
             }
+            else if (!RoomLogic.PlayerHasShownSkill(this, player, skill))
+            {
+                List<ViewHasSkill> vhskills = Engine.ViewHas(this, player, skill.Name, "skill");
+                foreach (ViewHasSkill vhskill in vhskills)
+                {
+                    if (!vhskill.Global)
+                    {
+                        type = 1;
+                        break;
+                    }
+                }
+            }
+
+            //当某玩家首次亮出技能时bot聊天
+            if (result)
+            {
+                Bot.OnSkillShow(this, player, skill_name);
+            }
+
             if (type == 1)
             {
                 List<TriggerStruct> q = new List<TriggerStruct>();
@@ -5103,7 +5119,7 @@ namespace SanguoshaServer.Game
             {
                 Player p = GetAlivePlayers()[i];
                 p.Seat = p.Seat - 1;
-                BroadcastProperty(p, "Seat");
+                //BroadcastProperty(p, "Seat");
             }
             _alivePlayers.Remove(victim);
 
@@ -5248,7 +5264,7 @@ namespace SanguoshaServer.Game
                 return;
 
             int hp_1 = victim.Hp;
-            victim.MaxHp = Math.Min(victim.MaxHp - lose, 0);
+            victim.MaxHp = Math.Max(victim.MaxHp - lose, 0);
             int hp_2 = victim.Hp;
 
             BroadcastProperty(victim, "MaxHp");
@@ -6454,7 +6470,7 @@ namespace SanguoshaServer.Game
 
             _m_roomState.SetCurrentCardUsePattern("..");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY);
-            if (add_index) _m_roomState.SetGlobalResponseID();
+            if (add_index) _m_roomState.SetGlobalActivateID();
 
             TrustedAI ai = GetAI(player);
             if (ai != null)
@@ -6500,10 +6516,12 @@ namespace SanguoshaServer.Game
                     DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
                     return;
                 }
-                if (clientReply.Count > 0)
-                    card_use.Card = RoomLogic.ParseCard(this, clientReply[1]);
-
                 if (clientReply.Count > 1)
+                {
+                    card_use.Card = RoomLogic.ParseCard(this, clientReply[1]);
+                }
+
+                if (clientReply.Count > 2)
                     card_use.To = RoomLogic.ParsePlayers(this, JsonUntity.Json2List<string>(clientReply[2]));
                 if (card_use.Card == null)
                 {
@@ -6573,6 +6591,8 @@ namespace SanguoshaServer.Game
             {
                 card_use.AddHistory = true;
                 card_use.From.AddHistory(key);
+                if (card.Name != key && card.Name.Contains("Slash"))
+                    card_use.From.AddHistory(card.Name);
 
                 if (RoomLogic.IsVirtualCard(this, card) && fcard.TypeID != CardType.TypeSkill && !string.IsNullOrEmpty(card.Skill))
                 {
@@ -6659,6 +6679,7 @@ namespace SanguoshaServer.Game
             player.ClearHistory();
             player.ClearHistory("Analeptic");
             ThrowAllCards(player);
+            
             ThrowAllMarks(player);
             ClearPrivatePiles(player);
             RoomLogic.ClearPlayerCardLimitation(player, false);
@@ -6701,6 +6722,7 @@ namespace SanguoshaServer.Game
         {
             // throw all marks
             RemovePlayerStringMark(player, ".");
+            SetPlayerMark(player, "drank", 0);
             foreach (string mark_name in new List<string>(player.Marks.Keys))
             {
                 if (!mark_name.StartsWith("@"))
@@ -7301,7 +7323,7 @@ namespace SanguoshaServer.Game
                 foreach (int id in disabled_ids_copy)
                     handcards.Remove(id);
 
-                Shuffle.shuffle<int>(ref handcards);
+                Shuffle.shuffle(ref handcards);
                 card_id = handcards[0];
             }
             else
@@ -7318,7 +7340,7 @@ namespace SanguoshaServer.Game
                             if (disabled_ids_copy.Contains(id))
                                 cards.Remove(id);
 
-                        Shuffle.shuffle<int>(ref cards);
+                        Shuffle.shuffle(ref cards);
                         card_id = cards[0];
                     }
                 }
@@ -7894,7 +7916,6 @@ namespace SanguoshaServer.Game
                 RemoveGeneral(player, true);
             if (!string.IsNullOrEmpty(player.General2))
                 RemoveGeneral(player, false);
-            SetPlayerMark(player, "drank", 0);
             ThrowAllMarks(player);          // necessary.
 
             object void_data = null;
@@ -8063,7 +8084,7 @@ namespace SanguoshaServer.Game
             for (int i = 0; i < _alivePlayers.Count; i++)
             {
                 _alivePlayers[i].Seat = i + 1;
-                BroadcastProperty(_alivePlayers[i], "Seat");
+                //BroadcastProperty(_alivePlayers[i], "Seat");
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_REVIVE_PLAYER, new List<string> { player.Name });

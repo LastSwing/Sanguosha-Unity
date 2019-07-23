@@ -69,7 +69,7 @@ namespace SanguoshaServer
         //启动时初始化数据库，清除所有玩家的状态
         public static int InitDB()
         {
-            return UpdateData("update account set status = 0, inGame = 0, roomID = 0");
+            return UpdateData("update account set status = 0, inGame = 0, roomID = -1");
         }
         //更新用户状态
         public static void UpdateStatus(string UserID, bool is_online)

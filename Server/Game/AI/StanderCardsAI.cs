@@ -1109,11 +1109,19 @@ namespace SanguoshaServer.AI
                 From = player,
                 To = new List<Player> { from == player ? to : from }
             };
+
             if (!ai.CardAskNullifilter(damage))
             {
+                if (ai.IsFriend(from, to))
+                {
+                    DamageStruct _damage = new DamageStruct(effect.Card, to, from);
+                    if (ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
+                        return use;
+                }
+
                 List<string> strs = new List<string>(prompt.Split(':'));
                 int n = int.Parse(strs[strs.Count - 1]);
-                List<WrappedCard> slashes = ai.GetCards("Slash", player, true);
+                List<WrappedCard> slashes = ai.GetCards("Slash", player);
                 if (slashes.Count >= n)
                 {
                     use.Card = slashes[0];
@@ -2230,14 +2238,14 @@ namespace SanguoshaServer.AI
                     {
                         foreach (Player p in targets)
                         {
-                            if (p != to && RoomLogic.IsFriendWith(room, p, to))
+                            if (p != to && RoomLogic.IsFriendWith(room, to, p) && ai.IsCardEffect(trick, p, from))
                             {
                                 DamageStruct _damage = new DamageStruct(trick, from, p);
                                 double _value = ai.GetDamageScore(_damage).Score;
                                 if (_value < 0 && !HasSlash(ai, p))
                                 {
                                     value += _value;
-                                    result.Heg = true;
+                                    result.Heg = room.NullTimes == 0;
                                     nulli = true;
                                 }
                             }
@@ -2876,7 +2884,7 @@ namespace SanguoshaServer.AI
                 ai.SortByUseValue(ref ids, false);
                 double value = ai.GetUseValue(ids[0], player);
                 value += ai.GetUseValue(ids[1], player);
-                if (value / 1.5 < Engine.GetCardUseValue("Slash"))
+                if (value < Engine.GetCardUseValue("Slash"))
                 {
                     WrappedCard slash = new WrappedCard("Slash")
                     {
@@ -2919,8 +2927,8 @@ namespace SanguoshaServer.AI
             {
                 List<int> ids = new List<int>(player.HandCards);
                 ids.AddRange(player.GetHandPile());
-                if (ai.Room.GetRoomState().GetCurrentCardUseReason() != CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
-                    && ai.Room.GetRoomState().GetCurrentCardUseReason() != CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+                CardUseStruct.CardUseReason reason = ai.Room.GetRoomState().GetCurrentCardUseReason();
+                if (reason != CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY && reason != CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE)
                 {
                     foreach (int id in ids)
                         if (ai.Room.GetCard(id).Name == "Slash")
@@ -2931,10 +2939,25 @@ namespace SanguoshaServer.AI
                 {
                     if (ai.Self == player)
                     {
-                        ai.SortByUseValue(ref ids, false);
-                        double value = ai.GetUseValue(ids[0], player);
-                        value += ai.GetUseValue(ids[1], player);
-                        if (value / 1.5 < Engine.GetCardUseValue("Slash"))
+                        bool will_use = false;
+                        if (reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+                        {
+                            ai.SortByUseValue(ref ids, false);
+                            double value = ai.GetUseValue(ids[0], player);
+                            value += ai.GetUseValue(ids[1], player);
+                            if (value < Engine.GetCardUseValue("Slash"))
+                                will_use = true;
+                        }
+                        else
+                        {
+                            ai.SortByKeepValue(ref ids, false);
+                            double value = ai.GetKeepValue(ids[0], player);
+                            value += ai.GetKeepValue(ids[1], player);
+                            if (value < Engine.GetCardKeepValue("Slash"))
+                                will_use = true;
+                        }
+
+                        if (will_use)
                         {
                             WrappedCard slash = new WrappedCard("Slash")
                             {
@@ -3216,6 +3239,18 @@ namespace SanguoshaServer.AI
     {
         public FanAI() : base("Fan")
         {
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is CardUseStruct use)
+            {
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { use.Card }, use.To);
+                if (scores.Count > 0 && scores[0].Card.Name == "FireSlash")
+                    return true;
+            }
+
+            return false;
         }
         public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {

@@ -809,9 +809,14 @@ namespace SanguoshaServer.Package
             room.SendLog(log, zuoci);
             room.SendLog(log1, new List<Player> { zuoci });
 
+            List<string> unkonwns = new List<string>();
+            for (int i = 0; i < acquired.Count; i++)
+                unkonwns.Add("-1");
+
             room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", acquired), string.Format("null+{0}", zuoci.Name), new List<Player> { zuoci });
-            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, "-1+-1", string.Format("null+{0}", zuoci.Name), others);
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", unkonwns), string.Format("null+{0}", zuoci.Name), others);
             Thread.Sleep(1500);
+            room.SetPlayerStringMark(zuoci, "spirit", huashens.Count.ToString(), room.GetClient(zuoci));
         }
 
         public static void RemoveHuashen(Room room, Player zuoci, List<string> generals)
@@ -842,6 +847,10 @@ namespace SanguoshaServer.Package
 
             room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", remove), string.Format("{0}+null", zuoci.Name));
             Thread.Sleep(1500);
+            if (huashens.Count == 0)
+                room.RemovePlayerStringMark(zuoci, "spirit");
+            else
+                room.SetPlayerStringMark(zuoci, "spirit", huashens.Count.ToString(), room.GetClient(zuoci));
         }
 
         public static List<string> GetavailableGenerals(Room room, Player zuoci, int n)
@@ -953,7 +962,7 @@ namespace SanguoshaServer.Package
                 UserString = strs[1]
             };
 
-            string flag = strs[1];
+            string flag = strs[0];
             if (flag.Contains("Slash"))
                 flag = "Slash";
             use.From.SetFlags("yigui_" + flag);
@@ -977,7 +986,7 @@ namespace SanguoshaServer.Package
                 UserString = strs[1]
             };
 
-            string flag = strs[1];
+            string flag = strs[0];
             if (flag.Contains("Slash"))
                 flag = "Slash";
             player.SetFlags("yigui_" + flag);
@@ -1945,7 +1954,16 @@ namespace SanguoshaServer.Package
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             Player source = card_use.From;
-            room.ShowSkill(source, card_use.Card.ShowSkill, null);
+            if (!source.HasShownOneGeneral())
+                HongfaCard.ShowGeneral(room, source);
+
+            Player zhangjiao = RoomLogic.GetLord(room, source.Kingdom);
+            if (zhangjiao != null)
+            {
+                room.BroadcastSkillInvoke("flamemapskill", zhangjiao);
+                room.NotifySkillInvoked(zhangjiao, "flamemapskill");
+            }
+
             Player sunquan = RoomLogic.GetLord(room, source.Kingdom);
             room.SetCardFlag(card_use.Card.SubCards[0], "flame_map");
             room.AddToPile(sunquan, "flame_map", card_use.Card.SubCards, true, room.GetAllPlayers(), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_UNKNOWN, source.Name));
@@ -2131,7 +2149,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
@@ -2228,7 +2246,7 @@ namespace SanguoshaServer.Package
             else if (triggerEvent == TriggerEvent.Death && data is DeathStruct death && death.Who == player && RoomLogic.PlayerHasSkill(room, player, Name))
             {
                 foreach (Player p in room.GetAlivePlayers())
-                    room.DetachSkillFromPlayer(p, "flamemap");
+                    room.DetachSkillFromPlayer(p, "flamemap", false, true);
             }
             else if (triggerEvent == TriggerEvent.DFDebut)
             {
@@ -2249,7 +2267,7 @@ namespace SanguoshaServer.Package
         public override void OnSkillDetached(Room room, Player player, object data)
         {
             foreach (Player p in room.GetAlivePlayers())
-                room.DetachSkillFromPlayer(p, "flamemap");
+                room.DetachSkillFromPlayer(p, "flamemap", false, true);
         }
     }
 }

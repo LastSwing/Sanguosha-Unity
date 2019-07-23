@@ -885,7 +885,7 @@ namespace SanguoshaServer.AI
 
         public override bool IsCancelTarget(TrustedAI ai, WrappedCard card, Player from, Player to)
         {
-            if (to != null && ai.HasSkill(Name, to) && (card.Name == "Duel" || card.Name.Contains("Slash")))
+            if (to != null && ai.HasSkill(Name, to) && (card.Name == "Duel" || card.Name.Contains("Slash")) && to.IsKongcheng())
                 return true;
 
             return false;

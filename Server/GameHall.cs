@@ -291,11 +291,11 @@ namespace SanguoshaServer
             };
             message.Body = data.Body;
 
-            switch ((protocol)data.Protocol) {
+            switch (data.Protocol) {
                 case protocol.Message2Hall:
                     foreach (Client client in UId2ClientTable.Values)
                     {
-                        if (client.GameRoom == 0)
+                        if (client.GameRoom <= 0)
                             client.SendMessage(message);
                     }
                     break;
@@ -316,6 +316,13 @@ namespace SanguoshaServer
                             foreach (Client dest in room.Clients)
                                 dest.SendMessage(message);
                         }
+                    }
+                    break;
+                case protocol.MessageSystem:
+                    if (sourcer.UserRight >= 3)
+                    {
+                        foreach (Client client in UId2ClientTable.Values)
+                            client.SendMessage(message);
                     }
                     break;
                 default:
@@ -472,7 +479,7 @@ namespace SanguoshaServer
                     DB.UpdateGameRoom(client.UserName, client.GameRoom);
                 }
             }
-
+            
             Thread thread = new Thread(room.Run);
             Room2Thread.Add(room, thread);
             thread.Start();

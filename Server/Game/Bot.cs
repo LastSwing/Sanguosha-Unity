@@ -37,6 +37,11 @@ namespace SanguoshaServer.Game
             return row["greeting"].ToString();
         }
 
+        public static void SayHellow(Room room, Client bot)
+        {
+            room.Speak(bot, GetGreeting(bot.Profile.NickName));
+        }
+
         public static void OnSkillShow(Room room, Player player, string skill)
         {
             List<Client> ais = new List<Client>();

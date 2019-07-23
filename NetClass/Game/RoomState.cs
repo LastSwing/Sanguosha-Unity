@@ -10,10 +10,12 @@ namespace CommonClass.Game
         private Player m_currentAskforPeachPlayer;
         private int m_global_response_id;
         private int m_current_response_id;
+        private int m_global_activate_id;
         public RoomState()
         {
             m_currentAskforPeachPlayer = null;
             m_global_response_id = 0;
+            m_global_activate_id = 0;
         }
         public string GetCurrentCardUsePattern(Player player = null)
         {
@@ -37,6 +39,8 @@ namespace CommonClass.Game
         public int GlobalResponseID => m_global_response_id;
         public void SetCurrentResponseID(int id) => m_current_response_id = id;
         public int GetCurrentResponseID() => m_current_response_id;
+        public void SetGlobalActivateID() => m_global_activate_id++;
+        public int GlobalActivateID => m_global_activate_id;
         public void SetCurrentResponseSkill(string skill_name) => m_currentRespondSKill = skill_name;
         public string GetCurrentResponseSkill() => m_currentRespondSKill;
 

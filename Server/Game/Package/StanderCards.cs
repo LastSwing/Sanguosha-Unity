@@ -493,7 +493,7 @@ namespace SanguoshaServer.Package
             else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE)
                 method = HandlingMethod.MethodResponse;
 
-            return room.GetRoomState().GetCurrentCardUsePattern() == "jink" && RoomLogic.IsProhibited(room, player, null, card) == null
+            return Engine.GetPattern(room.GetRoomState().GetCurrentCardUsePattern()).GetPatternString() == "Jink" && RoomLogic.IsProhibited(room, player, null, card) == null
                 && !RoomLogic.IsCardLimited(room, player, card, method);
         }
     }
@@ -742,7 +742,7 @@ namespace SanguoshaServer.Package
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.From, "savage_assault");
-            WrappedCard slash = room.AskForCard(effect.To, Name, "slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard slash = room.AskForCard(effect.To, Name, "Slash", "savage-assault-slash:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (slash != null)
             {
@@ -778,7 +778,7 @@ namespace SanguoshaServer.Package
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             room.SetEmotion(effect.To, "archer_attacked");
-            WrappedCard jink = room.AskForCard(effect.To, Name, "jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
+            WrappedCard jink = room.AskForCard(effect.To, Name, "Jink", "archery-attack-jink:" + effect.From.Name, effect, HandlingMethod.MethodResponse,
                 effect.From.Alive ? effect.From : null);
             if (jink != null && jink.Skill != "EightDiagram")
                 room.SetEmotion(effect.To, "jink");
@@ -980,7 +980,7 @@ namespace SanguoshaServer.Package
                 int count = counts[first];
                 while (count > 0)
                 {
-                    WrappedCard slash = room.AskForCard(first, Name, "slash", string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
+                    WrappedCard slash = room.AskForCard(first, Name, "Slash", string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
                     count--;
                     if (slash == null)
                     {
@@ -1151,23 +1151,31 @@ namespace SanguoshaServer.Package
             Player to = room.FindPlayer(infos[2]);
             WrappedCard trick = RoomLogic.ParseCard(room, infos[1]);
 
-            List<int> used_cards = new List<int>(card_use.Card.SubCards);
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
 
-            object data = card_use;
+            CardUseStruct new_use = new CardUseStruct(card_use.Card, player, new List<Player>())
+            {
+                Reason = card_use.Reason,
+                IsHandcard = card_use.IsHandcard,
+                NullifiedList = card_use.NullifiedList,
+                AddHistory = card_use.AddHistory
+            };
+
+            object data = new_use;
             RoomThread thread = room.RoomThread;
             thread.Trigger(TriggerEvent.PreCardUsed, room, player, ref data);
-            card_use = (CardUseStruct)data;
+            new_use = (CardUseStruct)data;
 
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, card_use.Card.Skill, null)
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, player.Name, null, new_use.Card.Skill, null)
             {
-                CardString = RoomLogic.CardToString(room, card_use.Card),
-                General = RoomLogic.GetGeneralSkin(room, player, card_use.Card.Skill, card_use.Card.SkillPosition)
+                CardString = RoomLogic.CardToString(room, new_use.Card),
+                General = RoomLogic.GetGeneralSkin(room, player, new_use.Card.Skill, new_use.Card.SkillPosition)
             };
 
             if (card_use.To.Count == 1)
                 reason.TargetId = card_use.To[0].Name;
 
+            List<int> used_cards = new List<int>(new_use.Card.SubCards);
             foreach (int id in used_cards)
             {
                 CardsMoveStruct move = new CardsMoveStruct(id, null, Place.PlaceTable, reason);
@@ -1176,8 +1184,8 @@ namespace SanguoshaServer.Package
             room.MoveCardsAtomic(moves, true);
             if (used_cards.Count == 0)
             {                                                                                 //show virtual card on table
-                CardsMoveStruct move = new CardsMoveStruct(-1, card_use.From, Place.PlaceTable, reason);
-                room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, card_use.Card), move);
+                CardsMoveStruct move = new CardsMoveStruct(-1, new_use.From, Place.PlaceTable, reason);
+                room.NotifyUsingVirtualCard(RoomLogic.CardToString(room, new_use.Card), move);
             }
 
             List<Player> tos = new List<Player>();
@@ -1208,7 +1216,7 @@ namespace SanguoshaServer.Package
                     object _data = trickEffect;
                     List<string> des = new List<string> { string.Format("@HegNullification:::{0}",
                         trick.Name), "@HegNullification-single:" + to.Name,
-                        string.Format("@HegNullification-all:{0}::{1}", to.Name, to.Kingdom) };
+                        string.Format("@HegNullification-all:::{0}", to.Kingdom) };
                     string heg_nullification_selection = room.AskForChoice(player, "HegNullification", "single+all", des, _data);
 
                     if (heg_nullification_selection.Contains("all"))
@@ -1222,7 +1230,7 @@ namespace SanguoshaServer.Package
             {
                 Type = "#nullification",
                 From = player.Name,
-                Card_str = RoomLogic.CardToString(room, card_use.Card),
+                Card_str = RoomLogic.CardToString(room, new_use.Card),
                 Arg = RoomLogic.CardToString(room, trick),
                 Arg2 = infos[1]
             };
@@ -2468,7 +2476,7 @@ namespace SanguoshaServer.Package
         public override WrappedCard Validate(Room room, CardUseStruct use)
         {
             room.SetPlayerMark(use.From, "@companion", 0);
-            room.DetachSkillFromPlayer(use.From, "companion");
+            //room.DetachSkillFromPlayer(use.From, "companion");
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_ANNOUNCE, use.From.Name, null, use.Card.Skill, null)
             {
                 CardString = RoomLogic.CardToString(room, use.Card),
@@ -2520,7 +2528,7 @@ namespace SanguoshaServer.Package
             Thread.Sleep(1000);
 
             room.SetPlayerMark(player, "@companion", 0);
-            room.DetachSkillFromPlayer(player, "companion");
+            //room.DetachSkillFromPlayer(player, "companion");
             WrappedCard peach = new WrappedCard("Peach")
             {
                 Skill = "_comapnion"
@@ -2588,7 +2596,7 @@ namespace SanguoshaServer.Package
             Thread.Sleep(1000);
 
             room.SetPlayerMark(player, "@megatama", 0);
-            room.DetachSkillFromPlayer(player, "megatama");
+            //room.DetachSkillFromPlayer(player, "megatama");
             if (player.Phase == PlayerPhase.Play)
                 room.DrawCards(player, 1, "megatama");
             else
@@ -2690,7 +2698,7 @@ namespace SanguoshaServer.Package
             Thread.Sleep(1000);
 
             room.SetPlayerMark(player, "@pioneer", 0);
-            room.DetachSkillFromPlayer(player, "pioneer");
+            //room.DetachSkillFromPlayer(player, "pioneer");
             if (player.HandcardNum < 4)
                 room.DrawCards(player, 4 - player.HandcardNum, "pioneer");
 
