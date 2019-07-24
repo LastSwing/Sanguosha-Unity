@@ -34,6 +34,8 @@ namespace SanguoshaServer.AI
                 new KeshouAI(),
                 new ZhuweiAI(),
                 new ZhuweiMaxAI(),
+                new HuibianAI(),
+                new ZongyuAI(),
 
                 new WushengFZAI(),
                 new PaoxiaoFZAI(),
@@ -49,6 +51,7 @@ namespace SanguoshaServer.AI
                 new JianglueCardAI(),
                 new XuanhuoCardAI(),
                 new GanluCardAI(),
+                new HuibianCardAI(),
             };
         }
     }
@@ -1418,6 +1421,107 @@ namespace SanguoshaServer.AI
             }
 
             return false;
+        }
+    }
+
+    public class HuibianAI : SkillEvent
+    {
+        public HuibianAI() : base("huibian") { }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.HasUsed("HuibianCard"))
+                return new List<WrappedCard> { new WrappedCard("HuibianCard") { Skill = Name, ShowSkill = Name } };
+
+            return new List<WrappedCard>();
+        }
+    }
+
+    public class HuibianCardAI : UseCard
+    {
+        public HuibianCardAI() : base("HuibianCard") { }
+
+        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 5;
+        }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            Room room = ai.Room;
+            List<Player> wounds = new List<Player>(), all = new List<Player>();
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (RoomLogic.IsFriendWith(room, player, p))
+                {
+                    all.Add(p);
+                    if (p.IsWounded())
+                        wounds.Add(p);
+                }
+            }
+
+            if (all.Count > 1 && wounds.Count > 0)
+            {
+                Player wounded = null;
+                ai.SortByDefense(ref wounds, false);
+                foreach (Player p in wounds)
+                {
+                    if (!p.Removed && ai.HasSkill(TrustedAI.MasochismSkill, p))
+                        {
+                        wounded = p;
+                        break;
+                    }
+                }
+
+                if (wounded == null)
+                {
+                    foreach (Player p in wounds)
+                    {
+                        if (!p.Removed)
+                        {
+                            wounded = p;
+                            break;
+                        }
+                    }
+                }
+                if (wounded == null) wounded = wounds[0];
+
+                Dictionary<Player, double> points = new Dictionary<Player, double>();
+                foreach (Player p in all)
+                {
+                    if (wounded == p) continue;
+                    DamageStruct damage = new DamageStruct(Name, player, p);
+                    points[p] = ai.GetDamageScore(damage).Score;
+                }
+
+                List<Player> hurts = new List<Player>(points.Keys);
+                hurts.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
+                if (points[hurts[0]] > -6)
+                {
+                    use.Card = card;
+                    use.To.Add(hurts[0]);
+                    use.To.Add(wounded);
+                }
+            }
+        }
+    }
+
+    public class ZongyuAI : SkillEvent
+    {
+        public ZongyuAI() : base("zongyu") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is CardsMoveOneTimeStruct move)
+            {
+                return !ai.IsFriend(move.To);
+            }
+            else
+            {
+                foreach (Player p in ai.Room.GetOtherPlayers(player))
+                    if (p.GetSpecialEquip())
+                        return !ai.IsFriend(p);
+
+                return true;
+            }
         }
     }
 }

@@ -1498,6 +1498,14 @@ namespace SanguoshaServer.AI
                 return skillnames[0];
             }
 
+            if (skill_name == "HegNullification")
+            {
+                if (!string.IsNullOrEmpty(Choice["HegNullification"]))
+                    return Choice["HegNullification"];
+
+                return "single";
+            }
+
             UseCard card = Engine.GetCardUsage(skill_name);
             if (card != null)
                 return card.OnChoice(this, self, choice, data);

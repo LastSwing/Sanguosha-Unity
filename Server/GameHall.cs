@@ -427,7 +427,7 @@ namespace SanguoshaServer
             {
                 //检查游戏设置是否正常
                 GameMode mode = Engine.GetMode(setting.GameMode);
-                if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode)
+                if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode && mode.CardPackage.Count > 0 && mode.GeneralPackage.Count > 0)
                 {
                     if (!mode.PlayerNum.Contains(setting.PlayerNum))
                         setting.PlayerNum = mode.PlayerNum[0];

@@ -497,12 +497,13 @@ namespace SanguoshaServer.AI
         public ChuanxinAI() : base("chuanxin") { }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (data is DamageStruct damage && ai.IsFriend(damage.To))
+            if (data is DamageStruct damage)
             {
-                if (ai.GetDamageScore(damage).Score < -6)
-                    return true;
-
-                return false;
+                double value = ai.GetDamageScore(damage).Score;
+                if (ai.IsFriend(damage.To))
+                    return value < -6;
+                else
+                    return value < 6;
             }
 
             return true;
@@ -510,7 +511,15 @@ namespace SanguoshaServer.AI
 
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
-            return base.OnChoice(ai, player, choice, data);
+            List<int> ids = player.GetCards("e");
+            if (ids.Count <= 2)
+            {
+                ai.SortByKeepValue(ref ids, false);
+                if (!ai.IsWeak() || ai.GetKeepValue(ids[0], player) < 0)
+                    return "discard";
+            }
+
+            return "remove";
         }
     }
 

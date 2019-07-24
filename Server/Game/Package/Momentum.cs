@@ -973,7 +973,10 @@ namespace SanguoshaServer.Package
             {
                 if (p.Chained && RoomLogic.CanDiscard(room, player, p, "he") && player.Alive)
                 {
-                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, player.Name, p.Name, Name, null);
+                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, player.Name, p.Name, Name, null)
+                    {
+                        General = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition)
+                    };
                     List<int> ints = new List<int>();
                     if (p == player)
                     {

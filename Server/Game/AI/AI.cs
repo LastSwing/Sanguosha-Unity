@@ -1600,7 +1600,7 @@ namespace SanguoshaServer.AI
             {
                 if (IsEnemy(next, player) && !WillSkipPlayPhase(next))
                     enemies.Add(next);
-                next = room.GetNextAlive(next);
+                next = room.GetNextAlive(next, 1, false);
             }
             if (enemies.Count == 0) return true;
 
@@ -4819,6 +4819,17 @@ namespace SanguoshaServer.AI
                 WrappedCard same = GetSameEquip(card, self);
                 if (same != null)
                 {
+                    //木马要先用
+                    if (same.Name == "WoodenOX" && !self.HasUsed("WoodenOxCard"))
+                    {
+                        foreach (Player p in FriendNoSelf)
+                            if (!p.GetTreasure() && RoomLogic.CanPutEquip(p, same))
+                                return;
+                    }
+                    //有夜明珠要先用掉制衡
+                    if (same.Name == "LuminouSpearl" && !self.HasUsed("ZhihengCard"))
+                        return;
+
                     List<WrappedCard> _cards = GetViewAsCards(self, same.Id);
                     Dictionary<WrappedCard, double> _points = new Dictionary<WrappedCard, double>();
                     foreach (WrappedCard c in cards)

@@ -762,7 +762,7 @@ namespace SanguoshaServer.AI
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>(), true);
-            WrappedCard liuli = new WrappedCard("LiuliCard");
+            WrappedCard liuli = new WrappedCard("LiuliCard") { Skill = Name, Mute = true };
             int result = LijianAI.FindLijianCard(ai, player);
             Room room = ai.Room;
             if (result >= 0 && room.GetTag(Name) is CardUseStruct _use)

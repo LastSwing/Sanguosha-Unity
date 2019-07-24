@@ -185,7 +185,7 @@ namespace SanguoshaServer.Package
             {
                 if (p.Kingdom == "shu")
                 {
-                    WrappedCard card = room.AskForCard(p, "jijiang", "Slash", string.Format("@jijiang-target:{0},{1}", player.Name, string.Join("+", targets)), null, HandlingMethod.MethodUse);
+                    WrappedCard card = room.AskForCard(p, "jijiang", "Slash", string.Format("@jijiang-target:{0}:{1}", player.Name, string.Join("+", targets)), null, HandlingMethod.MethodUse);
                     if (card != null) return card;
                 }
             }

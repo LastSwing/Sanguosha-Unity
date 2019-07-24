@@ -375,6 +375,9 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
+            //激将专用的flag
+            if (Self.HasFlag("TargetFixed")) return false;
+
             int slash_targets = 1 + (card.ExtraTarget ? Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card) : 0);
 
             bool has_specific_assignee = false;

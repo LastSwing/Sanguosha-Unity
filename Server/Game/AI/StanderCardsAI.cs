@@ -568,8 +568,8 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -1962,7 +1962,7 @@ namespace SanguoshaServer.AI
                     DamageStruct damage_f = new DamageStruct(string.Empty, null, p, 1, DamageStruct.DamageNature.Fire);
                     DamageStruct damage_t = new DamageStruct(string.Empty, null, p, 1, DamageStruct.DamageNature.Thunder);
                     double damage_value = Math.Min(ai.GetDamageScore(damage_f).Score, ai.GetDamageScore(damage_t).Score);
-                    if (!p.Chained && damage_value < 0 && RoomLogic.CanBeChainedBy(room, p, player))
+                    if (!p.Chained && damage_value > 0 && RoomLogic.CanBeChainedBy(room, p, player))
                     {
                         enemytargets.Add(p);
                     }
@@ -2013,8 +2013,7 @@ namespace SanguoshaServer.AI
             if (use.To.Count == 1)
             {
                 foreach (Player p in room.GetAlivePlayers())
-                    if (p.Chained)
-                        return;
+                    if (p.Chained) return;
 
                 if (canRecast)
                 {
@@ -2040,8 +2039,8 @@ namespace SanguoshaServer.AI
             if (keep) return result;
             Room room = ai.Room;
 
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -2219,8 +2218,8 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -2380,8 +2379,8 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -3025,7 +3024,46 @@ namespace SanguoshaServer.AI
         }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            if (data is SlashEffectStruct effect)
+            {
+                List<int> ids = player.GetCards("he");
+                ids.Remove(player.Weapon.Key);
+                Room room = ai.Room;
+                DamageStruct damage = new DamageStruct(effect.Slash, effect.From, effect.To, effect.Drank + 1);
+                if (effect.Slash.Name == "FireSlash") damage.Nature = DamageStruct.DamageNature.Fire;
+                else if (effect.Slash.Name == "Thunder") damage.Nature = DamageStruct.DamageNature.Thunder;
+                ScoreStruct score = ai.GetDamageScore(damage);
+                if (score.Score > 0 && ids.Count > 1)
+                {
+                    List<int> subs = new List<int>();
+                    double discard_value = 0;
+                    ai.SortByKeepValue(ref ids, false);
+                    double keep = ai.GetKeepValue(ids[0], player);
+                    if (ai.GetOverflow(player) > 0 && room.GetCardPlace(ids[0]) == Player.Place.PlaceHand && keep > 0)
+                        keep /= 2;
+                    subs.Add(ids[0]);
+                    discard_value += keep;
+                    bool equip = room.GetCardPlace(ids[0]) == Player.Place.PlaceEquip;
+                    double keep2 = ai.GetKeepValue(ids[1], player, Player.Place.PlaceUnknown, equip);
+                    if (ai.GetOverflow(player) > 1 && room.GetCardPlace(ids[1]) == Player.Place.PlaceHand && keep2 > 0)
+                        keep2 /= 2;
+                    discard_value += keep2;
+                    subs.Add(ids[1]);
+
+                    if (discard_value / 1.5 < score.Score)
+                    {
+                        WrappedCard card = new WrappedCard("DummyCard")
+                        {
+                            Skill = Name
+                        };
+                        card.AddSubCards(subs);
+                        use.Card = card;
+                    }
+                }
+            }
+
+            return use;
         }
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {

@@ -1421,13 +1421,14 @@ namespace SanguoshaServer.Game
                 AddPlayerSkill(player, skill_name, false);
             }
 
-            ChangePlayerGeneral2(player, "anjiang");
             player.ActualGeneral2 = general_name;
             NotifyProperty(GetClient(player), player, "ActualGeneral2");
 
             names[1] = general_name;
             player.General2Showed = false;
             BroadcastProperty(player, "General2Showed");
+
+            ChangePlayerGeneral2(player, "anjiang");
 
             //if (player.IsAutoPreshow())
             //    player.SetSkillsPreshowed("d");
@@ -1439,8 +1440,8 @@ namespace SanguoshaServer.Game
                 if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
                 {
                     player.SetMark(skill.LimitMark, 1);
-                    List<string> arg = new List<string> { player.Name, skill.LimitMark, "1" };
-                    DoNotify(GetClient(player), CommandType.S_COMMAND_SET_MARK, arg);
+                    List<string> arg2 = new List<string> { player.Name, skill.LimitMark, "1" };
+                    DoNotify(GetClient(player), CommandType.S_COMMAND_SET_MARK, arg2);
                 }
             }
 
@@ -3962,7 +3963,7 @@ namespace SanguoshaServer.Game
             if (string.IsNullOrEmpty(log.Type))
                 return;
 
-            DoNotify(GetClient(player), CommandType.S_COMMAND_LOG_SKILL, new List<string> { JsonUntity.Object2Json<LogMessage>(log) });
+            DoNotify(GetClient(player), CommandType.S_COMMAND_LOG_SKILL, new List<string> { JsonUntity.Object2Json(log) });
         }
 
         public void SendCompulsoryTriggerLog(Player player, string skill_name, bool notify_skill = true)
@@ -5537,6 +5538,7 @@ namespace SanguoshaServer.Game
                     has_provided = false;
                 }
 
+                player.SetFlags("TargetFixed");
                 if (player.Alive && card == null)
                 {
                     NotifyMoveFocus(player, CommandType.S_COMMAND_RESPONSE_CARD);
@@ -5582,6 +5584,7 @@ namespace SanguoshaServer.Game
                     _m_roomState.SetCurrentResponseSkill(null);
                     DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
                 }
+                player.SetFlags("-TargetFixed");
 
                 if (card == null)
                 {
@@ -5738,9 +5741,10 @@ namespace SanguoshaServer.Game
                         {
                             Card = card,
                             From = player,
+                            To = new List<Player>(),
                             Reason = CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
                         };
-                        if (to != null) card_use.To = new List<Player> { to };
+                        if (to != null) card_use.To.Add(to);
                         object data2 = card_use;
                         RoomThread.Trigger(TriggerEvent.CardFinished, this, player, ref data2);
                     }
@@ -8115,16 +8119,16 @@ namespace SanguoshaServer.Game
                 Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
-                player.ActualGeneral1 = general_name;
+                player.ActualGeneral1 = player.General1 = general_name;
                 player.General1Showed = true;
-                BroadcastProperty(player, "ActualGeneral1");
+                player.HeadSkinId = 0;
+                BroadcastProperty(player, "HeadSkinId");
+                NotifyProperty(GetClient(player), player, "ActualGeneral1");
+                BroadcastProperty(player, "General1");
                 BroadcastProperty(player, "General1Showed");
 
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, false.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
-                player.HeadSkinId = 0;
-                foreach (Client p in Clients)
-                    NotifyProperty(p, player, "HeadSkinId");
                 ChangePlayerGeneral(player, general_name);
 
                 DisconnectSkillsFromOthers(player, true, false);
@@ -8147,16 +8151,16 @@ namespace SanguoshaServer.Game
                 Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
 
-                player.ActualGeneral2 = general_name;
+                player.ActualGeneral2 = player.General2 = general_name;
                 player.General2Showed = true;
-                BroadcastProperty(player, "ActualGeneral2");
+                player.DeputySkinId = 0;
+                BroadcastProperty(player, "DeputySkinId");
+                NotifyProperty(GetClient(player), player, "ActualGeneral2");
+                BroadcastProperty(player, "General2");
                 BroadcastProperty(player, "General2Showed");
 
                 List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, true.ToString(), false.ToString() };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
-                player.DeputySkinId = 0;
-                foreach (Client p in Clients)
-                    NotifyProperty(p, player, "DeputySkinId");
 
                 ChangePlayerGeneral2(player, general_name);
 

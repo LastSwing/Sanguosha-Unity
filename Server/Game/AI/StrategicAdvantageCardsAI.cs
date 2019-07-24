@@ -697,6 +697,16 @@ namespace SanguoshaServer.AI
                 return new List<WrappedCard> { card };
             }
 
+            if (player.HandcardNum == 1 && ai.HasSkill("kongcheng"))
+            {
+                WrappedCard card = new WrappedCard("WoodenOxCard")
+                {
+                    Skill = Name
+                };
+                card.AddSubCards(player.HandCards);
+                return new List<WrappedCard> { card };
+            }
+
             return null;
         }
     }
@@ -894,8 +904,8 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             Player player = ai.Self;
 
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -1341,8 +1351,8 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             Player player = ai.Self;
 
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);
@@ -1608,8 +1618,8 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             Player player = ai.Self;
 
-            List<Player> targets = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
-            List<Player> delete = new List<Player>(targets);
+            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))
                     targets.Remove(p);

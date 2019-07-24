@@ -128,6 +128,7 @@
     <Compile Include="Game\Package\ManeuveringCards.cs" />
     <Compile Include="Game\Package\Momentum.cs" />
     <Compile Include="Game\Package\Package.cs" />
+    <Compile Include="Game\Package\Special.cs" />
     <Compile Include="Game\Package\Stander.cs" />
     <Compile Include="Game\Package\StanderCards.cs" />
     <Compile Include="Game\Package\StrategicAdvantageCards.cs" />

@@ -57,7 +57,8 @@ namespace SanguoshaServer.Package
 
         public virtual bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
-            if (target_fixed)
+            //激将专用的flag
+            if (target_fixed || (targets.Count == 0 && Self.HasFlag("TargetFixed")))
                 return true;
             else
                 return targets.Count() != 0;

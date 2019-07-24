@@ -1618,7 +1618,10 @@ namespace SanguoshaServer.Package
             List<int> ints = new List<int>(room.AskForExchange(ask_who, Name, 1, 0, "@xiaoguo:" + player.Name, null, "BasicCard!", info.SkillPosition));
             if (ints.Count == 1)
             {
-                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null);
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null)
+                {
+                    General = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition)
+                };
                 room.ThrowCard(ref ints, reason, ask_who, null, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
@@ -2269,8 +2272,8 @@ namespace SanguoshaServer.Package
             {
                 foreach (Player p in room.Players)
                 {
-                    if (p.GetMark("@tieqi1") > 0) p.SetMark("@tieqi1", 0);
-                    if (p.GetMark("@tieqi2") > 0) p.SetMark("@tieqi2", 0);
+                    if (p.GetMark("@tieqi1") > 0) room.SetPlayerMark(p, "@tieqi1", 0);
+                    if (p.GetMark("@tieqi2") > 0) room.SetPlayerMark(p, "@tieqi2", 0);
                 }
             }
         }
@@ -2289,7 +2292,7 @@ namespace SanguoshaServer.Package
             if (room.AskForSkillInvoke(player, Name, skill_target, info.SkillPosition))
             {
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
-                room.BroadcastSkillInvoke(Name, "male", 1,  gsk.General, gsk.SkinId);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
                 return info;
             }
             return new TriggerStruct();
@@ -2329,8 +2332,8 @@ namespace SanguoshaServer.Package
                 Player lord = RoomLogic.GetLord(room, source.Kingdom);
                 if (lord != null && RoomLogic.PlayerHasSkill(room, lord, "shouyue") && lord.General1Showed)
                 {
-                    target.SetMark("@tieqi1", 1);
-                    target.SetMark("@tieqi2", 1);
+                    room.SetPlayerMark(target, "@tieqi1", 1);
+                    room.SetPlayerMark(target, "@tieqi2", 1);
                     haslord = true;
                     room.NotifySkillInvoked(lord, "shouyue");
                 }
@@ -2340,9 +2343,9 @@ namespace SanguoshaServer.Package
             {
                 string general = room.AskForGeneral(source, choices, null, true, Name, target, false, true);
                 if (general == target.General1)
-                    target.SetMark("@tieqi1", 1);
+                    room.SetPlayerMark(target, "@tieqi1", 1);
                 else
-                    target.SetMark("@tieqi2", 1);
+                    room.SetPlayerMark(target, "@tieqi2", 1);
             }
 
             string suit = WrappedCard.GetSuitString(judge.Card.Suit);
@@ -3454,7 +3457,10 @@ namespace SanguoshaServer.Package
                     }
                     else
                         id = room.AskForCardChosen(use.From, p, "he", "chuli", false, HandlingMethod.MethodDiscard);
-                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, use.From.Name, p.Name, "chuli", null);
+                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, use.From.Name, p.Name, "chuli", null)
+                    {
+                        General = RoomLogic.GetGeneralSkin(room, use.From, Name, use.Card.SkillPosition)
+                    };
                     List<int> ids = new List<int> { id };
                     room.ThrowCard(ref ids, reason, p, use.From);
                     //这TM是一个愚蠢的耦合，最终卡牌的结果必须等待移动完成才能确定，而移动完成后被红颜改变的卡牌花色又已还原
@@ -3627,7 +3633,10 @@ namespace SanguoshaServer.Package
             thread.Trigger(TriggerEvent.PreCardUsed, room, diaochan, ref data);
             room.BroadcastSkillInvoke("lijian", diaochan, card_use.Card.SkillPosition);
 
-            CardMoveReason reason = new CardMoveReason( CardMoveReason.MoveReason.S_REASON_THROW, diaochan.Name, null, "lijian", null);
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, diaochan.Name, null, "lijian", null)
+            {
+                General = RoomLogic.GetGeneralSkin(room, diaochan, Name, card_use.Card.SkillPosition)
+            };
             room.MoveCardTo(card_use.Card, diaochan, null, Place.PlaceTable, reason, true);
 
             LogMessage log = new LogMessage
@@ -4142,7 +4151,10 @@ namespace SanguoshaServer.Package
             List<int> ids = new List<int> { to_throw };
             string tag_name = string.Format("{0}_{1}", Name, target.Name);
             pangde.RemoveTag(tag_name);
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, pangde.Name, target.Name, Name, string.Empty);
+            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, pangde.Name, target.Name, Name, string.Empty)
+            {
+                General = RoomLogic.GetGeneralSkin(room, pangde, Name, info.SkillPosition)
+            };
             room.ThrowCard(ref ids, reason, target, pangde);
             CardUseStruct use = (CardUseStruct)data;
             if (ids.Count > 0)
@@ -4906,7 +4918,7 @@ namespace SanguoshaServer.Package
                     }
                     if (targets.Count > 0)
                     {
-                        Player slasher = room.AskForPlayerChosen(jiling, targets, "shuangren-slash", "@dummy-slash");
+                        Player slasher = room.AskForPlayerChosen(jiling, targets,Name, "@dummy-slash", false, false, info.SkillPosition);
                         room.UseCard(new CardUseStruct(slash, jiling, slasher), false);
                     }
                 }
@@ -6064,7 +6076,7 @@ namespace SanguoshaServer.Package
             {
                 int x = sunjian.GetLostHp();
 
-                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, sunjian, info.SkillPosition);
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, sunjian, Name, info.SkillPosition);
                 if (x == 1)
                 {
                     room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);

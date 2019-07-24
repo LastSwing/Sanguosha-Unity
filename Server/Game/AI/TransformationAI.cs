@@ -684,7 +684,9 @@ namespace SanguoshaServer.AI
             List<WrappedCard> result = new List<WrappedCard>();
             if (!player.ContainsTag("spirit")) return result;
 
-            if (pattern == "Slash" && !player.HasFlag("yigui_Slash"))
+            if (pattern == "Slash" && !player.HasFlag("yigui_Slash")
+                && (ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
+                || ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {

@@ -1393,7 +1393,10 @@ namespace SanguoshaServer.Package
             if (to != null && RoomLogic.CanDiscard(room, lengtong, to, "he"))
             {
                 List<int> ids = new List<int> { room.AskForCardChosen(lengtong, to, "he", Name, false, HandlingMethod.MethodDiscard) };
-                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, lengtong.Name, to.Name, Name, null);
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, lengtong.Name, to.Name, Name, null)
+                {
+                    General = RoomLogic.GetGeneralSkin(room, lengtong, Name, info.SkillPosition)
+                };
                 room.ThrowCard(ref ids, reason, to, lengtong);
             }
             return false;

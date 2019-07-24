@@ -2003,8 +2003,8 @@ namespace SanguoshaServer.Package
             {
                 foreach (Player p in room.Players)
                 {
-                    if (p.GetMark("@tieqi1") > 0) p.SetMark("@tieqi1", 0);
-                    if (p.GetMark("@tieqi2") > 0) p.SetMark("@tieqi2", 0);
+                    if (p.GetMark("@tieqi1") > 0) room.SetPlayerMark(p, "@tieqi1", 0);
+                    if (p.GetMark("@tieqi2") > 0) room.SetPlayerMark(p, "@tieqi2", 0);
                 }
             }
         }
@@ -2062,8 +2062,8 @@ namespace SanguoshaServer.Package
                 Player lord = RoomLogic.GetLord(room, source.Kingdom);
                 if (lord != null && RoomLogic.PlayerHasSkill(room, lord, "shouyue") && lord.General1Showed)
                 {
-                    target.SetMark("@tieqi1", 1);
-                    target.SetMark("@tieqi2", 1);
+                    room.SetPlayerMark(target, "@tieqi1", 1);
+                    room.SetPlayerMark(target, "@tieqi2", 1);
                     haslord = true;
                     room.NotifySkillInvoked(lord, "shouyue");
                 }
@@ -2073,9 +2073,9 @@ namespace SanguoshaServer.Package
             {
                 string general = room.AskForGeneral(source, choices, null, true, "tieqi", target, false, true);
                 if (general == target.General1)
-                    target.SetMark("@tieqi1", 1);
+                    room.SetPlayerMark(target, "@tieqi1", 1);
                 else
-                    target.SetMark("@tieqi2", 1);
+                    room.SetPlayerMark(target, "@tieqi2", 1);
             }
 
             string suit = WrappedCard.GetSuitString(judge.Card.Suit);
@@ -3202,7 +3202,10 @@ namespace SanguoshaServer.Package
             List<int> ints = new List<int>(room.AskForExchange(ask_who, Name, 1, 0, "@xiaoguo", null, "BasicCard!", info.SkillPosition));
             if (ints.Count == 1)
             {
-                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null);
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, ask_who.Name, ask_who.Name, Name, null)
+                {
+                    General = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition)
+                };
                 room.ThrowCard(ref ints, reason, ask_who, null, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);

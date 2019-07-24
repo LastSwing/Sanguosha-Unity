@@ -1388,7 +1388,7 @@ namespace SanguoshaServer
             available_cards.Clear();
             Player player = skill_owner;
             WrappedCard viewascard = null;
-            if (this.guhuo_cards.Count == 0 || (pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox && guhuo_card == null))
+            if (this.guhuo_cards.Count == 0)
             {
                 this.guhuo_cards.Clear();
                 selected_guhuo = null;
@@ -1439,7 +1439,7 @@ namespace SanguoshaServer
                 List<WrappedCard> guhuo_cards = pending_skill.GetGuhuoCards(room, selected_cards.ContainsKey(player) ? selected_cards[player] : new List<WrappedCard>(), player);
                 if (guhuo_cards.Count > 0)
                 {
-                    this.viewas_card = null;
+                    viewas_card = null;
                     ok_enable = false;
 
                     selected_targets.Clear();
@@ -1462,6 +1462,68 @@ namespace SanguoshaServer
                 }
                 List<WrappedCard> new_selected = selected_cards.ContainsKey(player) ? selected_cards[player] : new List<WrappedCard>();
                 viewascard = pending_skill.ViewAs(room, new_selected, player);
+            }
+            else if (pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox)
+            {
+                List<WrappedCard> pending_cards = new List<WrappedCard>(all_cards[player]);
+                List<WrappedCard> selecteds = selected_cards.ContainsKey(player) ? new List<WrappedCard>(selected_cards[player]) : new List<WrappedCard>();
+                List<WrappedCard> available = new List<WrappedCard>();
+                foreach (WrappedCard card1 in all_cards[player])
+                {
+                    foreach (WrappedCard card2 in selecteds)
+                    {
+                        if (card1.Equals(card2))
+                        {
+                            pending_cards.Remove(card1);
+                            break;
+                        }
+                    }
+                }
+                
+                foreach (WrappedCard card in pending_cards)
+                    if (!card.HasFlag("using") && pending_skill.ViewFilter(room, selecteds, card, player))
+                        available.Add(card);
+
+                if (available.Count == 0 && selecteds.Count > 0)
+                {
+                    selecteds.Remove(selecteds[selecteds.Count - 1]);
+                    foreach (WrappedCard card in pending_cards)
+                    {
+                        if (!card.HasFlag("using") && pending_skill.ViewFilter(room, selecteds, card, player))
+                        {
+                            if (available_cards.ContainsKey(player.Name))
+                                available_cards[player.Name].Add(card);
+                            else
+                                available_cards[player.Name] = new List<WrappedCard> { card };
+                        }
+                    }
+                }
+                else
+                    available_cards[player.Name] = available;
+
+                List<WrappedCard> guhuo_cards = pending_skill.GetGuhuoCards(room, selected_cards.ContainsKey(player) ? selected_cards[player] : new List<WrappedCard>(), player);
+                if (selected_guhuo != null)
+                {
+                    viewas_card = null;
+                    ok_enable = false;
+
+                    selected_targets.Clear();
+                    foreach (WrappedCard card in guhuo_cards)
+                    {
+                        if (selected_guhuo.Name == card.Name)
+                        {
+                            selected_guhuo = card;
+                            break;
+                        }
+                    }
+
+                    viewascard = pending_skill.ViewAs(room, new List<WrappedCard> { selected_guhuo }, player);
+                }
+                else
+                {
+                    GetPacket2Client(false);
+                    return;
+                }
             }
             else
             {
@@ -1684,7 +1746,7 @@ namespace SanguoshaServer
             GetPacket2Client(false);
         }
 
-        Operate GetPacket2Client(bool first_time, string prompt = null, int notice_index = -1, List<string> guhuo_box = null)
+        Operate GetPacket2Client(bool first_time, string prompt = null, int notice_index = -1)
         {
             Operate args = new Operate();
             if (m_do_request && !first_time) return args;
@@ -1725,14 +1787,8 @@ namespace SanguoshaServer
             args.Guhuo = selected_guhuo?.Name;
             if (guhuo_cards.Count > 0)
                 args.GuhuoType = (int)pending_skill.GetGuhuoType();
-
-            //pop_up类型的蛊惑框和化身框的弹出信息在这里
-            if (guhuo_box != null)
-            {
-                room.OutPut("open guhuo_popup_box");
-                args.ExInfo = guhuo_box;
-            }
-            else if (pending_skill != null && pending_skill.Name == "yigui" && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0))
+            
+            if (pending_skill != null && pending_skill.Name == "yigui" && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0))
                 args.ExInfo = (List<string>)skill_owner.GetTag("spirit");
             else
                 args.ExInfo = ex_information;
@@ -2105,12 +2161,12 @@ namespace SanguoshaServer
                 auto_target = bool.Parse(args[3]);
 
                 bool guhuo_check = false;
-                if (pending_skill != null && guhuo_cards.Count > 0)
+                if (card != null && RoomLogic.IsVirtualCard(room, card) && pending_skill != null && guhuo_cards.Count > 0)
                 {
                     foreach (WrappedCard guhuo in guhuo_cards)
                     {
                         string str = RoomLogic.CardToString(room, guhuo);
-                        if (str == args[2])
+                        if (str == args[2] || (pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox && card.Name == guhuo.Name))
                         {
                             card = guhuo;
                             guhuo_check = true;
@@ -2140,7 +2196,7 @@ namespace SanguoshaServer
 
                 if (!huashen && player != null && card != null && (pending_skill == null || skill_owner == player)
                     && ((available_cards.ContainsKey(player.Name) && available_cards[player.Name].Contains(card))
-                    || (guhuo_cards.Count == 0 && GetSelected(player, card) != null)
+                    || ((guhuo_cards.Count == 0 || pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox) && GetSelected(player, card) != null)
                     || (guhuo_check && pending_skill.GetGuhuoType() == ViewAsSkill.GuhuoType.PopUpBox)))
                 {
                     success = true;
