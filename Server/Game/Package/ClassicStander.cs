@@ -1948,7 +1948,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.TargetChosen);
             frequency = Frequency.Limited;
-            limit_mark = "@fen";
+            limit_mark = "@fenwei";
             skill_type = SkillType.Defense;
         }
 
@@ -1959,7 +1959,7 @@ namespace SanguoshaServer.Package
             {
                 List<Player> gannings = RoomLogic.FindPlayersBySkillName(room, Name);
                 foreach (Player p in gannings)
-                    if (p.GetMark("@fen") > 0)
+                    if (p.GetMark("@fenwei") > 0)
                         result.Add(new TriggerStruct(Name, p));
             }
 
@@ -1975,7 +1975,7 @@ namespace SanguoshaServer.Package
                 {
                     room.SetTag(Name, players);
                     room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                    room.SetPlayerMark(ask_who, "@fen", 0);
+                    room.SetPlayerMark(ask_who, "@fenwei", 0);
                     room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
                     return info;
                 }

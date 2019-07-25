@@ -1453,6 +1453,26 @@ namespace SanguoshaServer.AI
 
             return null;
         }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
+        {
+            Room room = ai.Room;
+            if (room.GetTag("extra_target_skill") is CardUseStruct use)
+            {
+                List<ScoreStruct> scores = new List<ScoreStruct>();
+                foreach (Player p in target)
+                {
+                    ScoreStruct score = ai.SlashIsEffective(use.Card, p);
+                    score.Players = new List<Player> { p };
+                    scores.Add(score);
+                }
+                ai.CompareByScore(ref scores);
+                if (scores[0].Score > 0)
+                    return scores[0].Players;
+            }
+
+            return new List<Player>();
+        }
     }
 
     public class TianyiCardAI : UseCard

@@ -466,7 +466,8 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             List<int> ids = player.GetCards("he");
-            ids.AddRange(player.GetHandPile()); Player lord = RoomLogic.GetLord(room, player.Kingdom);
+            ids.AddRange(player.GetHandPile());
+            Player lord = RoomLogic.GetLord(room, player.Kingdom);
             bool any = true;
             if (lord == null || !RoomLogic.PlayerHasSkill(room, lord, "shouyue") || !lord.General1Showed)
             {

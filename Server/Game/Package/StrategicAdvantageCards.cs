@@ -405,6 +405,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
+            if (room.Setting.GameMode != "Hegemony" && player.GetPile("wooden_ox").Count >= 5) return false;
             return !player.HasUsed("WoodenOxCard");
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
