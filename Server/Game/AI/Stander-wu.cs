@@ -352,6 +352,33 @@ namespace SanguoshaServer.AI
                 else
                     ai.Room.OutPut("谋断AI出错");
             }
+            else
+            {
+                foreach (Player friend in ai.GetFriends(player))
+                {
+                    if (friend.JudgingArea.Count > 0 && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+                foreach (Player friend in ai.FriendNoSelf)
+                {
+                    if (friend.HasEquip() && ai.HasSkill(TrustedAI.LoseEquipSkill, friend) && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+
+                List<Player> enemies = ai.GetEnemies(player);
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                {
+                    if (QiaobianAI.CardForQiaobian(ai, p).Key >= 0)
+                    {
+                        return new List<Player> { p };
+                    }
+                }
+            }
 
             return result;
         }
@@ -1452,6 +1479,26 @@ namespace SanguoshaServer.AI
             }
 
             return null;
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
+        {
+            Room room = ai.Room;
+            if (room.GetTag("extra_target_skill") is CardUseStruct use)
+            {
+                List<ScoreStruct> scores = new List<ScoreStruct>();
+                foreach (Player p in target)
+                {
+                    ScoreStruct score = ai.SlashIsEffective(use.Card, p);
+                    score.Players = new List<Player> { p };
+                    scores.Add(score);
+                }
+                ai.CompareByScore(ref scores);
+                if (scores[0].Score > 0)
+                    return scores[0].Players;
+            }
+
+            return new List<Player>();
         }
     }
 

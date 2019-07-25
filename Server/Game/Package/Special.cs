@@ -11,11 +11,17 @@ namespace SanguoshaServer.Package
             skills = new List<Skill>
             {
                 new Shefu(),
+                new ShefuClear(),
             };
 
             skill_cards = new List<FunctionCard>
             {
                 new ShefuCard(),
+            };
+
+            related_skills = new Dictionary<string, List<string>>
+            {
+                { "shefu", new List<string>{ "#shefu-clear"} },
             };
         }
     }
@@ -141,6 +147,11 @@ namespace SanguoshaServer.Package
 
             return false;
         }
+    }
+
+    public class ShefuClear : DetachEffectSkill
+    {
+        public ShefuClear() : base("shefu", "ambush") { }
     }
 
     public class ShefuVS : ViewAsSkill

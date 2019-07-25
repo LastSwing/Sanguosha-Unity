@@ -2996,10 +2996,10 @@ namespace SanguoshaServer.Package
                 if (!Engine.GetGeneral(player.General1, room.Setting.GameMode).IsLord())
                 {
                     List<TriggerStruct> skills = new List<TriggerStruct>
-                {
-                    new TriggerStruct("GameRule_AskForGeneralShowHead", player),
-                    new TriggerStruct("GameRule_AskForGeneralShowDeputy", player)
-                };
+                    {
+                        new TriggerStruct("GameRule_AskForGeneralShowHead", player),
+                        new TriggerStruct("GameRule_AskForGeneralShowDeputy", player)
+                    };
                     TriggerStruct trigger = room.AskForSkillTrigger(player, "jianan-disable", skills, true);
                     if (trigger.SkillName == "GameRule_AskForGeneralShowHead")
                     {
@@ -3015,6 +3015,7 @@ namespace SanguoshaServer.Package
                 }
                 else if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
                 {
+                    room.HideGeneral(player, false);
                     room.SetPlayerDisableShow(player, "d", Name);
                     return info;
                 }

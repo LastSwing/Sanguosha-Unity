@@ -1713,6 +1713,19 @@ namespace SanguoshaServer.AI
             return base.AskForUseCard(pattern, prompt, method);
         }
 
+        public override Player AskForYiji(List<int> cards, string reason, ref int card_id)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+            {
+                Player result = e.OnYiji(this, self, cards, ref card_id);
+                if (result != null)
+                    return result;
+            }
+
+            return null;
+        }
+
         public override List<int> AskForExchange(string reason, string pattern, int max_num, int min_num, string expand_pile)
         {
             SkillEvent e = Engine.GetSkillEvent(reason);

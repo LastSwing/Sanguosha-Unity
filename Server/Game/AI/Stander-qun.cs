@@ -12,6 +12,7 @@ namespace SanguoshaServer.AI
         {
             events = new List<SkillEvent>
             {
+                new LuanjiAI(),
                 new JijiuAI(),
                 new ChuliAI(),
                 new WushuangAI(),
@@ -46,6 +47,74 @@ namespace SanguoshaServer.AI
                 new HuoshuiCardAI(),
                 new QingchengCardAI(),
             };
+        }
+    }
+
+    public class LuanjiAI : SkillEvent
+    {
+        public LuanjiAI() : base("luanji") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            Room room = ai.Room;
+
+            if (ai.WillShowForAttack() && (ai.IsSituationClear() || ai.GetOverflow(player) > 1))
+            {
+                List<int> ids = player.GetCards("he"), available = new List<int>();
+                ids.AddRange(player.GetHandPile());
+                List<int> suits = player.ContainsTag(Name) ? (List<int>)player.GetTag(Name) : new List<int>();
+
+                double basic_value = Engine.GetCardUseValue("ArcheryAttack");
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (suits.Contains((int)card.Suit)) continue;
+
+                    double value = ai.GetUseValue(id, player);
+                    CardUseStruct dummy_use = new CardUseStruct(null, player, new List<Player>())
+                    {
+                        IsDummy = true
+                    };
+                    UseCard e = Engine.GetCardUsage(card.Name);
+                    if (e != null) e.Use(ai, player, ref dummy_use, card);
+                    if (value < basic_value || dummy_use.Card == null)
+                        available.Add(id);
+                }
+
+                if (available.Count > 1)
+                {
+                    ai.SortByUseValue(ref available, false);
+                    List<WrappedCard.CardSuit> used_suits = new List<WrappedCard.CardSuit>();
+                    for (int i = 0; i < available.Count; i++)
+                    {
+                        if (used_suits.Contains(room.GetCard(available[i]).Suit)) continue;
+                        int first = available[i];
+                        for (int y = i + 1; y < available.Count; y++)
+                        {
+                            if (room.GetCard(first).Suit == room.GetCard(available[y]).Suit)
+                            {
+                                WrappedCard aa = new WrappedCard("ArcheryAttack") { Skill = Name, ShowSkill = Name };
+                                aa.AddSubCard(first);
+                                aa.AddSubCard(available[y]);
+                                used_suits.Add(room.GetCard(first).Suit);
+                                result.Add(aa);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (result.Count == 0)
+                    {
+                        WrappedCard aa = new WrappedCard("ArcheryAttack") { Skill = Name, ShowSkill = Name };
+                        aa.AddSubCard(available[0]);
+                        aa.AddSubCard(available[1]);
+                        result.Add(aa);
+                    }
+                }
+            }
+
+            return result;
         }
     }
 

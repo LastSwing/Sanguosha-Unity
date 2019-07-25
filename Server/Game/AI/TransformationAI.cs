@@ -1221,16 +1221,22 @@ namespace SanguoshaServer.AI
             if (ids.Count > 0)
             {
                 ai.SortByKeepValue(ref ids, false);
-                if (ai.GetKeepValue(ids[0], player) < 0)
+                foreach (int id in ids)
                 {
-                    card.AddSubCard(ids[0]);
-                    use.Card = card;
-                    return;
+                    WrappedCard eq = room.GetCard(id);
+                    if (eq.Name !=  "LuminouSpearl" && ai.GetKeepValue(id, player) < 0)
+                    {
+                        card.AddSubCard(ids[0]);
+                        use.Card = card;
+                        return;
+                    }
                 }
 
                 ai.SortByUseValue(ref ids, false);
                 foreach (int id in ids)
                 {
+                    WrappedCard eq = room.GetCard(id);
+                    if (eq.Name == "LuminouSpearl") continue;
                     if (ai.GetUseValue(ids[0], player) < 5)
                     {
                         card.AddSubCard(ids[0]);
@@ -1239,8 +1245,7 @@ namespace SanguoshaServer.AI
                     }
                     else if (room.GetCardPlace(id) == Player.Place.PlaceHand)
                     {
-                        WrappedCard equip = room.GetCard(id);
-                        if (ai.GetSameEquip(equip, player) != null)
+                        if (ai.GetSameEquip(eq, player) != null)
                         {
                             card.AddSubCard(ids[0]);
                             use.Card = card;
@@ -1250,10 +1255,18 @@ namespace SanguoshaServer.AI
                 }
 
                 Player lord = ai.FindPlayerBySkill("jiahe");
-                if (lord != null && lord.GetPile("flame_map").Count < 5 && ai.GetKeepValue(ids[0], player) < 7)
+                if (lord != null && lord.GetPile("flame_map").Count < 5)
                 {
-                    card.AddSubCard(ids[0]);
-                    use.Card = card;
+                    foreach (int id in ids)
+                    {
+                        WrappedCard eq = room.GetCard(id);
+                        if (eq.Name != "LuminouSpearl" && ai.GetKeepValue(id, player) < 7)
+                        {
+                            card.AddSubCard(id);
+                            use.Card = card;
+                            return;
+                        }
+                    }
                 }
             }
         }
