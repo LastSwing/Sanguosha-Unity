@@ -7,5 +7,6 @@
 2、采用SQL server作为游戏数据和用户信息管理，可以更加方便的管理数据和进行开发，比如游戏成就、战功这样的功能。  
    同时也意味着如果想单机玩，就必须在自己的电脑上安全SQL server程序。  
 3、支持多种游戏模式，目前已支持国战和身份模式。  
+4、网络传输使用SuperSocket和MsgPack，Json使用Newtonsoft  
   
 Client DEMO vedio：https://www.bilibili.com/video/av58008252/
