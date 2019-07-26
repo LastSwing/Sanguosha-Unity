@@ -3453,13 +3453,19 @@ namespace SanguoshaServer.Package
                     }
                     else
                         id = room.AskForCardChosen(use.From, p, "he", "chuli", false, HandlingMethod.MethodDiscard);
-                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, use.From.Name, p.Name, "chuli", null)
+                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, use.From.Name, p.Name, "chuli", string.Empty)
                     {
                         General = RoomLogic.GetGeneralSkin(room, use.From, Name, use.Card.SkillPosition)
                     };
                     List<int> ids = new List<int> { id };
                     if (p == use.From)
-                        room.ThrowCard(ref ids, use.From, null, "chuli");
+                    {
+                        CardMoveReason _reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, use.From.Name, "chuli", string.Empty)
+                        {
+                            General = RoomLogic.GetGeneralSkin(room, use.From, Name, use.Card.SkillPosition)
+                        };
+                        room.ThrowCard(ref ids, _reason, p, null);
+                    }
                     else
                         room.ThrowCard(ref ids, reason, p, use.From);
 
@@ -3494,7 +3500,7 @@ namespace SanguoshaServer.Package
             {
                 Player huatuo = room.FindPlayer(move.Reason.PlayerId);
                 WrappedCard.CardSuit suit = room.GetCard(move.Card_ids[0]).Suit;
-                if (suit == WrappedCard.CardSuit.Spade) huatuo.SetFlags(string.Format("{0}_{1}", Name, move.From));
+                if (suit == WrappedCard.CardSuit.Spade) huatuo.SetFlags(string.Format("{0}_{1}", Name, move.From.Name));
             }
         }
 
