@@ -1092,42 +1092,43 @@ namespace SanguoshaServer.AI
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardEffectStruct effect = (CardEffectStruct)data;
-            Player from, to;
-            if (effect.From == player)
-            {
-                from = player;
-                to = effect.To;
-            }
-            else
-            {
-                from = effect.From;
-                to = player;
-            }
-            DamageStruct damage = new DamageStruct(effect.Card, from, to);
+            string[] strs = prompt.Split(':');
+            Room room = ai.Room;
+            Player target = room.FindPlayer(strs[1]);
+
+            DamageStruct damage = new DamageStruct(effect.Card, target, player);
             CardUseStruct use = new CardUseStruct
             {
                 From = player,
-                To = new List<Player> { from == player ? to : from }
+                To = new List<Player> { target }
             };
 
             if (!ai.CardAskNullifilter(damage))
             {
-                if (ai.IsFriend(from, to))
+                if (ai.IsFriend(target))
                 {
-                    DamageStruct _damage = new DamageStruct(effect.Card, to, from);
-                    if (player == from && ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
+                    DamageStruct _damage = new DamageStruct(effect.Card, player, target);
+                    if (ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
                         return use;
-                    else if (player == to && ai.GetDamageScore(_damage).Score + 2 > ai.GetDamageScore(damage).Score)
-                        return use;
+                }
+                
+                List<WrappedCard> slashes = ai.GetCards("Slash", player);
+                List<WrappedCard> delete = new List<WrappedCard>(slashes);
+                foreach (WrappedCard slash in delete)
+                {
+                    foreach (int id in slash.SubCards)
+                    {
+                        if (ai.IsCard(id, "Peach", player) || (ai.IsCard(id, "Analeptic", player) && ai.IsWeak()))
+                        {
+                            slashes.Remove(slash);
+                            break;
+                        }
+                    }
                 }
 
-                List<string> strs = new List<string>(prompt.Split(':'));
-                int n = int.Parse(strs[strs.Count - 1]);
-                List<WrappedCard> slashes = ai.GetCards("Slash", player);
-                if (slashes.Count >= n)
-                {
+                int count = int.Parse(strs[3]);
+                if (slashes.Count >= count)
                     use.Card = slashes[0];
-                }
             }
 
             return use;
@@ -2135,6 +2136,19 @@ namespace SanguoshaServer.AI
             if (!ai.CardAskNullifilter(damage))
             {
                 List<WrappedCard> slashes = ai.GetCards("Slash", player);
+                List<WrappedCard> delete = new List<WrappedCard>(slashes);
+                foreach (WrappedCard slash in delete)
+                {
+                    foreach (int id in slash.SubCards)
+                    {
+                        if ((ai.IsCard(id, "Peach", player) || (ai.IsCard(id, "Analeptic", player) && ai.IsWeak())) && slash.SubCards.Count > 1)
+                        {
+                            slashes.Remove(slash);
+                            break;
+                        }
+                    }
+                }
+
                 if (slashes.Count > 0)
                 {
                     foreach (WrappedCard card in slashes)

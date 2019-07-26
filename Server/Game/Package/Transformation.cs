@@ -1001,7 +1001,7 @@ namespace SanguoshaServer.Package
         {
         }
 
-        public override bool IsAvailable(Room room, Player invoker, CardUseStruct.CardUseReason reason, string pattern, string position = null)
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
         {
             if (!RoomLogic.PlayerHasSkill(room, invoker, Name) || !invoker.ContainsTag("spirit")
                 || ((List<string>)(invoker.GetTag("spirit"))).Count == 0 || reason == CardUseReason.CARD_USE_REASON_RESPONSE) return false;
@@ -1028,7 +1028,8 @@ namespace SanguoshaServer.Package
                     card.UserString = general_name;
                 }
                 bool available = fcard.IsAvailable(room, player, card);
-                if (available && (reason == CardUseReason.CARD_USE_REASON_PLAY || Engine.MatchExpPattern(room, pattern, player, card)))
+                string _pattern = Engine.GetPattern(pattern).GetPatternString();
+                if (available && (reason == CardUseReason.CARD_USE_REASON_PLAY || Engine.MatchExpPattern(room, _pattern, player, card)))
                     result.Add(card);
             }
 
@@ -1040,7 +1041,7 @@ namespace SanguoshaServer.Package
             if (cards.Count == 1 && Engine.GetFunctionCard(cards[0].Name) == null && Engine.GetGeneral(cards[0].Name, room.Setting.GameMode) != null)
             {
                 List<WrappedCard> vcards = GetAvailableGuhuo(room, player, room.GetRoomState().GetCurrentCardUseReason(),
-                    room.GetRoomState().GetCurrentCardUsePattern(), cards[0].Name);
+                    room.GetRoomState().GetCurrentCardUsePattern(player), cards[0].Name);
 
                 return vcards;
             }
@@ -1682,8 +1683,10 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardUsed && player.Alive && room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
             {
+                Player owner = room.FindPlayer(info.SkillOwner);
+                if (ask_who != owner) room.NotifySkillInvoked(owner, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, info.SkillOwner, player.Name);
-                room.BroadcastSkillInvoke(Name, room.FindPlayer(info.SkillOwner), info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, owner, info.SkillPosition);
                 return info;
             }
             else if (triggerEvent == TriggerEvent.EventPhaseStart)

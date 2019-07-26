@@ -506,7 +506,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             ai.Target[Name] = null;
-            if (player.HasUsed("WoodenOxCard") || player.IsKongcheng() || (room.Setting.GameMode != "Hegemony" && player.GetPile("wooden_ox").Count >= 5)) return null;
+            if (player.HasUsed("WoodenOxCard") || player.IsKongcheng()) return null;
             List<int> cards = new List<int>(player.HandCards);
 
             int sub = -1;

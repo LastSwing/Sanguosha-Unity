@@ -43,7 +43,7 @@ namespace SanguoshaServer.Game
         public bool CompanionWith(string name)
         {
             General other = Engine.GetGeneral(name, "Hegemony");
-            if (other == null || package_name != "Hegemony") return false;
+            if (other == null || !Engine.GetMode("Hegemony").GeneralPackage.Contains(package_name)) return false;
 
             if (kingdom != other.Kingdom)
                 return false;

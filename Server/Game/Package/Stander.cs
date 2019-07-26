@@ -3458,21 +3458,56 @@ namespace SanguoshaServer.Package
                         General = RoomLogic.GetGeneralSkin(room, use.From, Name, use.Card.SkillPosition)
                     };
                     List<int> ids = new List<int> { id };
-                    room.ThrowCard(ref ids, reason, p, use.From);
-                    //这TM是一个愚蠢的耦合，最终卡牌的结果必须等待移动完成才能确定，而移动完成后被红颜改变的卡牌花色又已还原
-                    if (ids.Count > 0 && room.GetCard(ids[0]).Suit == WrappedCard.CardSuit.Spade && !RoomLogic.PlayerHasShownSkill(room, p, "hongyan"))
+                    if (p == use.From)
+                        room.ThrowCard(ref ids, use.From, null, "chuli");
+                    else
+                        room.ThrowCard(ref ids, reason, p, use.From);
+
+                    //判断进入弃牌堆卡牌的花色在下方触发技
+                    string key = string.Format("chuli_{0}", p.Name);
+                    if (ids.Count > 0 && use.From.HasFlag(key))
+                    {
+                        use.From.SetFlags("-" + key);
                         draws.Add(p);
+                    }
                 }
             }
             foreach (Player p in draws)
                 room.DrawCards(p, new DrawCardStruct(1, use.From, "chuli"));
         }
     }
-    public class Chuli : ZeroCardViewAsSkill
+
+    public class Chuli : TriggerSkill
     {
         public Chuli() : base("chuli")
         {
-	        skill_type = SkillType.Attack;
+            events.Add(TriggerEvent.CardsMoveOneTime);
+            view_as_skill = new ChuliVS();
+            skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is CardsMoveOneTimeStruct move && move.From != null && move.To_place == Place.DiscardPile
+                && (move.Reason.Reason & CardMoveReason.MoveReason.S_MASK_BASIC_REASON) == CardMoveReason.MoveReason.S_REASON_DISCARD
+                && move.Reason.SkillName == Name && move.Card_ids.Count > 0)
+            {
+                Player huatuo = room.FindPlayer(move.Reason.PlayerId);
+                WrappedCard.CardSuit suit = room.GetCard(move.Card_ids[0]).Suit;
+                if (suit == WrappedCard.CardSuit.Spade) huatuo.SetFlags(string.Format("{0}_{1}", Name, move.From));
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class ChuliVS : ZeroCardViewAsSkill
+    {
+        public ChuliVS() : base("chuli")
+        {
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
