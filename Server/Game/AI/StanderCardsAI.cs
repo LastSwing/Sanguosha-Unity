@@ -1115,7 +1115,9 @@ namespace SanguoshaServer.AI
                 if (ai.IsFriend(from, to))
                 {
                     DamageStruct _damage = new DamageStruct(effect.Card, to, from);
-                    if (ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
+                    if (player == from && ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
+                        return use;
+                    else if (player == to && ai.GetDamageScore(_damage).Score + 2 > ai.GetDamageScore(damage).Score)
                         return use;
                 }
 

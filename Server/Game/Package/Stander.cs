@@ -2701,11 +2701,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player pangtong, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.AskForDiscard(pangtong, Name, pangtong.HandcardNum, pangtong.HandcardNum, false, true);
-            List<int> ids = pangtong.JudgingArea;
-
-            room.ThrowCard(ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, pangtong.Name), null);
-
+            room.ThrowAllCards(pangtong);
             RecoverStruct recover = new RecoverStruct
             {
                 Recover = Math.Min(3, pangtong.MaxHp) - pangtong.Hp
@@ -5428,6 +5424,9 @@ namespace SanguoshaServer.Package
         {
             if (RoomLogic.PlayerHasShownSkill(room, player, Name) || room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
             {
+                if (RoomLogic.PlayerHasShownSkill(room, player, Name))
+                    room.NotifySkillInvoked(player, Name);
+
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }

@@ -4750,7 +4750,7 @@ namespace SanguoshaServer.AI
                 if (card.Name == "SilverLion" && self.IsWounded())
                     value += 2;
 
-                if (fcard is Treasure && ((self.HasTreasure("WoodenOX") && !self.HasUsed("WoodenOxCard") && FriendNoSelf.Count > 0)
+                if (fcard is Treasure && ((self.HasTreasure("WoodenOx") && !self.HasUsed("WoodenOxCard") && FriendNoSelf.Count > 0)
                     || (self.HasTreasure("LuminouSpearl")) && !self.HasUsed("ZhihengCard")))
                 {
                     value -= 9;
@@ -4820,7 +4820,7 @@ namespace SanguoshaServer.AI
                 if (same != null)
                 {
                     //木马要先用
-                    if (same.Name == "WoodenOX" && !self.HasUsed("WoodenOxCard"))
+                    if (same.Name == "WoodenOx" && !self.HasUsed("WoodenOxCard"))
                     {
                         foreach (Player p in FriendNoSelf)
                             if (!p.GetTreasure() && RoomLogic.CanPutEquip(p, same))

@@ -352,6 +352,33 @@ namespace SanguoshaServer.AI
                 else
                     ai.Room.OutPut("谋断AI出错");
             }
+            else
+            {
+                foreach (Player friend in ai.GetFriends(player))
+                {
+                    if (friend.JudgingArea.Count > 0 && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+                foreach (Player friend in ai.FriendNoSelf)
+                {
+                    if (friend.HasEquip() && ai.HasSkill(TrustedAI.LoseEquipSkill, friend) && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+
+                List<Player> enemies = ai.GetEnemies(player);
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                {
+                    if (QiaobianAI.CardForQiaobian(ai, p).Key >= 0)
+                    {
+                        return new List<Player> { p };
+                    }
+                }
+            }
 
             return result;
         }
