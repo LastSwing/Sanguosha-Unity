@@ -502,8 +502,10 @@ namespace SanguoshaServer.AI
                 double value = ai.GetDamageScore(damage).Score;
                 if (ai.IsFriend(damage.To))
                     return value < -6;
+                else if (ai.DamageEffect(damage, DamageStruct.DamageStep.Done) > 1 && value > 4)
+                    return false;
                 else
-                    return value < 6;
+                    return value < 5.5;
             }
 
             return true;

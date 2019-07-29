@@ -12,17 +12,17 @@ namespace SanguoshaServer.Package
             skills = new List<Skill>
             {
                 new GudingBladeSkill(),
-                //new ClassicWoodenOxSkill(),
-                //new ClassicWoodenOxTriggerSkill(),
+                new ClassicWoodenOxSkill(),
+                new ClassicWoodenOxTriggerSkill(),
             };
             cards = new List<FunctionCard>
             {
                 new GudingBlade(),
                 new DefensiveHorse("Hualiu"),
-                //new ClassicWoodenOx(),
+                new ClassicWoodenOx(),
 
                 //skillcard
-                //new ClassicWoodenOxCard(),
+                new ClassicWoodenOxCard(),
             };
         }
     }
@@ -66,7 +66,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-    /*
+
     public class ClassicWoodenOx : Treasure
     {
         public ClassicWoodenOx() : base("ClassicWoodenOx") { }
@@ -214,5 +214,4 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-    */
 }

@@ -313,8 +313,11 @@ namespace SanguoshaServer
                     {
                         if (!room.GameStarted || !room.Setting.SpeakForbidden || data.Body.Count == 3)
                         {
+                            //假如双方有分冷暖阵营，则只有同阵营之间可以通讯
+                            Game3v3Camp camp = room.GetPlayers(sourcer)[0].Camp;
                             foreach (Client dest in room.Clients)
-                                dest.SendMessage(message);
+                                if (room.GetPlayers(dest)[0].Camp == camp)
+                                    dest.SendMessage(message);
                         }
                     }
                     break;
