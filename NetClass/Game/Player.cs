@@ -124,7 +124,7 @@ namespace CommonClass.Game
             Status = other.Status;
             MaxHp = other.Hp;
             Hp = other.Hp;
-            Seat = (int)other.GetTag("Seat");
+            Seat = other.Seat;
             DisableShow = other.DisableShow;
             FaceUp = other.FaceUp;
             Removed = other.Removed;
@@ -137,12 +137,13 @@ namespace CommonClass.Game
             Camp = other.Camp;
             PhasesState = other.PhasesState;
             PhasesIndex = other.PhasesIndex;
-            HeadAcquiredSkills = other.HeadAcquiredSkills;
-            DeputyAcquiredSkills = other.DeputyAcquiredSkills;
+            foreach (string skill in other.HeadAcquiredSkills)
+                if (!other.HasEquip(skill))
+                        HeadAcquiredSkills.Add(skill);
+            foreach (string skill in other.DeputyAcquiredSkills)
+                if (!other.HasEquip(skill))
+                    DeputyAcquiredSkills.Add(skill);
             StringMarks = other.StringMarks;
-
-            if (other.ContainsTag("huashen"))
-                SetTag("huashen", other.GetTag("huashen"));
         }
 
         //绝对不能给Player类设置class类的tag

@@ -10,6 +10,7 @@ using SanguoshaServer.Scenario;
 using SanguoshaServer.Package;
 using SanguoshaServer.AI;
 using static SanguoshaServer.Package.FunctionCard;
+using System.Diagnostics;
 
 namespace SanguoshaServer.Game
 {
@@ -97,9 +98,15 @@ namespace SanguoshaServer.Game
                     {
                         GeneralPackage pack = (GeneralPackage)Activator.CreateInstance(t);
                         foreach (FunctionCard card in pack.SkillCards)
+                        {
+                            System.Diagnostics.Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated skill card {0} in  package {1}", card.Name, pack.Name));
                             function_cards.Add(card.Name, card);
+                        }
                         foreach (string key in pack.RelatedSkills.Keys)
+                        {
+                            System.Diagnostics.Debug.Assert(!related_skills.ContainsKey(key), string.Format("duplicated related skill {0} in  package {1}", key, pack.Name));
                             related_skills.Add(key, pack.RelatedSkills[key]);
+                        }
                         foreach (string key in pack.ConvertPairs.Keys)
                         {
                             if (convert_pairs.ContainsKey(key))
@@ -121,8 +128,11 @@ namespace SanguoshaServer.Game
                     {
                         CardPackage pack = (CardPackage)Activator.CreateInstance(t);
                         foreach (FunctionCard card in pack.Cards)
+                        {
+                            System.Diagnostics.Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated card {0} in  package {1}", card.Name, pack.Name));
                             if (!function_cards.ContainsKey(card.Name))
                                 function_cards.Add(card.Name, card);
+                        }
 
                         AddSkills(pack.Skills);
                         foreach (Skill skill in pack.Skills)
@@ -150,10 +160,16 @@ namespace SanguoshaServer.Game
                     {
                         AIPackage pack = (AIPackage)Activator.CreateInstance(t);
                         foreach (SkillEvent e in pack.Events)
+                        {
+                            Debug.Assert(!ai_skill_event.ContainsKey(e.Name), string.Format("{0} skill event {1} duplicated", pack.Name, e.Name));
                             ai_skill_event[e.Name] = e;
+                        }
 
                         foreach (UseCard e in pack.UseCards)
+                        {
+                            Debug.Assert(!ai_card_event.ContainsKey(e.Name), string.Format("{0} use card {1} duplicated", pack.Name, e.Name));
                             ai_card_event[e.Name] = e;
+                        }
                     }
                 }
                 foreach (string package in mode.CardPackage)
@@ -164,10 +180,16 @@ namespace SanguoshaServer.Game
                     {
                         AIPackage pack = (AIPackage)Activator.CreateInstance(t);
                         foreach (SkillEvent e in pack.Events)
+                        {
+                            Debug.Assert(!ai_skill_event.ContainsKey(e.Name), string.Format("{0} skill event {1} duplicated", pack.Name, e.Name));
                             ai_skill_event[e.Name] = e;
+                        }
 
                         foreach (UseCard e in pack.UseCards)
+                        {
+                            Debug.Assert(!ai_card_event.ContainsKey(e.Name), string.Format("{0} use card {1} duplicated", pack.Name, e.Name));
                             ai_card_event[e.Name] = e;
+                        }
                     }
                 }
             }
@@ -680,6 +702,7 @@ namespace SanguoshaServer.Game
         {
             foreach (Skill skill in all_skills)
             {
+                System.Diagnostics.Debug.Assert(!skills.ContainsKey(skill.Name), string.Format("duplicated skill {0}", skill.Name));
                 if (skill == null || skills.ContainsKey(skill.Name))
                 {
                     continue;
@@ -1092,9 +1115,26 @@ namespace SanguoshaServer.Game
             }
         }
 
-        public static DataRow[] GetGeneralSkin(string name, string mode)
+        public static List<DataRow> GetGeneralSkin(string name, string mode)
         {
-            return general_skin.Select(string.Format("general_name = '{0}' and (mode = '{1}' or mode = '')", name, mode));
+            List<DataRow> selected = new List<DataRow>(general_skin.Select(string.Format("general_name = '{0}' and mode = '{1}'", name, mode)));
+            List<DataRow> selected2 = new List<DataRow>(general_skin.Select(string.Format("general_name = '{0}' and mode = ''", name)));
+
+            foreach (DataRow row2 in selected2)
+            {
+                bool app = true;
+                foreach (DataRow row1 in selected)
+                {
+                    if (row2["skin_id"].ToString() == row1["skin_id"].ToString())
+                    {
+                        app = false;
+                        break;
+                    }
+                }
+                if (app) selected.Add(row2); 
+            }
+
+            return selected;
         }
 
         public static bool CheckShwoAvailable(CommonClassLibrary.Profile profile)

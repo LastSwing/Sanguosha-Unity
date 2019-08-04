@@ -64,31 +64,34 @@ namespace SanguoshaServer
         #region 客户端断线时操作
         internal void OnDisconnected(MsgPackSession session, CloseReason value)
         {
-            OutPut(session.SessionID + " disconnected:" + value);
-
-            Client client = Session2ClientTable[session];
-            client.Connected -= OnConnected;
-            //删除session对应
-            Session2ClientTable.Remove(session);
-            session = null;
-            //删除uid对应
-            if (client != null)
+            lock (this)
             {
-                client.OnDisconnected();
+                OutPut(session.SessionID + " disconnected:" + value);
 
-                if (UId2ClientTable.ContainsValue(client))
-                    UId2ClientTable.Remove(client.UserID);
-                //广播离线信息
-                ClientList.Instance().RemoveClient(client.UserID);
-                MyData data = new MyData()
+                Client client = Session2ClientTable[session];
+                client.Connected -= OnConnected;
+                //删除session对应
+                Session2ClientTable.Remove(session);
+                session = null;
+                //删除uid对应
+                if (client != null)
                 {
-                    Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UpdateHallLeave,
-                    Body = new List<string> { client.UserID.ToString() }
-                };
-                foreach (Client other in UId2ClientTable.Values)
-                {
-                    other.SendProfileReply(data);
+                    client.OnDisconnected();
+
+                    if (UId2ClientTable.ContainsValue(client))
+                        UId2ClientTable.Remove(client.UserID);
+                    //广播离线信息
+                    ClientList.Instance().RemoveClient(client.UserID);
+                    MyData data = new MyData()
+                    {
+                        Description = PacketDescription.Hall2Cient,
+                        Protocol = protocol.UpdateHallLeave,
+                        Body = new List<string> { client.UserID.ToString() }
+                    };
+                    foreach (Client other in UId2ClientTable.Values)
+                    {
+                        other.SendProfileReply(data);
+                    }
                 }
             }
         }
@@ -313,11 +316,20 @@ namespace SanguoshaServer
                     {
                         if (!room.GameStarted || !room.Setting.SpeakForbidden || data.Body.Count == 3)
                         {
-                            //假如双方有分冷暖阵营，则只有同阵营之间可以通讯
-                            Game3v3Camp camp = room.GetPlayers(sourcer)[0].Camp;
-                            foreach (Client dest in room.Clients)
-                                if (room.GetPlayers(dest)[0].Camp == camp)
-                                    dest.SendMessage(message);
+                            if (!room.GameStarted)
+                            {
+                                foreach (Client dest in room.Clients)
+                                    if (dest.GameRoom == room.RoomId)
+                                        dest.SendMessage(message);
+                            }
+                            else
+                            {
+                                //假如双方有分冷暖阵营，则只有同阵营之间可以通讯
+                                Game3v3Camp camp = room.GetPlayers(sourcer)[0].Camp;
+                                foreach (Client dest in room.Clients)
+                                    if (dest.GameRoom == room.RoomId && room.GetPlayers(dest)[0].Camp == camp)
+                                        dest.SendMessage(message);
+                            }
                         }
                     }
                     break;
@@ -430,7 +442,8 @@ namespace SanguoshaServer
             {
                 //检查游戏设置是否正常
                 GameMode mode = Engine.GetMode(setting.GameMode);
-                if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode && mode.CardPackage.Count > 0 && mode.GeneralPackage.Count > 0)
+                if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode && mode.CardPackage.Count > 0 && mode.GeneralPackage.Count > 0
+                    && setting.GeneralPackage.Count > 0 && setting.CardPackage.Count > 0)
                 {
                     if (!mode.PlayerNum.Contains(setting.PlayerNum))
                         setting.PlayerNum = mode.PlayerNum[0];
@@ -630,7 +643,7 @@ namespace SanguoshaServer
                 if (escaped)
                     profile.Escape++;
 
-                string new_sql = string.Format("update  profile set GamePlay = {0}, Win = {1}, Lose = {2}, Draw = {3}, Escape = {4} where uid = {5}",
+                string new_sql = string.Format("update profile set GamePlay = {0}, Win = {1}, Lose = {2}, Draw = {3}, [Escape] = {4} where uid = {5}",
                     profile.GamePlay, profile.Win, profile.Lose, profile.Draw, profile.Escape, uid);
                 DB.UpdateData(new_sql);
 

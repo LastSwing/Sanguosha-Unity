@@ -1,4 +1,5 @@
 ﻿using CommonClass.Game;
+using SanguoshaServer.Package;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -96,9 +97,11 @@ namespace SanguoshaServer.Game
 
             bool checkpoint = false;
             string[] card_types = factors[0].Split(',');
-            foreach (string or_name in card_types) {
+            foreach (string or_name in card_types)
+            {
                 checkpoint = false;
-                foreach (string _name in or_name.Split('+')) {
+                foreach (string _name in or_name.Split('+'))
+                {
                     string name = _name;
                     if (name == ".")
                     {
@@ -113,8 +116,8 @@ namespace SanguoshaServer.Game
                             name = name.Substring(1);
                         }
                         //国战鏖战模式对桃特殊判断
-                        bool name_match = room.BloodBattle && card.Name == "Peach" && !RoomLogic.IsVirtualCard(room, card)
-                            ? name == "Slash" || name == "Jink" || name == "%Slash" || name == "%Jink"
+                        bool name_match = room.BloodBattle && card.Name == Peach.ClassName && !RoomLogic.IsVirtualCard(room, card)
+                            ? name == Slash.ClassName || name == Jink.ClassName || name == "%Slash" || name == "%Jink"
                             : Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true || ("%" + card.Name == name);
                         if (name_match || (int.TryParse(name, out int id) && card.GetEffectiveId() == id))
                             checkpoint = positive;
@@ -200,7 +203,7 @@ namespace SanguoshaServer.Game
             if (player == null || place == ".") checkpoint = true;
             if (!checkpoint)
             {
-                List<int> ids = card.SubCards;
+                List<int> ids = new List<int>(card.SubCards);
                 if (ids.Count > 0)
                 {
                     foreach (int id in ids) {

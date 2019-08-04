@@ -9,6 +9,7 @@ using SanguoshaServer.AI;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
 using static CommonClass.Game.Player;
+using static SanguoshaServer.Game.Skill;
 using CommandType = CommonClassLibrary.CommandType;
 
 namespace SanguoshaServer.Scenario
@@ -131,7 +132,7 @@ namespace SanguoshaServer.Scenario
 
             AssignGeneralsForPlayers(room, out Dictionary<Player, List<string>> options);
             //主公选将
-            string lord_general = room.AskForGeneral(lord, new List<string>(options[lord]), string.Empty, true, string.Empty, null, true);
+            string lord_general = room.AskForGeneral(lord, new List<string>(options[lord]), string.Empty, true, "gamerule", null, true);
             lord.General1 = lord_general;
             lord.ActualGeneral1 = lord_general;
             General lord_gen = Engine.GetGeneral(lord_general, room.Setting.GameMode);
@@ -145,7 +146,13 @@ namespace SanguoshaServer.Scenario
             room.BroadcastProperty(lord, "General1Showed");
 
             foreach (string skill in Engine.GetGeneralSkills(lord_general, Name, true))
+            {
                 room.AddPlayerSkill(lord, skill);
+                Skill s = Engine.GetSkill(skill);
+                if (skill != null && s.SkillFrequency == Frequency.Limited  && !string.IsNullOrEmpty(s.LimitMark))
+                    room.SetPlayerMark(lord, s.LimitMark, 1);
+            }
+            room.SendPlayerSkillsToOthers(lord, true);
 
             //技能预亮
             lord.SetSkillsPreshowed("hd");
@@ -207,8 +214,7 @@ namespace SanguoshaServer.Scenario
                     else
                         generalName = reply[0];
 
-                    if (!success || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3)
-                        || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3))
+                    if (!success || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3))
                         generalName = options[player][0];
                     
                     player.General1 = generalName;
@@ -291,8 +297,7 @@ namespace SanguoshaServer.Scenario
             else
                 generalName = reply[0];
 
-            if (!success || (!options.Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3)
-                || (!options.Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3))
+            if (!success || (!options.Contains(Engine.GetMainGeneral(generalName)) && client.UserRight < 3))
             {
                 generalName = options[0];
             }
@@ -424,14 +429,19 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in room.Players)
             {
                 string general1_name = player.ActualGeneral1;
-                if (player.Role != "lord")
+                if (player.GetRoleEnum() != PlayerRole.Lord)
                 {
                     foreach (string skill in Engine.GetGeneralSkills(general1_name, Name, true))
                     {
                         Skill s = Engine.GetSkill(skill);
                         if (s != null && !s.LordSkill)
+                        {
                             room.AddPlayerSkill(player, skill);
+                            if (s.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(s.LimitMark))
+                            room.SetPlayerMark(player, s.LimitMark, 1);
+                        }
                     }
+                    room.SendPlayerSkillsToOthers(player, true);
 
                     //技能预亮
                     player.SetSkillsPreshowed("hd");
@@ -539,7 +549,7 @@ namespace SanguoshaServer.Scenario
             if (room.ContainsTag("SkipNormalDeathProcess") && (bool)room.GetTag("SkipNormalDeathProcess"))
                 return;
 
-            Player killer = death.Damage.From ?? null;
+            Player killer = death.Damage.From;
             if (killer != null)
             {
                 killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);

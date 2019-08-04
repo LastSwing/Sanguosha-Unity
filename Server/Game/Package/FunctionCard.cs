@@ -35,7 +35,6 @@ namespace SanguoshaServer.Package
         public bool Votes => votes;
         public HandlingMethod Method => handling_method;
         public CardType TypeID => type_id;
-
         public FunctionCard(string name)
         {
             card_name = name;
@@ -749,6 +748,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
+            if (room.GetCardPlace(card.Id) == Place.PlaceEquip) return false;
             return RoomLogic.IsProhibited(room, player, player, card) == null
                 && RoomLogic.CanPutEquip(player, card) && base.IsAvailable(room, player, card);
         }

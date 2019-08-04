@@ -16,7 +16,8 @@ namespace SanguoshaServer.Game
             };
 
             foreach (Client c in room.Clients)
-                c.SendMessage(data);
+                if (c.GameRoom == room.RoomId)
+                    c.SendMessage(data);
         }
 
         public static void NotifyPlayerDisconnected(Room room, Client client)
@@ -30,7 +31,8 @@ namespace SanguoshaServer.Game
             };
 
             foreach (Client c in room.Clients)
-                c.SendMessage(data);
+                if (c.GameRoom == room.RoomId)
+                    c.SendMessage(data);
         }
     }
 }

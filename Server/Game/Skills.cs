@@ -109,7 +109,8 @@ namespace SanguoshaServer.Game
 
         DFDebut, // for Dragon Phoenix Debut
 
-        NumOfEvents
+        //XuyouDraw,
+        NumOfEvents,
     };
 
     public abstract class Skill
@@ -153,9 +154,9 @@ namespace SanguoshaServer.Game
         public SkillType Skill_type => skill_type;
         public bool LordSkill => lord_skill;
         public bool Visible => !name.StartsWith("#");
-        public virtual int GetEffectIndex(Room room, Player player, WrappedCard card)
+        public virtual void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
-            return -1;
+            index = -1;
         }
 
         public virtual bool CanPreShow()
@@ -503,7 +504,7 @@ namespace SanguoshaServer.Game
 
             if (!RoomLogic.PlayerHasSkill(room, invoker, Name) && !huashen) return false;
 
-            if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == "Nullification")
+            if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == Nullification.ClassName)
                 return IsEnabledAtNullification(room, invoker);
 
             switch (reason)
@@ -681,7 +682,7 @@ namespace SanguoshaServer.Game
         }
         public override WrappedCard ViewAs(Room room, Player player)
         {
-            WrappedCard card = new WrappedCard("ShowGeneralCard")
+            WrappedCard card = new WrappedCard(ShowGeneralCard.ClassName)
             {
                 UserString = Name
             };
@@ -709,7 +710,7 @@ namespace SanguoshaServer.Game
         private WrappedCard card;
         public DiscardSkill() : base("discard")
         {
-            card = new WrappedCard("DummyCard");
+            card = new WrappedCard(DummyCard.ClassName);
         }
 
         public int Num { get; set; }
@@ -755,7 +756,7 @@ namespace SanguoshaServer.Game
         private string pattern;
         public ExchangeSkill() : base("exchange")
         {
-            card = new WrappedCard("DummyCard");
+            card = new WrappedCard(DummyCard.ClassName);
         }
 
         public void Initialize(int num, int minnum, string expand_pile, string pattern)
@@ -803,7 +804,7 @@ namespace SanguoshaServer.Game
 
         public YijiViewAsSkill() : base("yiji")
         {
-            card = new WrappedCard("YijiCard");
+            card = new WrappedCard(YijiCard.ClassName);
         }
 
         public void Initialize(List<int> ids, int max_num, List<Player> targets, string expand_pile)
@@ -872,7 +873,7 @@ namespace SanguoshaServer.Game
 
         public override WrappedCard ViewAs(Room room, Player player)
         {
-            WrappedCard card = new WrappedCard("ShowGeneralCard")
+            WrappedCard card = new WrappedCard(ShowGeneralCard.ClassName)
             {
                 UserString = Name
             };
@@ -898,7 +899,7 @@ namespace SanguoshaServer.Game
     }
     public class TargetModSkill : Skill
     {
-        protected string pattern = "Slash";
+        protected string pattern = Slash.ClassName;
         public TargetModSkill(string name) : base(name)
         {
         }
@@ -921,8 +922,10 @@ namespace SanguoshaServer.Game
         public virtual bool IgnoreCount(Room room, Player from, WrappedCard card) => false;
         public virtual bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card,
                                   List<Player> previous_targets, List<Player> targets = null) => false;
-        public virtual int GetEffectIndex(Room rom, Player player, WrappedCard card, ModType type) => -1;
-
+        public virtual void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = -1;
+        }
     }
 
     public abstract class InvalidSkill : Skill

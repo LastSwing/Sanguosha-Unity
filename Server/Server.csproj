@@ -100,7 +100,12 @@
     <Compile Include="Game\AI\AICore.cs" />
     <Compile Include="Game\AI\AuthorityAI.cs" />
     <Compile Include="Game\AI\ClassicAI.cs" />
+    <Compile Include="Game\AI\GuanduCardsAI.cs" />
+    <Compile Include="Game\AI\ClassicStanderAI.cs" />
+    <Compile Include="Game\AI\GuanduLimitedAI.cs" />
+    <Compile Include="Game\AI\GuanduWarfareAI.cs" />
     <Compile Include="Game\AI\LordCardsAI.cs" />
+    <Compile Include="Game\AI\ManeuveringCardsAI.cs" />
     <Compile Include="Game\AI\MomentumAI.cs" />
     <Compile Include="Game\AI\TransformationAI.cs" />
     <Compile Include="Game\AI\HegemonyAI.cs" />
@@ -117,6 +122,7 @@
     <Compile Include="Game\ExpPattern.cs" />
     <Compile Include="Game\Package\ClassicStander.cs" />
     <Compile Include="Game\Package\ClassicStanderCards.cs" />
+    <Compile Include="Game\AI\ClassicStanderCardsAI.cs" />
     <Compile Include="Game\Package\FunctionCard.cs" />
     <Compile Include="Game\GameThread.cs" />
     <Compile Include="Game\General.cs" />
