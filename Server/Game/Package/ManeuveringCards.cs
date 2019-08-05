@@ -29,12 +29,13 @@ namespace SanguoshaServer.Package
 
     public class GudingBlade : Weapon
     {
-        public GudingBlade() : base("GudingBlade", 2) { }
+        public static string ClassName = "GudingBlade";
+        public GudingBlade() : base(ClassName, 2) { }
     }
 
     public class GudingBladeSkill : WeaponSkill
     {
-        public GudingBladeSkill() : base("GudingBlade")
+        public GudingBladeSkill() : base(GudingBlade.ClassName)
         {
             events = new List<TriggerEvent> { TriggerEvent.DamageCaused };
         }
@@ -42,7 +43,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (base.Triggerable(player, room) && data is DamageStruct damage && damage.To.IsKongcheng()
-                && damage.Card != null && damage.Card.Name.Contains("Slash") && !damage.Chain && !damage.Transfer && damage.ByUser)
+                && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && !damage.Chain && !damage.Transfer && damage.ByUser)
             {
                 return new TriggerStruct(Name, player);
             }
@@ -69,7 +70,8 @@ namespace SanguoshaServer.Package
 
     public class ClassicWoodenOx : Treasure
     {
-        public ClassicWoodenOx() : base("ClassicWoodenOx") { }
+        public static string ClassName = "ClassicWoodenOx";
+        public ClassicWoodenOx() : base(ClassName) { }
         public override void OnUninstall(Room room, Player player, WrappedCard card)
         {
             player.AddHistory("ClassicWoodenOxCard", 0);
@@ -79,17 +81,17 @@ namespace SanguoshaServer.Package
 
     public class ClassicWoodenOxSkill : OneCardViewAsSkill
     {
-        public ClassicWoodenOxSkill() : base("ClassicWoodenOx")
+        public ClassicWoodenOxSkill() : base(ClassicWoodenOx.ClassName)
         {
             filter_pattern = ".|.|.|hand";
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasUsed("ClassicWoodenOxCard") && player.GetPile("wooden_ox").Count < 5;
+            return !player.HasUsed(ClassicWoodenOxCard.ClassName) && player.GetPile("wooden_ox").Count < 5;
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard ox = new WrappedCard("ClassicWoodenOxCard");
+            WrappedCard ox = new WrappedCard(ClassicWoodenOxCard.ClassName);
             ox.AddSubCard(card);
             ox.Skill = Name;
             return ox;
@@ -98,7 +100,8 @@ namespace SanguoshaServer.Package
 
     public class ClassicWoodenOxCard : SkillCard
     {
-        public ClassicWoodenOxCard() : base("ClassicWoodenOxCard")
+        public static string ClassName = "ClassicWoodenOxCard";
+        public ClassicWoodenOxCard() : base(ClassName)
         {
             target_fixed = true;
             will_throw = false;

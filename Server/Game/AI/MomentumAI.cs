@@ -187,7 +187,7 @@ namespace SanguoshaServer.AI
     {
         public CunsiCardAI() : base("CunsiCard") { }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 7;
         }
@@ -258,7 +258,7 @@ namespace SanguoshaServer.AI
         public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
         {
             double value = 0;
-            if ((card.Name.Contains("Slash") && WrappedCard.IsRed(card.Suit) || card.Name == "Duel") && ai.HasSkill(Name, to))
+            if ((card.Name.Contains(Slash.ClassName) && WrappedCard.IsRed(card.Suit) || card.Name == Duel.ClassName) && ai.HasSkill(Name, to))
             {
                 value += ai.IsFriend(to) ? 2 : -2;
             }
@@ -268,7 +268,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && (card.Name.Contains("Slash") && WrappedCard.IsRed(card.Suit) || card.Name == "Duel") && isUse)
+            if (ai.HasSkill(Name, player) && (card.Name.Contains(Slash.ClassName) && WrappedCard.IsRed(card.Suit) || card.Name == Duel.ClassName) && isUse)
                 return 1.5;
 
             return 0;
@@ -497,7 +497,7 @@ namespace SanguoshaServer.AI
         public ChuanxinAI() : base("chuanxin") { }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (data is DamageStruct damage)
+            if (ai.Room.GetTag("chuanxin_data") is DamageStruct damage)
             {
                 double value = ai.GetDamageScore(damage).Score;
                 if (ai.IsFriend(damage.To))
@@ -594,7 +594,7 @@ namespace SanguoshaServer.AI
                 foreach (int id in room.DiscardPile)
                 {
                     WrappedCard card = room.GetCard(id);
-                    if (card.Name == "PeaceSpell")
+                    if (card.Name == PeaceSpell.ClassName)
                     {
                         pp = id;
                         break;
@@ -607,7 +607,7 @@ namespace SanguoshaServer.AI
                         foreach (int id in p.GetEquips())
                         {
                             WrappedCard card = room.GetCard(id);
-                            if (card.Name == "PeaceSpell")
+                            if (card.Name == PeaceSpell.ClassName)
                             {
                                 pp = id;
                                 break;
@@ -638,7 +638,7 @@ namespace SanguoshaServer.AI
                         {
                             if (WrappedCard.IsRed(room.GetCard(id).Suit) && ai.GetKeepValue(id, player) < 0)
                             {
-                                wd.AddSubCard(ids[0]);
+                                wd.AddSubCard(id);
                                 return new List<WrappedCard> { wd };
                             }
                         }
@@ -648,7 +648,7 @@ namespace SanguoshaServer.AI
                         {
                             if (WrappedCard.IsRed(room.GetCard(id).Suit))
                             {
-                                wd.AddSubCard(ids[0]);
+                                wd.AddSubCard(id);
                                 return new List<WrappedCard> { wd };
                             }
                         }
@@ -664,9 +664,9 @@ namespace SanguoshaServer.AI
     {
         public WendaoCardAI() : base("WendaoCard")
         {}
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
-            if (player.HasArmor("PeaceSpell"))
+            if (player.HasArmor(PeaceSpell.ClassName))
                 return 8;
             else
                 return 6;
@@ -683,6 +683,7 @@ namespace SanguoshaServer.AI
 
         public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
+            if (targets.Count > 0) return 0;
             return 4;
         }
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
@@ -708,10 +709,10 @@ namespace SanguoshaServer.AI
             {
                 foreach (int id in jiaozhu.GetPile("heavenly_army"))
                 {
-                    WrappedCard hongfa = new WrappedCard("HongfaCard");
+                    WrappedCard hongfa = new WrappedCard("HongfaCard") { Skill = "hongfa" };
                     hongfa.AddSubCard(id);
 
-                    WrappedCard slash = new WrappedCard("Slash");
+                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = "hongfa" };
                     slash.AddSubCard(id);
                     slash = RoomLogic.ParseUseCard(room, slash);
                     slash.UserString = RoomLogic.CardToString(room, hongfa);
@@ -727,14 +728,14 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             Player jiaozhu = ai.FindPlayerBySkill("hongfa");
             List<WrappedCard> result = new List<WrappedCard>();
-            if (jiaozhu != null && RoomLogic.WillBeFriendWith(room, player, jiaozhu) && pattern == "Slash")
+            if (jiaozhu != null && RoomLogic.WillBeFriendWith(room, player, jiaozhu) && pattern == Slash.ClassName)
             {
                 foreach (int id in jiaozhu.GetPile("heavenly_army"))
                 {
-                    WrappedCard hongfa = new WrappedCard("HongfaCard");
+                    WrappedCard hongfa = new WrappedCard("HongfaCard") { Skill = "hongfa" };
                     hongfa.AddSubCard(id);
 
-                    WrappedCard slash = new WrappedCard("Slash");
+                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = "hongfa" };
                     slash.AddSubCard(id);
                     slash = RoomLogic.ParseUseCard(room, slash);
                     slash.UserString = RoomLogic.CardToString(room, hongfa);

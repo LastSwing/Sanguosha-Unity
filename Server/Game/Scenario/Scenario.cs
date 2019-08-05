@@ -38,6 +38,119 @@ namespace SanguoshaServer.Scenario
         {
             return room.Clients.Count >= room.Setting.PlayerNum;
         }
+
+        public virtual Player Marshal(Room room, Client client, Player player)
+        {
+            Player _player = new Player();
+            _player.Copy(player);
+            if (player.ClientId == client.UserID)
+            {
+                _player.ActualGeneral1 = player.ActualGeneral1;
+                _player.ActualGeneral2 = player.ActualGeneral2;
+                _player.General1 = player.General1;
+                _player.General2 = player.General2;
+                _player.Role = player.Role;
+                _player.Kingdom = player.Kingdom;
+                _player.HeadSkills = player.HeadSkills;
+                _player.DeputySkills = player.DeputySkills;
+                _player.HeadSkinId = player.HeadSkinId;
+                _player.DeputySkinId = player.DeputySkinId;
+                _player.Piles = player.Piles;
+                foreach (string mark in player.Marks.Keys)
+                    _player.SetMark(mark, player.GetMark(mark));
+                foreach (string mark in player.StringMarks.Keys)
+                    if (mark != "spirit")
+                        _player.SetMark(mark, player.GetMark(mark));
+
+                if (player.ContainsTag("spirit"))
+                    _player.SetTag("spirit", player.GetTag("spirit"));
+
+                _player.SetFlags("marshal");
+            }
+            else
+            {
+                List<string> invisebale_marks = new List<string>();
+                if (player.General1Showed)
+                {
+                    _player.General1 = player.General1;
+                    _player.HeadSkills = player.HeadSkills;
+                    _player.HeadSkinId = player.HeadSkinId;
+                }
+                else
+                {
+                    _player.General1 = "anjiang";
+                    foreach (string skill_name in player.HeadSkills.Keys)
+                    {
+                        Skill skill = Engine.GetSkill(skill_name);
+                        if (!string.IsNullOrEmpty(skill.LimitMark))
+                            invisebale_marks.Add(skill.LimitMark);
+                    }
+                }
+                if (!string.IsNullOrEmpty(player.General2))
+                {
+                    if (player.General2Showed)
+                    {
+                        _player.General2 = player.General2;
+                        _player.DeputySkills = player.DeputySkills;
+                        _player.DeputySkinId = player.DeputySkinId;
+                    }
+                    else
+                    {
+                        _player.General2 = "anjiang";
+                        foreach (string skill_name in player.DeputySkills.Keys)
+                        {
+                            Skill skill = Engine.GetSkill(skill_name);
+                            if (!string.IsNullOrEmpty(skill.LimitMark))
+                                invisebale_marks.Add(skill.LimitMark);
+                        }
+                    }
+                    foreach (string mark in player.StringMarks.Keys)
+                        _player.SetMark(mark, player.GetMark(mark));
+                }
+
+                if (player.HasShownOneGeneral())
+                    _player.Kingdom = player.Kingdom;
+                else
+                    _player.Kingdom = "god";
+
+                if (room.Setting.GameMode == "Hegemony" && player.HasShownOneGeneral() || player.RoleShown)
+                    _player.Role = player.Role;
+
+                foreach (string mark in player.Marks.Keys)
+                {
+                    if (mark.StartsWith("@") && !invisebale_marks.Contains(mark))
+                        _player.SetMark(mark, player.GetMark(mark));
+                }
+
+                foreach (string pile in player.Piles.Keys)
+                {
+                    bool open = false;
+                    foreach (Player p in room.Players)
+                    {
+                        if (p.ClientId == client.UserID && player.GetPileOpener(pile).Contains(p.Name))
+                        {
+                            open = true;
+                            break;
+                        }
+                    }
+
+                    if (open)
+                    {
+                        _player.PileChange(pile, player.GetPile(pile));
+                    }
+                    else
+                    {
+                        List<int> ids = new List<int>();
+                        for (int i = 0; i < player.GetPile(pile).Count; i++)
+                            ids.Add(-1);
+
+                        _player.PileChange(pile, ids);
+                    }
+                }
+            }
+
+            return _player;
+        }
     }
 
     public abstract class GameRule : TriggerSkill
@@ -104,7 +217,7 @@ namespace SanguoshaServer.Scenario
             };
             room.SendLog(log);
             //player.AddMark("Global_TurnCount");      回合不该如此计算
-            player.AddHistory("Analeptic", 0);         //clear Analeptic
+            player.AddHistory(Analeptic.ClassName, 0);         //clear Analeptic
 
             if (!player.FaceUp)
             {
@@ -178,7 +291,7 @@ namespace SanguoshaServer.Scenario
                 player.AddHistory(".");
             if (player.Phase == PlayerPhase.Finish)
             {
-                player.AddHistory("Analeptic", 0);     //clear Analeptic
+                player.AddHistory(Analeptic.ClassName, 0);     //clear Analeptic
                 foreach (Player p in room.GetAllPlayers())
                     p.SetMark("multi_kill_count", 0);
             }
@@ -211,7 +324,7 @@ namespace SanguoshaServer.Scenario
                     {
                         Type = "#EdictEffect",
                         From = player.Name,
-                        Arg = "edict"
+                        Arg = Edict.ClassName
                     };
                     room.SendLog(log);
                     WrappedCard io = (WrappedCard)room.GetTag("EdictCard");
@@ -311,15 +424,18 @@ namespace SanguoshaServer.Scenario
 
             bool askforpeach = true;
             Client client = room.GetClient(player);
+            List<Player> controlls = new List<Player> { player };
+            if (client != null)
+                controlls = room.GetPlayers(client);
 
-            if (!room.GetPlayers(client).Contains(dying.Who))
+            if (!controlls.Contains(dying.Who))
             {
                 List<Player> players = room.GetAllPlayers();
                 int index = players.IndexOf(player);
                 for (int i = 0; i < index; i++)
                 {
                     Player p = players[i];
-                    if (room.GetPlayers(client).Contains(p))
+                    if (controlls.Contains(p))
                     {
                         askforpeach = false;
                         break;
@@ -334,7 +450,7 @@ namespace SanguoshaServer.Scenario
             {
                 while (dying.Who.Hp <= 0 && dying.Who.Alive)
                 {
-                    CardUseStruct use = room.AskForSinglePeach(player, dying.Who);
+                    CardUseStruct use = room.AskForSinglePeach(player, dying.Who, dying);
                     if (use.Card == null)
                         break;
                     else
@@ -703,16 +819,17 @@ namespace SanguoshaServer.Scenario
                             break;
                         if (effect.Jink_num == 1)
                         {
-                            CardResponseStruct resp = room.AskForCard(effect.To, "Slash", "Jink", "slash-jink:" + slasher, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                            CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, "slash-jink:" + slasher, data, HandlingMethod.MethodUse, null, effect.From, false, false);
                             room.SlashResult(effect, room.IsJinkEffected(effect.To, resp) ? resp.Card : null);
                         }
                         else
                         {
-                            WrappedCard jink = new WrappedCard("DummyCard");
+                            WrappedCard jink = new WrappedCard(DummyCard.ClassName);
                             for (int i = effect.Jink_num; i > 0; i--)
                             {
                                 string prompt = string.Format("@multi-jink{0}:{1}::{2}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i);
-                                CardResponseStruct resp = room.AskForCard(effect.To, "Slash", "Jink", prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                                CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+
                                 if (!room.IsJinkEffected(effect.To, resp))
                                 {
                                     //delete jink;
@@ -878,7 +995,7 @@ namespace SanguoshaServer.Scenario
                                 else
                                 {
                                     WrappedCard card = room.GetCard(move.Card_ids[0]);
-                                    if (card.Name == "Edict" && !card.HasFlag("edict_order_normal_use"))
+                                    if (card.Name == Edict.ClassName && !card.HasFlag("edict_order_normal_use"))
                                         should_find_io = true; // use card isn't IO
                                 }
                             }
@@ -886,14 +1003,14 @@ namespace SanguoshaServer.Scenario
                             {
                                 foreach (int id in move.Card_ids) {
                                     WrappedCard card = room.GetCard(id);
-                                    if (card.Name == "Edict")
+                                    if (card.Name == Edict.ClassName)
                                     {
                                         room.MoveCardTo(card, null, Place.PlaceTable, true);
                                         room.AddToPile(room.Players[0], "#edict", card, false);
                                         LogMessage log = new LogMessage
                                         {
                                             Type = "#RemoveEdict",
-                                            Arg = "edict"
+                                            Arg = Edict.ClassName
                                         };
                                         room.SendLog(log);
                                         room.SetTag("EdictInvoke", true);
@@ -924,7 +1041,7 @@ namespace SanguoshaServer.Scenario
                             {
                                 foreach (int id in move.Card_ids) {
                                     WrappedCard card = room.GetCard(id);
-                                    if (card.Name == "JadeSeal")
+                                    if (card.Name == JadeSeal.ClassName)
                                     {
                                         CheckBigKingdoms(room);
                                         break;
@@ -936,7 +1053,7 @@ namespace SanguoshaServer.Scenario
                             {
                                 foreach (int id in move.Card_ids) {
                                     WrappedCard card = room.GetCard(id);
-                                    if (card.Name == "JadeSeal")
+                                    if (card.Name == JadeSeal.ClassName)
                                     {
                                         CheckBigKingdoms(room);
                                         break;

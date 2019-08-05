@@ -1141,10 +1141,17 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is DamageStruct damage && room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition))
+
+            if (data is DamageStruct damage)
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.To.Name);
-                return info;
+                room.SetTag("chuanxin_data", data);
+                bool invoke = room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition);
+                room.RemoveTag("chuanxin_data");
+                if (invoke)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.To.Name);
+                    return info;
+                }
             }
             return new TriggerStruct();
         }
@@ -1328,7 +1335,7 @@ namespace SanguoshaServer.Package
                 || zhangjiao.GetPile("heavenly_army").Count == 0 || !RoomLogic.WillBeFriendWith(room, player, zhangjiao))
                 return false;
 
-            return pattern == "Slash" && player.CanShowGeneral(null);
+            return pattern == Slash.ClassName && player.CanShowGeneral(null);
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
@@ -1349,8 +1356,8 @@ namespace SanguoshaServer.Package
             if (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
                 return false;
 
-            FunctionCard fcard = Engine.GetFunctionCard("Slash");
-            WrappedCard slash = new WrappedCard("Slash");
+            FunctionCard fcard = Slash.Instance;
+            WrappedCard slash = new WrappedCard(Slash.ClassName);
             slash.AddSubCards(card.SubCards);
             slash = RoomLogic.ParseUseCard(room, slash);
             return fcard.TargetFilter(room, targets, to_select, Self, slash);
@@ -1364,11 +1371,11 @@ namespace SanguoshaServer.Package
             Player zhangjiao = RoomLogic.GetLord(room, use.From.Kingdom);
             if (zhangjiao != null)
             {
-                room.BroadcastSkillInvoke("hongfa", zhangjiao);
+                room.BroadcastSkillInvoke("hongfa", "male", 2, zhangjiao.ActualGeneral1, zhangjiao.HeadSkinId);
                 room.NotifySkillInvoked(zhangjiao, "hongfa");
             }
 
-            WrappedCard slash = new WrappedCard("Slash");
+            WrappedCard slash = new WrappedCard(Slash.ClassName);
             slash.AddSubCards(use.Card.SubCards);
             slash = RoomLogic.ParseUseCard(room, slash);
             return slash;
@@ -1382,11 +1389,11 @@ namespace SanguoshaServer.Package
             Player zhangjiao = RoomLogic.GetLord(room, player.Kingdom);
             if (zhangjiao != null)
             {
-                room.BroadcastSkillInvoke("hongfa", zhangjiao);
+                room.BroadcastSkillInvoke("hongfa", "male", 2, zhangjiao.ActualGeneral1, zhangjiao.HeadSkinId);
                 room.NotifySkillInvoked(zhangjiao, "hongfa");
             }
 
-            WrappedCard slash = new WrappedCard("Slash");
+            WrappedCard slash = new WrappedCard(Slash.ClassName);
             slash.AddSubCards(card.SubCards);
             slash = RoomLogic.ParseUseCard(room, slash);
             return slash;
@@ -1499,17 +1506,6 @@ namespace SanguoshaServer.Package
 
             return false;
         }
-        public override int GetEffectIndex(Room room, Player player, WrappedCard card)
-        {
-            if (card != null)
-            {
-                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard is Slash)
-                    return 1;
-            }
-
-            return 2;
-        }
     }
     public class HongfaClear : DetachEffectSkill
     {
@@ -1537,7 +1533,7 @@ namespace SanguoshaServer.Package
             {
                 foreach (int id in p.GetEquips())
                 {
-                    if (room.GetCard(id).Name == "PeaceSpell")
+                    if (room.GetCard(id).Name == PeaceSpell.ClassName)
                     {
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, card_use.From.Name, p.Name);
                         tpys = room.GetCard(id);
@@ -1550,7 +1546,7 @@ namespace SanguoshaServer.Package
             if (tpys == null)
                 foreach (int id in room.DiscardPile)
                 {
-                    if (room.GetCard(id).Name == "PeaceSpell")
+                    if (room.GetCard(id).Name == PeaceSpell.ClassName)
                     {
                         tpys = room.GetCard(id);
                         break;

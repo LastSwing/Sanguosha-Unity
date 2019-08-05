@@ -4,6 +4,7 @@ using System.Data;
 using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
+using SanguoshaServer.Package;
 
 namespace SanguoshaServer.Game
 {
@@ -154,7 +155,7 @@ namespace SanguoshaServer.Game
         {
             if (data is CardUseStruct use)
             {
-                if (use.Card.Name.Contains("Slash") && use.To.Count > 0 && room.Setting.GameMode == "Hegemony")
+                if (use.Card.Name.Contains(Slash.ClassName) && use.To.Count > 0 && room.Setting.GameMode == "Hegemony")
                 {
                     List<Client> ais = new List<Client>();
                     foreach (Player p in use.To)
@@ -200,7 +201,7 @@ namespace SanguoshaServer.Game
         {
             if (data is CardUseStruct use)
             {
-                if (use.Card.Name == "Analeptic"
+                if (use.Card.Name == Analeptic.ClassName
                     && (use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || room.GetRoomState().GetCurrentCardUsePattern(player) == "@@rende")
                     && use.Card.Skill != "_zhendu")
                 {
@@ -241,7 +242,7 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-                else if (player.ClientId < 0 && use.Card.Name.Contains("Slash")
+                else if (player.ClientId < 0 && use.Card.Name.Contains(Slash.ClassName)
                     && (use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || room.GetRoomState().GetCurrentCardUsePattern(player) == "@@rende")
                     && use.To.Count == 1 && !RoomLogic.IsFriendWith(room, player, use.To[0]) && Shuffle.random(1, 3))
                 {
@@ -280,7 +281,7 @@ namespace SanguoshaServer.Game
             if (player.ClientId < 0 && data is JudgeStruct judge)
             {
                 Client client = room.GetClient(player);
-                if (judge.Reason == "Lightning")
+                if (judge.Reason == Lightning.ClassName)
                 {
                     bool suc = RoomLogic.GetCardSuit(room, judge.Card) == WrappedCard.CardSuit.Spade
                         && RoomLogic.GetCardNumber(room, judge.Card) > 1 && RoomLogic.GetCardNumber(room, judge.Card) < 10;
@@ -310,7 +311,7 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
-                else if (judge.Reason == "Indulgence" && Shuffle.random(1, 3))
+                else if (judge.Reason == Indulgence.ClassName && Shuffle.random(1, 3))
                 {
                     bool suc = RoomLogic.GetCardSuit(room, judge.Card) != WrappedCard.CardSuit.Heart;
                     bool speak = Shuffle.random(1, 2);
@@ -464,14 +465,14 @@ namespace SanguoshaServer.Game
             //机器人换皮肤
             if (player != null && player.ClientId < 0 && Shuffle.random(1, 3))
             {
-                DataRow[] data1 = Engine.GetGeneralSkin(player.ActualGeneral1, room.Setting.GameMode);
+                List<DataRow> data1 = Engine.GetGeneralSkin(player.ActualGeneral1, room.Setting.GameMode);
 
-                bool head = data1.Length > 1 && (string.IsNullOrEmpty(player.ActualGeneral2) || Shuffle.random(1, 2));
+                bool head = data1.Count > 1 && (string.IsNullOrEmpty(player.ActualGeneral2) || Shuffle.random(1, 2));
                 if (head)
                 {
                     string name = player.ActualGeneral1;
                     Random ra = new Random();
-                    int result = ra.Next(1, data1.Length);
+                    int result = ra.Next(1, data1.Count);
                     player.HeadSkinId = result;
                     if (player.General1Showed)
                         room.BroadcastProperty(player, "HeadSkinId");
@@ -479,11 +480,11 @@ namespace SanguoshaServer.Game
 
                 if (!string.IsNullOrEmpty(player.ActualGeneral2) && (!head || Shuffle.random(1, 2)))
                 {
-                    DataRow[] data2 = Engine.GetGeneralSkin(player.ActualGeneral2, room.Setting.GameMode);
-                    if (data2.Length > 1)
+                    List<DataRow> data2 = Engine.GetGeneralSkin(player.ActualGeneral2, room.Setting.GameMode);
+                    if (data2.Count > 1)
                     {
                         Random ra = new Random();
-                        int result = ra.Next(1, data2.Length);
+                        int result = ra.Next(1, data2.Count);
                         player.DeputySkinId = result;
                         if (player.General2Showed)
                             room.BroadcastProperty(player, "DeputySkinId");

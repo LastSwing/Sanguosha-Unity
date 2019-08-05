@@ -5,6 +5,7 @@ using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.AI;
 using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using static CommonClass.Game.Player;
 using CommandType = CommonClassLibrary.CommandType;
 
@@ -94,7 +95,6 @@ namespace SanguoshaServer.Scenario
                     if (string.IsNullOrEmpty(role))
                         role = Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom;
                     names.Add(name);
-                    player.ActualGeneral1 = name;
                     player.Role = role;
                     player.General1 = "anjiang";
                     foreach (Client p in room.Clients)
@@ -110,7 +110,6 @@ namespace SanguoshaServer.Scenario
                 {
                     string name = player.General2;
                     names.Add(name);
-                    player.ActualGeneral2 = name;
                     player.General2 = "anjiang";
                     room.BroadcastProperty(player, "General2");
                     room.NotifyProperty(room.GetClient(player), player, "ActualGeneral2");
@@ -162,7 +161,7 @@ namespace SanguoshaServer.Scenario
 
             if (isFirst)
             {
-                player.General1 = general.Name;
+                player.ActualGeneral1 = player.General1 = general.Name;
             }
             else if (general.Kingdom != Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom)
             {
@@ -170,7 +169,7 @@ namespace SanguoshaServer.Scenario
             }
             else
             {
-                player.General2 = general.Name;
+                player.ActualGeneral2 = player.General2 = general.Name;
             }
             return true;
         }
@@ -202,9 +201,9 @@ namespace SanguoshaServer.Scenario
             if (room.Setting.LordConvert)
             {
                 foreach (int id in Engine.GetGameCards(room.Setting.CardPackage))
-                    if (Engine.GetRealCard(id).Name != "DoubleSword"
-                        && Engine.GetRealCard(id).Name != "JingFan"
-                        && Engine.GetRealCard(id).Name != "SixSwords"
+                    if (Engine.GetRealCard(id).Name != DoubleSword.ClassName
+                        && Engine.GetRealCard(id).Name != "Jingfan"
+                        && Engine.GetRealCard(id).Name != SixSwords.ClassName
                         && Engine.GetRealCard(id).Name != "Zhuahuangfeidian")
                         game_cards.Add(id);
             }
@@ -473,7 +472,7 @@ namespace SanguoshaServer.Scenario
             return points;
         }
 
-        private Dictionary<string, double> points = new Dictionary<string, double>();
+        private readonly Dictionary<string, double> points = new Dictionary<string, double>();
         private Dictionary<string, double> CalculateDeputyValue(Room room, string first, List<string> _candidates)
         {
             List<string> candidates = _candidates;

@@ -1,5 +1,6 @@
 ﻿using CommonClass.Game;
 using SanguoshaServer.Game;
+using SanguoshaServer.Package;
 using System.Collections.Generic;
 
 namespace SanguoshaServer.AI
@@ -22,7 +23,7 @@ namespace SanguoshaServer.AI
 
     public class DragonPhoenixAI : UseCard
     {
-        public DragonPhoenixAI() : base("DragonPhoenix")
+        public DragonPhoenixAI() : base(DragonPhoenix.ClassName)
         { }
 
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
@@ -97,13 +98,13 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (target != null && !ai.IsFriend(target, player) || !ai.HasSkill(TrustedAI.LoseEquipSkill, player))
+            if (target != null && !ai.IsFriend(target, player) && !ai.HasSkill(TrustedAI.LoseEquipSkill, player))
                 return;
 
             ai.UseEquipCard(ref use, card);
         }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return ai.GetEquipPriorityAdjust(card);
         }
@@ -111,7 +112,7 @@ namespace SanguoshaServer.AI
 
     public class PeaceSpellAI : UseCard
     {
-        public PeaceSpellAI() : base("PeaceSpell")
+        public PeaceSpellAI() : base(PeaceSpell.ClassName)
         { }
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
@@ -154,6 +155,7 @@ namespace SanguoshaServer.AI
                 if (!use && player.Hp == 1 && player.HandcardNum <= 1 && place == Player.Place.PlaceEquip)
                     value -= 3;
             }
+            if (player.Chained) value += 1;
 
             return value;
         }
@@ -181,7 +183,7 @@ namespace SanguoshaServer.AI
             if (will_use)
                 ai.UseEquipCard(ref use, card);
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return ai.GetEquipPriorityAdjust(card);
         }
@@ -189,7 +191,7 @@ namespace SanguoshaServer.AI
 
     public class LuminouSpearlAI : UseCard
     {
-        public LuminouSpearlAI() : base("LuminouSpearl")
+        public LuminouSpearlAI() : base(LuminouSpearl.ClassName)
         { }
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -244,14 +246,14 @@ namespace SanguoshaServer.AI
 
             return value;
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return ai.GetEquipPriorityAdjust(card);
         }
     }
     public class LuminouSpearlSkillAI : SkillEvent
     {
-        public LuminouSpearlSkillAI() : base("LuminouSpearl")
+        public LuminouSpearlSkillAI() : base(LuminouSpearl.ClassName)
         {}
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
@@ -265,7 +267,7 @@ namespace SanguoshaServer.AI
 
     public class DragonCarriageAI : UseCard
     {
-        public DragonCarriageAI() : base("DragonCarriage")
+        public DragonCarriageAI() : base(DragonCarriage.ClassName)
         {}
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -280,7 +282,7 @@ namespace SanguoshaServer.AI
         {
             return ai.HasSkill(TrustedAI.LoseEquipSkill, player) ? -4 : 0;
         }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return ai.GetEquipPriorityAdjust(card);
         }

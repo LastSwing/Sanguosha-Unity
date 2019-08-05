@@ -213,7 +213,7 @@ namespace SanguoshaServer.AI
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 string class_name = fcard.Name;
-                if (fcard is Slash) class_name = "Slash";
+                if (fcard is Slash) class_name = Slash.ClassName;
                 UseCard e = Engine.GetCardUsage(class_name);
                 if (e != null)
                     e.OnEvent(this, triggerEvent, player, data);
@@ -308,6 +308,28 @@ namespace SanguoshaServer.AI
             }
 
             FilterEvent(triggerEvent, player, data);
+        }
+
+        public override bool IsSituationClear()
+        {
+            if (Process.Contains(">>")) return true;
+            if (room.AliveCount() < room.Setting.PlayerNum / 2) return true;
+            int count = 0;
+            foreach (Player p in room.GetOtherPlayers(self))
+                if (GetPossibleId(p).Count < 3)
+                    count++;
+
+            if (count + 1 > room.AliveCount() * 2 / 3) return true;
+
+            return false;
+        }
+
+        public override bool IsRoleExpose()
+        {
+            if (self.HasShownOneGeneral() || id_public[self] != "unknown" || GetPublicPossibleId(self).Count == 1
+                || player_intention_public[self][GetPublicPossibleId(self)[0]] > player_intention_public[self][GetPublicPossibleId(self)[1]] + 50)
+                return true;
+            return false;
         }
 
         private void FilterEvent(TriggerEvent triggerEvent, Player player, object data)
@@ -1107,7 +1129,7 @@ namespace SanguoshaServer.AI
                 if (!RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse)
                     || (card.CanRecast && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodRecast)))
                 {
-                    string class_name = card.Name.Contains("Slash") ? "Slash" : card.Name;
+                    string class_name = card.Name.Contains(Slash.ClassName) ? Slash.ClassName : card.Name;
                     UseCard _use = Engine.GetCardUsage(class_name);
                     if (_use != null)
                     {
@@ -1115,14 +1137,7 @@ namespace SanguoshaServer.AI
                         if (card_use.Card != null)
                         {
                             //左慈技能还原
-                            if (card_use.Card.Skill == "yigui")
-                            {
-                                card_use.Card = new WrappedCard("YiguiCard")
-                                {
-                                    Skill = "yigui",
-                                    UserString = string.Format("{0}_{1}", card_use.Card.Name, card_use.Card.UserString)
-                                };
-                            }
+                            ZuociReturn(ref card_use);
 
                             to_use.Clear();
                             return;
@@ -1168,64 +1183,66 @@ namespace SanguoshaServer.AI
             return base.AskForCardShow(requestor, reason, data);
         }
 
-        public override WrappedCard AskForSinglePeach(Player dying)
+        public override WrappedCard AskForSinglePeach(Player dying, DyingStruct dying_struct)
         {
-            FunctionCard f_peach = Engine.GetFunctionCard("Peach");
-            FunctionCard f_ana = Engine.GetFunctionCard("Analeptic");
-            if (IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
+            FunctionCard f_peach = Peach.Instance;
+            FunctionCard f_ana = Analeptic.Instance;
+            WrappedCard result = null;
+            if (self != dying && IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
             {
-                if (self != dying)
-                {
-                    if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) ||
-                        (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
-                    if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
-                        return null;
+                if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) ||
+                    (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
+                if (HasSkill("buqu", dying) && dying.GetPile("buqu").Count <= 5 && room.GetFront(self, dying) == self)
+                    return null;
 
-                    List<WrappedCard> peaches = GetCards("Peach", self);
-                    foreach (WrappedCard card in peaches)
+                if (dying.IsNude() && !MaySave(dying)) return null;
+                if (dying_struct.Damage.From != null && IsFriend(dying_struct.Damage.From) && !RoomLogic.IsFriendWith(room, dying_struct.Damage.From, dying))
+                    return null;
+
+                List<WrappedCard> peaches = GetCards(Peach.ClassName, self);
+                foreach (WrappedCard card in peaches)
+                {
+                    if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
                     {
-                        if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
-                            return card;
+                        result = card;
+                        break;
                     }
                 }
-                else
+            }
+            else if (self == dying)
+            {
+                List<WrappedCard> peaches = new List<WrappedCard>();
+                foreach (WrappedCard card in GetCards(Peach.ClassName, self))
+                    if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                        peaches.Add(card);
+                foreach (WrappedCard card in GetCards(Analeptic.ClassName, self))
+                    if (f_ana.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                        peaches.Add(card);
+
+                double best = -1000;
+                foreach (WrappedCard card in peaches)
                 {
-                    List<WrappedCard> peaches = new List<WrappedCard>();
-                    foreach (WrappedCard card in GetCards("Peach", self))
-                        if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
-                            peaches.Add(card);
-                    foreach (WrappedCard card in GetCards("Analeptic", self))
-                        if (f_ana.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
-                            peaches.Add(card);
-
-                    double best = -1000;
-                    WrappedCard result = null;
-                    foreach (WrappedCard card in peaches)
+                    double value = GetUseValue(card, self);
+                    if (card.Name == Peach.ClassName) value -= 2;
+                    if (value > best)
                     {
-                        double value = GetUseValue(card, self);
-                        if (card.Name == "Peach") value -= 2;
-                        if (value > best)
-                        {
-                            best = value;
-                            result = card;
-                        }
+                        best = value;
+                        result = card;
                     }
-
-                    //左慈技能的复原
-                    if (result != null && result.Skill == "yigui")
-                    {
-                        result = new WrappedCard("YiguiCard")
-                        {
-                            Skill = "yigui",
-                            UserString = string.Format("{0}_{1}", result.Name, result.UserString)
-                        };
-                    }
-
-                    if (result != null) return result;
                 }
             }
 
-            return null;
+            //左慈技能的复原
+            if (result != null && result.Skill == "yigui")
+            {
+                result = new WrappedCard(YiguiCard.ClassName)
+                {
+                    Skill = "yigui",
+                    UserString = string.Format("{0}_{1}", result.Name, result.UserString)
+                };
+            }
+
+            return result;
         }
 
         public override string AskForChoice(string skill_name, string choice, object data)
@@ -1375,7 +1392,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if ((Self.HasTreasure("JadeSeal") || HasSkill("yongsi")) && !Self.HasShownOneGeneral())
+                if ((Self.HasTreasure(JadeSeal.ClassName) || HasSkill("yongsi")) && !Self.HasShownOneGeneral())
                 {
                     if (canShowHead)
                         return "GameRule_AskForGeneralShowHead";
@@ -1448,7 +1465,7 @@ namespace SanguoshaServer.AI
 
                     if (choice.Contains("fankui"))
                     {
-                        if (from != null && from == Self && HasArmorEffect(Self, "SilverLion"))
+                        if (from != null && from == Self && HasArmorEffect(Self, SilverLion.ClassName))
                         {
                             bool friend = false;
                             foreach (Player p in FriendNoSelf)
@@ -1482,7 +1499,7 @@ namespace SanguoshaServer.AI
                 if (choice.Contains("tiandu") && data is JudgeStruct judge)
                 {
                     int id = judge.Card.Id;
-                    if (IsCard(id, "Peach", self) || IsCard(id, "Analeptic", Self))
+                    if (IsCard(id, Peach.ClassName, self) || IsCard(id, Analeptic.ClassName, Self))
                         return "tiandu";
                 }
                 if (choice.Contains("yiji")) return "yiji";
@@ -1498,10 +1515,10 @@ namespace SanguoshaServer.AI
                 return skillnames[0];
             }
 
-            if (skill_name == "HegNullification")
+            if (skill_name == HegNullification.ClassName)
             {
-                if (!string.IsNullOrEmpty(Choice["HegNullification"]))
-                    return Choice["HegNullification"];
+                if (!string.IsNullOrEmpty(Choice[HegNullification.ClassName]))
+                    return Choice[HegNullification.ClassName];
 
                 return "single";
             }
@@ -1618,10 +1635,10 @@ namespace SanguoshaServer.AI
         }
 
         private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
-            { "collateral-slash", "Collateral" },
+            { "collateral-slash", Collateral.ClassName },
             { "@tiaoxin-slash", "tiaoxin" },
             { "@luanwu-slash", "luanwu" },
-            { "@kill_victim", "BeltsheChao" },
+            { "@kill_victim", BeltsheChao.ClassName },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)
@@ -1638,14 +1655,7 @@ namespace SanguoshaServer.AI
                     {
                         CardUseStruct use = card.OnResponding(this, self, pattern, prompt, method);
                         //左慈技能的复原
-                        if (use.Card != null && use.Card.Skill == "yigui")
-                        {
-                            use.Card = new WrappedCard("YiguiCard")
-                            {
-                                Skill = "yigui",
-                                UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
-                            };
-                        }
+                        ZuociReturn(ref use);
                         return use;
                     }
 
@@ -1654,14 +1664,7 @@ namespace SanguoshaServer.AI
                     {
                         CardUseStruct use = skill.OnResponding(this, self, pattern, prompt, method);
                         //左慈技能的复原
-                        if (use.Card != null && use.Card.Skill == "yigui")
-                        {
-                            use.Card = new WrappedCard("YiguiCard")
-                            {
-                                Skill = "yigui",
-                                UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
-                            };
-                        }
+                        ZuociReturn(ref use);
 
                         return use;
                     }
@@ -1669,6 +1672,28 @@ namespace SanguoshaServer.AI
             }
             else
             {
+                if (!string.IsNullOrEmpty(room.GetRoomState().GetCurrentResponseSkill()))
+                {
+                    string skill_name = room.GetRoomState().GetCurrentResponseSkill();
+                    UseCard card = Engine.GetCardUsage(skill_name);
+                    if (card != null)
+                    {
+                        CardUseStruct use = card.OnResponding(this, self, pattern, prompt, method);
+                        //左慈技能的复原
+                        ZuociReturn(ref use);
+                        return use;
+                    }
+
+                    SkillEvent skill = Engine.GetSkillEvent(skill_name);
+                    if (skill != null)
+                    {
+                        CardUseStruct use = skill.OnResponding(this, self, pattern, prompt, method);
+                        //左慈技能的复原
+                        ZuociReturn(ref use);
+                        return use;
+                    }
+                }
+
                 foreach (string key in prompt_keys.Keys)
                 {
                     if (prompt.StartsWith(key))
@@ -1679,14 +1704,7 @@ namespace SanguoshaServer.AI
                         {
                             CardUseStruct use = card.OnResponding(this, self, pattern, prompt, method);
                             //左慈技能的复原
-                            if (use.Card != null && use.Card.Skill == "yigui")
-                            {
-                                use.Card = new WrappedCard("YiguiCard")
-                                {
-                                    Skill = "yigui",
-                                    UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
-                                };
-                            }
+                            ZuociReturn(ref use);
                             return use;
                         }
 
@@ -1695,15 +1713,7 @@ namespace SanguoshaServer.AI
                         {
                             CardUseStruct use = skill.OnResponding(this, self, pattern, prompt, method);
                             //左慈技能的复原
-                            if (use.Card != null && use.Card.Skill == "yigui")
-                            {
-                                use.Card = new WrappedCard("YiguiCard")
-                                {
-                                    Skill = "yigui",
-                                    UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
-                                };
-                            }
-
+                            ZuociReturn(ref use);
                             return use;
                         }
                     }
@@ -1711,6 +1721,18 @@ namespace SanguoshaServer.AI
             }
 
             return base.AskForUseCard(pattern, prompt, method);
+        }
+
+        private void ZuociReturn(ref CardUseStruct use)
+        {
+            if (use.Card != null && use.Card.Skill == "yigui")
+            {
+                use.Card = new WrappedCard(YiguiCard.ClassName)
+                {
+                    Skill = "yigui",
+                    UserString = string.Format("{0}_{1}", use.Card.Name, use.Card.UserString)
+                };
+            }
         }
 
         public override Player AskForYiji(List<int> cards, string reason, ref int card_id)
@@ -1768,14 +1790,14 @@ namespace SanguoshaServer.AI
         }
         public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
         {
-            Choice["HegNullification"] = null;
+            Choice[HegNullification.ClassName] = null;
             if (!to.Alive) return null;
 
-            List<WrappedCard> nullcards = GetCards("Nullification", self);
+            List<WrappedCard> nullcards = GetCards(Nullification.ClassName, self);
             if (nullcards.Count == 0)
                 return null;
 
-            if (trick.Name == "SavageAssault" && IsFriend(to) && positive)
+            if (trick.Name == SavageAssault.ClassName && IsFriend(to) && positive)
             {
                 Player menghuo = FindPlayerBySkill("huoshou");
                 if (menghuo != null && RoomLogic.PlayerHasShownSkill(room, menghuo, "huoshou") && IsFriend(to, menghuo) && HasSkill("zhiman", menghuo))
@@ -1797,7 +1819,7 @@ namespace SanguoshaServer.AI
             FunctionCard fcard = Engine.GetFunctionCard(trick.Name);
             if (HasSkill("kongcheng") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
             {
-                //bool heg = (int)room.GetTag("NullifyingTimes") == 0 && null_card.Name == "HegNullification" || (bool)room.GetTag("HegNullificationValid");
+                //bool heg = (int)room.GetTag("NullifyingTimes") == 0 && null_card.Name == HegNullification.ClassName || (bool)room.GetTag("HegNullificationValid");
                 if (positive && IsFriend(to) && IsEnemy(from))
                 {
                     return null_card;
@@ -1813,7 +1835,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (WrappedCard card in nullcards)
                 {
-                    if (card.Name != "HegNullification" && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
+                    if (card.Name != HegNullification.ClassName && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
                     {
                         null_card = card;
                         break;
@@ -1839,7 +1861,7 @@ namespace SanguoshaServer.AI
                 bool only = true;
                 foreach (Player p in FriendNoSelf)
                 {
-                    if (GetKnownCardsNums("Nullification", "he", p, self) > 0)
+                    if (GetKnownCardsNums(Nullification.ClassName, "he", p, self) > 0)
                     {
                         only = false;
                         break;
@@ -1850,8 +1872,8 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in GetFriends(self))
                     {
-                        if (RoomLogic.PlayerContainsTrick(room, p, "Indulgence") && !HasSkill("guanxing|yizhi|shensu|qiaobian") && p.HandcardNum >= p.Hp
-                            && (trick.Name != "Indulgence") || p.Name != to.Name)
+                        if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) && !HasSkill("guanxing|yizhi|shensu|qiaobian") && p.HandcardNum >= p.Hp
+                            && (trick.Name != Indulgence.ClassName) || p.Name != to.Name)
                         {
                             keep = true;
                             break;
@@ -1869,9 +1891,9 @@ namespace SanguoshaServer.AI
                     {
                         foreach (WrappedCard card in nullcards)
                         {
-                            if (card.Name == "HegNullification" && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
+                            if (card.Name == HegNullification.ClassName && !RoomLogic.IsCardLimited(room, self, card, HandlingMethod.MethodUse))
                             {
-                                Choice["HegNullification"] = "all";
+                                Choice[HegNullification.ClassName] = "all";
                                 null_card = card;
                                 break;
                             }

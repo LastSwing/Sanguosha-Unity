@@ -10,18 +10,18 @@ namespace SanguoshaServer.Package
         {
             skills = new List<Skill>
             {
-                new Shefu(),
-                new ShefuClear(),
+                //new Shefu(),
+                //new ShefuClear(),
             };
 
             skill_cards = new List<FunctionCard>
             {
-                new ShefuCard(),
+                //new ShefuCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
             {
-                { "shefu", new List<string>{ "#shefu-clear"} },
+                //{ "shefu", new List<string>{ "#shefu-clear"} },
             };
         }
     }
@@ -50,7 +50,7 @@ namespace SanguoshaServer.Package
 
                 List<Player> chengyus = RoomLogic.FindPlayersBySkillName(room, Name);
                 string card_name = fcard.Name;
-                if (fcard is Slash) card_name = "Slash";
+                if (fcard is Slash) card_name = Slash.ClassName;
                 foreach (Player p in chengyus)
                 {
                     if (p != player && p.Phase == Player.PlayerPhase.NotActive && p.ContainsTag(string.Format("shefu_{0}", card_name))
@@ -84,15 +84,16 @@ namespace SanguoshaServer.Package
                     if (use.To.Count == 0) return new TriggerStruct();
                     FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                     card_name = fcard.Name;
-                    if (fcard is Slash) card_name = "Slash";
+                    if (fcard is Slash) card_name = Slash.ClassName;
                 }
                 else
-                    card_name = "Jink";
+                    card_name = Jink.ClassName;
 
                 string key = string.Format("shefu_{0}", card_name);
                 if (p.ContainsTag(key) && p.GetTag(key) is int id && p.GetPile("ambush").Contains(id))
                 {
-                    List<int> ids = room.AskForExchange(p, Name, 1, 0, "@shefu-cancel", "ambush", string.Format("{0}|.|.|ambush", id.ToString()), info.SkillPosition);
+                    List<int> ids = room.AskForExchange(p, Name, 1, 0, string.Format("@shefu-cancel:::{0}", card_name),
+                        "ambush", string.Format("{0}|.|.|ambush", id.ToString()), info.SkillPosition);
                     if (ids.Count == 1)
                     {
                         p.RemoveTag(key);
@@ -126,7 +127,8 @@ namespace SanguoshaServer.Package
                 };
                 room.SendLog(log);
 
-                foreach (Player p in use.To)
+                List<Player> targets = new List<Player>(use.To);
+                foreach (Player p in targets)
                     room.CancelTarget(ref use, p);
 
                 data = use;
@@ -139,7 +141,7 @@ namespace SanguoshaServer.Package
                     From = ask_who.Name,
                     To = new List<string> { player.Name },
                     Arg = Name,
-                    Arg2 = "Jink"
+                    Arg2 = Jink.ClassName
                 };
                 room.SendLog(log);
                 return true;
@@ -173,7 +175,7 @@ namespace SanguoshaServer.Package
             foreach (string name in GuhuoCards(room, player))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(name);
-                if (fcard is Slash && name != "Slash") continue;
+                if (fcard is Slash && name != Slash.ClassName) continue;
                 if (player.ContainsTag(string.Format("shefu_{0}", name))) continue;
 
                 WrappedCard card = new WrappedCard(name);
@@ -191,8 +193,8 @@ namespace SanguoshaServer.Package
             foreach (string name in guhuos)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(name);
-                if (fcard is Slash && name != "Slash") continue;
-                if (fcard is Nullification && name != "Nullification") continue;
+                if (fcard is Slash && name != Slash.ClassName) continue;
+                if (fcard is Nullification && name != Nullification.ClassName) continue;
                 if (player.ContainsTag(string.Format("shefu_{0}", name))) continue;
 
                 result.Add(name);
@@ -226,7 +228,7 @@ namespace SanguoshaServer.Package
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, card_use.From, "shefu", card_use.Card.SkillPosition);
-            room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+            room.BroadcastSkillInvoke("shefu", "male", 1, gsk.General, gsk.SkinId);
 
             int id = card_use.Card.GetEffectiveId();
             string card_name = card_use.Card.UserString;

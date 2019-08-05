@@ -21,19 +21,20 @@ namespace SanguoshaServer.Package
 
             related_skills = new Dictionary<string, List<string>>
             {
-                { "ClassicBlade", new List<string> { "#blade-target-mod" } },
+                { ClassicBlade.ClassName, new List<string> { "#blade-target-mod" } },
             };
         }
     }
 
     public class ClassicBlade : Weapon
     {
-        public ClassicBlade() : base("ClassicBlade", 3) { }
+        public static string ClassName = "ClassicBlade";
+        public ClassicBlade() : base(ClassName, 3) { }
     }
 
     public class ClassicBladeSkill : WeaponSkill
     {
-        public ClassicBladeSkill() : base("ClassicBlade")
+        public ClassicBladeSkill() : base(ClassicBlade.ClassName)
         {
             events = new List<TriggerEvent> { TriggerEvent.SlashMissed };
             frequency = Frequency.Compulsory;
@@ -78,12 +79,13 @@ namespace SanguoshaServer.Package
 
     public class ClassicHalberd : Weapon
     {
-        public ClassicHalberd() : base("ClassicHalberd", 4) { }
+        public static string ClassName = "ClassicHalberd";
+        public ClassicHalberd() : base(ClassName, 4) { }
     }
 
     public class ClassicHalberdSkill : TargetModSkill
     {
-        public ClassicHalberdSkill() : base("ClassicHalberd") { }
+        public ClassicHalberdSkill() : base(ClassicHalberd.ClassName) { }
 
         public override int GetExtraTargetNum(Room room, Player from, WrappedCard card)
         {

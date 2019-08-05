@@ -33,6 +33,7 @@ namespace SanguoshaServer.AI
                 new LianziAI(),
                 new FlamemapChoiceAI(),
                 new FlamemapAI(),
+                new YingziExtraAI(),
                 new HaoshiExtraAI(),
                 new ShelieAI(),
             };
@@ -152,7 +153,7 @@ namespace SanguoshaServer.AI
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             ai.Target[Name] = null;
-            if (!player.IsKongcheng() && !player.HasUsed("QiceCard") && ai.WillShowForAttack())
+            if (!player.IsKongcheng() && !player.HasUsed(QiceCard.ClassName) && ai.WillShowForAttack())
             {
                 Room room = ai.Room;
                 foreach (int id in player.HandCards)
@@ -177,15 +178,15 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
-                FunctionCard fcard = Engine.GetFunctionCard("QiceCard");
-                WrappedCard qice = new WrappedCard("QiceCard");
+                FunctionCard fcard = Engine.GetFunctionCard(QiceCard.ClassName);
+                WrappedCard qice = new WrappedCard(QiceCard.ClassName);
                 qice.AddSubCards(player.HandCards);
 
                 List<WrappedCard> guhuos = QiceVS.GetGuhuoCards(room, player);
                 double good = -1;
                 foreach (WrappedCard card in guhuos)
                 {
-                    if (card.Name == "GodSalvation")
+                    if (card.Name == GodSalvation.ClassName)
                     {
                         good = 0;
                         foreach (Player p in room.GetAlivePlayers())
@@ -206,7 +207,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (WrappedCard card in guhuos)
                     {
-                        if (card.Name == "AllianceFeast")
+                        if (card.Name == AllianceFeast.ClassName)
                         {
                             double best = 0;
                             Player target = null;
@@ -229,7 +230,7 @@ namespace SanguoshaServer.AI
                                 }
                             }
 
-                            if (best > good && (room.BloodBattle || best >= 2))
+                            if (best > good && (room.BloodBattle || best >= 2) && target != null)
                             {
                                 ai.Target[Name] = target;
                                 return new List<WrappedCard> { qice };
@@ -240,28 +241,39 @@ namespace SanguoshaServer.AI
 
                 if (good > 0 && (room.BloodBattle || good > 1))
                 {
-                    qice.UserString = "GodSalvation";
+                    qice.UserString = GodSalvation.ClassName;
                     return new List<WrappedCard> { qice };
                 }
 
                 List<WrappedCard> result = new List<WrappedCard>();
                 foreach (WrappedCard card in guhuos)
                 {
-                    if (card.Name == "ExNihilo")
+                    if (card.Name == BefriendAttacking.ClassName)
                     {
-                        qice.UserString = card.Name;
-                        card.UserString = RoomLogic.CardToString(room, qice);
-                        result.Add(card);
-                    }
-                    else if (card.Name == "BefriendAttacking")
-                    {
-                        qice.UserString = card.Name;
-                        card.UserString = RoomLogic.CardToString(room, qice);
-                        result.Add(card);
+                        foreach (Player p in ai.FriendNoSelf)
+                        {
+                            if (!ai.IsCancelTarget(card, p, player) && p.HasShownOneGeneral()
+                                && RoomLogic.IsProhibited(room, player, p, card) == null && !RoomLogic.IsFriendWith(room, player, p))
+                            {
+                                qice.UserString = card.Name;
+                                card.UserString = RoomLogic.CardToString(room, qice);
+                                result.Add(card);
+                                return result;
+                            }
+                        }
                     }
                 }
+                foreach (WrappedCard card in guhuos)
+                {
 
-                return result;
+                    if (card.Name == ExNihilo.ClassName)
+                    {
+                        qice.UserString = card.Name;
+                        card.UserString = RoomLogic.CardToString(room, qice);
+                        result.Add(card);
+                    }
+                    return result;
+                }
             }
 
             return new List<WrappedCard>();
@@ -270,7 +282,7 @@ namespace SanguoshaServer.AI
 
     public class QiceCardAI : UseCard
     {
-        public QiceCardAI() : base("QiceCard")
+        public QiceCardAI() : base(QiceCard.ClassName)
         { }
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -286,7 +298,7 @@ namespace SanguoshaServer.AI
         public YuejianAI() : base("yuejian") { }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (data is Player target && target.HandcardNum > target.Hp)
+            if (player.HandcardNum > player.Hp)
                 return true;
 
             return false;
@@ -406,9 +418,9 @@ namespace SanguoshaServer.AI
         public SanyaoAI() : base("sanyao") { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.IsNude() && !player.HasUsed("SanyaoCard"))
+            if (!player.IsNude() && !player.HasUsed(SanyaoCard.ClassName))
              {
-                WrappedCard first = new WrappedCard("SanyaoCard")
+                WrappedCard first = new WrappedCard(SanyaoCard.ClassName)
                 {
                     Skill = Name,
                     ShowSkill = Name
@@ -422,8 +434,8 @@ namespace SanguoshaServer.AI
 
     public class SanyaoCardAI : UseCard
     {
-        public SanyaoCardAI() : base("SanyaoCard") { }
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public SanyaoCardAI() : base(SanyaoCard.ClassName) { }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 3;
         }
@@ -498,11 +510,101 @@ namespace SanguoshaServer.AI
     {
         public XiongSuanAI() : base("xiongsuan") { }
 
+        public static int FindXiongsuanCard(TrustedAI ai, Player player)
+        {
+            int result = -1;
+
+            Room room = ai.Room;
+            List<int> ids = new List<int>();
+            foreach (int id in player.GetCards("h"))
+            {
+                if (RoomLogic.CanDiscard(room, player, player, id))
+                    ids.Add(id);
+            }
+            if (ids.Count > 0)
+            {
+                ai.SortByKeepValue(ref ids, false);
+                if (ai.GetKeepValue(ids[0], player) < 0)
+                    return ids[0];
+
+                Dictionary<int, double> values = new Dictionary<int, double>();
+                List<int> equips = new List<int>();
+                foreach (int id in ids)
+                {
+                    WrappedCard _c = room.GetCard(id);
+                    if (Engine.GetFunctionCard(_c.Name) is EquipCard)
+                        equips.Add(id);
+                    else
+                        values[id] = ai.GetKeepValue(id, player);
+                }
+                List<int> weapons = new List<int>(), armors = new List<int>(), ohorse = new List<int>(), dhorse = new List<int>(), speacial = new List<int>(), treasure = new List<int>();
+                foreach (int id in equips)
+                {
+                    WrappedCard _c = room.GetCard(id);
+                    double basic = Engine.GetCardUseValue(_c.Name);
+                    UseCard card_event = Engine.GetCardUsage(_c.Name);
+                    if (card_event != null)
+                        basic += card_event.CardValue(ai, player, true, _c, Player.Place.PlaceEquip);
+                    values[id] = basic;
+                    if (Engine.GetFunctionCard(_c.Name) is Weapon)
+                        weapons.Add(id);
+                    else if (Engine.GetFunctionCard(_c.Name) is Armor)
+                        armors.Add(id);
+                    else if (Engine.GetFunctionCard(_c.Name) is OffensiveHorse)
+                        ohorse.Add(id);
+                    else if (Engine.GetFunctionCard(_c.Name) is DefensiveHorse)
+                        dhorse.Add(id);
+                    else if (Engine.GetFunctionCard(_c.Name) is SpecialEquip)
+                        speacial.Add(id);
+                    else
+                        treasure.Add(id);
+                }
+
+                if (speacial.Count > 0)
+                {
+                    if (ohorse.Count > 0)
+                        return ohorse[0];
+                    if (dhorse.Count > 0)
+                        return dhorse[0];
+                }
+                else
+                {
+                    if (ohorse.Count > 1)
+                    {
+                        ohorse.Sort((x, y) => { return values[x] > values[y] ? 1 : -1; });
+                        return ohorse[0];
+                    }
+                    if (dhorse.Count > 1)
+                    {
+                        dhorse.Sort((x, y) => { return values[x] > values[y] ? 1 : -1; });
+                        return dhorse[0];
+                    }
+                }
+
+                if (weapons.Count > 1)
+                {
+                    weapons.Sort((x, y) => { return values[x] > values[y] ? 1 : -1; });
+                    return weapons[0];
+                }
+
+                if (treasure.Count > 1)
+                {
+                    treasure.Sort((x, y) => { return values[x] > values[y] ? 1 : -1; });
+                    return treasure[0];
+                }
+
+                ids.Sort((x, y) => { return values[x] > values[y] ? 1 : -1; });
+                if (ai.GetUseValue(ids[0], player) < 6)
+                    return ids[0];
+            }
+
+            return result;
+        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (ai.WillShowForAttack() && RoomLogic.CanDiscard(ai.Room, player, player, "he") && player.GetMark("@xiong") > 0)
+            if (ai.WillShowForAttack() && !player.IsKongcheng()  && RoomLogic.CanDiscard(ai.Room, player, player, "h") && player.GetMark("@xiong") > 0)
             {
-                WrappedCard first = new WrappedCard("XiongsuanCard")
+                WrappedCard first = new WrappedCard(XiongsuanCard.ClassName)
                 {
                     Skill = Name,
                     ShowSkill = Name,
@@ -525,7 +627,7 @@ namespace SanguoshaServer.AI
 
     public class XiongsuanCardAI : UseCard
     {
-        public XiongsuanCardAI() : base("XiongsuanCard") { }
+        public XiongsuanCardAI() : base(XiongsuanCard.ClassName) { }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
@@ -543,7 +645,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            int sub = LijianAI.FindLijianCard(ai, player);
+            int sub = XiongSuanAI.FindXiongsuanCard(ai, player);
             if (target != null && sub >= 0)
             {
                 card.AddSubCard(sub);
@@ -553,8 +655,8 @@ namespace SanguoshaServer.AI
             }
             
             DamageStruct damage_self = new DamageStruct("xiongsuan", player, player);
-            if (ai.GetDamageScore(damage_self).Score >= 0 || player.GetLostHp() == 0 || (player.IsWounded() && player.HasArmor("SilverLion"))
-                || (player.Hp == 1 && ai.GetKnownCardsNums("Analeptic", "he", player) > 0 && player.GetCards("he").Count > 1))
+            if (ai.GetDamageScore(damage_self).Score >= 0 || player.GetLostHp() == 0 || (player.IsWounded() && player.HasArmor(SilverLion.ClassName))
+                || (player.Hp == 1 && ai.GetKnownCardsNums(Analeptic.ClassName, "he", player) > 0 && player.GetCards("he").Count > 1))
             {
                 if (sub >= 0)
                 {
@@ -582,12 +684,12 @@ namespace SanguoshaServer.AI
                 string kingdom = Engine.GetGeneral(general, room.Setting.GameMode).Kingdom;
                 if (kingdom != "qun" && slash)
                 {
-                    WrappedCard Slash = new WrappedCard("Slash")
+                    WrappedCard _Slash = new WrappedCard(Slash.ClassName)
                     {
                         Skill = Name,
                         UserString = general
                     };
-                    result.Add(Slash);
+                    result.Add(_Slash);
                     slash = false;
                 }
                 if (kingdom == "qun")
@@ -599,7 +701,7 @@ namespace SanguoshaServer.AI
 
                     if (count > 1 && !player.HasFlag("yigui_GodSalvation"))
                     {
-                        WrappedCard god = new WrappedCard("GodSalvation")
+                        WrappedCard god = new WrappedCard(GodSalvation.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -608,7 +710,7 @@ namespace SanguoshaServer.AI
                     }
                     else if (player.IsWounded() && !player.HasFlag("yigui_Peach"))
                     {
-                        WrappedCard peach = new WrappedCard("Peach")
+                        WrappedCard peach = new WrappedCard(Peach.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -618,7 +720,7 @@ namespace SanguoshaServer.AI
 
                     if (!player.HasFlag("yigui_Analeptic"))
                     {
-                        WrappedCard peach = new WrappedCard("Analeptic")
+                        WrappedCard peach = new WrappedCard(Analeptic.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -631,7 +733,7 @@ namespace SanguoshaServer.AI
                 {
                     if (!player.HasFlag("yigui_SavageAssault"))
                     {
-                        WrappedCard card = new WrappedCard("SavageAssault")
+                        WrappedCard card = new WrappedCard(SavageAssault.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -640,7 +742,7 @@ namespace SanguoshaServer.AI
                     }
                     if (!player.HasFlag("yigui_ArcheryAttack"))
                     {
-                        WrappedCard card = new WrappedCard("ArcheryAttack")
+                        WrappedCard card = new WrappedCard(ArcheryAttack.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -649,7 +751,7 @@ namespace SanguoshaServer.AI
                     }
                     if (!player.HasFlag("yigui_BefriendAttacking"))
                     {
-                        WrappedCard card = new WrappedCard("BefriendAttacking")
+                        WrappedCard card = new WrappedCard(BefriendAttacking.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -658,7 +760,7 @@ namespace SanguoshaServer.AI
                     }
                     if (!player.HasFlag("yigui_BurningCamps"))
                     {
-                        WrappedCard card = new WrappedCard("BurningCamps")
+                        WrappedCard card = new WrappedCard(BurningCamps.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -673,7 +775,7 @@ namespace SanguoshaServer.AI
 
         public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
-            if (card.Name == "Analeptic")
+            if (card.Name == Analeptic.ClassName)
                 return -4;
 
             return 0;
@@ -684,7 +786,7 @@ namespace SanguoshaServer.AI
             List<WrappedCard> result = new List<WrappedCard>();
             if (!player.ContainsTag("spirit")) return result;
 
-            if (pattern == "Slash" && !player.HasFlag("yigui_Slash")
+            if (pattern == Slash.ClassName && !player.HasFlag("yigui_Slash")
                 && (ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY
                 || ai.Room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
             {
@@ -693,17 +795,17 @@ namespace SanguoshaServer.AI
                     string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
                     if (kingdom != "qun")
                     {
-                        WrappedCard slash = new WrappedCard("Slash")
+                        WrappedCard slash = new WrappedCard(Slash.ClassName)
                         {
                             Skill = Name,
                             UserString = general
                         };
-                        WrappedCard fslash = new WrappedCard("FireSlash")
+                        WrappedCard fslash = new WrappedCard(FireSlash.ClassName)
                         {
                             Skill = Name,
                             UserString = general
                         };
-                        WrappedCard tslash = new WrappedCard("ThunderSlash")
+                        WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -714,11 +816,11 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-            else if (pattern == "Peach" && !player.HasFlag("yigui_Peach"))
+            else if (pattern == Peach.ClassName && !player.HasFlag("yigui_Peach"))
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
-                    WrappedCard card = new WrappedCard("Peach")
+                    WrappedCard card = new WrappedCard(Peach.ClassName)
                     {
                         Skill = Name,
                         UserString = general
@@ -726,14 +828,14 @@ namespace SanguoshaServer.AI
                     result.Add(card);
                 }
             }
-            else if (pattern == "Analeptic" && !player.HasFlag("yigui_Analeptic"))
+            else if (pattern == Analeptic.ClassName && !player.HasFlag("yigui_Analeptic"))
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
                     string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
                     if (kingdom == "qun")
                     {
-                        WrappedCard card = new WrappedCard("Analeptic")
+                        WrappedCard card = new WrappedCard(Analeptic.ClassName)
                         {
                             Skill = Name,
                             UserString = general
@@ -755,6 +857,19 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;
+        }
+
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
+
+            if (damage.To != null && ai.HasSkill(Name, damage.To) && ai.IsEnemy(damage.To) && damage.Damage == 1)
+                score.Score = -1;
+
+            return score;
         }
     }
 
@@ -949,7 +1064,7 @@ namespace SanguoshaServer.AI
                     {
                         if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && ai.IsFriend(p))
                         {
-                            use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                             use.Card.AddSubCard(ids[0]);
                             use.To.Add(p);
                             return use;
@@ -960,7 +1075,7 @@ namespace SanguoshaServer.AI
                     {
                         if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(ids[0]), p) == null)
                         {
-                            use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                             use.Card.AddSubCard(ids[0]);
                             use.To.Add(p);
                             return use;
@@ -994,7 +1109,7 @@ namespace SanguoshaServer.AI
             }
             if (target != null)
             {
-                use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                 use.To.Add(target);
                 return use;
             }
@@ -1007,7 +1122,7 @@ namespace SanguoshaServer.AI
                     FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
                     if (fcard is Weapon || fcard is OffensiveHorse)
                     {
-                        use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                         use.To.Add(p);
                         return use;
                     }
@@ -1022,7 +1137,7 @@ namespace SanguoshaServer.AI
                     FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
                     if ((fcard is Armor || fcard is DefensiveHorse || fcard is SpecialEquip) && ai.GetEnemisBySeat(p) == 0)
                     {
-                        use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                         use.To.Add(p);
                         return use;
                     }
@@ -1044,9 +1159,38 @@ namespace SanguoshaServer.AI
                             if (Engine.GetFunctionCard(room.GetCard(_id).Name) is Treasure)
                                 continue;
 
-                        use.Card = new WrappedCard("DiaoduCard") { Skill = Name, ShowSkill = Name };
+                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
                         use.To.Add(p);
                         return use;
+                    }
+                }
+            }
+
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && p.GetEquips().Count > 0 && RoomLogic.IsFriendWith(room, player, p))
+                {
+                    if (p.GetOffensiveHorse() && RoomLogic.CanGetCard(room, player, p, p.OffensiveHorse.Key))
+                    {
+                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
+                        use.To.Add(p);
+                        return use;
+                    }
+                    if (p.GetWeapon() && RoomLogic.CanGetCard(room, player, p, p.Weapon.Key))
+                    {
+                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
+                        use.To.Add(p);
+                        return use;
+                    }
+
+                    foreach (Player p2 in ai.GetFriends(player))
+                    {
+                        if (p2 != p && ai.HasSkill(TrustedAI.LoseEquipSkill, p2))
+                        {
+                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
+                            use.To.Add(p);
+                            return use;
+                        }
                     }
                 }
             }
@@ -1126,14 +1270,17 @@ namespace SanguoshaServer.AI
                             ids.Add(id);
                     }
 
-                    ai.SortByUseValue(ref ids, false);
-                    if (ai.GetUseValue(ids[0], player) <= 5)
+                    if (ids.Count > 0)
                     {
-                        WrappedCard first = new WrappedCard("LianziCard");
-                        first.AddSubCard(ids[0]);
-                        first.Skill = Name;
-                        first.ShowSkill = Name;
-                        return new List<WrappedCard> { first };
+                        ai.SortByUseValue(ref ids, false);
+                        if (ai.GetUseValue(ids[0], player) <= 5)
+                        {
+                            WrappedCard first = new WrappedCard("LianziCard");
+                            first.AddSubCard(ids[0]);
+                            first.Skill = Name;
+                            first.ShowSkill = Name;
+                            return new List<WrappedCard> { first };
+                        }
                     }
                 }
             }
@@ -1148,7 +1295,7 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 3;
         }
@@ -1185,10 +1332,10 @@ namespace SanguoshaServer.AI
             foreach (int id in card_ids)
             {
                 WrappedCard card = ai.Room.GetCard(id);
-                if ((lord_liubei != null && card.Name == "DragonPhoenix") || (lord_jiaozhu != null && card.Name == "PeaceSpell"))
+                if ((lord_liubei != null && card.Name == DragonPhoenix.ClassName) || (lord_jiaozhu != null && card.Name == PeaceSpell.ClassName))
                     ids.Remove(id);
 
-                if (card.Name == "LuminouSpearl")
+                if (card.Name == LuminouSpearl.ClassName)
                     return id;
             }
 
@@ -1202,9 +1349,9 @@ namespace SanguoshaServer.AI
     {
         public FlamemapCardAI() : base("FlamemapCard") { }
 
-        public override double UsePriorityAjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
-            return (ai.HasSkill("zhiheng") || player.HasTreasure("LuminouSpearl") && !player.HasUsed("ZhihengCard")) ? 4.5 : 1.5;
+            return (ai.HasSkill("zhiheng") || player.HasTreasure(LuminouSpearl.ClassName) && !player.HasUsed("ZhihengCard")) ? 4.5 : 1.5;
         }
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -1224,7 +1371,7 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     WrappedCard eq = room.GetCard(id);
-                    if (eq.Name !=  "LuminouSpearl" && ai.GetKeepValue(id, player) < 0)
+                    if (eq.Name !=  LuminouSpearl.ClassName && ai.GetKeepValue(id, player) < 0)
                     {
                         card.AddSubCard(ids[0]);
                         use.Card = card;
@@ -1236,7 +1383,7 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                 {
                     WrappedCard eq = room.GetCard(id);
-                    if (eq.Name == "LuminouSpearl") continue;
+                    if (eq.Name == LuminouSpearl.ClassName) continue;
                     if (ai.GetUseValue(ids[0], player) < 5)
                     {
                         card.AddSubCard(ids[0]);
@@ -1260,7 +1407,7 @@ namespace SanguoshaServer.AI
                     foreach (int id in ids)
                     {
                         WrappedCard eq = room.GetCard(id);
-                        if (eq.Name != "LuminouSpearl" && ai.GetKeepValue(id, player) < 7)
+                        if (eq.Name != LuminouSpearl.ClassName && ai.GetKeepValue(id, player) < 7)
                         {
                             card.AddSubCard(id);
                             use.Card = card;
@@ -1285,7 +1432,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill("yingzi_sunce")) n++;
             if (ai.HasSkill("yingzi_zhouyu")) n++;
             if (ai.HasSkill("yingziextra")) n++;
-            if (player.HasTreasure("JadeSeal")) n++;
+            if (player.HasTreasure(JadeSeal.ClassName)) n++;
 
             check = 5 - n - 2 - player.HandcardNum;
             if (check < 0)
@@ -1324,6 +1471,43 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class YingziExtraAI : SkillEvent
+    {
+        public YingziExtraAI() : base("yingziextra") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (ai.HasSkill("haoshi+haoshiextra")) return true;
+
+            if (ai.HasSkill("haoshi|haoshiextra"))
+            {
+                int count = player.HandcardNum + 4;
+                if (player.HasTreasure(JadeSeal.ClassName))
+                    count++;
+
+                if (count <= 5 && count + 1 > 5)
+                {
+                    int least = 1000;
+                    foreach (Player p in room.GetOtherPlayers(player))
+                        least = Math.Min(player.HandcardNum, least);
+
+                    bool check = false;
+                    foreach (Player p in ai.FriendNoSelf)
+                    {
+                        if (p.HandcardNum == least)
+                        {
+                            check = true;
+                            break;
+                        }
+                    }
+                    return check;
+                }
+            }
+
+            return true;
+        }
+    }
+
     public class HaoshiExtraAI : SkillEvent
     {
         public HaoshiExtraAI() : base("haoshiextra")
@@ -1336,7 +1520,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             int draw = (int)data;
             int count = player.HandcardNum + draw + 2;
-            if (player.HasTreasure("JadeSeal"))
+            if (player.HasTreasure(JadeSeal.ClassName))
                 count++;
 
             if (count > 5)

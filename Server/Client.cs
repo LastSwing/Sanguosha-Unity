@@ -325,9 +325,7 @@ namespace SanguoshaServer
             if (dt.Rows.Count == 0)
             {
                 string new_sql = string.Format("insert into account (account, password, User_Right, status, lastIP, inGame) values ('{0}', '{1}', 0, 1, '{2}', 0)", id, pwd, IP);
-
-                hall.OutPut(new_sql);
-
+                //hall.OutPut(new_sql);
                 DB.UpdateData(new_sql);
 
                 hall.OutPut(id + "：注册成功");
@@ -1113,11 +1111,13 @@ namespace SanguoshaServer
             CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
             if (!skill_invoke)
             {
-                foreach (Player player in requestors) {
+                foreach (Player player in requestors)
+                {
                     available_equip_skills[player.Name] = new List<string>();
                     available_head_skills[player.Name] = new List<string>();
                     string pattern = room.GetRoomState().GetCurrentCardUsePattern(player);
-                    foreach (WrappedCard card in equip_cards[player]) {
+                    foreach (WrappedCard card in equip_cards[player])
+                    {
                         Skill skill = Engine.GetSkill(card.Name);
                         if (skill != null)
                         {
@@ -1131,8 +1131,12 @@ namespace SanguoshaServer
                             }
                         }
                     }
-
-                    foreach (string skill in player.GetHeadSkillList(true, true)) {
+                    //耦合双雄断肠 主
+                    List<string> heads = player.GetHeadSkillList(true, true);
+                    if (player.HasFlag("shuangxiong_head") && !heads.Contains("shuangxiong"))
+                        heads.Add("shuangxiong");
+                    foreach (string skill in heads)
+                    {
                         ViewAsSkill vs = ViewAsSkill.ParseViewAsSkill(skill);
                         if (vs != null && vs.IsAvailable(room, player, reason, pattern, "head"))
                         {
@@ -1142,15 +1146,12 @@ namespace SanguoshaServer
                                 available_head_skills[player.Name] = new List<string> { skill };
                         }
                     }
-                    if (player.HasFlag("shuangxiong_head") && !available_head_skills[player.Name].Contains("shuangxiong") && ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD)
+                    //耦合双雄断肠 副
+                    List<string> deputys = player.GetDeputySkillList(true, true);
+                    if (player.HasFlag("shuangxiong_deputy") && !deputys.Contains("shuangxiong"))
+                        deputys.Add("shuangxiong");
+                    foreach (string skill in deputys)
                     {
-                        if (available_head_skills.ContainsKey(player.Name))
-                            available_head_skills[player.Name].Add("shuangxiong");
-                        else
-                            available_head_skills[player.Name] = new List<string> { "shuangxiong" };
-                    }
-
-                    foreach (string skill in player.GetDeputySkillList(true, true)) {
                         ViewAsSkill vs = ViewAsSkill.ParseViewAsSkill(skill);
                         if (vs != null && vs.IsAvailable(room, player, reason, pattern, "deputy"))
                         {
@@ -1160,7 +1161,8 @@ namespace SanguoshaServer
                                 available_deputy_skills[player.Name] = new List<string> { skill };
                         }
                     }
-                    if (player.HasFlag("shuangxiong_deputy") && !available_deputy_skills[player.Name].Contains("shuangxiong") && ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD)
+                    if (player.HasFlag("shuangxiong_deputy") && (!available_deputy_skills.ContainsKey(player.Name) ||
+                        !available_deputy_skills[player.Name].Contains("shuangxiong")) && ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD)
                     {
                         if (available_deputy_skills.ContainsKey(player.Name))
                             available_deputy_skills[player.Name].Add("shuangxiong");
@@ -1227,7 +1229,7 @@ namespace SanguoshaServer
                         {
                             if (card.Transferable)
                             {
-                                WrappedCard transfer = new WrappedCard("TransferCard")
+                                WrappedCard transfer = new WrappedCard(TransferCard.ClassName)
                                 {
                                     Skill = "transfer",
                                     Mute = true
@@ -1247,7 +1249,7 @@ namespace SanguoshaServer
                         {
                             if (card.Transferable)
                             {
-                                WrappedCard transfer = new WrappedCard("TransferCard")
+                                WrappedCard transfer = new WrappedCard(TransferCard.ClassName)
                                 {
                                     Skill = "transfer",
                                     Mute = true
@@ -1550,7 +1552,6 @@ namespace SanguoshaServer
         {
             FunctionCard fcard = Engine.GetFunctionCard(card?.Name);
             if (player == null || fcard == null || card.HasFlag("using")) return false;
-            if (fcard is EquipCard && room.GetCardPlace(card.Id) == Player.Place.PlaceEquip) return false;
 
             bool ok_enable = true;
             if ((ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD || method == HandlingMethod.MethodUse) && !fcard.IsAvailable(room, player, card))
@@ -1760,7 +1761,7 @@ namespace SanguoshaServer
             List<string> hightlight_skills = new List<string>();
             if (pending_skill != null)
                 hightlight_skills.Add(pending_skill.Name);
-            else if (viewas_card != null && viewas_card.Name == "TransferCard")
+            else if (viewas_card != null && viewas_card.Name == TransferCard.ClassName)
                 hightlight_skills.Add("transfer");
 
             if (!string.IsNullOrEmpty(hightlight_skill))
@@ -1804,7 +1805,7 @@ namespace SanguoshaServer
                 {
                     if (guhuo_cards.Contains(card))
                         args.AvailableCards[name].Add(card.Name);
-                    else if (card.Name == "TransferCard")
+                    else if (card.Name == TransferCard.ClassName)
                         args.AvailableCards[name].Add(RoomLogic.CardToString(room, card));
                     else
                         args.AvailableCards[name].Add(card.Id.ToString());
@@ -2177,9 +2178,9 @@ namespace SanguoshaServer
 
                 #region old transfer card
                 /*
-                else if (card.Name == "TransferCard" && available_cards.ContainsKey(args[1]))
+                else if (card.Name == TransferCard.ClassName && available_cards.ContainsKey(args[1]))
                 {
-                    card = available_cards[args[1]].Find(t => t.Name == "TransferCard" && t.GetEffectiveId() == card.GetEffectiveId());
+                    card = available_cards[args[1]].Find(t => t.Name == TransferCard.ClassName && t.GetEffectiveId() == card.GetEffectiveId());
                 }
                 */
                 #endregion
@@ -2332,6 +2333,7 @@ namespace SanguoshaServer
 
                     if (player != null)
                     {
+                        success = true;
                         //handle discard by steps
                         if (ExpectedReplyCommand == CommandType.S_COMMAND_DISCARD_CARD && !discard_skill.IsFull())
                         {
@@ -2344,10 +2346,7 @@ namespace SanguoshaServer
                             UpdatePending();
                         }
                         else
-                        {
-                            success = true;
                             Reply2Server(true, player);
-                        }
                     }
                 }
                 else if (!ok_button && cancel_enable)
@@ -2515,7 +2514,7 @@ namespace SanguoshaServer
             }
             #region old tranfer card
             /*
-            else if (RoomLogic.IsVirtualCard(room, card) && card.Name == "TransferCard")
+            else if (RoomLogic.IsVirtualCard(room, card) && card.Name == TransferCard.ClassName)
             {
                 selected_cards[player] = new List<WrappedCard> { room.GetCard(card.GetEffectiveId()) };
                 viewas_card = card;
@@ -2561,17 +2560,17 @@ namespace SanguoshaServer
                             selected_targets.Clear();
 
                         //国战鏖战模式对桃做特殊判断
-                        if (room.BloodBattle && card.Name == "Peach")
+                        if (room.BloodBattle && card.Name == Peach.ClassName)
                         {
-                            WrappedCard slash = new WrappedCard("Slash");
+                            WrappedCard slash = new WrappedCard(Slash.ClassName);
                             slash.AddSubCard(card);
                             slash = RoomLogic.ParseUseCard(room, slash);
                             if (Engine.MatchExpPattern(room, room.GetRoomState().GetCurrentCardUsePattern(player), player, slash)
-                                && Engine.GetFunctionCard("Slash").IsAvailable(room, player, slash))
+                                && Slash.Instance.IsAvailable(room, player, slash))
                                 viewas_card = slash;
                             else
                             {
-                                WrappedCard jink = new WrappedCard("Jink");
+                                WrappedCard jink = new WrappedCard(Jink.ClassName);
                                 jink.AddSubCard(card);
                                 jink = RoomLogic.ParseUseCard(room, jink);
                                 viewas_card = jink;

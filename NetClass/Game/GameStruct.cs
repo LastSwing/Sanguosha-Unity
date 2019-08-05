@@ -512,6 +512,26 @@ namespace CommonClass.Game
             Origin_to_pile_name = null;
         }
 
+        public void Copy(CardsMoveStruct other)
+        {
+            Card_ids = other.Card_ids;
+            From = other.From;
+            From_place = other.Origin_from_place;
+            From_pile_name = other.From_pile_name;
+            To = other.To;
+            To_place = other.To_place;
+            To_pile_name = other.To_pile_name;
+            Reason = other.Reason;
+            Open = other.Open;
+            Is_last_handcard = other.Is_last_handcard;
+            Origin_from = other.Origin_from;
+            Origin_from_place = other.Origin_from_place;
+            Origin_to_place = other.Origin_to_place;
+            Origin_to = other.Origin_to;
+            Origin_from_pile_name = other.Origin_from_pile_name;
+            Origin_to_pile_name = other.Origin_to_pile_name;
+        }
+
         public override bool Equals(object obj)
         {
             if (!(obj is CardsMoveStruct other)) return false;
@@ -535,8 +555,8 @@ namespace CommonClass.Game
         //}
 
         public List<int> Card_ids { set; get; }
-        public Player.Place From_place { set; get; }
-        public Player.Place To_place { set; get; }
+        public Place From_place { set; get; }
+        public Place To_place { set; get; }
         public string From_pile_name { set; get; }
         public string To_pile_name { set; get; }
         public string From { set; get; }
@@ -544,8 +564,8 @@ namespace CommonClass.Game
         public CardMoveReason Reason { set; get; }
         public bool Open { set; get; } // helper to prevent sending card_id to unrelevant clients
         public bool Is_last_handcard { set; get; }
-        public Player.Place Origin_from_place { set; get; }
-        public Player.Place Origin_to_place { set; get; }
+        public Place Origin_from_place { set; get; }
+        public Place Origin_to_place { set; get; }
         public string Origin_from { set; get; }
         public string Origin_to { set; get; }
         public string Origin_from_pile_name { set; get; }

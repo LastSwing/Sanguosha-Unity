@@ -33,7 +33,7 @@ namespace SanguoshaServer.Game
             if (other == slasher || !other.Alive)
                 return false;
 
-            slash = slash ?? new WrappedCard("Slash");
+            slash = slash ?? new WrappedCard(Slash.ClassName);
 
             if (IsProhibited(room, slasher, other, slash, others) != null) return false;
 
@@ -51,7 +51,7 @@ namespace SanguoshaServer.Game
 
         public static bool CanSlashWithoutCrossBow(Room room, Player player, WrappedCard slash = null)
         {
-            WrappedCard newslash = slash ?? new WrappedCard("Slash");
+            WrappedCard newslash = slash ?? new WrappedCard(Slash.ClassName);
             int slash_count = player.GetSlashCount();
             int valid_slash_count = 1;
             valid_slash_count += Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, newslash);
@@ -122,9 +122,17 @@ namespace SanguoshaServer.Game
 
             int distance_fixed = Engine.GetFixedDistance(room, from, other);
             if (distance_fixed > 0) return distance_fixed;
+            
+            int right = 0;
+            Player next_p = from;
+            while (next_p != other)
+            {
+                next_p = room.GetNextAlive(next_p, 1, !include_remove);
+                right++;
+            }
 
-            int right = OriginalRightDistance(room, from, other);
-            int left = room.AliveCount(false) - right;
+            int left = room.AliveCount(include_remove) - right;
+
             int distance = Math.Min(left, right);
 
             distance += Engine.CorrectDistance(room, from, other, card);
@@ -366,11 +374,12 @@ namespace SanguoshaServer.Game
                     return PlayerHasSkill(room, player, main_skill.Name);
             }
 
+            if (Engine.Invalid(room, player, skill_name) != null) return false;
 
             if ((player.HeadSkills.ContainsKey(skill_name) && (player.General1Showed || (player.HeadSkills[skill_name] && player.CanShowGeneral("h"))))
                     || (player.DeputySkills.ContainsKey(skill_name) && (player.General2Showed || (player.DeputySkills[skill_name] && player.CanShowGeneral("d"))))
                     || player.HeadAcquiredSkills.Contains(skill_name) || player.DeputyAcquiredSkills.Contains(skill_name))
-                return Engine.Invalid(room, player, skill_name) == null;
+                return true;
 
             if (Engine.ViewHas(room, player, skill_name, "skill").Count > 0) return true;
 
@@ -963,7 +972,7 @@ namespace SanguoshaServer.Game
             foreach (string skill_name in room.Skills)
             {
                 ViewAsSkill vsskill = Engine.GetViewAsSkill(skill_name);
-                if (vsskill != null && vsskill.IsAvailable(room, player, CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE, "Nullification")) return true;
+                if (vsskill != null && vsskill.IsAvailable(room, player, CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE, Nullification.ClassName)) return true;
             }
 
             return false;
@@ -1106,7 +1115,7 @@ namespace SanguoshaServer.Game
             Player jade_seal_owner = null;
             foreach (Player p in players)
             {
-                if (HasTreasureEffect(room, p, "JadeSeal") && p.HasShownOneGeneral())
+                if (HasTreasureEffect(room, p, JadeSeal.ClassName) && p.HasShownOneGeneral())
                 {
                     jade_seal_owner = p;
                     break;
@@ -1138,7 +1147,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                if (HasArmorEffect(room, target, "IronArmor"))
+                if (HasArmorEffect(room, target, IronArmor.ClassName))
                 {
                     List<string> big_kingdoms = GetBigKingdoms(room);
                     if (big_kingdoms.Count > 0)

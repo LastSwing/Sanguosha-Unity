@@ -41,7 +41,7 @@ namespace SanguoshaServer.Package
         protected List<Skill> skills = new List<Skill>();
         protected string name;
         protected List<FunctionCard> cards = new List<FunctionCard>();
-        Dictionary<string, CardPattern> patterns = new Dictionary<string, CardPattern>();
+        readonly Dictionary<string, CardPattern> patterns = new Dictionary<string, CardPattern>();
         protected Dictionary<string, List<string>> related_skills = new Dictionary<string, List<string>>();
         public List<Skill> Skills => skills;
         public string Name => name;
