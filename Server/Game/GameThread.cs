@@ -1,13 +1,9 @@
-﻿using CommonClass;
-using CommonClass.Game;
+﻿using CommonClass.Game;
 using SanguoshaServer.AI;
+using SanguoshaServer.Extensions;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace SanguoshaServer.Game
 {
@@ -74,18 +70,19 @@ namespace SanguoshaServer.Game
             if (!string.IsNullOrEmpty(winner))
                 room.GameOver(winner);
 
-            //try
-            //{
+            try
+            {
                 Trigger(TriggerEvent.GameStart, room, null);
                 ConstructTriggerTable();
-                // delay(3000);
-                //actionNormal(game_rule);
                 ActionNormal();
-            //}
-            //catch (Exception e)
-            //{
-            //    room.OutPut(e.Message);
-            //}
+            }
+            catch (Exception e)
+            {
+                room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
+            }
+
+            if (!room.RoomTerminated)
+                room.GameOver(".");
         }
 
         protected virtual void ActionNormal()//(GameRule* game_rule)
@@ -124,7 +121,7 @@ namespace SanguoshaServer.Game
                         room.RemoveTag("ExtraTurnList");
                 }
                 if (room.Finished) break;
-                room.SetCurrent(regular_next);
+                    room.SetCurrent(regular_next);
             }
         }
 

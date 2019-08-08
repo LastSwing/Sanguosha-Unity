@@ -30,7 +30,6 @@ namespace SanguoshaServer.AI
                 new SongciAI(),
                 new JigongAI(),
                 new ShifeiAI(),
-
                 new JushouJXAI(),
                 new JieweiAI(),
                 new DuanliangJXAI(),
@@ -388,8 +387,11 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (card.Name == Vine.ClassName && ai.HasSkill(Name, player) && player.GetMark("@gd_liang") > 0)
-                return -8;
+            if (ai.HasSkill(Name, player) && player.GetMark("@gd_liang") > 0)
+            {
+                if (card.Name == Vine.ClassName) return -8;
+                if (card.Name == Jink.ClassName) return 2;
+            }
 
             return 0;
         }
@@ -466,6 +468,13 @@ namespace SanguoshaServer.AI
                 {
                     use.Card = card;
                     return use;
+                }
+
+                if (card.Name.Contains(Slash.ClassName))
+                {
+                    ai.FindSlashandTarget(ref use, player, new List<WrappedCard> { card });
+                    if (use.Card != null)
+                        return use;
                 }
 
                 UseCard e = Engine.GetCardUsage(card.Name);
@@ -1144,8 +1153,10 @@ namespace SanguoshaServer.AI
                 WrappedCard shifei = new WrappedCard(ShifeiCard.ClassName) { Skill = Name };
                 if (ai.IsFriend(room.Current))
                 {
-                    WrappedCard jink = new WrappedCard(Jink.ClassName);
-                    jink.UserString = RoomLogic.CardToString(room, shifei);
+                    WrappedCard jink = new WrappedCard(Jink.ClassName)
+                    {
+                        UserString = RoomLogic.CardToString(room, shifei)
+                    };
                     result.Add(jink);
                     return result;
                 }
@@ -1159,8 +1170,10 @@ namespace SanguoshaServer.AI
                 {
                     if (p.HandcardNum == max && ai.IsEnemy(p))
                     {
-                        WrappedCard jink = new WrappedCard(Jink.ClassName);
-                        jink.UserString = RoomLogic.CardToString(room, shifei);
+                        WrappedCard jink = new WrappedCard(Jink.ClassName)
+                        {
+                            UserString = RoomLogic.CardToString(room, shifei)
+                        };
                         result.Add(jink);
                         return result;
                     }
@@ -1179,8 +1192,10 @@ namespace SanguoshaServer.AI
                             {
                                 if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
                                 {
-                                    WrappedCard jink = new WrappedCard(Jink.ClassName);
-                                    jink.UserString = RoomLogic.CardToString(room, shifei);
+                                    WrappedCard jink = new WrappedCard(Jink.ClassName)
+                                    {
+                                        UserString = RoomLogic.CardToString(room, shifei)
+                                    };
                                     result.Add(jink);
                                     return result;
                                 }
@@ -1190,8 +1205,10 @@ namespace SanguoshaServer.AI
                 }
                 if (most != null && ai.IsWeak())
                 {
-                    WrappedCard jink = new WrappedCard(Jink.ClassName);
-                    jink.UserString = RoomLogic.CardToString(room, shifei);
+                    WrappedCard jink = new WrappedCard(Jink.ClassName)
+                    {
+                        UserString = RoomLogic.CardToString(room, shifei)
+                    };
                     result.Add(jink);
                 }
             }
@@ -1302,6 +1319,143 @@ namespace SanguoshaServer.AI
             if (fcard is Armor || fcard is DefensiveHorse) return -1.5;
             return -1;
         }
+
+        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
+        {
+            List<int> result = new List<int>();
+            if (flags == "ej")
+            {
+                int id = QiaobianAI.CardForQiaobian(ai, to).Key;
+                if (id >= 0)
+                    result.Add(id);
+            }
+
+            return null;
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
+        {
+            List<Player> result = new List<Player>();
+            if (ai.Room.GetTag("MouduanTarget") != null && ai.Room.GetTag("MouduanTarget") is Player from)
+            {
+                Player to = QiaobianAI.CardForQiaobian(ai, from).Value;
+                if (to != null)
+                    result.Add(to);
+                else
+                    ai.Room.Debug("解围AI出错");
+            }
+            else
+            {
+                foreach (Player friend in ai.GetFriends(player))
+                {
+                    if (friend.JudgingArea.Count > 0 && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+                foreach (Player friend in ai.FriendNoSelf)
+                {
+                    if (friend.HasEquip() && ai.HasSkill(TrustedAI.LoseEquipSkill, friend) && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+
+                List<Player> enemies = ai.GetEnemies(player);
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                {
+                    if (QiaobianAI.CardForQiaobian(ai, p).Key >= 0)
+                    {
+                        return new List<Player> { p };
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            List<int> to_discard = new List<int>();
+
+            List<int> cards = player.GetCards("he");
+            ai.SortByKeepValue(ref cards, false);
+            Room room = ai.Room;
+            Player stealer = null;
+
+            foreach (Player ap in room.GetOtherPlayers(player))
+            {
+                if (ai.HasSkill("tuxi|tuxi_jx", ap) && ai.IsEnemy(ap))
+                {
+                    stealer = ap;
+                    break;
+                }
+            }
+
+            int card = -1;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                if (ai.IsCard(cards[i], Peach.ClassName, player))
+                {
+                    if (stealer != null && player.HandcardNum <= 2 && player.Hp > 2 && !RoomLogic.PlayerContainsTrick(room, stealer, SupplyShortage.ClassName))
+                    {
+                        card = cards[i];
+                        break;
+                    }
+                    bool to_discard_peach = true;
+                    foreach (Player fd in ai.GetFriends(player))
+                    {
+                        if (fd.Hp <= 2 && (!ai.HasSkill("niepan", fd) || fd.GetMark("@nirvana") == 0))
+                        {
+                            to_discard_peach = false;
+                            break;
+                        }
+                    }
+                    if (to_discard_peach)
+                    {
+                        card = cards[i];
+                        break;
+                    }
+                }
+                else
+                {
+                    card = cards[i];
+                    break;
+                }
+            }
+
+            if (card == -1)
+                return to_discard;
+
+            foreach (Player friend in ai.GetFriends(player))
+            {
+                if (friend.JudgingArea.Count > 0 && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    return to_discard;
+            }
+
+            foreach (Player friend in ai.FriendNoSelf)
+            {
+                if (friend.HasEquip() && ai.HasSkill(TrustedAI.LoseEquipSkill, friend) && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
+                    return to_discard;
+            }
+            
+            foreach (Player p in ai.GetEnemies(player))
+            {
+                if (QiaobianAI.CardForQiaobian(ai, p).Key > 0)
+                    return to_discard;
+            }
+
+            return new List<int>();
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && Engine.GetFunctionCard(card.Name) is EquipCard)
+                return 1.5;
+
+            return 0;
+        }
     }
 
     public class JianyingAI : SkillEvent
@@ -1406,12 +1560,90 @@ namespace SanguoshaServer.AI
         public ShefuAI() : base("shefu") { }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            Room room = ai.Room;
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            List<int> ids = player.GetCards("h");
+            ai.SortByKeepValue(ref ids);
+            int id = -1;
+            foreach (int i in ids)
+            {
+                if (!ai.IsCard(i, Peach.ClassName, player) && !ai.IsCard(i, Analeptic.ClassName, player))
+                {
+                    id = i;
+                    break;
+                }
+            }
+            if (id == -1) return use;
+
+            if (!player.ContainsTag(string.Format("shefu_{0}", Slash.ClassName)))
+            {
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = Slash.ClassName };
+                shefu.AddSubCard(id);
+                use.Card = shefu;
+            }
+            else if (!player.ContainsTag(string.Format("shefu_{0}", Peach.ClassName)))
+            {
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = Peach.ClassName };
+                shefu.AddSubCard(id);
+                use.Card = shefu;
+            }
+            else if (!player.ContainsTag(string.Format("shefu_{0}", Jink.ClassName)))
+            {
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = Jink.ClassName };
+                shefu.AddSubCard(id);
+                use.Card = shefu;
+            }
+            else if (!player.ContainsTag(string.Format("shefu_{0}", Nullification.ClassName)))
+            {
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = Nullification.ClassName };
+                shefu.AddSubCard(id);
+                use.Card = shefu;
+            }
+            else if (room.AvailableFunctionCards.Contains(Reinforcement.Instance) && !player.ContainsTag(string.Format("shefu_{0}", Reinforcement.ClassName)))
+            {
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = Reinforcement.ClassName };
+                shefu.AddSubCard(id);
+                use.Card = shefu;
+            }
+
+            return use;
         }
 
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
-            return base.OnExchange(ai, player, pattern, min, max, pile);
+            Room room = ai.Room;
+            int id = int.Parse(pattern.Split('|')[0]);
+            if (room.GetTag("shefu_data") is CardUseStruct use && ai.IsEnemy(use.From))
+            {
+                if (use.Card.Name.Contains(Slash.ClassName))
+                {
+                    foreach (Player p in use.To)
+                    {
+                        if (ai.IsFriend(p) && !ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
+                        {
+                            DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
+                            if (use.Card.Name == FireSlash.ClassName)
+                                damage.Nature = DamageStruct.DamageNature.Fire;
+                            else if (damage.Card.Name == ThunderSlash.ClassName)
+                                damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                            ScoreStruct score = ai.GetDamageScore(damage);
+                            if ((ai.IsWeak(p) && score.Score < 0) || score.Score < -5)
+                                return new List<int> { id };
+                        }
+                    }
+
+                    return new List<int>();
+                }
+
+                return new List<int> { id };
+            }
+            else if (room.GetTag("shefu_data") is CardResponseStruct resp && ai.IsEnemy(resp.Who))
+            {
+                return new List<int> { id };
+            }
+
+            return new List<int>();
         }
     }
 
@@ -1608,15 +1840,93 @@ namespace SanguoshaServer.AI
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
-            return base.OnPlayerChosen(ai, player, target, min, max);
+            List<Player> targets = ai.FriendNoSelf;
+            ai.SortByDefense(ref targets);
+            foreach (Player p in targets)
+            {
+                if (player.HasEquip())
+                {
+                    List<int> ids = player.GetCards("e");
+                    foreach (int id in ids)
+                    {
+                        if (ai.GetKeepValue(id, p) < 0)
+                        {
+                            return new List<Player> { p };
+                        }
+                    }
+                }
+            }
+            foreach (Player p in targets)
+            {
+                if (ai.GetOverflow(p) > 0)
+                    return new List<Player> { p };
+            }
+            foreach (Player p in targets)
+            {
+                if (ai.WillSkipPlayPhase(p) && !p.IsNude())
+                    return new List<Player> { p };
+            }
+
+            if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
+            {
+                foreach (Player p in targets)
+                {
+                    if (!p.IsNude() && !ai.IsWeak(p))
+                        return new List<Player> { p };
+                }
+            }
+
+            return new List<Player>();
+            
         }
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
-            return base.OnExchange(ai, player, pattern, min, max, pile);
+            Room room = ai.Room;
+            if (room.GetTag("choulue_source") is Player from && ai.IsFriend(from))
+            {
+                if (player.HasEquip())
+                {
+                    List<int> ids = player.GetCards("e");
+                    ai.SortByUseValue(ref ids, false);
+                    if (ai.GetKeepValue(ids[0], player) < 0)
+                        return new List<int> { ids[0] };
+                }
+
+                List<int> cards = player.GetCards("he");
+                KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(cards, new List<Player> { from });
+                if (pair.Key != null && pair.Value > -1)
+                    return new List<int> { pair.Value };
+
+                if (from.ContainsTag(Name) && from.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
+                {
+                    ai.SortByKeepValue(ref cards, false);
+                    return new List<int> { cards[0] };
+                }
+            }
+
+            return new List<int>();
         }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+
+            Room room = ai.Room; if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
+            {
+                WrappedCard card = new WrappedCard(card_name) { Skill = "_choulue" };
+                if (card.Name.Contains(Slash.ClassName))
+                {
+                    ai.FindSlashandTarget(ref use, player, new List<WrappedCard> { card });
+                    if (use.Card != null)
+                        return use;
+                }
+
+                UseCard e = Engine.GetCardUsage(card.Name);
+                e.Use(ai, player, ref use, card);
+                if (use.Card != null && RoomLogic.ParseUseCard(room, use.Card) != card)
+                    use.Card = null;
+            }
+
+            return use;
         }
     }
 
@@ -1635,7 +1945,110 @@ namespace SanguoshaServer.AI
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            if (!ai.WillShowForAttack()) return use;
+
+            List<int> ids = new List<int>();
+            Room room = ai.Room;
+            foreach (int id in player.GetCards("he"))
+            {
+                WrappedCard card = room.GetCard(id);
+                if (Engine.GetFunctionCard(card.Name) is EquipCard)
+                    ids.Add(id);
+            }
+
+            if (ids.Count > 0)
+            {
+                ai.SortByKeepValue(ref ids, false);
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    EquipCard equip = (EquipCard)Engine.GetFunctionCard(card.Name);
+                    if (equip is Horse)
+                    {
+                        int index = (int)equip.EquipLocation();
+                        List<Player> targets = ai.FriendNoSelf;
+                        ai.SortByDefense(ref targets, false);
+                        foreach (Player p in targets)
+                        {
+                            if (p.IsWounded() && p.GetEquip(index) == -1 && RoomLogic.CanPutEquip(p, card))
+                            {
+                                use.Card = new WrappedCard(HuyuanCard.ClassName) { Skill = Name, Mute = true };
+                                use.Card.AddSubCard(id);
+                                use.To.Add(p);
+                                return use;
+                            }
+                        }
+                    }
+                }
+
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    EquipCard equip = (EquipCard)Engine.GetFunctionCard(card.Name);
+                    if (equip is Armor)
+                    {
+                        int index = (int)equip.EquipLocation();
+                        List<Player> targets = ai.FriendNoSelf;
+                        ai.SortByDefense(ref targets, false);
+                        foreach (Player p in targets)
+                        {
+                            if (p.GetEquip(index) == -1 && RoomLogic.CanPutEquip(p, card))
+                            {
+                                use.Card = new WrappedCard(HuyuanCard.ClassName) { Skill = Name, Mute = true };
+                                use.Card.AddSubCard(id);
+                                use.To.Add(p);
+                                return use;
+                            }
+                        }
+                    }
+                }
+
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    EquipCard equip = (EquipCard)Engine.GetFunctionCard(card.Name);
+                    int index = (int)equip.EquipLocation();
+                    List<Player> targets = ai.FriendNoSelf;
+                    ai.SortByDefense(ref targets, false);
+                    foreach (Player p in targets)
+                    {
+                        if (p.GetEquip(index) == -1 && RoomLogic.CanPutEquip(p, card))
+                        {
+                            use.Card = new WrappedCard(HuyuanCard.ClassName) { Skill = Name, Mute = true };
+                            use.Card.AddSubCard(id);
+                            use.To.Add(p);
+                            return use;
+                        }
+                    }
+                }
+            }
+
+            return use;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && Engine.GetFunctionCard(card.Name) is EquipCard)
+                return 1.5;
+
+            return 0;
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player p in targets)
+            {
+                scores.Add(ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodDiscard));
+            }
+            if (scores.Count > 0)
+            {
+                scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
+                if (scores[0].Score > 0) return scores[0].Players;
+            }
+
+            return new List<Player>();
         }
     }
 
@@ -1643,19 +2056,132 @@ namespace SanguoshaServer.AI
     {
         public ZhenjunAI() : base("zhenjun") { }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
         {
-            return base.OnPlayerChosen(ai, player, target, min, max);
+
+            foreach(Player p in targets)
+            {
+                if (ai.IsFriend(p))
+                {
+                    if (player.HasEquip())
+                    {
+                        List<int> ids = player.GetCards("e");
+                        ai.SortByUseValue(ref ids, false);
+                        if (ai.GetKeepValue(ids[0], player) < 0)
+                            return new List<Player> { p };
+                    }
+                }
+            }
+
+            double value = 0;
+            Player target = null;
+            foreach (Player p in targets)
+            {
+                if (!ai.IsFriend(p))
+                {
+                    int count = player.HandcardNum - player.Hp;
+                    double _value = count * 0.1;
+
+                    List<int> equips = player.GetEquips();
+                    for (int i = 0; i < Math.Min(equips.Count, count); i++)
+                        if (ai.GetKeepValue(equips[i], p) > 0)
+                            _value += 1;
+
+                    if (_value > value)
+                    {
+                        value = _value;
+                        target = p;
+                    }
+                }
+            }
+
+            double self_value = 0;
+            if (targets.Contains(player))
+            {
+                List<int> ids = player.GetCards("he");
+                ai.SortByUseValue(ref ids, false);
+                foreach (int id in ids)
+                {
+                    if (ai.GetUseValue(id, player) < 3.5)
+                        self_value += 0.5;
+                }
+            }
+
+            if (self_value > value) return new List<Player> { player };
+            if (target != null) return new List<Player> { target };
+
+            foreach (Player p in targets)
+            {
+                if (ai.IsFriend(p) && p.HandcardNum - p.Hp == 1 && ai.HasSkill("tuntian", p))
+                {
+                    return new List<Player> { p };
+                }
+            }
+
+            return new List<Player>();
+        }
+
+        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
+        {
+            if (ai.IsEnemy(to))
+            {
+                List<int> equips = to.GetEquips();
+                foreach (int id in equips)
+                    if (!disable_ids.Contains(id) && ai.GetKeepValue(id, to) > 0)
+                        return new List<int> { id };
+            }
+
+            return ai.FindCards2Discard(from, to, flags, FunctionCard.HandlingMethod.MethodDiscard, 1, false, disable_ids).Ids;
         }
 
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
-            return base.OnExchange(ai, player, pattern, min, max, pile);
+            List<int> ids = player.GetCards("he"), result = new List<int>();
+            ai.SortByKeepValue(ref ids, false);
+            for (int i = 0; i < Math.Min(max, ids.Count); i++)
+            {
+                if (ai.GetKeepValue(ids[i], player) < 0)
+                    result.Add(ids[i]);
+                else
+                    break;
+            }
+            ids.RemoveAll(t => result.Contains(t));
+            ai.SortByUseValue(ref ids, false);
+            for (int i = 0; i < Math.Min(max - result.Count, ids.Count); i++)
+                result.Add(ids[i]);
+
+            return result;
         }
 
         public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
         {
-            return base.OnDiscard(ai, player, ids, min, max, option);
+            List<int> cards = new List<int>(ids), result = new List<int>();
+            ai.SortByKeepValue(ref cards, false);
+            for (int i = 0; i < Math.Min(min, cards.Count); i++)
+            {
+                if (ai.GetKeepValue(cards[i], player) < 0)
+                    result.Add(cards[i]);
+                else
+                    break;
+            }
+            cards.RemoveAll(t => result.Contains(t));
+            ai.SortByUseValue(ref cards, false);
+            for (int i = 0; i < Math.Min(min - result.Count, cards.Count); i++)
+                result.Add(cards[i]);
+
+            return result;
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            Room room = ai.Room;
+            if (room.GetTag("zhenjun_target") is Player target && ai.IsFriend(target))
+                return "draw";
+
+            if (choice.Contains("cancel"))
+                return "cancel";
+
+            return "disacard";
         }
     }
 
@@ -1665,7 +2191,29 @@ namespace SanguoshaServer.AI
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            Room room = ai.Room;
+            List<int> ids = player.GetPile("#shenduan");
+            foreach (int id in ids)
+            {
+                WrappedCard ss = new WrappedCard(SupplyShortage.ClassName);
+                ss.AddSubCard(id);
+                ss.DistanceLimited = false;
+                ss = RoomLogic.ParseUseCard(room, ss);
+                foreach (Player enemy in ai.GetEnemies(player))
+                {
+                    if (SupplyShortage.Instance.TargetFilter(room, new List<Player>(), enemy, player, ss))
+                    {
+                        WrappedCard sd = new WrappedCard(ShenduanCard.ClassName) { Skill = Name };
+                        sd.AddSubCard(id);
+                        use.Card = sd;
+                        use.To.Add(enemy);
+                        return use;
+                    }
+                }
+            }
+
+            return use;
         }
     }
 
@@ -1676,7 +2224,58 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            return base.OnSkillInvoke(ai, player, data);
+            Room room = ai.Room;
+            Player target = room.Current;
+            WrappedCard slash = new WrappedCard(Slash.ClassName);
+            ScoreStruct score = new ScoreStruct();
+            List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { slash }, new List<Player> { target }, false);
+            if (scores.Count > 0)
+                score = scores[0];
+
+            if (ai.IsFriend(target))
+            {
+                if (score.Score >= 0) return true;
+                if (RoomLogic.PlayerContainsTrick(room, target, Indulgence.ClassName))
+                    if (score.Score > -5) return true;
+                if (RoomLogic.PlayerContainsTrick(room, target, SupplyShortage.ClassName))
+                    if (score.Score > -4) return true;
+
+                if (RoomLogic.PlayerContainsTrick(room, target, Lightning.ClassName))
+                {
+                    Player wizzard = ai.GetWizzardRaceWinner(Lightning.ClassName, target);
+                    if (wizzard != null && ai.IsEnemy(wizzard))
+                    {
+                        WrappedCard lightning = null;
+                        foreach (int id in target.JudgingArea)
+                        {
+                            WrappedCard card = room.GetCard(id);
+                            if (card.Name == Lightning.ClassName)
+                            {
+                                lightning = card;
+                                break;
+                            }
+                        }
+
+                        DamageStruct light_damage = new DamageStruct(lightning, null, target, 3, DamageStruct.DamageNature.Thunder);
+                        ScoreStruct _score = ai.GetDamageScore(light_damage);
+                        if (score.Score > _score.Score) return true;
+                    }
+                }
+            }
+            else
+            {
+                if (score.Score > 8) return true;
+                if (RoomLogic.PlayerContainsTrick(room, target, SupplyShortage.ClassName))
+                    if (score.Score >= 5) return true;
+                if (RoomLogic.PlayerContainsTrick(room, target, Lightning.ClassName))
+                {
+                    Player wizzard = ai.GetWizzardRaceWinner(Lightning.ClassName, target);
+                    if (wizzard != null || !ai.IsFriend(wizzard))
+                        return score.Score > 0;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -1686,7 +2285,98 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            return base.GetTurnUse(ai, player);
+            Room room = ai.Room;
+            if (!player.IsKongcheng() && !player.HasUsed("ViewAsSkill_qice_jxCard"))
+            {
+                foreach (int id in player.HandCards)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodUse))
+                        return new List<WrappedCard>();
+                }
+
+                if (room.AvailableFunctionCards.Contains(Reinforcement.Instance))
+                {
+                    int wound = 0;
+                    foreach (Player p in ai.FriendNoSelf)
+                        if (p.IsWounded()) wound++;
+
+                    if (wound > 1)
+                    {
+                        WrappedCard re = new WrappedCard(Reinforcement.ClassName) { Skill = Name };
+                        re.AddSubCards(player.HandCards);
+                        return new List<WrappedCard> { re };
+                    }
+                }
+                if (room.AvailableFunctionCards.Contains(GodSalvation.Instance))
+                {
+                    WrappedCard gs = new WrappedCard(GodSalvation.ClassName) { Skill = Name };
+                    gs.AddSubCards(player.HandCards);
+                    UseCard e = Engine.GetCardUsage(GodSalvation.ClassName);
+                    if (e != null)
+                    {
+                        CardUseStruct use = new CardUseStruct(null, player, new List<Player>())
+                        {
+                            IsDummy = true
+                        };
+                        e.Use(ai, player, ref use, gs);
+                        if (use.Card != null)
+                        {
+                            return new List<WrappedCard> { gs };
+                        }
+                    }
+                }
+                if (room.AvailableFunctionCards.Contains(ExNihilo.Instance))
+                {
+                    double value = 0;
+                    foreach (int id in player.HandCards)
+                        value += ai.GetKeepValue(id, player);
+
+                    if (value < Engine.GetCardUseValue(ExNihilo.ClassName))
+                    {
+                        WrappedCard ex = new WrappedCard(ExNihilo.ClassName) { Skill = Name };
+                        ex.AddSubCards(player.HandCards);
+                        return new List<WrappedCard> { ex };
+                    }
+                }
+
+                if (ai.GetOverflow(player) > 0)
+                {
+                    Player caocao = ai.FindPlayerBySkill("jianxiong|jianxiong_jx");
+                    if (caocao != null && ai.IsFriend(caocao) && !ai.IsWeak(caocao))
+                    {
+                        WrappedCard aa = new WrappedCard(ArcheryAttack.ClassName) { Skill = Name };
+                        aa.AddSubCards(player.HandCards);
+                        if (RoomLogic.IsProhibited(room, player, caocao, aa) == null && !ai.IsCancelTarget(aa, caocao, player)
+                            && ai.IsCardEffect(aa, caocao, player))
+                        {
+                            UseCard e = Engine.GetCardUsage(ArcheryAttack.ClassName);
+                            if (e != null)
+                            {
+                                CardUseStruct use = new CardUseStruct(null, player, new List<Player>())
+                                {
+                                    IsDummy = true
+                                };
+                                e.Use(ai, player, ref use, aa);
+                                if (use.Card != null)
+                                {
+                                    return new List<WrappedCard> { aa };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new List<WrappedCard>();
+        }
+        
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card.Skill == Name)
+                return -10;
+
+            return 0;
         }
     }
 }

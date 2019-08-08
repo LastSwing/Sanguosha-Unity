@@ -713,8 +713,7 @@ namespace SanguoshaServer.Package
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, owner.Name, player.Name);
                     //fix sound path
                     room.BroadcastSkillInvoke(Name, "male", -1, "mifuren", (int)owner.GetTag("yongjue_position"));
-                    if (owner != player)
-                        room.NotifySkillInvoked(owner, Name);
+                    room.NotifySkillInvoked(owner, Name);
 
                     return info;
                 }

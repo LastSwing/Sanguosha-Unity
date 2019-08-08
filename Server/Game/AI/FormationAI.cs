@@ -142,7 +142,64 @@ namespace SanguoshaServer.AI
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            if (!ai.WillShowForAttack()) return use;
+
+            List<int> ids = new List<int>();
+            Room room = ai.Room;
+            foreach (int id in player.GetCards("he"))
+            {
+                WrappedCard card = room.GetCard(id);
+                if (Engine.GetFunctionCard(card.Name) is EquipCard)
+                    ids.Add(id);
+            }
+
+            if (ids.Count > 0)
+            {
+                ai.SortByKeepValue(ref ids, false);
+                foreach (int id in ids)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    EquipCard equip = (EquipCard)Engine.GetFunctionCard(card.Name);
+                    int index = (int)equip.EquipLocation();
+                    List<Player> targets = ai.FriendNoSelf;
+                    ai.SortByDefense(ref targets, false);
+                    foreach (Player p in targets)
+                    {
+                        if (p.GetEquip(index) == -1 && RoomLogic.CanPutEquip(p, card))
+                        {
+                            use.Card = new WrappedCard(HuyuanCard.ClassName) { Skill = Name, Mute = true };
+                            use.Card.AddSubCard(id);
+                            use.To.Add(p);
+                            return use;
+                        }
+                    }
+                }
+            }
+
+            return use;
+        }
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && Engine.GetFunctionCard(card.Name) is EquipCard)
+                return 1.5;
+
+            return 0;
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player p in targets)
+            {
+                scores.Add(ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodDiscard));
+            }
+            if (scores.Count > 0)
+            {
+                scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
+                if (scores[0].Score > 0) return scores[0].Players;
+            }
+
+            return new List<Player>();
         }
     }
 

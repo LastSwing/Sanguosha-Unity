@@ -339,5 +339,7 @@ namespace CommonClassLibrary
         public int Draw { get; set; }
         public int Escape { get; set; }
         public int Title { get; set; }
+        public Dictionary<int, string> Titles { get; set; }
+        public Dictionary<int, string> Achievements { get; set; }
     }
 }

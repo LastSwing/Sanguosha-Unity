@@ -350,7 +350,7 @@ namespace SanguoshaServer.AI
                 if (to != null)
                     result.Add(to);
                 else
-                    ai.Room.OutPut("谋断AI出错");
+                    ai.Room.Debug("谋断AI出错");
             }
             else
             {
@@ -932,9 +932,24 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
         {
-            return - Engine.GetCardKeepValue(ai.Room.GetCard(card.GetEffectiveId()).Name);
+            if (use.Card.Skill == Name)
+            {
+                bool friend = false;
+                foreach (Player p in ai.Room.GetAlivePlayers())
+                {
+                    if (RoomLogic.IsFriendWith(ai.Room, p, player))
+                    {
+                        friend = true;
+                        break;
+                    }
+                }
+
+                if (!friend) return -3.5;
+            }
+
+            return 0;
         }
     }
 

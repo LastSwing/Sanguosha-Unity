@@ -524,6 +524,65 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
+
+            //奇策前用掉
+
+            if (hand)
+            {
+                if (ai.HasSkill("qice"))
+                {
+                    SkillEvent e = Engine.GetSkillEvent("qice");
+                    if (e != null)
+                    {
+                        List<WrappedCard> cards = e.GetTurnUse(ai, player);
+                        foreach (WrappedCard qice in cards)
+                        {
+                            CardUseStruct _use = new CardUseStruct(null, player, new List<Player>())
+                            {
+                                IsDummy = true
+                            };
+
+                            UseCard u = Engine.GetCardUsage(qice.Name);
+                            if (u != null)
+                            {
+                                u.Use(ai, player, ref _use, qice);
+                                if (_use.Card != null)
+                                {
+                                    use.Card = card;
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (ai.HasSkill("qice_jx"))
+                {
+                    SkillEvent e = Engine.GetSkillEvent("qice_jx");
+                    if (e != null)
+                    {
+                        List<WrappedCard> cards = e.GetTurnUse(ai, player);
+                        foreach (WrappedCard qice in cards)
+                        {
+                            CardUseStruct _use = new CardUseStruct(null, player, new List<Player>())
+                            {
+                                IsDummy = true
+                            };
+
+                            UseCard u = Engine.GetCardUsage(qice.Name);
+                            if (u != null)
+                            {
+                                u.Use(ai, player, ref _use, qice);
+                                if (_use.Card != null)
+                                {
+                                    use.Card = card;
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             //为队友保留桃子
             foreach (Player p in ai.FriendNoSelf)
             {
@@ -890,7 +949,8 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             NulliResult result = new NulliResult();
-            if (!from.Alive || !to.Alive || to.IsAllNude() || keep) return result;
+            int num = ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self);
+            if (!from.Alive || !to.Alive || to.IsAllNude() || (keep && num == 1)) return result;
 
             if (positive)
             {
@@ -928,7 +988,7 @@ namespace SanguoshaServer.AI
             }
             else
             {
-                if (ai.IsFriend(from) && ai.Self == room.Current && ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self) > 1 && ai.GetOverflow(ai.Self) > 0)
+                if (ai.IsFriend(from) && ai.Self == room.Current && num > 1 && ai.GetOverflow(ai.Self) > 0)
                 {
                     result.Null = true;
                     return result;
@@ -1001,7 +1061,8 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             NulliResult result = new NulliResult();
-            if (!from.Alive || !to.Alive || to.IsAllNude()) return result;
+            int num = ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self);
+            if (!from.Alive || !to.Alive || to.IsAllNude() || (keep && num == 1 && ai.Self != to)) return result;
 
             if (positive)
             {
@@ -1033,6 +1094,8 @@ namespace SanguoshaServer.AI
                         use = true;
                     else if (ai.GetEnemies(ai.Self).Count == 1)
                         use = true;
+                    else if (ai.Self == to && num > 0)
+                        use = true;
 
                     if (use)
                     {
@@ -1043,7 +1106,7 @@ namespace SanguoshaServer.AI
             }
             else
             {
-                if (ai.IsFriend(from) && ai.Self == room.Current && ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self) > 1 && ai.GetOverflow(ai.Self) > 0)
+                if (ai.IsFriend(from) && ai.Self == room.Current && num > 1 && ai.GetOverflow(ai.Self) > 0)
                 {
                     result.Null = true;
                     return result;
@@ -1640,8 +1703,10 @@ namespace SanguoshaServer.AI
                             foreach (Player _p in room.GetOtherPlayers(p))
                             {
                                 if (!_p.Chained || _p.Removed) continue;
-                                DamageStruct _damage = new DamageStruct(card, player, _p, ai.DamageEffect(damage, DamageStruct.DamageStep.None), DamageStruct.DamageNature.Fire);
-                                _damage.Chain = true;
+                                DamageStruct _damage = new DamageStruct(card, player, _p, ai.DamageEffect(damage, DamageStruct.DamageStep.None), DamageStruct.DamageNature.Fire)
+                                {
+                                    Chain = true
+                                };
                                 ScoreStruct _score = ai.GetDamageScore(_damage);
                                 score.Score += score.Score / (score.Score > 0 ? 2 : 1);
                             }
@@ -2383,8 +2448,11 @@ namespace SanguoshaServer.AI
             }
             else
             {
-                if (score.Score > 0 && !keep || score.Score > 8)
-                    result.Null = true;
+                if (ai.IsEnemy(to))
+                {
+                    if (score.Score > 4 && !keep || score.Score > 8)
+                        result.Null = true;
+                }
             }
 
             return result;
@@ -2538,8 +2606,11 @@ namespace SanguoshaServer.AI
             }
             else
             {
-                if (score.Score > 0 && !keep || score.Score > 8)
-                    result.Null = true;
+                if (ai.IsEnemy(to))
+                {
+                    if (score.Score > 4 && !keep || score.Score > 8)
+                        result.Null = true;
+                }
             }
 
             return result;
@@ -3424,7 +3495,19 @@ namespace SanguoshaServer.AI
             {
                 List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { use.Card }, new List<Player>(use.To), false);
                 if (scores.Count > 0 && scores[0].Card.Name == FireSlash.ClassName)
+                {
+                    WrappedCard fire = new WrappedCard(FireSlash.ClassName) { Skill = use.Card.Skill, UserString = use.Card.UserString };
+                    fire.AddSubCard(use.Card);
+                    fire = RoomLogic.ParseUseCard(ai.Room, fire);
+                    foreach (Player p in use.To)
+                    {
+                        DamageStruct damage = new DamageStruct(fire, player, p, 1 + use.Drank, DamageStruct.DamageNature.Fire);
+                        if (p.Chained && ai.IsGoodSpreadStarter(damage, false))
+                            return false;
+                    }
+
                     return true;
+                }
             }
 
             return false;
@@ -3842,6 +3925,8 @@ namespace SanguoshaServer.AI
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            if (positive && ai.Self == to && ai.IsEnemy(from) && ai.HasSkill("jiewei"))
+                result.Null = true;
 
             return result;
         }

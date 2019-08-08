@@ -217,12 +217,7 @@ namespace CommonClass.Game
             }
 
             if (remove_list.Count() == 0) return;
-
-            foreach (string to_remove in remove_list)
-                DisableShow.Remove(to_remove);
-
-
-            //通知UI更新
+            DisableShow.RemoveAll(t => remove_list.Contains(t));
         }
 
         public List<string> DisableShowList(bool head)

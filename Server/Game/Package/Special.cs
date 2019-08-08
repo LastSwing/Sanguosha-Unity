@@ -39,7 +39,7 @@ namespace SanguoshaServer.Package
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == Player.PlayerPhase.Finish && base.Triggerable(player, room)
-                && ShefuVS.GuhuoCards(room, player).Count > 0)
+                && !player.IsKongcheng() && ShefuVS.GuhuoCards(room, player).Count > 0)
             {
                 triggers.Add(new TriggerStruct(Name, player));
             }
@@ -92,8 +92,10 @@ namespace SanguoshaServer.Package
                 string key = string.Format("shefu_{0}", card_name);
                 if (p.ContainsTag(key) && p.GetTag(key) is int id && p.GetPile("ambush").Contains(id))
                 {
+                    room.SetTag("shefu_data", data);
                     List<int> ids = room.AskForExchange(p, Name, 1, 0, string.Format("@shefu-cancel:::{0}", card_name),
                         "ambush", string.Format("{0}|.|.|ambush", id.ToString()), info.SkillPosition);
+                    room.RemoveTag("shefu_data");
                     if (ids.Count == 1)
                     {
                         p.RemoveTag(key);
@@ -207,9 +209,8 @@ namespace SanguoshaServer.Package
         {
             if (cards.Count == 1 && cards[0].SubCards.Count == 1)
             {
-                WrappedCard shefu = new WrappedCard("ShefuCard");
+                WrappedCard shefu = new WrappedCard(ShefuCard.ClassName) { Skill = Name, UserString = cards[0].Name };
                 shefu.AddSubCards(cards);
-                shefu.UserString = cards[0].Name;
                 return shefu;
             }
 
@@ -219,7 +220,8 @@ namespace SanguoshaServer.Package
 
     public class ShefuCard : SkillCard
     {
-        public ShefuCard() : base("ShefuCard")
+        public static string ClassName = "ShefuCard";
+        public ShefuCard() : base(ClassName)
         {
             target_fixed = true;
             will_throw = false;

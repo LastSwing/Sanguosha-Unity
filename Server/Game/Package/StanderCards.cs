@@ -704,8 +704,11 @@ namespace SanguoshaServer.Package
     public class GodSalvation : GlobalEffect
     {
         public static string ClassName = "GodSalvation";
+        public static FunctionCard Instance = null;
         public GodSalvation() : base(ClassName)
-        { }
+        {
+            Instance = this;
+        }
 
         public override bool IsCancelable(Room room, CardEffectStruct effect)
         {
@@ -957,8 +960,10 @@ namespace SanguoshaServer.Package
     public class ExNihilo : SingleTargetTrick
     {
         public static string ClassName = "ExNihilo";
+        public static FunctionCard Instance = null;
         public ExNihilo() : base(ClassName)
         {
+            Instance = this;
             target_fixed = true;
         }
 

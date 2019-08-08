@@ -35,6 +35,7 @@ namespace SanguoshaServer.AI
                 new FlamemapAI(),
                 new YingziExtraAI(),
                 new HaoshiExtraAI(),
+                new DuoshiEAI(),
                 new ShelieAI(),
             };
 
@@ -278,6 +279,14 @@ namespace SanguoshaServer.AI
 
             return new List<WrappedCard>();
         }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card.Skill == Name)
+                return -10;
+
+            return 0;
+        }
     }
 
     public class QiceCardAI : UseCard
@@ -290,6 +299,11 @@ namespace SanguoshaServer.AI
             use.Card = card;
             if (ai.Target["qice"] != null)
                 use.To = new List<Player> { ai.Target["qice"] };
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return -1;
         }
     }
 
@@ -1465,7 +1479,7 @@ namespace SanguoshaServer.AI
                 if (check > 0) return "yingziextra";
             }
 
-            if (choice.Contains("duoshi")) return "duoshi";
+            if (choice.Contains("duoshiextra")) return "duoshiextra";
 
             return "cancel"; 
         }
@@ -1542,6 +1556,88 @@ namespace SanguoshaServer.AI
             }
             else
                 return true;
+        }
+    }
+
+    public class DuoshiEAI : SkillEvent
+    {
+        public DuoshiEAI() : base("duoshiextra")
+        {
+        }
+
+        public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
+        {
+            if (WrappedCard.IsRed(ai.Room.GetCard(id).Suit) && (player.GetHandPile().Contains(id) || place == Player.Place.PlaceHand))
+            {
+                WrappedCard await = new WrappedCard(AwaitExhausted.ClassName);
+                await.AddSubCard(id);
+                await.Skill = Name;
+                await.ShowSkill = Name;
+                await = RoomLogic.ParseUseCard(ai.Room, await);
+                return await;
+            }
+
+            return null;
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (player.UsedTimes("ViewAsSkill_duoshiextraCard") < 4 && (ai.WillShowForAttack() || ai.WillShowForDefence()))
+            {
+                Room room = ai.Room;
+                List<int> ids = new List<int>(player.HandCards);
+                ids.AddRange(player.GetHandPile());
+                ai.SortByKeepValue(ref ids, false);
+
+                bool need_lose_equip = false;
+                foreach (int id in player.GetEquips())
+                {
+                    if (ai.GetKeepValue(id, player) < 0)
+                    {
+                        need_lose_equip = true;
+                        break;
+                    }
+                }
+                if (ai.IsWeak() && (player.GetWeapon() || player.GetOffensiveHorse()))
+                    need_lose_equip = true;
+
+                foreach (int id in ids)
+                {
+                    if (WrappedCard.IsRed(ai.Room.GetCard(id).Suit) && room.GetCard(id).Name != AwaitExhausted.ClassName
+                        && (ai.GetKeepValue(id, player) < 3 || ai.GetOverflow(player) > 0 || need_lose_equip))
+                    {
+                        WrappedCard await = new WrappedCard(AwaitExhausted.ClassName)
+                        {
+                            Skill = Name,
+                            ShowSkill = Name
+                        };
+                        await.AddSubCard(id);
+                        await = RoomLogic.ParseUseCard(ai.Room, await);
+                        return new List<WrappedCard> { await };
+                    }
+                }
+            }
+
+            return null;
+        }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card.Skill == Name)
+            {
+                bool friend = false;
+                foreach (Player p in ai.Room.GetAlivePlayers())
+                {
+                    if (RoomLogic.IsFriendWith(ai.Room, p, player))
+                    {
+                        friend = true;
+                        break;
+                    }
+                }
+
+                if (!friend) return -3.5;
+            }
+
+            return 0;
         }
     }
 

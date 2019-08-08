@@ -5,28 +5,49 @@ using System.Configuration;
 using SuperSocket.SocketBase;
 using SuperSocket.SocketBase.Protocol;
 using CommonClassLibrary;
+using System.Data;
 
 namespace SanguoshaServer
 {
-    public class Form1 : System.Windows.Forms.Form
+    public class Form1 : Form
     {
         private Thread serverThread;
         private MsgPackServer serverListener;
+        private TabControl tabControl1;
+        private TabPage tabPage1;
+        private TabPage tabPage2;
+        private ListBox LoginMessageBox;
+        private ListBox OnlineUsersBox;
+        private TabPage DebugPage;
+        private ListBox DebugBox;
         private GameHall hall;
 
         public Form1()
         {
             InitializeComponent();
-            
-            int result = DB.InitDB();
-            AddLog(String.Format("{0} Users' Status Inited", result));            //初始化用户状态
 
-            hall = new GameHall(this);
+            bool init = false;
+            try
+            {
+                int result = DB.InitDB();
+                AddLoginMessage(string.Format("{0} Users' Status Inited", result));            //初始化用户状态
+                init = true;
+            }
+            catch (Exception e)
+            {
+                AddLoginMessage("数据库初始化失败");
+                AddDebugMessage(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
+            }
 
-            serverThread = new Thread(new ThreadStart(StartListen));
-            serverThread.Start();
+            if (init)
+            {
+                hall = new GameHall(this);
 
-            AddLog("Socket Server Started");
+                serverThread = new Thread(new ThreadStart(StartListen));
+                serverThread.Start();
+
+                AddLoginMessage("Socket Server Started");
+            }
         }
         
 
@@ -36,7 +57,7 @@ namespace SanguoshaServer
             serverListener = new MsgPackServer();
             if (!serverListener.Setup(int.Parse(ip_address[1])))
             {
-                AddLog("server setup failed!");
+                AddDebugMessage("server setup failed!");
             }
 
             serverListener.NewSessionConnected += new SessionHandler<MsgPackSession>(Server_NewSessionConnected);
@@ -45,7 +66,7 @@ namespace SanguoshaServer
 
             if (!serverListener.Start())
             {
-                AddLog("server started failed!");
+                AddDebugMessage("server started failed!");
             }
 
         }
@@ -70,13 +91,30 @@ namespace SanguoshaServer
             hall.OnRequesting(session, requestInfo);
         }
 
-        public void AddLog(string msg)
+        public void AddLoginMessage(string msg)
         {
-            logBox.Items.Add(msg);
+            LoginMessageBox.Items.Add(msg);
+        }
+        public void AddDebugMessage(string msg)
+        {
+            DebugBox.Items.Add(msg);
+        }
+        public void UpdateUser(DataTable list)
+        {
+            OnlineUsersBox.Items.Clear();
+            foreach (DataRow row in list.Rows)
+            {
+                int uid = int.Parse(row["UserID"].ToString());
+                Client client = hall.GetClient(uid);
+                if (client == null) continue;
+                string nick_name = row["NickName"].ToString();
+                int room_id = int.Parse(row["RoomNumber"].ToString());
+                string message = string.Format("uid {0}:账号{3} 昵称 {1}  {2}", uid, nick_name, room_id > 0 ? string.Format("房间{0}游戏中", room_id) : "空闲", client.UserName);
+                OnlineUsersBox.Items.Add(message);
+            }
         }
 
         #region Windows 窗体设计器生成的代码
-        private System.Windows.Forms.ListBox logBox;
         private System.ComponentModel.Container components = null;
         protected override void Dispose(bool disposing)
         {
@@ -96,27 +134,107 @@ namespace SanguoshaServer
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
-            this.logBox = new System.Windows.Forms.ListBox();
-            this.SuspendLayout();
+            tabControl1 = new TabControl();
+            tabPage1 = new TabPage();
+            tabPage2 = new TabPage();
+            DebugPage = new TabPage();
+            LoginMessageBox = new ListBox();
+            OnlineUsersBox = new ListBox();
+            DebugBox = new ListBox();
+            tabControl1.SuspendLayout();
+            tabPage1.SuspendLayout();
+            tabPage2.SuspendLayout();
+            DebugPage.SuspendLayout();
+            SuspendLayout();
             // 
-            // logBox
+            // tabControl1
             // 
-            this.logBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.logBox.ItemHeight = 12;
-            this.logBox.Location = new System.Drawing.Point(0, 0);
-            this.logBox.Name = "logBox";
-            this.logBox.Size = new System.Drawing.Size(416, 294);
-            this.logBox.TabIndex = 1;
+            this.tabControl1.Controls.Add(this.tabPage1);
+            this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Controls.Add(this.DebugPage);
+            this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabControl1.Location = new System.Drawing.Point(0, 0);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(416, 294);
+            this.tabControl1.TabIndex = 5;
+            // 
+            // tabPage1
+            // 
+            this.tabPage1.Controls.Add(this.LoginMessageBox);
+            this.tabPage1.Location = new System.Drawing.Point(4, 22);
+            this.tabPage1.Name = "LoginPage";
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage1.Size = new System.Drawing.Size(408, 268);
+            this.tabPage1.TabIndex = 0;
+            this.tabPage1.Text = "登录信息";
+            this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // tabPage2
+            // 
+            this.tabPage2.Controls.Add(this.OnlineUsersBox);
+            this.tabPage2.Location = new System.Drawing.Point(4, 22);
+            this.tabPage2.Name = "UserPage";
+            tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(408, 268);
+            this.tabPage2.TabIndex = 1;
+            this.tabPage2.Text = "在线用户";
+            this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // tabPage3
+            // 
+            this.DebugPage.Controls.Add(this.DebugBox);
+            this.DebugPage.Location = new System.Drawing.Point(4, 22);
+            this.DebugPage.Name = "DebugMesagePage";
+            this.DebugPage.Padding = new System.Windows.Forms.Padding(3);
+            this.DebugPage.Size = new System.Drawing.Size(408, 268);
+            this.DebugPage.TabIndex = 2;
+            this.DebugPage.Text = "调试信息";
+            this.DebugPage.UseVisualStyleBackColor = true;
+            // 
+            // listBox1
+            // 
+            this.LoginMessageBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.LoginMessageBox.FormattingEnabled = true;
+            this.LoginMessageBox.ItemHeight = 12;
+            this.LoginMessageBox.Location = new System.Drawing.Point(3, 3);
+            this.LoginMessageBox.Name = "listBox1";
+            this.LoginMessageBox.Size = new System.Drawing.Size(402, 262);
+            this.LoginMessageBox.TabIndex = 0;
+            // 
+            // listBox2
+            // 
+            OnlineUsersBox.Dock = DockStyle.Fill;
+            this.OnlineUsersBox.FormattingEnabled = true;
+            this.OnlineUsersBox.ItemHeight = 12;
+            this.OnlineUsersBox.Location = new System.Drawing.Point(3, 3);
+            this.OnlineUsersBox.Name = "listBox2";
+            this.OnlineUsersBox.Size = new System.Drawing.Size(402, 262);
+            this.OnlineUsersBox.TabIndex = 0;
+            // 
+            // listBox3
+            // 
+            DebugBox.Dock = DockStyle.Fill;
+            this.DebugBox.FormattingEnabled = true;
+            this.DebugBox.ItemHeight = 12;
+            this.DebugBox.Location = new System.Drawing.Point(3, 3);
+            this.DebugBox.Name = "listBox3";
+            this.DebugBox.Size = new System.Drawing.Size(402, 262);
+            this.DebugBox.TabIndex = 0;
             // 
             // Form1
             // 
             this.AutoScaleBaseSize = new System.Drawing.Size(6, 14);
             this.ClientSize = new System.Drawing.Size(416, 294);
-            this.Controls.Add(this.logBox);
+            Controls.Add(tabControl1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.Text = "Sanguosha-Server";
-            this.Closing += new System.ComponentModel.CancelEventHandler(this.Form1_Closing);
+            Closing += new System.ComponentModel.CancelEventHandler(Form1_Closing);
+            this.tabControl1.ResumeLayout(false);
+            this.tabPage1.ResumeLayout(false);
+            this.tabPage2.ResumeLayout(false);
+            this.DebugPage.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }

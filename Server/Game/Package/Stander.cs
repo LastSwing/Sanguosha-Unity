@@ -1707,7 +1707,17 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.IsKongcheng() && !player.HasUsed("RendeCard");
+            bool check = false;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (!p.HasFlag("rende_" + player.Name))
+                {
+                    check = true;
+                    break;
+                }
+            }
+
+            return check && !player.IsKongcheng();
         }
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
@@ -2722,7 +2732,7 @@ namespace SanguoshaServer.Package
             {
                 room.BroadcastSkillInvoke(Name, pangtong, info.SkillPosition);
                 room.DoSuperLightbox(pangtong, info.SkillPosition, Name);
-                pangtong.SetMark("@nirvana", 0);
+                room.SetPlayerMark(pangtong, "@nirvana", 0);
                 return info;
             }
             return new TriggerStruct();
@@ -5595,6 +5605,7 @@ namespace SanguoshaServer.Package
                     room.SetTag("MouduanTarget", target1);
                     string position = info.SkillPosition;
                     Player to = room.AskForPlayerChosen(player, tos, Name, "@mouduan-to:::" + card.Name, false, false, position);
+                    room.RemoveTag("MouduanTarget");
                     if (to != null)
                     {
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, target1.Name, to.Name);
@@ -5614,7 +5625,6 @@ namespace SanguoshaServer.Package
                                 room.RoomThread.Trigger(TriggerEvent.TargetConfirmed, room, p, ref _data);
                         }
                     }
-                    room.RemoveTag("MouduanTarget");
                 }
             }
             return false;

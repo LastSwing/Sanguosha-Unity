@@ -1432,7 +1432,7 @@ namespace SanguoshaServer.AI
                 if (to != null)
                     result.Add(to);
                 else
-                    ai.Room.OutPut("巧变3 AI出错");
+                    ai.Room.Debug("巧变3 AI出错");
             }
 
             return result;
@@ -2187,6 +2187,8 @@ namespace SanguoshaServer.AI
             {
                 throw_card = true;
                 min_value = Math.Min(score.Score, min_value);
+                if (ai.GetPrioEnemies().Contains(current))
+                    min_value *= 1.3;
             }
 
             if (throw_card)
@@ -2199,7 +2201,9 @@ namespace SanguoshaServer.AI
                     FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
                     if (fcard is BasicCard && RoomLogic.CanDiscard(room, player, player, id))
                     {
-                        if (min_value - ai.GetKeepValue(id, player) > 3)
+                        double value = ai.GetKeepValue(id, player);
+                        if (ai.GetOverflow(player) > 0) value *= 0.65;
+                        if (min_value - value > 3)
                             return new List<int> { id };
                     }
                 }
