@@ -63,7 +63,7 @@ namespace SanguoshaServer.Scenario
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
                 Client client = room.GetClient(player);
-                List<string> reply = client != null ? client.ClientReply : null;
+                List<string> reply = client?.ClientReply;
                 if (client == null || !room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                     success = false;
                 else

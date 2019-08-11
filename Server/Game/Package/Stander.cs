@@ -1303,7 +1303,7 @@ namespace SanguoshaServer.Package
 
             room.DrawCards(caoren, kingdoms.Count, Name);
 
-            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jxjushou", null, ".!", info.SkillPosition);
+            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jushou", string.Empty, ".!", info.SkillPosition);
             if (ids.Count == 1)
             {
                 WrappedCard card = room.GetCard(ids[0]);

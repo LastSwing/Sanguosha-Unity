@@ -311,9 +311,22 @@ namespace SanguoshaServer.Game
             bot_skills_lines = DB.GetData(sql, false);
 
             //称号、成就收集器
-            TitlesContainer container = new TitlesContainer();
-            foreach (Title title in container.Titles)
-                titles.Add(title);
+            sql = "select * from title";
+            DataTable title_table = DB.GetData(sql, false);
+
+            foreach (DataRow data in title_table.Rows)
+            {
+                string title_name = data["title_name"].ToString();
+                //反射创建
+                Type t = Type.GetType("SanguoshaServer.Extensions." + title_name);
+                if (t != null)
+                {
+                    int id = int.Parse(data["title_id"].ToString());
+                    object[] pa = { id };
+                    Title title = (Title)Activator.CreateInstance(t, pa);
+                    titles.Add(title);
+                }
+            }
         }
 
         private void LoadTranslations()

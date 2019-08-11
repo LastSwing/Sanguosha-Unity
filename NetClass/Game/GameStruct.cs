@@ -701,16 +701,9 @@ namespace CommonClass.Game
 
     public struct CardResponseStruct
     {
-            //inline CardResponseStruct()
-            //{
-            //    m_card = NULL;
-            //    m_who = NULL;
-            //    m_isUse = false;
-            //    m_isRetrial = false;
-            //}
-
-        public CardResponseStruct(WrappedCard card)
+        public CardResponseStruct(Player from, WrappedCard card)
         {
+            From = from;
             Card = card;
             Who = null;
             Use = false;
@@ -718,8 +711,9 @@ namespace CommonClass.Game
             Handcard = true;
         }
 
-        public CardResponseStruct(WrappedCard card, Player who)
+        public CardResponseStruct(Player from, WrappedCard card, Player who)
         {
+            From = from;
             Card = card;
             Who = who;
             Use = false;
@@ -727,8 +721,9 @@ namespace CommonClass.Game
             Handcard = true;
         }
 
-        public CardResponseStruct(WrappedCard card, bool isUse)
+        public CardResponseStruct(Player from, WrappedCard card, bool isUse)
         {
+            From = from;
             Card = card;
             Who = null;
             Use = isUse;
@@ -736,8 +731,9 @@ namespace CommonClass.Game
             Handcard = true;
         }
 
-        public CardResponseStruct(WrappedCard card, Player who, bool isUse)
+        public CardResponseStruct(Player from, WrappedCard card, Player who, bool isUse)
         {
+            From = from;
             Card = card;
             Who = who;
             Use = isUse;
@@ -745,6 +741,7 @@ namespace CommonClass.Game
             Handcard = true;
         }
 
+        public Player From { set; get; }
         public WrappedCard Card { set; get; }
         public Player Who { set; get; }
         public bool Use { set; get; }

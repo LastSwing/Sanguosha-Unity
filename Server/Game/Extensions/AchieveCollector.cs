@@ -17,12 +17,11 @@ namespace SanguoshaServer.Extensions
     public abstract class Title
     {
         public int TitleId { get; private set; }
-        public int MarkId { get; private set; }
+        public int MarkId { get; protected set; }
         public List<TriggerEvent> EventList { get; protected set; }
-        public Title(int id, int mark)
+        public Title(int id)
         {
             TitleId = id;
-            MarkId = mark;
         }
 
         public abstract void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data);

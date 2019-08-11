@@ -1428,6 +1428,7 @@ namespace SanguoshaServer.AI
             if (card == -1)
                 return to_discard;
 
+            to_discard.Add(card);
             foreach (Player friend in ai.GetFriends(player))
             {
                 if (friend.JudgingArea.Count > 0 && QiaobianAI.CardForQiaobian(ai, friend).Key >= 0)
@@ -1638,7 +1639,7 @@ namespace SanguoshaServer.AI
 
                 return new List<int> { id };
             }
-            else if (room.GetTag("shefu_data") is CardResponseStruct resp && ai.IsEnemy(resp.Who))
+            else if (room.GetTag("shefu_data") is CardResponseStruct resp && ai.IsEnemy(resp.From))
             {
                 return new List<int> { id };
             }

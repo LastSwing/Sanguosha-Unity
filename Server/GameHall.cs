@@ -176,7 +176,8 @@ namespace SanguoshaServer
             }
             catch (Exception e)
             {
-                Debug(string.Format("error at client request {0} {1}", e.Message, e.TargetSite));
+                Debug(string.Format("error at parse client request {0} {1}", e.Message, e.TargetSite));
+                Debug(string.Format("error messsage {0} {1}", requestInfo?.ToString(), requestInfo.Body?.ToString()));
                 session.Close();
                 return;
             }

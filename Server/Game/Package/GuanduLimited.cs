@@ -1400,6 +1400,7 @@ namespace SanguoshaServer.Package
             player.RemoveTag("bifa_target");
             if (target != null && target.Alive)
             {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
                 int id = player.GetMark(Name);
                 target.SetTag(string.Format("BifaSource{0}", id), player.Name);
                 room.AddToPile(target, Name, id, false);
@@ -2197,7 +2198,7 @@ namespace SanguoshaServer.Package
             room.TurnOver(caoren);
             room.DrawCards(caoren, 4, Name);
 
-            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jxjushou", null, ".!", info.SkillPosition);
+            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jushou", string.Empty, ".!", info.SkillPosition);
             if (ids.Count == 1)
             {
                 WrappedCard card = room.GetCard(ids[0]);
@@ -2675,9 +2676,10 @@ namespace SanguoshaServer.Package
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.Card != null && damage.Card.GetSkillName() == Name)
+            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.Card != null && damage.Card.GetSkillName() == Name
+                && damage.From != null && damage.From.Alive)
             {
-                player.SetFlags(Name);
+                damage.From.SetFlags(Name);
             }
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -2721,7 +2723,7 @@ namespace SanguoshaServer.Package
             if (Engine.IsProhibited(room, ask_who, player, slash) == null)
                 room.UseCard(new CardUseStruct(slash, ask_who, player));
 
-            if (!ask_who.HasFlag(Name))
+            if (!ask_who.HasFlag(Name) && ask_who.Alive)
                 room.DrawCards(ask_who, 1, Name);
 
             ask_who.SetFlags("-yonglue");

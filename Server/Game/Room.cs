@@ -2437,8 +2437,9 @@ namespace SanguoshaServer.Game
                         break;
                 }
             }
-            catch
+            catch (Exception e)
             {
+                Debug(string.Format("{0} {1} {2}", e.Message, e.TargetSite, e.Source));
                 Debug(string.Format("error at command {0} when ProcessClientPacket, data: {1}", command.ToString(), JsonUntity.Object2Json(arg)));
             }
         }
@@ -2857,6 +2858,12 @@ namespace SanguoshaServer.Game
         {
             if (args.Count != 3) return;
             Player who = FindPlayer(args[0], true);
+            if (who == null)
+            {
+                Debug(string.Format("get no player {0}", args[0]));
+                return;
+            }
+                
             int skin_id = int.Parse(args[1]);
             bool is_head = bool.Parse(args[2]);
             if (who.ClientId != client.UserID) return;
@@ -5414,7 +5421,7 @@ namespace SanguoshaServer.Game
         public CardResponseStruct AskForCard(Player player, string reason, string _pattern, string prompt, object data, HandlingMethod method,
             string _skill_name, Player to, bool isRetrial, bool isProvision)
         {
-            CardResponseStruct resp = new CardResponseStruct();
+            CardResponseStruct resp = new CardResponseStruct() { From = player };
             string pattern = _pattern.Split(':')[0];
             if (player == null || !player.Alive) return resp;
 
@@ -5628,7 +5635,7 @@ namespace SanguoshaServer.Game
                     {
                         NotifySkillInvoked(player, card.Skill);
                     }
-                    resp = new CardResponseStruct(card, to, method == HandlingMethod.MethodUse)
+                    resp = new CardResponseStruct(player, card, to, method == HandlingMethod.MethodUse)
                     {
                         Handcard = isHandcard
                     };
@@ -7005,7 +7012,6 @@ namespace SanguoshaServer.Game
             RemoveTag("NullifyingTarget");
             RemoveTag("NullifyingSource");
             RemoveTag("NullifyingCard");
-            RemoveTag("NullifyingCard");
             return result;
         }
 
@@ -8197,7 +8203,7 @@ namespace SanguoshaServer.Game
 
             if (triggerResponded)
             {
-                CardResponseStruct resp = new CardResponseStruct(card, judge.Who)
+                CardResponseStruct resp = new CardResponseStruct(player, card, judge.Who)
                 {
                     Handcard = isHandcard,
                     Retrial = true

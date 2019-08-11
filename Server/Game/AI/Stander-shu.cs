@@ -275,12 +275,14 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            List<int> ids = new List<int>(player.HandCards);
+            if (ids.Count == 0) return;
+
             string card_name = player.HasFlag("rende_judged") && player.GetMark("rende") < 2 ? ai.Choice["rende"] : string.Empty;
             Room room = ai.Room;
             List<Player> friends = ai.FriendNoSelf;
             friends.RemoveAll(t => t.HasFlag("rende_" + player.Name));
             List<Player> _friends = new List<Player>(friends);
-            List<int> ids = new List<int>(player.HandCards);
 
             if (!string.IsNullOrEmpty(card_name) && player.HandcardNum >= 2 - player.GetMark("rende"))
             {
@@ -423,8 +425,11 @@ namespace SanguoshaServer.AI
                             if (id != i)
                                 card.AddSubCard(id);
 
-                        use.Card = card;
-                        use.To.Add(target);
+                        if (card.SubCards.Count > 0)
+                        {
+                            use.Card = card;
+                            use.To.Add(target);
+                        }
                     }
                 }
                 else if (ai.GetOverflow(player) > 0)

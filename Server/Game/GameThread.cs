@@ -70,19 +70,19 @@ namespace SanguoshaServer.Game
             if (!string.IsNullOrEmpty(winner))
                 room.GameOver(winner);
 
-            try
-            {
+            //try
+            //{
                 Trigger(TriggerEvent.GameStart, room, null);
                 ConstructTriggerTable();
                 ActionNormal();
-            }
-            catch (Exception e)
-            {
-                room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
-            }
+            //}
+            //catch (Exception e)
+            //{
+            //    room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
+            //}
 
-            if (!room.RoomTerminated)
-                room.GameOver(".");
+            //if (!room.RoomTerminated)
+            //    room.GameOver(".");
         }
 
         protected virtual void ActionNormal()//(GameRule* game_rule)
@@ -121,7 +121,7 @@ namespace SanguoshaServer.Game
                         room.RemoveTag("ExtraTurnList");
                 }
                 if (room.Finished) break;
-                    room.SetCurrent(regular_next);
+                room.SetCurrent(regular_next);
             }
         }
 

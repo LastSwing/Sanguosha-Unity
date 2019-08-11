@@ -529,6 +529,7 @@ namespace SanguoshaServer.AI
 
             if (hand)
             {
+                /*
                 if (ai.HasSkill("qice"))
                 {
                     SkillEvent e = Engine.GetSkillEvent("qice");
@@ -555,6 +556,7 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+                */
                 if (ai.HasSkill("qice_jx"))
                 {
                     SkillEvent e = Engine.GetSkillEvent("qice_jx");
