@@ -62,8 +62,9 @@ namespace SanguoshaServer.Scenario
                 player.RemoveTag("generals");
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
-                List<string> reply = room.GetClient(player).ClientReply;
-                if (!room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
+                Client client = room.GetClient(player);
+                List<string> reply = client?.ClientReply;
+                if (client == null || !room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                     success = false;
                 else
                 {
@@ -341,7 +342,8 @@ namespace SanguoshaServer.Scenario
                 //if (player->isAutoPreshow())
                 //    player->setSkillsPreshowed("hd");
                 room.NotifyPlayerPreshow(player);
-                if (room.GetClient(player).Status == Client.GameStatus.bot)
+                Client client = room.GetClient(player);
+                if (client == null || client.Status == Client.GameStatus.bot)
                 {
                     player.SetSkillsPreshowed("hd");
                 }

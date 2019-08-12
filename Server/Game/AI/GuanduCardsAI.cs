@@ -172,14 +172,15 @@ namespace SanguoshaServer.AI
             if (enemies > 0 && vine) enemies++;
 
             use.Card = card;
-            if (self_count > 1 && (self_count > enemies || _enemies.Count == 1))
-            {
-                use.To.Add(player);
-            }
-            else if (self_count < enemies && _enemies.Count > 1)
+            if (self_count < enemies && _enemies.Count > 1)
             {
                 use.To.Add(ai.GetEnemies(player)[0]);
             }
+            else if (self_count > 1)
+                use.To.Add(player);
+
+            if (use.To.Count == 0 && !GDFighttogether.Instance.CanRecast(room, player, card))
+                use.Card = null;
         }
 
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)

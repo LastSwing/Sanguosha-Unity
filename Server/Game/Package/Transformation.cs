@@ -610,7 +610,7 @@ namespace SanguoshaServer.Package
             Player huanghou = room.FindPlayer(info.SkillOwner);
             if (huanghou != null && (RoomLogic.PlayerHasShownSkill(room, huanghou, this) || room.AskForSkillInvoke(huanghou, Name, data, info.SkillPosition)))
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, huanghou.Name, player.Name);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, huanghou.Name, ask_who.Name);
                 room.BroadcastSkillInvoke(Name, huanghou, info.SkillPosition);
                 return info;
             }
@@ -620,7 +620,7 @@ namespace SanguoshaServer.Package
         {
             Player huanghou = room.FindPlayer(info.SkillOwner);
             room.SendCompulsoryTriggerLog(huanghou, Name, true);
-            player.SetFlags("jianyue_keep");
+            ask_who.SetFlags("jianyue_keep");
             return false;
         }
     }
@@ -1089,7 +1089,7 @@ namespace SanguoshaServer.Package
             {
                 General general = Engine.GetGeneral(card.UserString, room.Setting.GameMode);
                 if (general == null)
-                    room.OutPut("化身卡出错 " + card.UserString);
+                    room.Debug("化身卡出错 " + card.UserString);
 
                 return general != null && general.Kingdom != Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom;
             }
@@ -1975,8 +1975,8 @@ namespace SanguoshaServer.Package
             Player zhangjiao = RoomLogic.GetLord(room, source.Kingdom);
             if (zhangjiao != null)
             {
-                room.BroadcastSkillInvoke("flamemapskill", zhangjiao);
-                room.NotifySkillInvoked(zhangjiao, "flamemapskill");
+                room.BroadcastSkillInvoke("flamemap", zhangjiao, "head");
+                room.NotifySkillInvoked(zhangjiao, "flamemap");
             }
 
             Player sunquan = RoomLogic.GetLord(room, source.Kingdom);
@@ -2005,10 +2005,11 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard slash = new WrappedCard("FlamemapCard");
+            WrappedCard slash = new WrappedCard("FlamemapCard")
+            {
+                Mute = true
+            };
             slash.AddSubCard(card);
-            slash.Mute = true;
-            slash.ShowSkill = "showforviewhas";
             return slash;
         }
     }

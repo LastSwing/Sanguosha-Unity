@@ -1,13 +1,9 @@
-﻿using CommonClass;
-using CommonClass.Game;
+﻿using CommonClass.Game;
 using SanguoshaServer.AI;
+using SanguoshaServer.Extensions;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace SanguoshaServer.Game
 {
@@ -78,14 +74,15 @@ namespace SanguoshaServer.Game
             //{
                 Trigger(TriggerEvent.GameStart, room, null);
                 ConstructTriggerTable();
-                // delay(3000);
-                //actionNormal(game_rule);
                 ActionNormal();
             //}
             //catch (Exception e)
             //{
-            //    room.OutPut(e.Message);
+            //    room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
             //}
+
+            //if (!room.RoomTerminated)
+            //    room.GameOver(".");
         }
 
         protected virtual void ActionNormal()//(GameRule* game_rule)

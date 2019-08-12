@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Text.RegularExpressions;
 using System.Threading;
 using CommonClass;
@@ -10,6 +9,10 @@ using SanguoshaServer.Game;
 using SanguoshaServer.Package;
 using static SanguoshaServer.Package.FunctionCard;
 using CommandType = CommonClassLibrary.CommandType;
+
+/*
+ 此类负责处理人机逻辑
+*/
 
 namespace SanguoshaServer
 {
@@ -43,15 +46,13 @@ namespace SanguoshaServer
 
         private MsgPackSession session;
         private GameHall hall;
-        private bool isLogin;
         private Profile profile;
-        private int userID = 0;
-        private string userName;
-        private int user_right;
 
-        public int UserID => userID;
-        public string UserName => userName;
-        public int UserRight => user_right;
+        public int UserID { get; set; }
+        public string UserName { get; set; }
+        public int UserRight { get; set; }
+        public bool IsLogin { get; set; }
+        public Profile Profile => profile;
 
         public string IP { get; }
 
@@ -66,11 +67,7 @@ namespace SanguoshaServer
                     room = null;
             }
         }
-
-        public Profile Profile {
-            get { return profile; }
-        }
-
+        
         public MsgPackSession Session {
             get { return session; }
         }
@@ -93,14 +90,14 @@ namespace SanguoshaServer
         {
             this.hall = hall;
             this.session = session;
-            isLogin = false;
+            IsLogin = false;
             if (session != null)
             {
                 IP = session.RemoteEndPoint.ToString();
             }
             this.profile = profile;
             if (profile.UId < 0)
-                userID = profile.UId;
+                UserID = profile.UId;
 
             InitCallBakcs();
             discard_skill = new DiscardSkill();
@@ -113,22 +110,22 @@ namespace SanguoshaServer
         {
             this.hall = hall;
             session = null;
-            userName = profile.NickName;
-            isLogin = false;
+            UserName = profile.NickName;
+            IsLogin = false;
             this.profile = profile;
             if (profile.UId < 0)
-                userID = profile.UId;
+                UserID = profile.UId;
         }
 
         public override bool Equals(object obj)
         {
             Client other = (Client)obj;
-            return userID == other.UserID && UserName == other.UserName && GameRoom == other.GameRoom;
+            return UserID == other.UserID && UserName == other.UserName && GameRoom == other.GameRoom;
         }
 
         public override int GetHashCode()
         {
-            return userID.GetHashCode() * UserName.GetHashCode() * GameRoom.GetHashCode();
+            return UserID.GetHashCode() * UserName.GetHashCode() * GameRoom.GetHashCode();
         }
 
         #region  向客户端发送信息相关
@@ -204,47 +201,30 @@ namespace SanguoshaServer
         }
         #endregion
 
-        #region 数据库操作相关
+        #region 登录相关
         //用户名检查
         public void CheckUserName(MyData data)
         {
             string UserName = data.Body[0], Password = data.Body[1];
-
-            DataTable dr = DB.LoginDB(UserName);
-            if (dr.Rows.Count == 1)
+            ClientMessage message = ClientDBOperation.CheckUserName(this, UserName, Password);
+            if (message == ClientMessage.Connected)
+                //Raise the Connected Event 
+                Connected?.Invoke(this, new EventArgs());
+            else if (message == ClientMessage.PasswordWrong)
             {
-                if (dr.Rows[0]["password"].ToString() == Password)
+                //通知客户端
+                MyData wrong = new MyData
                 {
-                    isLogin = true;
-                    DB.UpdateStatus(UserName, isLogin);
-                    userID = int.Parse(dr.Rows[0]["uid"].ToString());
-                    userName = UserName;
-                    user_right = int.Parse(dr.Rows[0]["User_Right"].ToString());
-                    GameRoom = int.TryParse(dr.Rows[0]["roomID"].ToString(), out int result) ? result : -1;
-
-                    //更新LastIP
-                    string sql = string.Format("update account set lastIP = '{1}' where uid = {0}", UserID, IP);
-                    DB.UpdateData(sql);
-
-                    //Raise the Connected Event 
-                    Connected?.Invoke(this, new EventArgs());
-                }
-                //密码错误
-                else {
-                    //通知客户端
-                    MyData wrong = new MyData
-                    {
-                        Description = PacketDescription.Hall2Cient,
-                        Protocol = protocol.ClientMessage,
-                        Body = new List<string> { ClientMessage.PasswordWrong.ToString(), true.ToString() }
-                    };
-                    SendLoginReply(wrong);
-                    //关闭连接
-                }
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.ClientMessage,
+                    Body = new List<string> { ClientMessage.PasswordWrong.ToString(), true.ToString() }
+                };
+                SendLoginReply(wrong);
+                //关闭连接
             }
-            //账号不存在
             else
             {
+                //账号不存在
                 //通知客户端
                 MyData wrong = new MyData {
                     Description = PacketDescription.Hall2Cient,
@@ -257,12 +237,11 @@ namespace SanguoshaServer
         }
 
         //从数据库读取个人信息并发送给客户端
-        public bool GetProfile(bool to_hall = true) {
-            string sql = string.Format("select * from profile where uid = {0}", UserID);
-            DataTable dt = DB.GetData(sql);
-
+        public bool GetProfile(bool to_hall = true)
+        {
+            profile = ClientDBOperation.GetProfile(this, to_hall);
             //首次登录个人信息为空
-            if (dt.Rows.Count == 0)
+            if (Profile.UId <= 0)
             {
                 //向客户端发送起名请求
                 //MyData data = new MyData
@@ -272,12 +251,11 @@ namespace SanguoshaServer
                 //};
                 //SendProfileReply(data);
 
-                profile = new Profile { UId = -1 };
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json(profile) }
+                    Body = new List<string> { JsonUntity.Object2Json(Profile) }
                 };
 
                 SendProfileReply(data);
@@ -285,28 +263,12 @@ namespace SanguoshaServer
             }
             else
             {
-                profile = new Profile
-                {
-                    UId = int.Parse(dt.Rows[0]["uid"].ToString()),
-                    NickName = dt.Rows[0]["NickName"].ToString(),
-                    Right = user_right,
-                    Avatar = int.Parse(dt.Rows[0]["avatar"].ToString()),
-                    Frame = int.Parse(dt.Rows[0]["frame"].ToString()),
-                    Bg = int.Parse(dt.Rows[0]["bg"].ToString()),
-                    GamePlay = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
-                    Win = int.Parse(dt.Rows[0]["Win"].ToString()),
-                    Lose = int.Parse(dt.Rows[0]["Lose"].ToString()),
-                    Draw = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
-                    Escape = int.Parse(dt.Rows[0]["Escape"].ToString()),
-                    Title = int.Parse(dt.Rows[0]["Title_id"].ToString())
-                };
-
                 //发送至客户端
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = protocol.UserProfile,
-                    Body = new List<string> { JsonUntity.Object2Json(profile), to_hall.ToString() }
+                    Body = new List<string> { JsonUntity.Object2Json(Profile), to_hall.ToString() }
                 };
 
                 SendProfileReply(data);
@@ -314,50 +276,34 @@ namespace SanguoshaServer
             }
         }
         #endregion
-
-        #region 账号注册和个人信息更新
-        public void Register(MyData data) {
+        //账号注册和个人信息更新
+        public void Register(MyData data)
+        {
             string id = data.Body[0];
             string pwd = data.Body[1];
-
-            string sql = string.Format("select * from account where account = '{0}'", id);
-            DataTable dt = DB.GetData(sql);
-            if (dt.Rows.Count == 0)
+            if (ClientDBOperation.Register(this, id, pwd))
             {
-                string new_sql = string.Format("insert into account (account, password, User_Right, status, lastIP, inGame) values ('{0}', '{1}', 0, 1, '{2}', 0)", id, pwd, IP);
-                //hall.OutPut(new_sql);
-                DB.UpdateData(new_sql);
+                hall.OutPut(UserID + "：注册成功");
 
-                hall.OutPut(id + "：注册成功");
-
-                DataTable dr = DB.LoginDB(id);
-                if (dr.Rows.Count == 1)
+                MyData message = new MyData
                 {
-                    isLogin = true;
-                    userID = int.Parse(dr.Rows[0]["uid"].ToString());
-                    userName = id;
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.ClientMessage,
+                    Body = new List<string> { ClientMessage.RegisterSuccesful.ToString(), false.ToString() }
+                };
+                SendLoginReply(message);
 
-                    //发送成功信息通知客户端
-                    MyData message = new MyData
-                    {
-                        Description = PacketDescription.Hall2Cient,
-                        Protocol = protocol.ClientMessage,
-                        Body = new List<string> { ClientMessage.RegisterSuccesful.ToString(), false.ToString() }
-                    };
-                    SendLoginReply(message);
+                //初始化与room的交互方法
 
-                    //初始化与room的交互方法
-
-                    if (Connected != null)
-                    {
-                        EventArgs e = new EventArgs();
-                        Connected(this, e);
-                    }
+                if (Connected != null)
+                {
+                    EventArgs e = new EventArgs();
+                    Connected(this, e);
                 }
             }
-            //用户名已注册
             else
             {
+                //用户名已注册
                 hall.OutPut(id + "已注册");
                 //发送信息通知客户端
                 MyData message = new MyData
@@ -369,40 +315,35 @@ namespace SanguoshaServer
                 SendLoginReply(message);
             }
         }
-
         //建立新的个人信息表
         public void InsertNewProfile(string NickName)
         {
-            string sql = string.Format("select * from profile where NickName = '{0}'", NickName);
-
-            DataTable dt = DB.GetData(sql);
-            MyData data = new MyData
+            bool succe = ClientDBOperation.InsertNewProfile(this, NickName);
+            if (!succe)
             {
-                Description = PacketDescription.Hall2Cient,
-                Protocol = protocol.NickName,
-                Body = new List<string>() { "true" }
-            };
-
-            //昵称重名
-            if (Engine.GetBotsNames().Contains(NickName) || dt.Rows.Count > 0)
-            {
+                //昵称重名
                 //通知客户端
-                data.Body[0] = "false";
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.NickName,
+                    Body = new List<string>() { false.ToString() }
+                };
                 SendProfileReply(data);
             }
             else
             {
-                string new_sql = string.Format("insert into profile (uid, NickName) values ({0}, '{1}')", UserID, NickName);
-                DB.UpdateData(new_sql);
-
-                //data.Body[0] = "true";
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.NickName,
+                    Body = new List<string>() { true.ToString() }
+                };
                 SendProfileReply(data);
 
                 hall.InterHall(this, false);
             }
         }
-
-
         //更新个人信息
         public void UpDateProfile(MyData data) {
             switch (data.Protocol) {
@@ -417,19 +358,16 @@ namespace SanguoshaServer
                     return;
             }
         }
-
         private void UpDateProfileAvatar(Profile profile)
         {
-            if (profile.UId == this.profile.UId && Engine.CheckShwoAvailable(profile) && CheckTitle(profile.Title))
+            if (profile.UId == Profile.UId && Engine.CheckShwoAvailable(profile) && CheckTitle(profile.Title))
             {
                 this.profile.Avatar = profile.Avatar;
                 this.profile.Title = profile.Title;
                 this.profile.Frame = profile.Frame;
                 this.profile.Bg = profile.Bg;
 
-                string new_sql = string.Format("update  profile set avatar = {0}, frame = {1}, bg = {2}, Title_id = {3} where uid = {4}",
-                    profile.Avatar, profile.Frame, profile.Bg, profile.Title, profile.UId);
-                DB.UpdateData(new_sql);
+                ClientDBOperation.UpDateProfileAvatar(profile);
 
                 SendProfile2Client();
             }
@@ -449,6 +387,15 @@ namespace SanguoshaServer
             }
         }
 
+        public void AddProfileTitle(int title_id)
+        {
+            if (!profile.Titles.ContainsKey(title_id))
+            {
+                profile.Titles.Add(title_id, DateTime.Now.ToString());
+                SendProfile2Client();
+            }
+        }
+
         private void SendProfile2Client()
         {
             MyData data = new MyData
@@ -460,23 +407,22 @@ namespace SanguoshaServer
 
             SendProfileReply(data);
         }
-
         private bool CheckTitle(int id)
         {
-            return true;
+            return profile.Titles.ContainsKey(id);
         }
-        #endregion
-
-
         public void OnDisconnected()
         {
+            ClientDBOperation.UpdateStatus(UserName, false);
             Disconnected?.Invoke(this, new EventArgs());
         }
 
         public void RequestLeaveRoom(bool kicked = false)
         {
-            LeaveRoom?.Invoke(this, GameRoom, kicked);
             GameRoom = 0;
+            ClientDBOperation.UpdateGameRoom(UserName, 0);
+
+            LeaveRoom?.Invoke(this, GameRoom, kicked);
         }
 
         public void RequstReady(bool ready)
@@ -1709,7 +1655,7 @@ namespace SanguoshaServer
                             }
                         }
                         if (chain_animation)
-                            room.DoChainedAnimation();
+                            room.NotifyChainedAnimation(player);
                     }
 
                     first_selection = false;
@@ -1998,7 +1944,7 @@ namespace SanguoshaServer
 
             if (error)
             {
-                room.OutPut(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
                 GetPacket2Client(false);
             }
 
@@ -2066,7 +2012,7 @@ namespace SanguoshaServer
             }
 
             if (error)
-                room.OutPut(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
 
             mutex.ReleaseMutex();
         }
@@ -2134,7 +2080,7 @@ namespace SanguoshaServer
             }
 
             if (error)
-                room.OutPut(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
 
             mutex.ReleaseMutex();
         }
@@ -2185,7 +2131,7 @@ namespace SanguoshaServer
                 */
                 #endregion
                 if (player == null)
-                    room.OutPut(args[1] + " is null " + room.GetAlivePlayers().Count.ToString());
+                    room.Debug(args[1] + " is null " + room.GetAlivePlayers().Count.ToString());
 
                 //huashen
                 bool huashen = false;
@@ -2414,7 +2360,7 @@ namespace SanguoshaServer
 
             if (!success)
             {
-                room.OutPut(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
             }
             mutex.ReleaseMutex();
         }
@@ -2717,6 +2663,5 @@ namespace SanguoshaServer
             // GC.SuppressFinalize(this);
         }
         #endregion
-
     }
 }

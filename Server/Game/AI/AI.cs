@@ -1561,6 +1561,8 @@ namespace SanguoshaServer.AI
                     }
                 }
 
+                if (damage.Damage <= 0) return 0;
+
                 bool armor_ignore = false;
                 if (from != null && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName))
                 {
@@ -2567,7 +2569,7 @@ namespace SanguoshaServer.AI
                                 chain = true;
                                 use_value += 6;
                             }
-                            else if (!IsGoodSpreadStarter(score.Damage) && score.Damage.Damage > 0 && !chain
+                            else if (IsGoodSpreadStarter(score.Damage, false) && score.Damage.Damage > 0 && !chain
                                      && target.Chained && score.Info != "miss" && score.Damage.Nature != DamageStruct.DamageNature.Normal)
                             {
                                 chain = true;
@@ -3418,7 +3420,9 @@ namespace SanguoshaServer.AI
             double bad = 0;
             foreach (Player p in players)
             {
-                DamageStruct spread = damage;
+                DamageStruct spread = new DamageStruct(damage.Card, damage.From, damage.To, damage.Damage, damage.Nature);
+                damage.Reason = damage.Reason;
+                damage.Steped = damage.Steped;
                 spread.Chain = true;
                 spread.To = p;
                 int cause = DamageEffect(spread, DamageStruct.DamageStep.Caused);
@@ -4418,22 +4422,22 @@ namespace SanguoshaServer.AI
             foreach (int id in in_ups)
             {
                 WrappedCard card = room.GetCard(id);
-                room.OutPut(string.Format("观星牌上{0}是 {1},点数{2},花色{3}", in_ups.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
+                room.Debug(string.Format("观星牌上{0}是 {1},点数{2},花色{3}", in_ups.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
             }
             foreach (int id in in_downs)
             {
                 WrappedCard card = room.GetCard(id);
-                room.OutPut(string.Format("观星牌下{0}是 {1},点数{2},花色{3}", in_downs.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
+                room.Debug(string.Format("观星牌下{0}是 {1},点数{2},花色{3}", in_downs.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
             }
             foreach (int id in ups)
             {
                 WrappedCard card = room.GetCard(id);
-                room.OutPut(string.Format("结果上{0}是 {1},点数{2},花色{3}", ups.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
+                room.Debug(string.Format("结果上{0}是 {1},点数{2},花色{3}", ups.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
             }
             foreach (int id in downs)
             {
                 WrappedCard card = room.GetCard(id);
-                room.OutPut(string.Format("结果下{0}是 {1},点数{2},花色{3}", downs.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
+                room.Debug(string.Format("结果下{0}是 {1},点数{2},花色{3}", downs.IndexOf(id), card.Name, card.Number, WrappedCard.GetSuitString(card.Suit)));
             }
         }
 

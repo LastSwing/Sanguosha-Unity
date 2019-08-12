@@ -11,6 +11,7 @@ using SanguoshaServer.Package;
 using SanguoshaServer.AI;
 using static SanguoshaServer.Package.FunctionCard;
 using System.Diagnostics;
+using SanguoshaServer.Extensions;
 
 namespace SanguoshaServer.Game
 {
@@ -54,6 +55,8 @@ namespace SanguoshaServer.Game
 
         private static Dictionary<string, CardPattern> patterns = new Dictionary<string, CardPattern>();
         private static List<ExpPattern> enginePatterns = new List<ExpPattern>();
+
+        private static readonly List<Title> titles = new List<Title>();
 
         public Engine()
         {
@@ -306,6 +309,24 @@ namespace SanguoshaServer.Game
 
             sql = "select * from bot_skill_lines";
             bot_skills_lines = DB.GetData(sql, false);
+
+            //称号、成就收集器
+            sql = "select * from title";
+            DataTable title_table = DB.GetData(sql, false);
+
+            foreach (DataRow data in title_table.Rows)
+            {
+                string title_name = data["title_name"].ToString();
+                //反射创建
+                Type t = Type.GetType("SanguoshaServer.Extensions." + title_name);
+                if (t != null)
+                {
+                    int id = int.Parse(data["title_id"].ToString());
+                    object[] pa = { id };
+                    Title title = (Title)Activator.CreateInstance(t, pa);
+                    titles.Add(title);
+                }
+            }
         }
 
         private void LoadTranslations()
@@ -1143,6 +1164,8 @@ namespace SanguoshaServer.Game
                 && show_frame.Select("id = " + profile.Frame).Length > 0
                 && show_bg.Select("id = " + profile.Bg).Length > 0;
         }
+
+        public static List<Title> GetTitleCollector() => titles;
 
         #region AI数据
         public static Dictionary<string, double> GetSkillCoopAdjust()

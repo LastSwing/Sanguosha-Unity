@@ -34,7 +34,7 @@ namespace SanguoshaServer.AI
 
             base.Event(triggerEvent, player, data);
 
-            if (triggerEvent == TriggerEvent.EventPhaseStart || triggerEvent == TriggerEvent.RemoveStateChanged || triggerEvent == TriggerEvent.BuryVictim)
+            if (triggerEvent == TriggerEvent.EventPhaseStart || triggerEvent == TriggerEvent.BuryVictim)
                 UpdatePlayers();
 
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
@@ -223,7 +223,7 @@ namespace SanguoshaServer.AI
                 else if (choices[0] == "ViewTopCards" || choices[0] == "ViewBottomCards")
                 {
                     bool open = choices[choices.Count - 1] == "open";
-                    List<int> drawpile = room.DrawPile;
+                    List<int> drawpile = new List<int>(room.DrawPile);
                     List<int> moves = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
                     if (choices[0] == "ViewTopCards")
                     {
@@ -232,7 +232,7 @@ namespace SanguoshaServer.AI
                         {
                             for (int index = 0; index < moves.Count; index++)
                             {
-                                int id = drawpile[index];
+                                int id = moves[index];
                                 room.SetCardFlag(id, "visible");
                             }
                         }
@@ -249,9 +249,9 @@ namespace SanguoshaServer.AI
                     {
                         if (open)
                         {
-                            for (int index = drawpile.Count - 1; index >= drawpile.Count - moves.Count; index--)
+                            for (int index = 0; index < moves.Count; index++)
                             {
-                                int id = drawpile[index];
+                                int id = moves[index];
                                 room.SetCardFlag(id, "visible");
                             }
                         }
@@ -730,7 +730,7 @@ namespace SanguoshaServer.AI
                         next = room.GetNextAlive(next, 1, false);
                         i++;
                         if (i > 10)
-                            room.OutPut("get next error");
+                            room.Debug("get next error");
                     }
                 }
 

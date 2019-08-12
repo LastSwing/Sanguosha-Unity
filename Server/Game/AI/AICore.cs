@@ -34,7 +34,7 @@ namespace SanguoshaServer.AI
         }
         public virtual List<WrappedCard> GetViewAsCards(TrustedAI ai, string pattern, Player player) => new List<WrappedCard>();
         public virtual string OnChoice(TrustedAI ai, Player player, string choice, object data) => string.Empty;
-        public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max) => null;
+        public virtual List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max) => null;
         public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids) => null;
         public virtual CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data) => new CardUseStruct();
         public virtual bool OnSkillInvoke(TrustedAI ai, Player player, object data) => false;

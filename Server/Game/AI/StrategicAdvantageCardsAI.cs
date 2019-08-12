@@ -485,11 +485,8 @@ namespace SanguoshaServer.AI
                 {
                     string name = choices[2];
                     Player to = ai.Room.FindPlayer(name);
-                    if (to != null)
-                    {
-                        if (ai.GetPossibleId(player).Count == 1 && ai.GetPlayerTendency(to) == "unknown" && ai.IsKnown(player, to) && !to.HasShownOneGeneral())
-                            ai.UpdatePlayerRelation(player, to, true);
-                    }
+                    if (to != null && ai.IsKnown(player, to))
+                        ai.UpdatePlayerRelation(player, to, true);
                 }
             }
         }

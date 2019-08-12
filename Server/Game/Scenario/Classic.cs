@@ -207,7 +207,8 @@ namespace SanguoshaServer.Scenario
                 if (string.IsNullOrEmpty(player.General1))
                 {
                     string generalName = string.Empty;
-                    List<string> reply = room.GetClient(player).ClientReply;
+                    Client client = room.GetClient(player);
+                    List<string> reply = client?.ClientReply;
                     bool success = true;
                     if (reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                         success = false;

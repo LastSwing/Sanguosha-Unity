@@ -7,8 +7,8 @@ using SuperSocket.SocketBase.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Threading;
+
 
 namespace SanguoshaServer
 {
@@ -38,6 +38,17 @@ namespace SanguoshaServer
 
             return null;
         }
+        public Client GetClient(int uid)
+        {
+            if (UId2ClientTable.ContainsKey(uid))
+            {
+                return UId2ClientTable[uid];
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         #region 客户端首次对话时
         public void OnConnected(MsgPackSession session) {
@@ -50,16 +61,6 @@ namespace SanguoshaServer
             new_client.Connected += OnConnected;
         }
         #endregion
-
-        public Client GetClient(int uid) {
-            if (UId2ClientTable.ContainsKey(uid))
-            {
-                return UId2ClientTable[uid];
-            }
-            else {
-                return null;
-            }
-        }
 
         #region 客户端断线时操作
         internal void OnDisconnected(MsgPackSession session, CloseReason value)
@@ -82,6 +83,9 @@ namespace SanguoshaServer
                         UId2ClientTable.Remove(client.UserID);
                     //广播离线信息
                     ClientList.Instance().RemoveClient(client.UserID);
+                    //更新到form1
+                    UpdateUsers(ClientList.Instance().GetUserList(0));
+
                     MyData data = new MyData()
                     {
                         Description = PacketDescription.Hall2Cient,
@@ -99,13 +103,37 @@ namespace SanguoshaServer
 
         #region 信息输出至form
         public delegate void OutDelegate(string text);
-        public void OutPut(string message) {
-            if (form.InvokeRequired) {
+        public void OutPut(string message)
+        {
+            if (form.InvokeRequired)
+            {
                 OutDelegate outdelegate = new OutDelegate(OutPut);
                 form.BeginInvoke(outdelegate, new object[] { message });
                 return;
             }
-            form.AddLog(message);
+            form.AddLoginMessage(message);
+        }
+        public delegate void UpdateUserDelegate(DataTable message);
+        public void UpdateUsers(DataTable message)
+        {
+            if (form.InvokeRequired)
+            {
+                UpdateUserDelegate outdelegate = new UpdateUserDelegate(UpdateUsers);
+                form.BeginInvoke(outdelegate, new object[] { message });
+                return;
+            }
+            form.UpdateUser(message);
+        }
+        
+        public void Debug(string message)
+        {
+            if (form.InvokeRequired)
+            {
+                OutDelegate outdelegate = new OutDelegate(Debug);
+                form.BeginInvoke(outdelegate, new object[] { message });
+                return;
+            }
+            form.AddDebugMessage(message);
         }
         #endregion
 
@@ -123,7 +151,7 @@ namespace SanguoshaServer
                 };
                 same.SendLoginReply(data);
 
-                OutPut("重复登录");
+                OutPut(string.Format("{0} 重复登录", same.UserName));
 
                 //断开连接
                 same.Session.Close();
@@ -141,14 +169,24 @@ namespace SanguoshaServer
         #region 处理客户端请求
         public void OnRequesting(MsgPackSession session, BinaryRequestInfo requestInfo) {
             Client client = Session2ClientTable[session];
-
-            MyData data = PacketTranslator.Unpack(requestInfo.Body);
-
+            MyData data = null;
+            try
+            {
+                data = PacketTranslator.Unpack(requestInfo.Body);
+            }
+            catch (Exception e)
+            {
+                Debug(string.Format("error at parse client request {0} {1}", e.Message, e.TargetSite));
+                Debug(string.Format("error messsage {0} {1}", requestInfo?.ToString(), requestInfo.Body?.ToString()));
+                session.Close();
+                return;
+            }
             TransferType request = PacketTranslator.GetTransferType(requestInfo.Key);
 
             //OutPut(string.Format("请求协议为{0}, 内容为{1}", data.Protocol.ToString(), data.Body[0]));
-            if (client.UserName == null && !request.Equals(TransferType.TypeLogin)) {
-                OutPut("未登录客户端，关闭连接");
+            if (client.UserName == null && !request.Equals(TransferType.TypeLogin))
+            {
+                OutPut(string.Format("{0} 未登录客户端，关闭连接", client.IP));
                 session.Close();
                 return;
             }
@@ -158,7 +196,8 @@ namespace SanguoshaServer
                 switch (request)
                 {
                     case TransferType.TypeLogin:                          //登录相关
-                        switch (data.Protocol) {
+                        switch (data.Protocol)
+                        {
                             case protocol.Login:
                                 client.CheckUserName(data);
                                 break;
@@ -181,10 +220,11 @@ namespace SanguoshaServer
                         client.UpDateProfile(data);
                         break;
                     default:
-                        OutPut("对聊天大厅无效的请求");
+                        Debug(string.Format("{0} 对聊天大厅无效的请求", client.UserName));
                         break; ;
                 }
-            } else if (data.Description == PacketDescription.Client2Room)
+            }
+            else if (data.Description == PacketDescription.Client2Room)
             {
                 switch (request)
                 {
@@ -198,7 +238,7 @@ namespace SanguoshaServer
                         RoomSwitch(client, data);
                         break;
                     default:
-                        OutPut("对ROOM无效的请求");
+                        Debug(string.Format("{0} 对ROOM无效的请求", client.UserName));
                         break; ;
                 }
             }
@@ -234,7 +274,7 @@ namespace SanguoshaServer
                         else
                         {
                             //更新用户room id
-                            DB.UpdateGameRoom(temp.UserName, -1);
+                            ClientDBOperation.UpdateGameRoom(temp.UserName, -1);
                         }
                     }
 
@@ -251,6 +291,8 @@ namespace SanguoshaServer
             if (!proceed) return;
 
             ClientList.Instance().AddClient(client.UserID, client.Profile.NickName);
+            //更新到form1
+            UpdateUsers(ClientList.Instance().GetUserList(0));
 
             MyData data = new MyData();
             if (!reconnect)
@@ -389,7 +431,7 @@ namespace SanguoshaServer
                     }
                     if (!result)
                     {
-                        OutPut("join request fail at hall");
+                        Debug(string.Format("{0} join request fail at hall", client.UserName));
                         data = new MyData
                         {
                             Description = PacketDescription.Hall2Cient,
@@ -397,10 +439,21 @@ namespace SanguoshaServer
                         };
                         client.SendSwitchReply(data);
                     }
+                    else
+                    {
+                        ClientList.Instance().AddClient(client.UserID, client.Profile.NickName, room_id);
+                        UpdateUsers(ClientList.Instance().GetUserList(0));
+                    }
                     break;
                 case protocol.LeaveRoom:
                     if (RId2Room.ContainsKey(client.GameRoom))
+                    {
                         client.RequestLeaveRoom();
+
+                        //更新form
+                        ClientList.Instance().AddClient(client.UserID, client.Profile.NickName);
+                        UpdateUsers(ClientList.Instance().GetUserList(0));
+                    }
                     break;
                 case protocol.UpdateRoom:
                     client.RequstReady(bool.Parse(data.Body[0]));
@@ -420,7 +473,13 @@ namespace SanguoshaServer
                         int victim_id = int.Parse(data.Body[0]);
                         Client victim = GetClient(victim_id);
                         if (victim != null || victim_id < 0)
+                        {
                             victim.RequestLeaveRoom(true);
+
+                            //更新form
+                            ClientList.Instance().AddClient(client.UserID, client.Profile.NickName);
+                            UpdateUsers(ClientList.Instance().GetUserList(0));
+                        }
                     }
                     break;
                 case protocol.ConfigChange:
@@ -466,11 +525,15 @@ namespace SanguoshaServer
                         }
                     }
 
-                    OutPut(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
+                    Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
 
                     int room_id = ++room_serial;
                     Room room = new Room(this, room_id, client, setting);
                     RId2Room.Add(room_id, room);
+
+                    //通知form更新
+                    ClientList.Instance().AddClient(client.UserID, client.Profile.NickName, room_id);
+                    UpdateUsers(ClientList.Instance().GetUserList(0));
                 }
                 else
                 {
@@ -489,12 +552,8 @@ namespace SanguoshaServer
         {
             //更新房间号至数据库，以备断线重连
             foreach (Client client in room.Clients)
-            {
                 if (client.UserID > 0)
-                {
-                    DB.UpdateGameRoom(client.UserName, client.GameRoom);
-                }
-            }
+                    ClientDBOperation.UpdateGameRoom(client.UserName, client.GameRoom);
             
             Thread thread = new Thread(room.Run);
             Room2Thread.Add(room, thread);
@@ -534,13 +593,16 @@ namespace SanguoshaServer
         {
             lock (this)
             {
-                OutPut("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+                Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
 
                 //更新该room下用户的房间号为0
                 foreach (Client client in clients)
                 {
                     if (client.UserID > 0)
-                        DB.UpdateGameRoom(client.UserName, room.RoomId);
+                    {
+                        client.GameRoom = 0;
+                        ClientDBOperation.UpdateGameRoom(client.UserName, 0);
+                    }
                 }
 
                 //若房主存在，重建一个新的房间
@@ -549,7 +611,7 @@ namespace SanguoshaServer
                     CreateRoom(host, room.Setting);
                     int id = host.GameRoom;
 
-                    OutPut(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
+                    Debug(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
 
                     if (id > 0 && id != room.RoomId)
                     {
@@ -610,47 +672,6 @@ namespace SanguoshaServer
         public void RemoveBot(Client client)
         {
             UId2ClientTable.Remove(client.UserID);
-        }
-        #endregion
-
-        #region 更新用户游戏数据
-        public void UpdateProfileGamePlay(int uid, int win, bool escaped)
-        {
-            string sql = string.Format("select * from profile where uid = {0}", uid);
-            DataTable dt = DB.GetData(sql);
-
-            if (dt.Rows.Count == 1)
-            {
-                Profile profile = new Profile
-                {
-                    UId = uid,
-                    GamePlay = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
-                    Win = int.Parse(dt.Rows[0]["Win"].ToString()),
-                    Lose = int.Parse(dt.Rows[0]["Lose"].ToString()),
-                    Draw = int.Parse(dt.Rows[0]["GamePlay"].ToString()),
-                    Escape = int.Parse(dt.Rows[0]["Escape"].ToString()),
-                    Title = int.Parse(dt.Rows[0]["Title_id"].ToString())
-                };
-
-                profile.GamePlay++;
-                if (win > 0)
-                    profile.Win++;
-                else if (win < 0)
-                    profile.Lose++;
-                else
-                    profile.Draw++;
-
-                if (escaped)
-                    profile.Escape++;
-
-                string new_sql = string.Format("update profile set GamePlay = {0}, Win = {1}, Lose = {2}, Draw = {3}, [Escape] = {4} where uid = {5}",
-                    profile.GamePlay, profile.Win, profile.Lose, profile.Draw, profile.Escape, uid);
-                DB.UpdateData(new_sql);
-
-                Client client = GetClient(uid);
-                if (client != null)
-                    client.UpdateProfileGamePlay(profile);
-            }
         }
         #endregion
     }

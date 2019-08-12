@@ -912,9 +912,9 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             Player owner = room.FindPlayer(info.SkillOwner);
-            if (owner != null && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            if (owner != null && room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, owner.Name, player.Name);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, owner.Name, ask_who.Name);
                 room.BroadcastSkillInvoke(Name, owner, info.SkillPosition);
                 return info;
             }
@@ -923,9 +923,9 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             Player owner = room.FindPlayer(info.SkillOwner);
-            room.DrawCards(player, new DrawCardStruct(1, owner, Name));
-            if (player.Alive && RoomLogic.CanDiscard(room, player, player, "he"))
-                room.AskForDiscard(player, Name, 1, 1, false, true, null, false, info.SkillPosition);
+            room.DrawCards(ask_who, new DrawCardStruct(1, owner, Name));
+            if (ask_who.Alive && RoomLogic.CanDiscard(room, ask_who, ask_who, "he"))
+                room.AskForDiscard(ask_who, Name, 1, 1, false, true, null, false, info.SkillPosition);
             return false;
         }
     }

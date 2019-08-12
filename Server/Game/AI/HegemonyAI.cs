@@ -275,7 +275,7 @@ namespace SanguoshaServer.AI
                         {
                             for (int index = 0; index < moves.Count; index++)
                             {
-                                int id = drawpile[index];
+                                int id = moves[index];
                                 room.SetCardFlag(id, "visible");
                             }
                         }
@@ -292,9 +292,9 @@ namespace SanguoshaServer.AI
                     {
                         if (open)
                         {
-                            for (int index = drawpile.Count - 1; index >= drawpile.Count - moves.Count; index--)
+                            for (int index = 0; index < moves.Count; index++)
                             {
-                                int id = drawpile[index];
+                                int id = moves[index];
                                 room.SetCardFlag(id, "visible");
                             }
                         }
@@ -1582,7 +1582,7 @@ namespace SanguoshaServer.AI
                         next = room.GetNextAlive(next, 1, false);
                         i++;
                         if (i > 10)
-                            room.OutPut("get next error");
+                            room.Debug("get next error");
                     }
                 }
 

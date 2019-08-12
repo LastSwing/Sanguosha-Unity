@@ -812,7 +812,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 1 && to_select != Self;
+            return targets.Count == 0 && to_select != Self;
         }
 
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
@@ -1261,7 +1261,7 @@ namespace SanguoshaServer.Package
                     room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
                     if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
                     {
-                        WrappedCard card = new WrappedCard(card_name);
+                        WrappedCard card = new WrappedCard(card_name) { Skill = "_choulue" };
                         FunctionCard fcard = Engine.GetFunctionCard(card_name);
                         if (fcard != null && fcard.IsAvailable(room, player, card))
                         {
@@ -1309,7 +1309,7 @@ namespace SanguoshaServer.Package
         {
             WrappedCard bf = new WrappedCard(BifaCard.ClassName) { Skill = Name };
             bf.AddSubCard(card);
-            return card;
+            return bf;
         }
     }
 
@@ -1400,6 +1400,7 @@ namespace SanguoshaServer.Package
             player.RemoveTag("bifa_target");
             if (target != null && target.Alive)
             {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
                 int id = player.GetMark(Name);
                 target.SetTag(string.Format("BifaSource{0}", id), player.Name);
                 room.AddToPile(target, Name, id, false);
@@ -1873,7 +1874,9 @@ namespace SanguoshaServer.Package
                     else
                         choices.Add("cancel");
 
+                    room.SetTag("zhenjun_target", to);
                     string result = room.AskForChoice(player, Name, string.Join("+", choices), prompts);
+                    room.RemoveTag("zhenjun_target");
                     if (result == "draw" && to.Alive)
                         room.DrawCards(to, new DrawCardStruct(ids.Count, player, Name));
                     else if (result == "discard" && player.Alive)
@@ -2195,7 +2198,7 @@ namespace SanguoshaServer.Package
             room.TurnOver(caoren);
             room.DrawCards(caoren, 4, Name);
 
-            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jxjushou", null, ".!", info.SkillPosition);
+            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jushou", string.Empty, ".!", info.SkillPosition);
             if (ids.Count == 1)
             {
                 WrappedCard card = room.GetCard(ids[0]);
@@ -2282,13 +2285,14 @@ namespace SanguoshaServer.Package
                     room.SetTag("MouduanTarget", target1);
                     string position = info.SkillPosition;
                     Player to = room.AskForPlayerChosen(player, tos, Name, "@jiewei-to:::" + card.Name, false, false, position);
+                    room.RemoveTag("MouduanTarget");
                     if (to != null)
                     {
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, target1.Name, to.Name);
                         CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, player.Name, Name, null);
                         room.MoveCardTo(card, target1, to, place, reason);
 
-                        if (place == Player.Place.PlaceDelayedTrick)
+                        if (place == Place.PlaceDelayedTrick)
                         {
                             CardUseStruct use = new CardUseStruct(card, null, to);
                             object _data = use;
@@ -2301,7 +2305,6 @@ namespace SanguoshaServer.Package
                                 room.RoomThread.Trigger(TriggerEvent.TargetConfirmed, room, p, ref _data);
                         }
                     }
-                    room.RemoveTag("MouduanTarget");
                 }
             }
             return false;
@@ -2673,9 +2676,10 @@ namespace SanguoshaServer.Package
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.Card != null && damage.Card.GetSkillName() == Name)
+            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.Card != null && damage.Card.GetSkillName() == Name
+                && damage.From != null && damage.From.Alive)
             {
-                player.SetFlags(Name);
+                damage.From.SetFlags(Name);
             }
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -2719,7 +2723,7 @@ namespace SanguoshaServer.Package
             if (Engine.IsProhibited(room, ask_who, player, slash) == null)
                 room.UseCard(new CardUseStruct(slash, ask_who, player));
 
-            if (!ask_who.HasFlag(Name))
+            if (!ask_who.HasFlag(Name) && ask_who.Alive)
                 room.DrawCards(ask_who, 1, Name);
 
             ask_who.SetFlags("-yonglue");
@@ -2738,8 +2742,10 @@ namespace SanguoshaServer.Package
         {
             if (player != null && player.Alive && RoomLogic.PlayerHasSkill(room, player, Name) && data is DamageStruct damage)
             {
-                TriggerStruct trigger = new TriggerStruct(Name, player);
-                trigger.Times = damage.Damage;
+                TriggerStruct trigger = new TriggerStruct(Name, player)
+                {
+                    Times = damage.Damage
+                };
                 return trigger;
             }
 

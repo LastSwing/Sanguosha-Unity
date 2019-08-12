@@ -59,6 +59,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             List<Player> friends = ai.FriendNoSelf;
             friends.RemoveAll(t => t.HasFlag("rende_" + player.Name));
+            Player shenpei = ai.FindPlayerBySkill("beizhan");
 
             string card_name = player.HasFlag("rende_judged") && player.GetMark(Name) < 2 ? ai.Choice[Name] : string.Empty;
             if (!string.IsNullOrEmpty(card_name))
@@ -163,6 +164,11 @@ namespace SanguoshaServer.AI
                     ai.Choice[Name] = Peach.ClassName;
                     return true;
                 }
+                else if (friends.Count > 0
+                        && (ai.GetCardNeedPlayer(new List<int>(player.HandCards), friends).Key != null
+                        || ai.GetOverflow(player) > 0
+                        || (shenpei != null && ai.IsFriend(shenpei))))
+                    return true;
             }
             else
             {
@@ -172,7 +178,6 @@ namespace SanguoshaServer.AI
                 else
                 {
                     if (friends.Count == 0) return false;
-                    Player shenpei = ai.FindPlayerBySkill("beizhan");
                     if (ai.GetCardNeedPlayer(new List<int>(player.HandCards), friends).Key != null || ai.GetOverflow(player) > 0 || (shenpei != null && ai.IsFriend(shenpei)))
                         return true;
                 }
@@ -190,22 +195,36 @@ namespace SanguoshaServer.AI
             };
             Room room = ai.Room;
             string card_name = player.HasFlag("rende_judged") ? ai.Choice[Name] : string.Empty;
+            bool use_slash = false;
             if (!string.IsNullOrEmpty(card_name))
             {
-                WrappedCard card = new WrappedCard(card_name)
+                if (card_name.Contains(Slash.ClassName))
                 {
-                    Skill = "_rende"
-                };
-                FunctionCard fcard = Engine.GetFunctionCard(card_name);
+                    use_slash = true;
+                }
+                else
+                {
+                    WrappedCard card = new WrappedCard(card_name) { Skill = "_rende" };
+                    FunctionCard fcard = Engine.GetFunctionCard(card_name);
+                    if (fcard.IsAvailable(room, player, card))
+                    {
+                        use.Card = card;
+                        return use;
+                    }
+                }
+            }
+            else
+            {
+                use_slash = true;
+            }
+
+            if (use_slash)
+            {
+                WrappedCard card = new WrappedCard(Slash.ClassName) { Skill = "_rende" };
+                FunctionCard fcard = Engine.GetFunctionCard(Slash.ClassName);
                 if (fcard.IsAvailable(room, player, card))
                 {
-                    if (fcard is Slash)
-                    {
-                        List<WrappedCard> slashes = new List<WrappedCard>{
-                            new WrappedCard(Slash.ClassName)
-                            {
-                                Skill = "_rende"
-                            },
+                    List<WrappedCard> slashes = new List<WrappedCard>{ card,
                             new WrappedCard(FireSlash.ClassName)
                             {
                                 Skill = "_rende"
@@ -216,20 +235,15 @@ namespace SanguoshaServer.AI
                             }
                         };
 
-                        List<ScoreStruct> scores = ai.CaculateSlashIncome(player, slashes);
-                        if (scores.Count > 0 && scores[0].Score > 0 && scores[0].Players != null && scores[0].Players.Count > 0)
-                        {
-                            use.Card = card;
-                            use.To = scores[0].Players;
-                        }
-                    }
-                    else
+                    List<ScoreStruct> scores = ai.CaculateSlashIncome(player, slashes);
+                    if (scores.Count > 0 && scores[0].Score > 0 && scores[0].Players != null && scores[0].Players.Count > 0)
                     {
                         use.Card = card;
+                        use.To = scores[0].Players;
                     }
                 }
-            }
 
+            }
             return use;
         }
 
@@ -261,12 +275,14 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            List<int> ids = new List<int>(player.HandCards);
+            if (ids.Count == 0) return;
+
             string card_name = player.HasFlag("rende_judged") && player.GetMark("rende") < 2 ? ai.Choice["rende"] : string.Empty;
             Room room = ai.Room;
             List<Player> friends = ai.FriendNoSelf;
             friends.RemoveAll(t => t.HasFlag("rende_" + player.Name));
             List<Player> _friends = new List<Player>(friends);
-            List<int> ids = new List<int>(player.HandCards);
 
             if (!string.IsNullOrEmpty(card_name) && player.HandcardNum >= 2 - player.GetMark("rende"))
             {
@@ -409,11 +425,14 @@ namespace SanguoshaServer.AI
                             if (id != i)
                                 card.AddSubCard(id);
 
-                        use.Card = card;
-                        use.To.Add(target);
+                        if (card.SubCards.Count > 0)
+                        {
+                            use.Card = card;
+                            use.To.Add(target);
+                        }
                     }
                 }
-                else if (ai.GetOverflow(player) > 0 && friends.Count > 0)
+                else if (ai.GetOverflow(player) > 0)
                 {
                     ai.SortByUseValue(ref ids, false);
                     for (int i = 0; i < ai.GetOverflow(player); i++)
@@ -1272,7 +1291,7 @@ namespace SanguoshaServer.AI
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if (fcard is TrickCard && !(fcard is DelayedTrick) && !RoomLogic.IsVirtualCard(ai.Room, card))
-                    return 1.5;
+                    return 2;
             }
 
             return 0;
