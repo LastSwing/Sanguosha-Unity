@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Diagnostics;
 using System.Threading;
 using CommonClass;
 using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.AI;
 using SanguoshaServer.Game;
-using SanguoshaServer.Package;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Game.Skill;
 using CommandType = CommonClassLibrary.CommandType;
@@ -216,7 +215,15 @@ namespace SanguoshaServer.Scenario
                         generalName = reply[0];
 
                     if (!success || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3))
-                        generalName = options[player][0];
+                    {
+                        TrustedAI ai = room.GetAI(player);
+                        if (ai != null && ai is StupidAI)
+                        {
+                            generalName = GeneralSelector.GetGeneral(options[player], player.GetRoleEnum());
+                        }
+                        else
+                            generalName = options[player][0];
+                    }
                     
                     player.General1 = generalName;
                     player.ActualGeneral1 = generalName;
@@ -275,8 +282,21 @@ namespace SanguoshaServer.Scenario
                 List<string> clientReply = room.GetClient(player).ClientReply;
                 if (clientReply != null && clientReply.Count > 0)
                     answer = clientReply[0];
-                List<string> choices = new List<string>(choice.Split('+'));
 
+                TrustedAI ai = room.GetAI(player);
+                if (ai != null && ai is StupidAI)
+                {
+                    foreach (Player p in room.GetAllPlayers())
+                    {
+                        if (p.GetRoleEnum() == Player.PlayerRole.Lord)
+                        {
+                            answer = p.Kingdom;
+                            break;
+                        }
+                    }
+                }
+
+                List<string> choices = new List<string>(choice.Split('+'));
                 if (string.IsNullOrEmpty(answer) || !choices.Contains(answer))
                 {
                     Shuffle.shuffle(ref choices);
@@ -576,7 +596,7 @@ namespace SanguoshaServer.Scenario
                 if (check)
                 {
                     room.DoBroadcastNotify(CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
-                    Thread.Sleep(3000);
+                    Thread.Sleep(2000 + room.AliveCount() * 500);
                 }
             }
         }
@@ -592,6 +612,35 @@ namespace SanguoshaServer.Scenario
                 room.DrawCards(killer, 3, "gamerule");
             if (victim.GetRoleEnum() == PlayerRole.Loyalist && killer.GetRoleEnum() == PlayerRole.Lord)
                 room.ThrowAllHandCardsAndEquips(killer);
+        }
+    }
+
+    public class GeneralSelector
+    {
+        public static string GetGeneral(List<string> choices, PlayerRole role)
+        {
+            Debug.Assert(choices.Count > 0);
+
+            if (choices.Count == 1) return choices[0];
+
+            Dictionary<string, double> points = new Dictionary<string, double>();
+            foreach (string general in choices)
+            {
+                double basic = Engine.GetGeneralValue(general, "Classic");
+                basic += Engine.GetRoleTendency(general, role) / 10;
+                points.Add(general, basic);
+            }
+
+            choices.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
+            if (role == PlayerRole.Lord)
+            {
+                int index = 0;
+                Random rd = new Random();
+                index = rd.Next(0, Math.Min(3, choices.Count));
+                return choices[index];
+            }
+
+            return choices[0];
         }
     }
 }

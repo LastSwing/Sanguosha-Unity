@@ -117,7 +117,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.GetMark(Name) == 0)
+            if (player.GetMark(Name) == 0 && !player.IsNude())
             {
                 Room room = ai.Room;
                 List<int> ids = player.GetCards("he");
@@ -1221,13 +1221,13 @@ namespace SanguoshaServer.AI
             return 8;
         }
 
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             Player player = ai.Self;
             Room room = ai.Room;
             double value = 0;
-            if ((card.Name.Contains(Slash.ClassName) || card.Name == ArcheryAttack.ClassName)
-                && !ai.IsCancelTarget(card, to, player) || ai.IsCardEffect(card, to, ai.Self) && room.Current != null)
+            if ((card.Name.Contains(Slash.ClassName) || card.Name == ArcheryAttack.ClassName) && room.Current != null
+                && !ai.IsCancelTarget(card, to, player) && ai.IsCardEffect(card, to, ai.Self))
             {
                 if (ai.IsFriend(to, room.Current))
                     value++;
@@ -1261,30 +1261,52 @@ namespace SanguoshaServer.AI
             return true;
         }
 
-        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
             List<WrappedCard> cards = RoomLogic.GetPlayerHandcards(room, player);
+            WrappedCard jushou = new WrappedCard(JushouCard.ClassName)
+            {
+                Mute = true,
+                Skill = Name
+            };
+            CardUseStruct use = new CardUseStruct(jushou, player, new List<Player>());
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if ((fcard is DefensiveHorse || fcard is Armor) && RoomLogic.CanPutEquip(player, card) && ai.GetSameEquip(card, player) == null)
-                    return new List<int> { card.Id };
+                if ((fcard is DefensiveHorse || fcard is Armor || fcard is SpecialEquip) && RoomLogic.CanPutEquip(player, card) && ai.GetSameEquip(card, player) == null)
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if ((fcard is Weapon || fcard is OffensiveHorse || fcard is Treasure) && RoomLogic.CanPutEquip(player, card) && ai.GetSameEquip(card, player) == null)
-                    return new List<int> { card.Id };
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if (fcard is Armor && player.GetArmor() && RoomLogic.CanPutEquip(player, card) && ai.GetKeepValue(player.Armor.Key, player) < ai.GetUseValue(card.Id, player))
-                    return new List<int> { card.Id };
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
 
-            return ai.AskForDiscard(player.GetCards("h"), string.Empty, 1, 1, false);
+            List<int> subs = ai.AskForDiscard(player.GetCards("h"), string.Empty, 1, 1, false);
+            jushou.AddSubCards(subs);
+            return use;
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            return "use";
         }
     }
 
@@ -2041,7 +2063,7 @@ namespace SanguoshaServer.AI
             List<ScoreStruct> scores = new List<ScoreStruct>();
             foreach (Player p in targets)
             {
-                scores.Add(ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodDiscard));
+                scores.Add(ai.FindCards2Discard(player, p, string.Empty, "he", FunctionCard.HandlingMethod.MethodDiscard));
             }
             if (scores.Count > 0)
             {
@@ -2132,7 +2154,7 @@ namespace SanguoshaServer.AI
                         return new List<int> { id };
             }
 
-            return ai.FindCards2Discard(from, to, flags, FunctionCard.HandlingMethod.MethodDiscard, 1, false, disable_ids).Ids;
+            return ai.FindCards2Discard(from, to, string.Empty, flags, FunctionCard.HandlingMethod.MethodDiscard, 1, false, disable_ids).Ids;
         }
 
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)

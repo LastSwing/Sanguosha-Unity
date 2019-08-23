@@ -485,6 +485,32 @@ namespace SanguoshaServer.AI
 
             return null;
         }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            Room room = ai.Room;
+            if (ai.HasSkill("zhaxiang")) return "losehp";
+
+            if (player.GetTag(Name) is WrappedCard.CardSuit suit)
+            {
+                List<int> all = player.GetCards("he");
+                double value = 0;
+                int count = 0;
+                foreach (int id in all)
+                {
+                    if (room.GetCard(id).Suit == suit)
+                    {
+                        count++;
+                        value += ai.GetKeepValue(id, player);
+                    }
+                }
+
+                if (count == 0 || value > (ai.IsWeak(player) ? 6 : 4))
+                    return "losehp";
+            }
+
+            return "show";
+        }
     }
 
     public class FanjianCardAI : UseCard
@@ -498,17 +524,30 @@ namespace SanguoshaServer.AI
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
-                if (!player.HasShownOneGeneral())
+                if (ai.Self != player && ai is SmartAI)
                 {
-                    string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
-                    ai.UpdatePlayerIntention(player, role, 100);
+                    if (!player.HasShownOneGeneral())
+                    {
+                        string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
+                        ai.UpdatePlayerIntention(player, role, 100);
+                    }
+                    foreach (Player p in use.To)
+                        ai.UpdatePlayerRelation(player, p, false);
                 }
-                foreach (Player p in use.To)
-                    ai.UpdatePlayerRelation(player, p, false);
+                else if (ai is StupidAI)
+                {
+                    int id = use.Card.GetEffectiveId();
+                    foreach (Player p in use.To)
+                    {
+                        if (ai.IsCard(id, Analeptic.ClassName, p) || ai.IsCard(id, Peach.ClassName, p) || ai.HasSkill("zhaxiang", p))
+                            ai.UpdatePlayerRelation(player, p, true);
+                        else
+                            ai.UpdatePlayerRelation(player, p, false);
+                    }
+                }
             }
         }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -517,6 +556,37 @@ namespace SanguoshaServer.AI
             List<Player> enemies = ai.GetPrioEnemies();
             ai.SortByDefense(ref enemies, false);
             List<int> cards = new List<int>();
+
+            Player huanggai = ai.FindPlayerBySkill("zhaxiang");
+            if (huanggai != null && ai.IsFriend(huanggai))
+            {
+                int help = -1;
+                cards = new List<int>(player.HandCards);
+                ai.SortByUseValue(ref cards, false);
+                foreach (int id in cards)
+                {
+                    if (ai.IsCard(id, Peach.ClassName, huanggai) || ai.IsCard(id, Analeptic.ClassName, huanggai))
+                    {
+                        help = id;
+                        break;
+                    }
+                }
+                if (huanggai.Hp == 1 && help >= 0)
+                {
+                    card.AddSubCard(help);
+                    use.Card = card;
+                    use.To.Add(huanggai);
+                    return;
+                }
+                else if (huanggai.Hp > 1 || ai.GetKnownCardsNums(Analeptic.ClassName, "he", huanggai) > 0 || ai.GetKnownCardsNums(Peach.ClassName, "he", huanggai) > 0)
+                {
+                    card.AddSubCard(cards[0]);
+                    use.Card = card;
+                    use.To.Add(huanggai);
+                    return;
+                }
+            }
+
             foreach (int id in player.HandCards)
             {
                 if ((ai.GetKeepValue(id, player) < 5 || (ai.GetOverflow(player) > 0 && ai.GetUseValue(id, player) < 6))
@@ -529,6 +599,7 @@ namespace SanguoshaServer.AI
             ai.SortByUseValue(ref cards, false);
             foreach (Player p in enemies)
             {
+                if (ai.HasSkill("zhaxiang", p)) continue;
                 //针对空城猪哥
                 if (p.IsKongcheng() && RoomLogic.PlayerHasShownSkill(room, p, "kongcheng"))
                 {
@@ -2071,7 +2142,7 @@ namespace SanguoshaServer.AI
                             if (!target.Contains(p) && RoomLogic.IsProhibited(room, player, p, card) == null && !ai.IsCancelTarget(s, p, player) && ai.IsCardEffect(s, p, player)
                                 && RoomLogic.CanGetCard(room, player, p, "hej"))
                             {
-                                ScoreStruct score = ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodGet);
+                                ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", FunctionCard.HandlingMethod.MethodGet);
                                 score.Players = new List<Player> { p };
                                 scores.Add(score);
                                 target.Add(p);

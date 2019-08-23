@@ -494,7 +494,6 @@ namespace SanguoshaServer
         private bool m_do_request;
         PromoteStruct promote_skill = new PromoteStruct();
         private bool auto_target, first_selection, first_pending, double_click;
-        private readonly bool auto_preshow;
         private readonly bool intel_select;
 
         private WrappedCard viewas_card;
@@ -2130,8 +2129,6 @@ namespace SanguoshaServer
                 }
                 */
                 #endregion
-                if (player == null)
-                    room.Debug(args[1] + " is null " + room.GetAlivePlayers().Count.ToString());
 
                 //huashen
                 bool huashen = false;

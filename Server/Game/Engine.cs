@@ -12,6 +12,7 @@ using SanguoshaServer.AI;
 using static SanguoshaServer.Package.FunctionCard;
 using System.Diagnostics;
 using SanguoshaServer.Extensions;
+using static CommonClass.Game.Player;
 
 namespace SanguoshaServer.Game
 {
@@ -249,6 +250,11 @@ namespace SanguoshaServer.Game
             sql = "select * from ai_general_value";
             dt = DB.GetData(sql, false);
             dt.TableName = "general_value";
+            ai_values.Tables.Add(dt);
+
+            sql = "select * from role_tendency";
+            dt = DB.GetData(sql, false);
+            dt.TableName = "role_tendency";
             ai_values.Tables.Add(dt);
         }
 
@@ -972,6 +978,22 @@ namespace SanguoshaServer.Game
             return 4;
         }
 
+        static readonly Dictionary<PlayerRole, string> role_map = new Dictionary<PlayerRole, string>
+        {
+            { PlayerRole.Lord, "lord" },
+            { PlayerRole.Loyalist, "loyalist" },
+            { PlayerRole.Rebel, "rebel"  },
+            { PlayerRole.Renegade, "renegade"  },
+        };
+        public static int GetRoleTendency(string general, PlayerRole role)
+        {
+            DataRow[] rows = ai_values.Tables["role_tendency"].Select(string.Format("general = '{0}'", general));
+            if (rows.Length > 0)
+                return int.Parse(rows[0][role_map[role]].ToString());
+
+            return 0;
+        }
+
         public static SkillEvent GetSkillEvent(string skill)
         {
             if (ai_skill_event.ContainsKey(skill))
@@ -1065,20 +1087,23 @@ namespace SanguoshaServer.Game
 
         public static CardPattern GetPattern(string name)
         {
-            if (name == null)
-                name = string.Empty;
-
-            if (patterns.ContainsKey(name))
+            lock (patterns)
             {
-                CardPattern ptn = patterns[name];
-                if (ptn != null) return ptn;
+                if (name == null)
+                    name = string.Empty;
+
+                if (patterns.ContainsKey(name))
+                {
+                    CardPattern ptn = patterns[name];
+                    if (ptn != null) return ptn;
+                }
+
+                ExpPattern expptn = new ExpPattern(name);
+                enginePatterns.Add(expptn);
+                patterns[name] = expptn;
+
+                return expptn;
             }
-
-            ExpPattern expptn = new ExpPattern(name);
-            enginePatterns.Add(expptn);
-            patterns.Add(name, expptn);
-
-            return expptn;
         }
 
         public static bool MatchExpPattern(Room room, string pattern, Player player, WrappedCard card)
@@ -1168,10 +1193,10 @@ namespace SanguoshaServer.Game
         public static List<Title> GetTitleCollector() => titles;
 
         #region AI数据
-        public static Dictionary<string, double> GetSkillCoopAdjust()
+        public static Dictionary<string, double> GetSkillCoopAdjust(string mode)
         {
             Dictionary<string, double> result = new Dictionary<string, double>();
-            foreach (DataRow data in ai_values.Tables["skill_coop_value"].Rows)
+            foreach (DataRow data in ai_values.Tables["skill_coop_value"].Select(string.Format("mode = '{0}'", mode)))
                 result[data["skills"].ToString()] = double.Parse(data["value"].ToString());
 
             return result;

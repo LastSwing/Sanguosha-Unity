@@ -190,7 +190,7 @@ namespace SanguoshaServer.Extensions
             else if (triggerEvent == TriggerEvent.GameFinished && data is string winners)
             {
                 if (winners == ".") return;
-                foreach (Player p in room.GetAlivePlayers())
+                foreach (Player p in room.Players)
                     if (p.ClientId <= 0) return;
 
                 foreach (Player p in room.GetAlivePlayers())
@@ -202,6 +202,58 @@ namespace SanguoshaServer.Extensions
                         Client client = room.Hall.GetClient(id);
                         if (client != null)
                             client.AddProfileTitle(TitleId);
+                    }
+                }
+            }
+        }
+    }
+
+    public class Rebel : Title
+    {
+        public Rebel(int id) : base(id)
+        {
+            EventList = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.GameFinished };
+            MarkId = 4;
+        }
+
+        public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
+        {
+            if (room.Setting.GameMode != "Classic" || room.Players.Count < 8) return;
+
+            if (triggerEvent == TriggerEvent.Death && data is DeathStruct death
+                && (player.GetRoleEnum() == Player.PlayerRole.Renegade || player.GetRoleEnum() == Player.PlayerRole.Loyalist))
+            {
+                if (death.Damage.From == null || death.Damage.From.GetRoleEnum() != Player.PlayerRole.Rebel)
+                {
+                    room.SetTag("Rebel", false);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.GameFinished && data is string winners)
+            {
+                if (winners == "." || room.ContainsTag("Rebel")) return;
+                foreach (Player p in room.Players)
+                    if (p.ClientId <= 0) return;
+
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetRoleEnum() == Player.PlayerRole.Lord || p.GetRoleEnum() == Player.PlayerRole.Loyalist || p.GetRoleEnum() == Player.PlayerRole.Renegade)
+                        return;
+
+                foreach (Player p in room.Players)
+                {
+                    int id = p.ClientId;
+                    if (id > 0 && winners.Contains(p.Name) && !ClientDBOperation.CheckTitle(id, TitleId))
+                    {
+                        int value = ClientDBOperation.GetTitleMark(id, MarkId);
+                        value++;
+                        if (value >= 20)
+                        {
+                            ClientDBOperation.SetTitle(id, TitleId);
+                            Client client = room.Hall.GetClient(id);
+                            if (client != null)
+                                client.AddProfileTitle(TitleId);
+                        }
+                        else
+                            ClientDBOperation.SetTitleMark(id, MarkId, value);
                     }
                 }
             }

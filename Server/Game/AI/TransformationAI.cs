@@ -412,7 +412,7 @@ namespace SanguoshaServer.AI
             if ((ai.WillShowForAttack() || ai.WillShowForDefence())
                 && room.ContainsTag("zhiman_data") && room.GetTag("zhiman_data") is DamageStruct damage)
             {
-                ScoreStruct get = ai.FindCards2Discard(player, damage.To, "ej", HandlingMethod.MethodGet);
+                ScoreStruct get = ai.FindCards2Discard(player, damage.To, string.Empty, "ej", HandlingMethod.MethodGet);
                 ScoreStruct score = ai.GetDamageScore(damage);
 
                 if (get.Score < score.Score)
@@ -898,7 +898,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in room.GetOtherPlayers(player))
             {
-                ScoreStruct score = ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodDiscard);
+                ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", FunctionCard.HandlingMethod.MethodDiscard);
                 scores.Add(score);
             }
             if (scores.Count > 0)

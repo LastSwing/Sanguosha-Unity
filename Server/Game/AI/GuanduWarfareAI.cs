@@ -363,6 +363,7 @@ namespace SanguoshaServer.AI
                     value *= 1.5;
 
                 //ai debug log
+                /*
                 if ((RoomLogic.IsFriendWith(room, self, to) || IsFriend(to)) && value > 0)
                 {
                     string damage_from = damage.From != null ? string.Format("{0},{1} has skills {2}", damage.From.General1Showed ? damage.From.ActualGeneral1 : "hidden head",
@@ -376,6 +377,7 @@ namespace SanguoshaServer.AI
                     File.AppendAllText("ai_damage_log.txt", string.Format("{0} judge damage {1} against {2} {6} and value is {3} and ai judge target is my {4} and I'm {5}\r\n",
                         damage_from, damage_str, damage_to, value, IsFriend(self, to) ? "friend" : "enemy", self_str, to.Chained ? "chained" : string.Empty));
                 }
+                */
 
                 result_score.Score = value;
             }
@@ -385,7 +387,7 @@ namespace SanguoshaServer.AI
             {
                 if (damage.Card.Name.Contains(Slash.ClassName) && from.HasWeapon(IceSword.ClassName) && !to.IsNude())
                 {
-                    ScoreStruct score = FindCards2Discard(from, to, "he", HandlingMethod.MethodDiscard, 2, true);
+                    ScoreStruct score = FindCards2Discard(from, to, string.Empty, "he", HandlingMethod.MethodDiscard, 2, true);
                     scores.Add(score);
                 }
             }
@@ -394,7 +396,7 @@ namespace SanguoshaServer.AI
             return scores[0];
         }
 
-        public override bool IsRoleExpose()
+        public override bool IsGeneralExpose()
         {
             return true;
         }
@@ -775,7 +777,7 @@ namespace SanguoshaServer.AI
                     return result[0];
             }
 
-            ScoreStruct score = FindCards2Discard(self, who, flags, method, 1, false, disabled_ids);
+            ScoreStruct score = FindCards2Discard(self, who, string.Empty, flags, method, 1, false, disabled_ids);
             if (score.Ids != null && score.Ids.Count == 1)
                 return score.Ids[0];
 

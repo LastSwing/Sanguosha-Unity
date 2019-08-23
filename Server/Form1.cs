@@ -20,6 +20,9 @@ namespace SanguoshaServer
         private ListBox OnlineUsersBox;
         private TabPage DebugPage;
         private ListBox DebugBox;
+        private TabPage tabPage3;
+        private Button button1;
+        private Label label1;
         private GameHall hall;
 
         public Form1()
@@ -93,10 +96,16 @@ namespace SanguoshaServer
 
         public void AddLoginMessage(string msg)
         {
+            if (LoginMessageBox.Items.Count >= 100)
+                LoginMessageBox.Items.RemoveAt(0);
+
             LoginMessageBox.Items.Add(msg);
         }
         public void AddDebugMessage(string msg)
         {
+            if (DebugBox.Items.Count >= 100)
+                DebugBox.Items.RemoveAt(0);
+
             DebugBox.Items.Add(msg);
         }
         public void UpdateUser(DataTable list)
@@ -136,105 +145,141 @@ namespace SanguoshaServer
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             tabControl1 = new TabControl();
             tabPage1 = new TabPage();
-            tabPage2 = new TabPage();
-            DebugPage = new TabPage();
             LoginMessageBox = new ListBox();
+            tabPage2 = new TabPage();
             OnlineUsersBox = new ListBox();
+            DebugPage = new TabPage();
             DebugBox = new ListBox();
-            tabControl1.SuspendLayout();
-            tabPage1.SuspendLayout();
-            tabPage2.SuspendLayout();
-            DebugPage.SuspendLayout();
-            SuspendLayout();
+            tabPage3 = new TabPage();
+            label1 = new Label();
+            button1 = new Button();
+            this.tabControl1.SuspendLayout();
+            this.tabPage1.SuspendLayout();
+            this.tabPage2.SuspendLayout();
+            this.DebugPage.SuspendLayout();
+            this.tabPage3.SuspendLayout();
+            this.SuspendLayout();
             // 
             // tabControl1
             // 
-            this.tabControl1.Controls.Add(this.tabPage1);
-            this.tabControl1.Controls.Add(this.tabPage2);
-            this.tabControl1.Controls.Add(this.DebugPage);
-            this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tabControl1.Location = new System.Drawing.Point(0, 0);
-            this.tabControl1.Name = "tabControl1";
-            this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(416, 294);
-            this.tabControl1.TabIndex = 5;
+            tabControl1.Controls.Add(tabPage1);
+            tabControl1.Controls.Add(tabPage2);
+            tabControl1.Controls.Add(DebugPage);
+            tabControl1.Controls.Add(tabPage3);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Location = new System.Drawing.Point(0, 0);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new System.Drawing.Size(416, 294);
+            tabControl1.TabIndex = 5;
             // 
             // tabPage1
             // 
-            this.tabPage1.Controls.Add(this.LoginMessageBox);
-            this.tabPage1.Location = new System.Drawing.Point(4, 22);
-            this.tabPage1.Name = "LoginPage";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(408, 268);
+            tabPage1.Controls.Add(this.LoginMessageBox);
+            tabPage1.Location = new System.Drawing.Point(4, 22);
+            tabPage1.Name = "tabPage1";
+            tabPage1.Padding = new Padding(3);
+            tabPage1.Size = new System.Drawing.Size(408, 268);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "登录信息";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // LoginMessageBox
+            // 
+            LoginMessageBox.Dock = DockStyle.Fill;
+            LoginMessageBox.FormattingEnabled = true;
+            LoginMessageBox.ItemHeight = 12;
+            LoginMessageBox.Location = new System.Drawing.Point(3, 3);
+            LoginMessageBox.Name = "LoginMessageBox";
+            LoginMessageBox.Size = new System.Drawing.Size(402, 262);
+            LoginMessageBox.TabIndex = 0;
             // 
             // tabPage2
             // 
             this.tabPage2.Controls.Add(this.OnlineUsersBox);
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
-            this.tabPage2.Name = "UserPage";
-            tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Name = "tabPage2";
+            tabPage2.Padding = new Padding(3);
             this.tabPage2.Size = new System.Drawing.Size(408, 268);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "在线用户";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // tabPage3
-            // 
-            this.DebugPage.Controls.Add(this.DebugBox);
-            this.DebugPage.Location = new System.Drawing.Point(4, 22);
-            this.DebugPage.Name = "DebugMesagePage";
-            this.DebugPage.Padding = new System.Windows.Forms.Padding(3);
-            this.DebugPage.Size = new System.Drawing.Size(408, 268);
-            this.DebugPage.TabIndex = 2;
-            this.DebugPage.Text = "调试信息";
-            this.DebugPage.UseVisualStyleBackColor = true;
-            // 
-            // listBox1
-            // 
-            this.LoginMessageBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.LoginMessageBox.FormattingEnabled = true;
-            this.LoginMessageBox.ItemHeight = 12;
-            this.LoginMessageBox.Location = new System.Drawing.Point(3, 3);
-            this.LoginMessageBox.Name = "listBox1";
-            this.LoginMessageBox.Size = new System.Drawing.Size(402, 262);
-            this.LoginMessageBox.TabIndex = 0;
-            // 
-            // listBox2
+            // OnlineUsersBox
             // 
             OnlineUsersBox.Dock = DockStyle.Fill;
             this.OnlineUsersBox.FormattingEnabled = true;
             this.OnlineUsersBox.ItemHeight = 12;
             this.OnlineUsersBox.Location = new System.Drawing.Point(3, 3);
-            this.OnlineUsersBox.Name = "listBox2";
+            this.OnlineUsersBox.Name = "OnlineUsersBox";
             this.OnlineUsersBox.Size = new System.Drawing.Size(402, 262);
             this.OnlineUsersBox.TabIndex = 0;
             // 
-            // listBox3
+            // DebugPage
+            // 
+            this.DebugPage.Controls.Add(this.DebugBox);
+            this.DebugPage.Location = new System.Drawing.Point(4, 22);
+            this.DebugPage.Name = "DebugPage";
+            DebugPage.Padding = new Padding(3);
+            this.DebugPage.Size = new System.Drawing.Size(408, 268);
+            this.DebugPage.TabIndex = 2;
+            this.DebugPage.Text = "调试信息";
+            this.DebugPage.UseVisualStyleBackColor = true;
+            // 
+            // DebugBox
             // 
             DebugBox.Dock = DockStyle.Fill;
             this.DebugBox.FormattingEnabled = true;
             this.DebugBox.ItemHeight = 12;
             this.DebugBox.Location = new System.Drawing.Point(3, 3);
-            this.DebugBox.Name = "listBox3";
+            this.DebugBox.Name = "DebugBox";
             this.DebugBox.Size = new System.Drawing.Size(402, 262);
             this.DebugBox.TabIndex = 0;
+            // 
+            // tabPage3
+            // 
+            tabPage3.Controls.Add(label1);
+            tabPage3.Controls.Add(button1);
+            tabPage3.Location = new System.Drawing.Point(4, 22);
+            tabPage3.Name = "tabPage3";
+            tabPage3.Padding = new Padding(3);
+            tabPage3.Size = new System.Drawing.Size(408, 268);
+            tabPage3.TabIndex = 3;
+            tabPage3.Text = "功能";
+            tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // label1
+            // 
+            label1.Location = new System.Drawing.Point(89, 11);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(311, 26);
+            label1.TabIndex = 1;
+            label1.Text = "自动生成游戏进行压力测试，每点击一次生成30个游戏房间循环由AI自动进行游戏";
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(8, 14);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 0;
+            this.button1.Text = "自动运行";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.TestButtonClick);
             // 
             // Form1
             // 
             this.AutoScaleBaseSize = new System.Drawing.Size(6, 14);
             this.ClientSize = new System.Drawing.Size(416, 294);
-            Controls.Add(tabControl1);
+            this.Controls.Add(this.tabControl1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.Text = "Sanguosha-Server";
-            Closing += new System.ComponentModel.CancelEventHandler(Form1_Closing);
+            this.Closing += new System.ComponentModel.CancelEventHandler(this.Form1_Closing);
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage2.ResumeLayout(false);
             this.DebugPage.ResumeLayout(false);
+            this.tabPage3.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -250,6 +295,11 @@ namespace SanguoshaServer
         {
             if (serverListener != null)
                 serverListener.Stop();
+        }
+
+        private void TestButtonClick(object sender, EventArgs e)
+        {
+            hall.AutoTest();
         }
     }
 }

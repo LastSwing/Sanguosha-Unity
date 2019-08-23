@@ -191,7 +191,7 @@ namespace SanguoshaServer.AI
             List<ScoreStruct> scores = new List<ScoreStruct>();
             foreach (Player p in targets)
             {
-                scores.Add(ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodDiscard));
+                scores.Add(ai.FindCards2Discard(player, p, string.Empty, "he", HandlingMethod.MethodDiscard));
             }
             if (scores.Count > 0)
             {
@@ -294,7 +294,7 @@ namespace SanguoshaServer.AI
             foreach (Player p in room.GetOtherPlayers(player))
             {
                 if (!RoomLogic.InMyAttackRange(room, p, player) || p.IsNude()) continue;
-                ScoreStruct score = ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodDiscard);
+                ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", HandlingMethod.MethodDiscard);
                 score.Players = new List<Player> { p };
                 if (ai.IsEnemy(p))
                 {

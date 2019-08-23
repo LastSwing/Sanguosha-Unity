@@ -187,19 +187,10 @@ namespace SanguoshaServer.AI
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
-            if (positive)
+            if (positive && !keep)
             {
-                if (ai.IsFriend(to) && ai.HasSkill("gangzhi", to))
-                {
+                if (ai.IsFriend(to) && ai.HasSkill("gangzhi", to) && !to.Chained)
                     result.Null = true;
-                }
-            }
-            else
-            {
-                if (ai.IsEnemy(to) && ai.HasSkill("gangzhi", to))
-                {
-                    result.Null = true;
-                }
             }
 
             return result;

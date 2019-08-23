@@ -65,7 +65,7 @@ namespace SanguoshaServer.AI
         public virtual bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to) => true;
 
         //当指定某人为某牌目标时，对分数的调整
-        public virtual double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to) => 0;
+        public virtual double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to) => 0;
         //这张卡牌在使用时的优先级调整
         public virtual double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use) => 0;
         public virtual void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)

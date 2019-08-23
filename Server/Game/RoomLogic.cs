@@ -1083,7 +1083,7 @@ namespace SanguoshaServer.Game
             {
                 if (!p.HasShownOneGeneral())
                     continue;
-                if (p.Role == "careerist")
+                if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     kingdom_map["careerist"] = 1;
                     continue;
@@ -1123,7 +1123,7 @@ namespace SanguoshaServer.Game
             }
             if (jade_seal_owner != null)
             {
-                if (jade_seal_owner.Role == "careerist")
+                if (jade_seal_owner.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     big_kingdoms.Clear();
                     big_kingdoms.Add(jade_seal_owner.Name); // record player's objectName who has JadeSeal.
@@ -1152,7 +1152,7 @@ namespace SanguoshaServer.Game
                     List<string> big_kingdoms = GetBigKingdoms(room);
                     if (big_kingdoms.Count > 0)
                     {
-                        string kingdom = (target.HasShownOneGeneral() ? (target.Role == "careerist" ? target.Name : target.Kingdom) : string.Empty);
+                        string kingdom = (target.HasShownOneGeneral() ? (target.GetRoleEnum() == Player.PlayerRole.Careerist ? target.Name : target.Kingdom) : string.Empty);
                         if (!big_kingdoms.Contains(kingdom))
                             return false;
                     }
@@ -1204,7 +1204,7 @@ namespace SanguoshaServer.Game
             {
                 if (!player.HasShownOneGeneral())
                     return 0;
-                else if (player.Role == "careerist")
+                else if (player.GetRoleEnum() == Player.PlayerRole.Careerist)
                     return 1;
                 else
                     to_calculate = player.Kingdom;
@@ -1216,13 +1216,13 @@ namespace SanguoshaServer.Game
             if (to_calculate == "careerist")
             {
                 foreach (Player p in players)
-                    if (p.Role == "careerist")
+                    if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
                     return 1;
             }
             else
             {
                 foreach (Player p in players) {
-                    if (!p.HasShownOneGeneral() || p.Role == "careerist" || p.Kingdom != to_calculate)
+                    if (!p.HasShownOneGeneral() || p.GetRoleEnum() == Player.PlayerRole.Careerist || p.Kingdom != to_calculate)
                         continue;
 
                     num++;

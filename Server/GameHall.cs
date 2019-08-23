@@ -92,7 +92,9 @@ namespace SanguoshaServer
                         Protocol = protocol.UpdateHallLeave,
                         Body = new List<string> { client.UserID.ToString() }
                     };
-                    foreach (Client other in UId2ClientTable.Values)
+
+                    List<Client> clients = new List<Client>(UId2ClientTable.Values);
+                    foreach (Client other in clients)
                     {
                         other.SendProfileReply(data);
                     }
@@ -318,7 +320,9 @@ namespace SanguoshaServer
                 Protocol = protocol.UpdateHallJoin,
                 Body = new List<string> { client.UserID.ToString(), client.Profile.NickName, "0" }
             };
-            foreach (Client other in UId2ClientTable.Values)
+
+            List<Client> clients = new List<Client>(UId2ClientTable.Values);
+            foreach (Client other in clients)
             {
                 if (other != client)
                     other.SendProfileReply(data);
@@ -336,9 +340,10 @@ namespace SanguoshaServer
             };
             message.Body = data.Body;
 
+            List<Client> clients = new List<Client>(UId2ClientTable.Values);
             switch (data.Protocol) {
                 case protocol.Message2Hall:
-                    foreach (Client client in UId2ClientTable.Values)
+                    foreach (Client client in clients)
                     {
                         if (client.GameRoom <= 0)
                             client.SendMessage(message);
@@ -378,7 +383,7 @@ namespace SanguoshaServer
                 case protocol.MessageSystem:
                     if (sourcer.UserRight >= 3)
                     {
-                        foreach (Client client in UId2ClientTable.Values)
+                        foreach (Client client in clients)
                             client.SendMessage(message);
                     }
                     break;
@@ -525,7 +530,7 @@ namespace SanguoshaServer
                         }
                     }
 
-                    Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
+                    //Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
 
                     int room_id = ++room_serial;
                     Room room = new Room(this, room_id, client, setting);
@@ -582,7 +587,8 @@ namespace SanguoshaServer
                         room.Setting.PlayerNum.ToString()
                     }
                 };
-                foreach (Client client in UId2ClientTable.Values)
+                List<Client> clients = new List<Client>(UId2ClientTable.Values);
+                foreach (Client client in clients)
                 {
                     client.SendProfileReply(data);
                 }
@@ -593,7 +599,7 @@ namespace SanguoshaServer
         {
             lock (this)
             {
-                Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+                //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
 
                 //更新该room下用户的房间号为0
                 foreach (Client client in clients)
@@ -611,7 +617,7 @@ namespace SanguoshaServer
                     CreateRoom(host, room.Setting);
                     int id = host.GameRoom;
 
-                    Debug(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
+                    //Debug(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
 
                     if (id > 0 && id != room.RoomId)
                     {
@@ -646,7 +652,9 @@ namespace SanguoshaServer
                         room_id.ToString()
                     }
                 };
-                foreach (Client client in UId2ClientTable.Values)
+
+                List<Client> all = new List<Client>(UId2ClientTable.Values);
+                foreach (Client client in all)
                 {
                     client.SendProfileReply(data);
                 }
@@ -672,6 +680,117 @@ namespace SanguoshaServer
         public void RemoveBot(Client client)
         {
             UId2ClientTable.Remove(client.UserID);
+        }
+        #endregion
+
+        #region 自动生成AI进行游戏压力测试
+        public void AutoTest()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                int room_id = ++room_serial;
+                GameMode mode = Engine.GetMode("Hegemony");
+                GameSetting setting = new GameSetting
+                {
+                    Name = string.Format("test room {0}", room_id),
+                    PlayerNum = 10,
+                    GameMode = "Hegemony",
+                    CardPackage = mode.CardPackage,
+                    GeneralPackage = mode.GeneralPackage,
+                    GeneralCount = 7,
+                    LordConvert = true
+                };
+
+                Room room = new Room(this, room_id, setting);
+                RId2Room.Add(room_id, room);
+
+                BroadCastRoom(room);
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                int room_id = ++room_serial;
+                GameMode mode = Engine.GetMode("Classic");
+                GameSetting setting = new GameSetting
+                {
+                    Name = string.Format("test room {0}", room_id),
+                    PlayerNum = 8,
+                    GameMode = "Classic",
+                    CardPackage = mode.CardPackage,
+                    GeneralPackage = mode.GeneralPackage,
+                    GeneralCount = 5,
+                };
+
+                Room room = new Room(this, room_id, setting);
+                RId2Room.Add(room_id, room);
+
+                BroadCastRoom(room);
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                int room_id = ++room_serial;
+                GameMode mode = Engine.GetMode("GuanduWarfare");
+                GameSetting setting = new GameSetting
+                {
+                    Name = string.Format("test room {0}", room_id),
+                    PlayerNum = 4,
+                    GameMode = "GuanduWarfare",
+                    CardPackage = mode.CardPackage,
+                    GeneralPackage = mode.GeneralPackage,
+                    GeneralCount = 0,
+                };
+
+                Room room = new Room(this, room_id, setting);
+                RId2Room.Add(room_id, room);
+
+                BroadCastRoom(room);
+            }
+        }
+
+        public void RemoveRoom(Room room)
+        {
+            lock (this)
+            {
+                //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+
+                GameSetting setting = room.Setting;
+
+                RId2Room.Remove(room.RoomId);
+                if (Room2Thread.ContainsKey(room))
+                {
+                    Thread thread = Room2Thread[room];
+                    thread.Abort();
+                    Room2Thread.Remove(room);
+                    thread = null;
+                }
+                RoomList.Instance().RemoveRoom(room.RoomId);
+                int room_id = room.RoomId;
+                room.Dispose();
+                room = null;
+
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = protocol.UPdateRoomList,
+                    Body = new List<string>
+                    {
+                        room_id.ToString()
+                    }
+                };
+
+                List<Client> clients = new List<Client>(UId2ClientTable.Values);
+                foreach (Client client in clients)
+                {
+                    client.SendProfileReply(data);
+                }
+
+                int new_id = ++room_serial;
+                Room new_room = new Room(this, new_id, setting);
+                RId2Room.Add(new_id, new_room);
+
+                BroadCastRoom(new_room);
+            }
         }
         #endregion
     }

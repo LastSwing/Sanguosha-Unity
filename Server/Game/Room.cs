@@ -98,6 +98,41 @@ namespace SanguoshaServer.Game
             else
                 StopGame();
         }
+        public Room(GameHall hall, int room_id, GameSetting setting)
+        {
+            Hall = hall;
+            GameStarted = false;
+            _m_lastMovementId = 0;
+            this.RoomId = room_id;
+            Setting = setting;
+            Scenario = Engine.GetScenario(setting.GameMode);
+            _m_roomState = new RoomState();
+            timer.Elapsed += Timer1_Elapsed;
+
+            if (Scenario != null)
+            {
+                seat2clients = new Dictionary<int, Client>();
+                for (int i = 0; i < setting.PlayerNum; i++)
+                {
+                    int bot_id = Hall.GetBotId();
+                    Profile profile = Bot.GetBot(this);
+                    profile.UId = bot_id;
+                    Client bot = new Client(Hall, profile)
+                    {
+                        GameRoom = RoomId,
+                        Status = Client.GameStatus.bot,
+                    };
+                    Hall.AddBot(bot);
+                    Clients.Add(bot);
+
+                    seat2clients[i] = bot;
+                    if (i == 0)
+                        Host = bot;
+                }
+
+                Hall.StartGame(this);
+            }
+        }
 
         public List<Player> GetPlayers(Client client)
         {
@@ -328,6 +363,12 @@ namespace SanguoshaServer.Game
             {
                 string name = (string)GetTag("NextGameMode");
                 RemoveTag("NextGameMode");
+            }
+
+            if (Scenario.Name == "Classic")
+            {
+                foreach (Player p in Players)
+                    BroadcastProperty(p, "Role");
             }
 
             DoBroadcastNotify(CommandType.S_COMMAND_GAME_OVER, arg);
@@ -1823,6 +1864,9 @@ namespace SanguoshaServer.Game
                 return (From != null ? From.GetHashCode() : 10) * (To != null ? To.GetHashCode() : 11) * To_place.GetHashCode()
                     * (!string.IsNullOrEmpty(To_pile_name) ? To_pile_name.GetHashCode() : 13);
             }
+            public static bool operator ==(_MoveMergeClassifier other, object another) => other.Equals(another);
+            public static bool operator !=(_MoveMergeClassifier other, object another) => !other.Equals(another);
+
             public Player From { set; get; }
             public Player To { set; get; }
             public Place To_place { set; get; }
@@ -2306,7 +2350,7 @@ namespace SanguoshaServer.Game
             timer.Elapsed -= Timer1_Elapsed;
             RoomTerminated = true;
 
-            Debug("stop game2 " + Thread.CurrentThread.ManagedThreadId.ToString());
+            //Debug("stop game2 " + Thread.CurrentThread.ManagedThreadId.ToString());
 
             foreach (Client client in Clients)
             {
@@ -2327,8 +2371,11 @@ namespace SanguoshaServer.Game
             m_players.Clear();
             */
 
-            Debug("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
-            Hall.RemoveRoom(this, create_new ? Host : null, Clients);
+            //Debug("delegate at " + Thread.CurrentThread.ManagedThreadId.ToString());
+            if (create_new && Host.UserID < 0)
+                Hall.RemoveRoom(this);
+            else
+                Hall.RemoveRoom(this, create_new ? Host : null, Clients);
 
             //RoomThread = null;
             if (thread != null)
@@ -2942,7 +2989,6 @@ namespace SanguoshaServer.Game
             {
                 if (client == Host && !IsFull() && !GameStarted && seat2clients[index] == null)
                 {
-
                     int bot_id = Hall.GetBotId();
                     /*
                     Profile profile = new Profile
@@ -3755,7 +3801,7 @@ namespace SanguoshaServer.Game
                     string kingdom = player.Kingdom;
                     foreach (Player p in m_players)
                     {
-                        if (p.Kingdom == kingdom && p.Role == "careerist")
+                        if (p.Kingdom == kingdom && p.GetRoleEnum() == Player.PlayerRole.Careerist)
                         {
                             p.Role = Engine.GetMappedRole(kingdom);
                             BroadcastProperty(p, "Role");
@@ -4626,7 +4672,7 @@ namespace SanguoshaServer.Game
                         foreach (Player p in Players)
                         {
                             if (p == player) continue;
-                            if (p.HasShownOneGeneral() && p.Role != "careerist" && p.Kingdom == kingdom)
+                            if (p.HasShownOneGeneral() && p.GetRoleEnum() != PlayerRole.Careerist && p.Kingdom == kingdom)
                                 ++i;
                         }
 
@@ -4739,7 +4785,7 @@ namespace SanguoshaServer.Game
                             foreach (Player p in Players)
                             {
                                 if (p == player) continue;
-                                if (p.HasShownOneGeneral() && p.Role != "careerist" && p.Kingdom == kingdom)
+                                if (p.HasShownOneGeneral() && p.GetRoleEnum() != PlayerRole.Careerist && p.Kingdom == kingdom)
                                     ++i;
                             }
 
@@ -8053,8 +8099,7 @@ namespace SanguoshaServer.Game
 
             //room->tryPause();
             Thread.Sleep(300);
-
-            SetEmotion(player, "remove");
+            //SetEmotion(player, "remove");
 
             object _head = head_general;
             if (head_general)
@@ -8065,20 +8110,12 @@ namespace SanguoshaServer.Game
                 from_general = player.ActualGeneral1;
                 if (from_general.Contains("sujiang")) return;
                 RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
+
                 Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
-
                 player.ActualGeneral1 = player.General1 = general_name;
-                player.General1Showed = true;
                 player.HeadSkinId = 0;
-                BroadcastProperty(player, "HeadSkinId");
-                NotifyProperty(GetClient(player), player, "ActualGeneral1");
-                BroadcastProperty(player, "General1");
-                BroadcastProperty(player, "General1Showed");
-
-                List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, false.ToString(), false.ToString() };
-                DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
-                ChangePlayerGeneral(player, general_name);
+                DoAnimate(AnimateType.S_ANIMATE_REMOVE, player.Name, true.ToString());
 
                 DisconnectSkillsFromOthers(player, true, false);
 
@@ -8096,22 +8133,13 @@ namespace SanguoshaServer.Game
 
                 from_general = player.ActualGeneral2;
                 if (from_general.Contains("sujiang")) return;
+
                 RoomThread.Trigger(TriggerEvent.GeneralStartRemove, this, player, ref _head);
                 Gender gender = Engine.GetGeneral(from_general, Setting.GameMode).GeneralGender;
                 general_name = gender == Gender.Male ? "sujiang" : "sujiangf";
-
                 player.ActualGeneral2 = player.General2 = general_name;
-                player.General2Showed = true;
                 player.DeputySkinId = 0;
-                BroadcastProperty(player, "DeputySkinId");
-                NotifyProperty(GetClient(player), player, "ActualGeneral2");
-                BroadcastProperty(player, "General2");
-                BroadcastProperty(player, "General2Showed");
-
-                List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_CHANGE_HERO.ToString(), player.Name, general_name, true.ToString(), false.ToString() };
-                DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
-
-                ChangePlayerGeneral2(player, general_name);
+                DoAnimate(AnimateType.S_ANIMATE_REMOVE, player.Name, false.ToString());
 
                 DisconnectSkillsFromOthers(player, false, false);
 
@@ -9244,6 +9272,7 @@ namespace SanguoshaServer.Game
                 {
                     BloodBattle = true;
                     DoBroadcastNotify(CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
+                    Thread.Sleep(2000 + AliveCount() * 500);
                 }
             }
         }

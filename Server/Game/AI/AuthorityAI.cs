@@ -1043,7 +1043,7 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             double value = 0;
             if (card.Name.Contains(Slash.ClassName) && ai.HasSkill(Name, to) && to.HandcardNum + to.GetPile("wooden_ox").Count >= 3 && !ai.IsLackCard(to, Jink.ClassName))

@@ -71,7 +71,7 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice && ai.Self != player)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 string[] choices = choice.Split(':');
                 if (choices[1] == Name)
@@ -80,7 +80,7 @@ namespace SanguoshaServer.AI
                     Player to = ai.Room.FindPlayer(name);
                     if (to != null)
                     {
-                        if (ai.GetPossibleId(player).Count == 1 && ai.GetPlayerTendency(to) == "unknown" && ai.IsKnown(player, to) && !to.HasShownOneGeneral())
+                        if (ai.GetPlayerTendency(to) != "unknown")
                             ai.UpdatePlayerRelation(player, to, true);
                     }
                 }
@@ -198,7 +198,7 @@ namespace SanguoshaServer.AI
                     if (sub != -1)
                     {
                         ai.Target[Name] = next;
-                        WrappedCard card = new WrappedCard(WoodenOxCard.ClassName) { Skill = Name };
+                        WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName) { Skill = Name };
                         card.AddSubCard(sub);
                         return new List<WrappedCard> { card };
                     }
@@ -208,7 +208,7 @@ namespace SanguoshaServer.AI
                         if (result.Key != null)
                         {
                             ai.Target[Name] = next;
-                            WrappedCard card = new WrappedCard(WoodenOxCard.ClassName) { Skill = Name };
+                            WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName) { Skill = Name };
                             card.AddSubCard(result.Value);
                             return new List<WrappedCard> { card };
                         }
@@ -219,7 +219,7 @@ namespace SanguoshaServer.AI
                     if (sub != -1)
                     {
                         ai.Target[Name] = targets[0];
-                        WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                        WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                         {
                             Skill = Name
                         };
@@ -230,7 +230,7 @@ namespace SanguoshaServer.AI
                     {
                         ai.Target[Name] = targets[0];
                         ai.SortByUseValue(ref cards, false);
-                        WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                        WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                         {
                             Skill = Name
                         };
@@ -250,7 +250,7 @@ namespace SanguoshaServer.AI
                     if (sub != -1 && weaks.Count > 0)
                     {
                         ai.SortByDefense(ref weaks, false);
-                        ai.Target[Name] = weaks[0]; WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                        ai.Target[Name] = weaks[0]; WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                         {
                             Skill = Name
                         };
@@ -262,7 +262,7 @@ namespace SanguoshaServer.AI
                     if (result.Key != null)
                     {
                         ai.Target[Name] = result.Key;
-                        WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                        WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                         {
                             Skill = Name
                         };
@@ -274,7 +274,7 @@ namespace SanguoshaServer.AI
 
             if (ai.GetOverflow(player) > 0)
             {
-                WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                 {
                     Skill = Name
                 };
@@ -292,7 +292,7 @@ namespace SanguoshaServer.AI
 
             if (player.HandcardNum == 1 && ai.HasSkill("kongcheng"))
             {
-                WrappedCard card = new WrappedCard(WoodenOxCard.ClassName)
+                WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                 {
                     Skill = Name
                 };

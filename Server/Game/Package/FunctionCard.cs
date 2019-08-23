@@ -107,7 +107,7 @@ namespace SanguoshaServer.Package
                 if (big_kingdoms.Count > 0)
                 {
                     string target_kingdom = (use.To[0].HasShownOneGeneral() ?
-                                          (use.To[0].Role == "careerist" ? use.To[0].Name : use.To[0].Kingdom) : string.Empty);
+                                          (use.To[0].GetRoleEnum() == Player.PlayerRole.Careerist ? use.To[0].Name : use.To[0].Kingdom) : string.Empty);
                     bool big = big_kingdoms.Contains(target_kingdom);
                     if (big)
                         use.Pattern = "big";

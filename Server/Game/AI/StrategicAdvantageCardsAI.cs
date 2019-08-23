@@ -214,7 +214,7 @@ namespace SanguoshaServer.AI
 
                         foreach (Player p in targets)
                         {
-                            if (p.HasShownOneGeneral() && p.Name != big_kingdom && (!big_kingdoms.Contains(p.Kingdom) || p.Role == "careerist")
+                            if (p.HasShownOneGeneral() && p.Name != big_kingdom && (!big_kingdoms.Contains(p.Kingdom) || p.GetRoleEnum() == Player.PlayerRole.Careerist)
                                 && (maxNum == 99 || RoomLogic.GetPlayerNumWithSameKingdom(room, p) + anjiang < maxNum))
                             {
                                 card.ClearSubCards();
@@ -252,7 +252,7 @@ namespace SanguoshaServer.AI
                                     Player np = room.GetNextAlive(p);
                                     DamageStruct damage = new DamageStruct(c, p, np, 1, DamageStruct.DamageNature.Fire);
                                     damage.Damage = ai.DamageEffect(damage, DamageStruct.DamageStep.None);
-                                    if (!ai.IsFriend(np) && (!np.Chained || !ai.IsGoodSpreadStarter(damage, false)))
+                                    if (!ai.IsFriend(np) && (!np.Chained || ai.ChainDamage(damage) >= 0))
                                     {
                                         card.ClearSubCards();
                                         card.AddSubCard(id);
@@ -335,7 +335,7 @@ namespace SanguoshaServer.AI
             List<string> kingdoms = new List<string>();
             foreach (Player p in ai.Room.GetOtherPlayers(player))
             {
-                if (ai.IsEnemy(p) && (!p.HasShownOneGeneral() || p.Role == "careerist" || !kingdoms.Contains(p.Kingdom)))
+                if (ai.IsEnemy(p) && (!p.HasShownOneGeneral() || p.GetRoleEnum() == Player.PlayerRole.Careerist || !kingdoms.Contains(p.Kingdom)))
                 {
                     if (p.HasShownOneGeneral() && p.Role != "careerist")
                         kingdoms.Add(p.Kingdom);
@@ -375,7 +375,7 @@ namespace SanguoshaServer.AI
             foreach (Player p in room.GetOtherPlayers(player))
             {
                 if (use.To.Contains(p)) continue;
-                if (!p.HasShownOneGeneral() || p.Role == "careerist" || !kingdoms.Contains(p.Kingdom))
+                if (!p.HasShownOneGeneral() || p.GetRoleEnum() == Player.PlayerRole.Careerist || !kingdoms.Contains(p.Kingdom))
                     targets.Add(p);
             }
 
@@ -393,7 +393,7 @@ namespace SanguoshaServer.AI
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if (use.To.Contains(p) || result.Contains(p)) continue;
-                    if (!p.HasShownOneGeneral() || p.Role == "careerist" || !kingdoms.Contains(p.Kingdom))
+                    if (!p.HasShownOneGeneral() || p.GetRoleEnum() == Player.PlayerRole.Careerist || !kingdoms.Contains(p.Kingdom))
                         targets.Add(p);
                 }
 
@@ -932,7 +932,7 @@ namespace SanguoshaServer.AI
 
                 DamageStruct damage = new DamageStruct(trick, from, to, 1, DamageStruct.DamageNature.Fire);
                 ScoreStruct score = ai.GetDamageScore(damage);
-                if (ai.IsGoodSpreadStarter(damage, false))
+                if (ai.ChainDamage(damage) < 0)
                 {
                     foreach (Player p in room.GetOtherPlayers(to))
                     {
@@ -990,17 +990,10 @@ namespace SanguoshaServer.AI
                     DamageStruct damage = new DamageStruct(trick, from, p, 1, DamageStruct.DamageNature.Fire);
                     ScoreStruct score = ai.GetDamageScore(damage);
                     value = score.Score;
-                    if (!chained && ai.IsGoodSpreadStarter(damage))
+                    if (!chained && ai.IsSpreadStarter(damage))
                     {
                         chained = true;
-                        foreach (Player _p in room.GetOtherPlayers(p))
-                        {
-                            if (p.Chained)
-                            {
-                                DamageStruct _damage = new DamageStruct(trick, from, _p, 1, DamageStruct.DamageNature.Fire);
-                                value += ai.GetDamageScore(damage).Score;
-                            }
-                        }
+                        value += ai.ChainDamage(damage);
                     }
 
                     if (!isHegNullification)
@@ -1509,7 +1502,7 @@ namespace SanguoshaServer.AI
                 {
                     string kingdom = string.Empty;
                     if (p.HasShownOneGeneral())
-                        kingdom = p.Role == "careerist" ? p.Name : p.Kingdom;
+                        kingdom = p.GetRoleEnum() == Player.PlayerRole.Careerist ? p.Name : p.Kingdom;
 
                     if (ai.IsCardEffect(card, p, player))
                     {
@@ -1743,7 +1736,7 @@ namespace SanguoshaServer.AI
             {
                 if (!RoomLogic.IsFriendWith(room, player, p) && p.HasShownOneGeneral() && ai.IsCardEffect(card, p, player))
                 {
-                    if (p.Role == "careerist")
+                    if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
                         effect_kingdoms.Add(p.Name);
                     else if (!effect_kingdoms.Contains(p.Kingdom))
                         effect_kingdoms.Add(p.Kingdom);

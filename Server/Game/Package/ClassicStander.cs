@@ -88,6 +88,7 @@ namespace SanguoshaServer.Package
             {
                 { "wusheng_jx", new List<string> { "#wusheng-target" } },
                 { "paoxiao_jx", new List<string> { "#paoxiao-record", "#paoxiao-target" } },
+                { "kongcheng_jx", new List<string> { "#kongcheng_jx-prohibit" } },
                 { "tishen", new List<string> { "#tishen-get" } },
                 { "zhaxiang", new List<string> { "#zhaxiang-tm" } },
                 { "qianxun_jx", new List<string> { "#qianxun_jx-clear" } },
@@ -799,7 +800,7 @@ namespace SanguoshaServer.Package
             {
                 LogMessage log = new LogMessage
                 {
-                    Type = "#jtieqidis",
+                    Type = "#tieqidis",
                     From = target.Name,
                     Arg = Name,
                     Arg2 = suit
@@ -1003,7 +1004,7 @@ namespace SanguoshaServer.Package
         }
         private int GetGuanxingNum(Room room, Player zhuge)
         {
-            return Math.Min(5, room.AliveCount());
+            return Math.Max(3, Math.Min(5, room.AliveCount()));
         }
     }
 
@@ -1580,10 +1581,16 @@ namespace SanguoshaServer.Package
                     if (fcard is BasicCard || fcard is Weapon || fcard is Duel)
                         get.Add(id);
                 }
-                if (get.Count > 0 && room.AskForSkillInvoke(player, Name, "@luoyi-get", info.SkillPosition))
+                if (get.Count > 0)
                 {
-                    room.ObtainCard(player, get, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty));
-                    return info;
+                    player.SetTag(Name, get);
+                    bool invoke = room.AskForSkillInvoke(player, Name, "@luoyi-get", info.SkillPosition);
+                    player.RemoveTag(Name);
+                    if (invoke)
+                    {
+                        room.ObtainCard(player, get, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty));
+                        return info;
+                    }
                 }
             }
             return new TriggerStruct();
@@ -2493,7 +2500,10 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardEffectConfirmed && base.Triggerable(player, room)
                 && data is CardEffectStruct effect && !effect.Multiple && effect.From != player)
-                return new TriggerStruct(Name, player);
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(effect.Card.Name);
+                if (fcard is TrickCard) return new TriggerStruct(Name, player);
+            }
 
             return new TriggerStruct();
         }

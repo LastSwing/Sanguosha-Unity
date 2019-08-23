@@ -2199,7 +2199,7 @@ namespace SanguoshaServer.Package
             {
                 LogMessage log = new LogMessage
                 {
-                    Type = "#jtieqidis",
+                    Type = "#tieqidis",
                     From = target.Name,
                     Arg = "tieqi",
                     Arg2 = suit

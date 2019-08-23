@@ -67,20 +67,25 @@ namespace SanguoshaServer.AI
         {
             if (data is Player p)
             {
-                if (ai.IsFriend(p, player))
+                if (!player.HasFlag(Name))
                 {
-                    foreach (int id in p.GetEquips())
-                        if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
-                            return true;
+                    if (ai.IsFriend(p, player))
+                    {
+                        foreach (int id in p.GetEquips())
+                            if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                return true;
 
-                    return false;
+                        return false;
+                    }
+                    else
+                    {
+                        foreach (int id in p.GetEquips())
+                            if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                return false;
+                    }
                 }
                 else
-                {
-                    foreach (int id in p.GetEquips())
-                        if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
-                            return false;
-                }
+                    return !ai.IsFriend(p, player);
             }
 
             return true;
@@ -124,7 +129,7 @@ namespace SanguoshaServer.AI
                     value += 5;
                 else
                 {
-                    if (!player.HasUsed("WendaoCard") || room.Current != player)
+                    if (!player.HasUsed(WendaoCard.ClassName) || room.Current != player)
                         value -= 10;
                 }
             }

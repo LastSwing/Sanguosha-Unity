@@ -77,7 +77,11 @@ namespace SanguoshaServer.Package
                 invoke = true;
             else if (triggerEvent == TriggerEvent.Dying && data is DyingStruct dying && dying.Damage.From != null
                 && dying.Damage.From.Alive && !player.IsKongcheng() && RoomLogic.CanGetCard(room, ask_who, player, "h"))
-                invoke = true;
+            {
+                ask_who.SetFlags(Name);
+                invoke = room.AskForSkillInvoke(ask_who, Name, player);
+                ask_who.SetFlags("-DragonPhoenix");
+            }
 
             if (invoke)
             {
@@ -93,7 +97,6 @@ namespace SanguoshaServer.Package
                 room.AskForDiscard(player, Name, 1, 1, false, true, "@dragonphoenix-discard");
             else if (data is DyingStruct dying && dying.Damage.From != null && dying.Damage.From.Alive && !player.IsKongcheng() && RoomLogic.CanGetCard(room, ask_who, player, "h"))
             {
-                room.SendCompulsoryTriggerLog(ask_who, Name, false);
                 int id = room.AskForCardChosen(ask_who, player, "h", Name, false, FunctionCard.HandlingMethod.MethodGet);
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, ask_who.Name, Name, Name);
                 room.ObtainCard(ask_who, room.GetCard(id), reason, false);
@@ -165,7 +168,7 @@ namespace SanguoshaServer.Package
                     break;
                 }
             }
-            if (dfowner == null || !dfowner.HasShownOneGeneral() || dfowner.Role == "careerist")
+            if (dfowner == null || !dfowner.HasShownOneGeneral() || dfowner.GetRoleEnum() == Player.PlayerRole.Careerist)
                 return false;
 
             DeathStruct death = (DeathStruct)data;

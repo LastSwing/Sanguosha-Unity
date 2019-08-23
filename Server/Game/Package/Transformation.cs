@@ -132,7 +132,7 @@ namespace SanguoshaServer.Package
             List <Player> players = new List<Player>();
             if (fcard is AllianceFeast)
             {
-                if (to_select.Role == "careerist")
+                if (to_select.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     if (card.SubCards.Count < 2)
                         return false;
@@ -153,7 +153,7 @@ namespace SanguoshaServer.Package
                     players.Add(p);
                 List <Player> bigs = new List<Player>(), smalls = new List<Player>();
                 foreach (Player p in players) {
-                    string kingdom = (p.HasShownOneGeneral() ? (p.Role == "careerist" ? p.Name : p.Kingdom) : null);
+                    string kingdom = (p.HasShownOneGeneral() ? (p.GetRoleEnum() == Player.PlayerRole.Careerist ? p.Name : p.Kingdom) : null);
                     if (big_kingdoms.Contains(kingdom))
                     {
                         if (RoomLogic.IsProhibited(room, Self, p, mutable_card) == null)
@@ -164,7 +164,7 @@ namespace SanguoshaServer.Package
                 }
 
                 string target_kingdom = (to_select.HasShownOneGeneral() ?
-                                          (to_select.Role == "careerist" ? to_select.Name : to_select.Kingdom) : null);
+                                          (to_select.GetRoleEnum() == Player.PlayerRole.Careerist ? to_select.Name : to_select.Kingdom) : null);
                 bool big = big_kingdoms.Contains(target_kingdom);
                 if (big && bigs.Count > card.SubCards.Count) return false;
                 if (!big && smalls.Count > card.SubCards.Count) return false;
@@ -343,7 +343,7 @@ namespace SanguoshaServer.Package
 
                     foreach (Player p in all) {
                         if (RoomLogic.IsProhibited(room, Self, p, card) != null) continue;
-                        string kingdom = (p.HasShownOneGeneral() ? (p.Role == "careerist" ? p.Name : p.Kingdom) : null);
+                        string kingdom = (p.HasShownOneGeneral() ? (p.GetRoleEnum() == Player.PlayerRole.Careerist ? p.Name : p.Kingdom) : null);
 
                         if (big_kingdoms.Contains(kingdom))
                             bigs.Add(p);
@@ -1752,23 +1752,23 @@ namespace SanguoshaServer.Package
             Player target = card_use.To[0];
             if (card_use.Card.SubCards.Count == 0 && target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
             {
-                int id = room.AskForCardChosen(player, target, "e", Name, false, HandlingMethod.MethodGet); List<int> ids = new List<int> { id };
-                room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, Name, string.Empty));
+                int id = room.AskForCardChosen(player, target, "e", "diaodu", false, HandlingMethod.MethodGet); List<int> ids = new List<int> { id };
+                room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "diaodu", string.Empty));
 
                 if (ids.Count == 1 && room.GetCardPlace(ids[0]) == Place.PlaceHand && room.GetCardOwner(ids[0]) == player)
                 {
                     List<Player> targets = room.GetOtherPlayers(target);
                     targets.Remove(player);
 
-                    player.SetTag(Name, id);
-                    Player second = room.AskForPlayerChosen(player, targets, Name, "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
-                    player.RemoveTag(Name);
+                    player.SetTag("diaodu", id);
+                    Player second = room.AskForPlayerChosen(player, targets, "diaodu", "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
+                    player.RemoveTag("diaodu");
                     if (second != null)
-                        room.ObtainCard(second, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, Name, string.Empty));
+                        room.ObtainCard(second, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, "diaodu", string.Empty));
                 }
             }
             else if (card_use.Card.SubCards.Count == 1)
-                room.ObtainCard(target, new List<int>(card_use.Card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty));
+                room.ObtainCard(target, new List<int>(card_use.Card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "diaodu", string.Empty));
         }
     }
 

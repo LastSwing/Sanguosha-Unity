@@ -145,6 +145,7 @@ namespace SanguoshaServer.Package
                 new QiaobianCard(),
                 new QiangxiCard(),
                 new QuhuCard(),
+                new JushouCard(),
                 new RendeCard(),
                 new FangquanCard(),
                 new ChuliCard(),
@@ -1277,6 +1278,7 @@ namespace SanguoshaServer.Package
     {
         public Jushou() : base("jushou")
         {
+            view_as_skill = new JushouVS();
             frequency = Frequency.Frequent;
             skill_type = SkillType.Defense;
         }
@@ -1303,27 +1305,87 @@ namespace SanguoshaServer.Package
 
             room.DrawCards(caoren, kingdoms.Count, Name);
 
-            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jushou", string.Empty, ".!", info.SkillPosition);
+            List<int> ids = caoren.GetCardCount(false) == 1 ? caoren.GetCards("h") : new List<int>();
+            if (ids.Count == 0)
+            {
+                WrappedCard use = room.AskForUseCard(caoren, "@@jushou", "@jushou", -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+                if (use != null)
+                    ids = new List<int>(use.SubCards);
+                else
+                    ids = room.ForceToDiscard(caoren, caoren.GetCards("h"), 1);
+            }
+
             if (ids.Count == 1)
             {
-                WrappedCard card = room.GetCard(ids[0]);
-                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard is EquipCard && fcard.IsAvailable(room, caoren, card))
-                    room.UseCard(new CardUseStruct(card, caoren, new List<Player>(), true));
-                else
-                {
-                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, caoren, info.SkillPosition);
-                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISCARD, caoren.Name, null, Name, null)
+                    int id = ids[0];
+                    WrappedCard card = room.GetCard(id);
+
+                    bool discard = true;
+                    FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                    if (fcard is EquipCard && fcard.IsAvailable(room, caoren, card))
                     {
-                        General = gsk
-                    };
-                    room.ThrowCard(ref ids, reason, caoren, caoren);
-                }
+                        if (RoomLogic.CanDiscard(room, caoren, caoren, id))
+                            discard = room.AskForChoice(caoren, Name, "use+discard") == "discard";
+                        else
+                            discard = false;
+                    }
+
+                    if (discard)
+                    {
+                        GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, caoren, info.SkillPosition);
+                        CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISCARD, caoren.Name, null, Name, null)
+                        {
+                            General = gsk
+                        };
+                        room.ThrowCard(ref ids, reason, caoren, caoren);
+                    }
+                    else
+                        room.UseCard(new CardUseStruct(card, caoren, new List<Player>(), true));
             }
 
             if (kingdoms.Count > 2)
                 room.TurnOver(caoren);
             return false;
+        }
+    }
+
+    public class JushouVS : OneCardViewAsSkill
+    {
+        public JushouVS() : base("jushou")
+        {
+            response_pattern = "@@jushou";
+        }
+
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
+        {
+            FunctionCard fcard = Engine.GetFunctionCard(to_select.Name);
+            return room.GetCardPlace(to_select.Id) == Place.PlaceHand && (fcard is EquipCard && fcard.IsAvailable(room, player, to_select)
+                || RoomLogic.CanDiscard(room, player, player, to_select.Id));
+        }
+
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard jushou = new WrappedCard(JushouCard.ClassName)
+            {
+                Mute = true,
+                Skill = Name
+            };
+            jushou.AddSubCard(card);
+            return jushou;
+        }
+    }
+
+    public class JushouCard : SkillCard
+    {
+        public static string ClassName = "JushouCard";
+        public JushouCard() : base(ClassName)
+        {
+            target_fixed = true;
+            handling_method = HandlingMethod.MethodNone;
+        }
+
+        public override void OnUse(Room room, CardUseStruct card_use)
+        {
         }
     }
 
@@ -2392,7 +2454,7 @@ namespace SanguoshaServer.Package
             string suit = WrappedCard.GetSuitString(judge.Card.Suit);
             LogMessage l = new LogMessage
             {
-                Type = "#jtieqijudge",
+                Type = "#tieqijudge",
                 From = source.Name,
                 Arg = Name,
                 Arg2 = WrappedCard.GetSuitString(judge.Card.Suit)
@@ -2438,7 +2500,7 @@ namespace SanguoshaServer.Package
             else {
                 LogMessage log = new LogMessage
                 {
-                    Type = "#jtieqidis",
+                    Type = "#tieqidis",
                     From = target.Name,
                     Arg = Name,
                     Arg2 = suit
@@ -3461,10 +3523,10 @@ namespace SanguoshaServer.Package
 
             List<string> kingdoms = new List<string>();
             foreach (Player player in targets)
-                if (player.HasShownOneGeneral() && player.Role != "careerist")
+                if (player.HasShownOneGeneral() && player.GetRoleEnum() != PlayerRole.Careerist)
                     kingdoms.Add(player.Kingdom);
 
-            return !to_select.HasShownOneGeneral() || to_select.Role == "careerist" || !kingdoms.Contains(to_select.Kingdom);
+            return !to_select.HasShownOneGeneral() || to_select.GetRoleEnum() == PlayerRole.Careerist || !kingdoms.Contains(to_select.Kingdom);
         }
         public override void Use(Room room, CardUseStruct use)
         {
@@ -4628,7 +4690,7 @@ namespace SanguoshaServer.Package
             bool invoke = true;
             int n = RoomLogic.GetPlayerNumWithSameKingdom(room, card_use.From);
             foreach (string kingdom in kingdom_list) {
-                if (card_use.From.Role == "careerist")
+                if (card_use.From.GetRoleEnum() == PlayerRole.Careerist)
                 {
                     if (kingdom == "careerist")
                         continue;
@@ -4822,8 +4884,9 @@ namespace SanguoshaServer.Package
 
                 if (card != null && card.SubCards.Count > 0)
                 {
-                    Player target = room.FindPlayer((string)player.GetTag("lirang_target"));
+                    Player target = room.FindPlayer((string)player.GetTag("lirang_target"), true);
                     player.RemoveTag("lirang_target");
+                    Debug.Assert(target.Alive);
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE, player.Name, target.Name, Name, null);
                     CardsMoveStruct moves = new CardsMoveStruct(card.SubCards, target, Place.PlaceHand, reason);
                     lirangs.Add(moves);
@@ -5734,18 +5797,19 @@ namespace SanguoshaServer.Package
             WrappedCard card = room.GetCard(card_id);
             room.ShowCard(source, card_id, "fanjian");
             room.FocusAll(2000);
-            room.SetTag("fanjian", card);
+
+            WrappedCard.CardSuit suit = card.Suit;
+            target.SetTag("fanjian", suit);
 
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, source.Name, target.Name, "fanjian", null);
             room.MoveCardTo(card, target, Place.PlaceHand, reason, false);
             List<string> choices = new List<string> { "show" };
             List<string> promopts = new List<string> { "fanjian", string.Format("@fanjian-show:::{0}", WrappedCard.GetSuitString(card.Suit)) };
-            WrappedCard.CardSuit suit = card.Suit;
             if (target.Hp > 0)
                 choices.Add("losehp");
 
             string choice = room.AskForChoice(target, "fanjian", string.Join("+", choices), promopts);
-            room.RemoveTag("fanjian");
+            target.RemoveTag("fanjian");
             if (choice.Contains("show"))
             {
                 room.ShowAllCards(target);
@@ -5769,13 +5833,8 @@ namespace SanguoshaServer.Package
                     room.LoseHp(target);
                 }
             }
-            else {
-                LogMessage ll = new LogMessage
-                {
-                    Type = "#fanjianlose",
-                    From = target.Name
-                };
-                room.SendLog(ll);
+            else
+            {
                 room.LoseHp(target);
             }
         }

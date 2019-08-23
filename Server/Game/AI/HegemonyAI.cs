@@ -40,7 +40,7 @@ namespace SanguoshaServer.AI
             {
                 if (triggerEvent == TriggerEvent.GameStart)
                 {
-                    id_public[self] = self.HasShownOneGeneral() ? (self.Role == "careerist" ? "careerist" : self.Kingdom) : "unknown";
+                    id_public[self] = self.HasShownOneGeneral() ? (self.GetRoleEnum() == Player.PlayerRole.Careerist ? "careerist" : self.Kingdom) : "unknown";
                     if (id_public[self] == "unknown")
                     {
                         foreach (string k in kingdoms)
@@ -51,13 +51,13 @@ namespace SanguoshaServer.AI
 
                     string role;
                     if (self.HasShownOneGeneral())
-                        role = (self.Role == "careerist" ? "careerist" : self.Kingdom);
+                        role = (self.GetRoleEnum() == Player.PlayerRole.Careerist ? "careerist" : self.Kingdom);
                     else
                         role = (Hegemony.WillbeRole(room, self) != "careerist" ? self.Kingdom : "careerist");
                     id_tendency[self] = role;
                     foreach (Player p in room.GetOtherPlayers(self))
                     {
-                        string kingdom = (p.HasShownOneGeneral() ? (p.Role == "careerist" ? "careerist" : p.Kingdom) : "unknown");
+                        string kingdom = (p.HasShownOneGeneral() ? (p.GetRoleEnum() == Player.PlayerRole.Careerist ? "careerist" : p.Kingdom) : "unknown");
                         id_tendency[p] = kingdom;
                         id_public[p] = kingdom;
                         players_hatred[p] = 0;
@@ -70,10 +70,11 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
-                }
-                UpdatePlayers();
 
+                    UpdatePlayers();
+                }
             }
+
             if (triggerEvent == TriggerEvent.EventPhaseStart || triggerEvent == TriggerEvent.RemoveStateChanged
                 || triggerEvent == TriggerEvent.BuryVictim || triggerEvent == TriggerEvent.GeneralShown)
             {
@@ -324,7 +325,7 @@ namespace SanguoshaServer.AI
             return false;
         }
 
-        public override bool IsRoleExpose()
+        public override bool IsGeneralExpose()
         {
             if (self.HasShownOneGeneral() || id_public[self] != "unknown" || GetPublicPossibleId(self).Count == 1
                 || player_intention_public[self][GetPublicPossibleId(self)[0]] > player_intention_public[self][GetPublicPossibleId(self)[1]] + 50)
@@ -514,7 +515,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in players)
             {
-                if (p.HasShownOneGeneral() && p.Role != "careerist")
+                if (p.HasShownOneGeneral() && p.GetRoleEnum() != Player.PlayerRole.Careerist)
                 {
                     if (kingdoms_count.ContainsKey(p.Kingdom))
                         kingdoms_count[p.Kingdom].Add(p);
@@ -582,7 +583,7 @@ namespace SanguoshaServer.AI
                     anjiangs_public.Add(p);
             }
 
-            Dictionary<string, double> coop_skills = Engine.GetSkillCoopAdjust();        // ajust cooperation skills for each kingdom
+            Dictionary<string, double> coop_skills = Engine.GetSkillCoopAdjust("Hegemony");        // ajust cooperation skills for each kingdom
             foreach (string kingdom in kingdoms.Keys)
             {
                 List<string> skills = new List<string>();
@@ -809,7 +810,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in showns)
             {                                 //identify shown players
-                if (p.Role == "careerist")
+                if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     if (!lords.ContainsKey(p.Kingdom) || lords[p.Kingdom] == null || !lords[p.Kingdom].Alive)
                         id_tendency[p] = "careerist";
@@ -822,7 +823,7 @@ namespace SanguoshaServer.AI
                     kingdoms_count[p.Kingdom].Add(p);
                 }
 
-                if (p.Role == "careerist")
+                if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     if (!lords_public.ContainsKey(p.Kingdom) || lords_public[p.Kingdom] == null || !lords_public[p.Kingdom].Alive)
                         id_public[p] = "careerist";
@@ -1107,10 +1108,9 @@ namespace SanguoshaServer.AI
         //更新玩家身份的倾向
         public override void UpdatePlayerIntention(Player player, string kingdom, int intention)
         {
-            if (intention >= 100)
+            player_intention[player][kingdom] += intention;
+            if (id_tendency[player] == "unknown" && player_intention[player][kingdom] >= 100)
                 id_tendency[player] = kingdom;
-            else
-                player_intention[player][kingdom] += intention;
 
             UpdatePlayers();
         }
@@ -1373,7 +1373,7 @@ namespace SanguoshaServer.AI
                 }
                 if (Self.GetMark("CompanionEffect") > 0)
                 {
-                    if (IsRoleExpose() || IsWeak())
+                    if (IsGeneralExpose() || IsWeak())
                     {
                         if (canShowHead)
                             return "GameRule_AskForGeneralShowHead";
@@ -1383,7 +1383,7 @@ namespace SanguoshaServer.AI
                 }
                 if (Self.GetMark("HalfMaxHpLeft") > 0)
                 {
-                    if (IsRoleExpose() || IsWeak() || showRate > 0.7)
+                    if (IsGeneralExpose() || IsWeak() || showRate > 0.7)
                     {
                         if (canShowHead)
                             return "GameRule_AskForGeneralShowHead";
@@ -1627,7 +1627,7 @@ namespace SanguoshaServer.AI
                     return result[0];
             }
 
-            ScoreStruct score = FindCards2Discard(self, who, flags, method, 1, false, disabled_ids);
+            ScoreStruct score = FindCards2Discard(self, who, string.Empty, flags, method, 1, false, disabled_ids);
             if (score.Ids != null && score.Ids.Count == 1)
                 return score.Ids[0];
 

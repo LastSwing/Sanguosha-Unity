@@ -284,6 +284,7 @@ namespace CommonClassLibrary
         S_ANIMATE_LIGHTNING,
         S_ANIMATE_HUASHEN,
         S_ANIMATE_BATTLEARRAY,
+        S_ANIMATE_REMOVE,
     };
 
     public enum Game3v3ChooseOrderCommand

@@ -255,7 +255,7 @@ namespace SanguoshaServer.AI
     {
         public JiangAI() : base("jiang") { }
 
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             double value = 0;
             if ((card.Name.Contains(Slash.ClassName) && WrappedCard.IsRed(card.Suit) || card.Name == Duel.ClassName) && ai.HasSkill(Name, to))
@@ -388,7 +388,7 @@ namespace SanguoshaServer.AI
             {
                 if (!p.Chained && RoomLogic.CanBeChainedBy(room, p, player))
                 {
-                    ScoreStruct score = ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodDiscard);
+                    ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", HandlingMethod.MethodDiscard);
                     score.Players = new List<Player> { p };
                     scores.Add(score);
                 }
@@ -430,7 +430,7 @@ namespace SanguoshaServer.AI
                     }
                     else
                     {
-                        value += ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodDiscard).Score;
+                        value += ai.FindCards2Discard(player, p, string.Empty, "he", HandlingMethod.MethodDiscard).Score;
                     }
                 }
             }
@@ -476,7 +476,7 @@ namespace SanguoshaServer.AI
             foreach (Player p in room.GetOtherPlayers(player))
             {
                 if (!p.IsAllNude() && RoomLogic.CanGetCard(room, player, p, "hej"))
-                    value += ai.FindCards2Discard(player, p, "he", HandlingMethod.MethodGet).Score;
+                    value += ai.FindCards2Discard(player, p, string.Empty, "he", HandlingMethod.MethodGet).Score;
             }
 
             return value > 4;
@@ -489,6 +489,11 @@ namespace SanguoshaServer.AI
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
             return player.Hp < player.MaxHp ? "maxhp" : "hp";
+        }
+
+        public override double GetSkillAdjustValue(TrustedAI ai, Player player)
+        {
+            return player.Hp > 4 ? 1.5 : -1;
         }
     }
 
@@ -587,7 +592,7 @@ namespace SanguoshaServer.AI
         public WendaoAI() : base("wendao") { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (!player.HasUsed("WendaoCard") && !player.IsNude())
+            if (!player.HasUsed(WendaoCard.ClassName) && !player.IsNude())
             {
                 Room room = ai.Room;
                 int pp = -1;
@@ -620,37 +625,31 @@ namespace SanguoshaServer.AI
 
                 if (pp > -1)
                 {
-                    WrappedCard wd = new WrappedCard("WendaoCard")
+                    WrappedCard wd = new WrappedCard(WendaoCard.ClassName)
                     {
                         ShowSkill = Name,
                         Skill = Name
                     };
-                    if (room.GetCardOwner(pp) == player)
+                    List<int> ids = player.GetCards("he");
+                    ai.SortByKeepValue(ref ids, false);
+                    foreach (int id in ids)
                     {
-                        wd.AddSubCard(pp);
-                        return new List<WrappedCard> { wd };
-                    }
-                    else
-                    {
-                        List<int> ids = player.GetCards("he");
-                        ai.SortByKeepValue(ref ids, false);
-                        foreach (int id in ids)
+                        WrappedCard card = room.GetCard(id);
+                        if (WrappedCard.IsRed(card.Suit) && card.Name != PeaceSpell.ClassName && ai.GetKeepValue(id, player) < 0)
                         {
-                            if (WrappedCard.IsRed(room.GetCard(id).Suit) && ai.GetKeepValue(id, player) < 0)
-                            {
-                                wd.AddSubCard(id);
-                                return new List<WrappedCard> { wd };
-                            }
+                            wd.AddSubCard(id);
+                            return new List<WrappedCard> { wd };
                         }
+                    }
 
-                        ai.SortByUseValue(ref ids, false);
-                        foreach (int id in ids)
+                    ai.SortByUseValue(ref ids, false);
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (WrappedCard.IsRed(card.Suit) && card.Name != PeaceSpell.ClassName)
                         {
-                            if (WrappedCard.IsRed(room.GetCard(id).Suit))
-                            {
-                                wd.AddSubCard(id);
-                                return new List<WrappedCard> { wd };
-                            }
+                            wd.AddSubCard(id);
+                            return new List<WrappedCard> { wd };
                         }
                     }
                 }
@@ -662,7 +661,7 @@ namespace SanguoshaServer.AI
 
     public class WendaoCardAI : UseCard
     {
-        public WendaoCardAI() : base("WendaoCard")
+        public WendaoCardAI() : base(WendaoCard.ClassName)
         {}
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {

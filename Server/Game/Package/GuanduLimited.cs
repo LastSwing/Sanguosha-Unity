@@ -2171,11 +2171,36 @@ namespace SanguoshaServer.Package
             return player.HasEquip();
         }
     }
+    public class JushouJXVS : OneCardViewAsSkill
+    {
+        public JushouJXVS() : base("jushou_jx")
+        {
+            response_pattern = "@@jushou_jx";
+        }
 
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
+        {
+            FunctionCard fcard = Engine.GetFunctionCard(to_select.Name);
+            return room.GetCardPlace(to_select.Id) == Place.PlaceHand && (fcard is EquipCard && fcard.IsAvailable(room, player, to_select)
+                || RoomLogic.CanDiscard(room, player, player, to_select.Id));
+        }
+
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard jushou = new WrappedCard(JushouCard.ClassName)
+            {
+                Mute = true,
+                Skill = Name
+            };
+            jushou.AddSubCard(card);
+            return jushou;
+        }
+    }
     public class JushouJX : PhaseChangeSkill
     {
         public JushouJX() : base("jushou_jx")
         {
+            view_as_skill = new JushouJXVS();
             frequency = Frequency.Frequent;
             skill_type = SkillType.Defense;
         }
@@ -2198,14 +2223,32 @@ namespace SanguoshaServer.Package
             room.TurnOver(caoren);
             room.DrawCards(caoren, 4, Name);
 
-            List<int> ids = room.AskForExchange(caoren, Name, 1, 1, "@jushou", string.Empty, ".!", info.SkillPosition);
+            List<int> ids = caoren.GetCardCount(false) == 1 ? caoren.GetCards("h") : new List<int>();
+            if (ids.Count == 0)
+            {
+                WrappedCard use = room.AskForUseCard(caoren, "@@jushou_jx", "@jushou", -1, FunctionCard.HandlingMethod.MethodUse, true, info.SkillPosition);
+                if (use != null)
+                    ids = new List<int>(use.SubCards);
+                else
+                    ids = room.ForceToDiscard(caoren, caoren.GetCards("h"), 1);
+            }
+
             if (ids.Count == 1)
             {
-                WrappedCard card = room.GetCard(ids[0]);
+                int id = ids[0];
+                WrappedCard card = room.GetCard(id);
+
+                bool discard = true;
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if (fcard is EquipCard && fcard.IsAvailable(room, caoren, card))
-                    room.UseCard(new CardUseStruct(card, caoren, new List<Player>(), true));
-                else
+                {
+                    if (RoomLogic.CanDiscard(room, caoren, caoren, id))
+                        discard = room.AskForChoice(caoren, Name, "use+discard") == "discard";
+                    else
+                        discard = false;
+                }
+
+                if (discard)
                 {
                     GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, caoren, info.SkillPosition);
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISCARD, caoren.Name, null, Name, null)
@@ -2214,6 +2257,8 @@ namespace SanguoshaServer.Package
                     };
                     room.ThrowCard(ref ids, reason, caoren, caoren);
                 }
+                else
+                    room.UseCard(new CardUseStruct(card, caoren, new List<Player>(), true));
             }
 
             return false;

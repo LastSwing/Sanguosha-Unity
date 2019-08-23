@@ -257,12 +257,20 @@ namespace SanguoshaServer.AI
         
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
-                foreach (Player p in use.To)
-                    ai.UpdatePlayerRelation(player, p, true);
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        ai.UpdatePlayerRelation(player, p, true);
+                }
+                else if (ai is StupidAI)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPlayerTendency(p) != "unknown")
+                            ai.UpdatePlayerRelation(player, p, true);
+                }
             }
         }
     }
@@ -679,10 +687,10 @@ namespace SanguoshaServer.AI
             return null;
         }
 
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             double value = 0;
-            if (card.Name.Contains(Slash.ClassName) && ai.HasSkill(Name, to) && to.HandcardNum + to.GetPile("wooden_ox").Count >= 3 && !ai.IsLackCard(to, Jink.ClassName))
+            if (card.Name.Contains(Slash.ClassName) && to.HandcardNum + to.GetPile("wooden_ox").Count >= 3 && !ai.IsLackCard(to, Jink.ClassName))
             {
                 foreach (Player p in ai.Room.GetOtherPlayers(ai.Self))
                 {
@@ -944,7 +952,6 @@ namespace SanguoshaServer.AI
         }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (!ai.WillShowForAttack() && !ai.WillShowForDefence() && player.JudgingArea.Count == 0) return false;
             return true;
         }
         public override AskForMoveCardsStruct OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max)
@@ -1039,8 +1046,8 @@ namespace SanguoshaServer.AI
                     DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank,
                         use.Card.Name.Contains("Fire") ? DamageStruct.DamageNature.Fire : use.Card.Name.Contains("Thunder") ? DamageStruct.DamageNature.Thunder : DamageStruct.DamageNature.Normal);
                     ScoreStruct score = ai.GetDamageScore(damage);
-                    if (score.DoDamage && ai.IsGoodSpreadStarter(damage))
-                        score.Score += 6;
+                    if (score.DoDamage)
+                        score.Score += ai.ChainDamage(damage);
 
                     if (score.Score > 0)
                         return false;
@@ -1072,8 +1079,8 @@ namespace SanguoshaServer.AI
                     DamageStruct damage = new DamageStruct(use.Card, player, target, 1 + use.Drank,
                         use.Card.Name.Contains("Fire") ? DamageStruct.DamageNature.Fire : use.Card.Name.Contains("Thunder") ? DamageStruct.DamageNature.Thunder : DamageStruct.DamageNature.Normal);
                     ScoreStruct score = ai.GetDamageScore(damage);
-                    if (score.DoDamage && ai.IsGoodSpreadStarter(damage))
-                        score.Score += 6;
+                    if (score.DoDamage)
+                        score.Score += ai.ChainDamage(damage);
                     
                     double value = 0;
                     if (room.Current == player)
@@ -1134,11 +1141,12 @@ namespace SanguoshaServer.AI
 
             return true;
         }
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             Room room = ai.Room;
             Player player = ai.Self;
-            if (card.Name.Contains(Slash.ClassName) && ai.HasSkill(Name, to))
+            double value = 0;
+            if (card.Name.Contains(Slash.ClassName))
             {
                 List<int> ids = new List<int>();
                 foreach (int id in player.HandCards)
@@ -1150,7 +1158,6 @@ namespace SanguoshaServer.AI
                         ids.Add(id);
                 }
 
-                double value = 0;
                 if (ids.Count == 0) return -1000;
                 else
                 {
@@ -1170,12 +1177,10 @@ namespace SanguoshaServer.AI
                 }
 
                 if (ai.IsFriend(to) && RoomLogic.PlayerHasShownSkill(room, to, Name) || ai.IsEnemy(to))
-                {
-                    return -value;
-                }
+                    value = -value;
             }
 
-            return 0;
+            return value;
         }
     }
 
@@ -1191,7 +1196,7 @@ namespace SanguoshaServer.AI
 
             Room room = ai.Room;
             if (ai.HasSkill("rende|jili")) return false;
-            if (ai.HasSkill("jizhi"))
+            if (ai.HasSkill("jizhi|jizhi_jx"))
             {
                 foreach (int id in player.HandCards)
                 {
@@ -1218,7 +1223,7 @@ namespace SanguoshaServer.AI
                     {
                         if (!ai.WillSkipPlayPhase(p, player))
                         {
-                            if (ai.HasSkill("jizhi|jili|rende", p) || player.HandcardNum >= player.HandcardNum)
+                            if (ai.HasSkill("jizhi|jizhi_jx|jili|rende", p) || player.HandcardNum >= player.HandcardNum)
                             {
                                 ai.Target[Name] = p;
                                 break;
@@ -1350,6 +1355,15 @@ namespace SanguoshaServer.AI
                 return true;
 
             return count >= 2;
+        }
+
+        public override double GetSkillAdjustValue(TrustedAI ai, Player player)
+        {
+            double value = player.MaxHp - 4;
+            if (ai.Room.BloodBattle)
+                value += 1.5;
+
+            return value;
         }
     }
 
@@ -1521,7 +1535,7 @@ namespace SanguoshaServer.AI
                         ai.UpdatePlayerIntention(player, role, 100);
                     }
                     Player target = room.FindPlayer(choices[2]);
-                    if (target != null && ai.GetPlayerTendency(target) == "unknown" && target.FaceUp && ai.IsKnown(player, target))
+                    if (target != null && ai.GetPlayerTendency(target) == "unknown" && ai.IsKnown(player, target))
                         ai.UpdatePlayerRelation(player, target, true);
                 }
             }

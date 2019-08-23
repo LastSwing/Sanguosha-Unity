@@ -247,7 +247,7 @@ namespace SanguoshaServer.Scenario
             if (!player.HasShownOneGeneral() || !other.HasShownOneGeneral())
                 return false;
 
-            if (player.Role == "careerist" || other.Role == "careerist")
+            if (player.GetRoleEnum() == Player.PlayerRole.Careerist || other.GetRoleEnum() == Player.PlayerRole.Careerist)
                 return false;
 
             return player.Kingdom == other.Kingdom;
@@ -268,7 +268,7 @@ namespace SanguoshaServer.Scenario
                 if (WillbeRole(room, player, show_skill) == "careerist") return false;
                 string kingdom = Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom;
                 if (Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).IsLord() && kingdom == other.Kingdom) return true;
-                if (other.Role == "careerist") return false;
+                if (other.GetRoleEnum() == Player.PlayerRole.Careerist) return false;
                 if (kingdom == other.Kingdom) return true;
             }
 
@@ -529,8 +529,8 @@ namespace SanguoshaServer.Scenario
                                 v -= 5;
                         }
                     }
-                    this.points.Add(string.Format("{0}+{1}", first, second), v);
-                    points.Add(string.Format("{0}+{1}", first, second), v);
+                    this.points[string.Format("{0}+{1}", first, second)] = v;
+                    points[string.Format("{0}+{1}", first, second)] = v;
                 }
             }
             return points;
@@ -764,7 +764,7 @@ namespace SanguoshaServer.Scenario
 
             if (!RoomLogic.IsFriendWith(room, killer, victim))
             {
-                if (killer.Role == "careerist")
+                if (killer.GetRoleEnum() == Player.PlayerRole.Careerist)
                     room.DrawCards(killer, 3, "gamerule");
                 else
                 {

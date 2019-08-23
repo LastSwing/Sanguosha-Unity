@@ -229,7 +229,7 @@ namespace SanguoshaServer.Package
                     kingdoms.Add(p.Kingdom);
             }
 
-            return !targets.Contains(to) && (!to.HasShownOneGeneral() || to.Role == "careerist" || !kingdoms.Contains(to.Kingdom));
+            return !targets.Contains(to) && (!to.HasShownOneGeneral() || to.GetRoleEnum() == Player.PlayerRole.Careerist || !kingdoms.Contains(to.Kingdom));
         }
     }
     public class HalberdTrigger : WeaponSkill
@@ -905,7 +905,7 @@ namespace SanguoshaServer.Package
                     bool big = (use.Pattern == "big");
                     List<Player> targets = new List<Player>(), prohibites = new List<Player>();
                     foreach (Player p in room.GetAlivePlayers()) {
-                        string kingdom = (p.HasShownOneGeneral() ? (p.Role == "careerist" ? p.Name : p.Kingdom) : string.Empty);
+                        string kingdom = (p.HasShownOneGeneral() ? (p.GetRoleEnum() == Player.PlayerRole.Careerist ? p.Name : p.Kingdom) : string.Empty);
                         if (big_kingdoms.Contains(kingdom) == big)
                         {
                             Skill skill = RoomLogic.IsProhibited(room, use.From, p, use.Card);
@@ -1324,7 +1324,7 @@ namespace SanguoshaServer.Package
             {
                 if (big_kingdoms.Count == 1 && big_kingdoms[0].StartsWith("sgs")) // for JadeSeal
                     invoke = big_kingdoms.Contains(player.Name);
-                else if (player.Role == "careerist")
+                else if (player.GetRoleEnum() == Player.PlayerRole.Careerist)
                     invoke = false;
                 else
                     invoke = big_kingdoms.Contains(player.Kingdom);

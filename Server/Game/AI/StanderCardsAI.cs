@@ -83,15 +83,45 @@ namespace SanguoshaServer.AI
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
             Room room = ai.Room;
-            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && (use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY || use.Pattern == "@@rende"))
             {
-                foreach (Player p in use.To)
-                    if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
-                        ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        if (!ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player) &&
+                            (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p)))
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
+                else if (ai is StupidAI _ai)
+                {
+                    foreach (Player p in use.To)
+                    {
+                        if (ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
+                        {
+                            if (ai.HasSkill("leiji", p) && !ai.IsLackCard(p, "Jink") && (ai.HasArmorEffect(p, EightDiagram.ClassName) || p.HandcardNum >= 3)
+                                && !ai.HasSkill("tieqi_jx|liegong_jx"))
+                            {
+                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                return;
+                            }
+
+                            DamageStruct damage = new DamageStruct(use.Card, player, p, 1 + use.Drank);
+                            if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
+                            else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
+                            if (_ai.NeedDamage(damage))
+                            {
+                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                return;
+                            }
+
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                        }
+                    }
+                }
             }
 
+            if (ai.Self == player) return;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
                 List<string> strs = new List<string>(str.Split(':'));
@@ -140,10 +170,7 @@ namespace SanguoshaServer.AI
                 ScoreStruct score = ai.GetDamageScore(damage);
                 if (score.Damage.Damage > 0 && player.Chained && score.Damage.Nature != DamageStruct.DamageNature.Normal)
                 {
-                    if (ai.IsGoodSpreadStarter(damage))
-                        score.Score += 6;
-                    else if (ai.IsGoodSpreadStarter(damage, false))
-                        score.Score -= 8;
+                    score.Score += ai.ChainDamage(damage);
                 }
 
                 CardUseStruct use = new CardUseStruct
@@ -411,22 +438,29 @@ namespace SanguoshaServer.AI
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             //判断出桃子救援的行为
-            if (triggerEvent == TriggerEvent.ChoiceMade && ai.Self != player && data is string str)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
                 Room room = ai.Room;
                 List<string> strs = new List<string>(str.Split(':'));
                 Player dying = room.FindPlayer(strs[1]);
                 if (player != dying)
                 {
-                    if (ai.IsKnown(ai.Self, player) || ai.IsKnown(ai.Self, dying))
+                    if (ai is SmartAI && ai.Self != player)
                     {
-                        if (ai.IsKnown(ai.Self, player) && !ai.IsKnown(ai.Self, dying))
-                            ai.UpdatePlayerIntention(dying, player.Kingdom, 50);
-                        else if (ai.IsKnown(ai.Self, dying) && !ai.IsKnown(ai.Self, player))
-                            ai.UpdatePlayerIntention(player, dying.Kingdom, 50);
+                        if (ai.IsKnown(ai.Self, player) || ai.IsKnown(ai.Self, dying))
+                        {
+                            if (ai.IsKnown(ai.Self, player) && !ai.IsKnown(ai.Self, dying))
+                                ai.UpdatePlayerIntention(dying, player.Kingdom, 50);
+                            else if (ai.IsKnown(ai.Self, dying) && !ai.IsKnown(ai.Self, player))
+                                ai.UpdatePlayerIntention(player, dying.Kingdom, 50);
+                        }
+                        else
+                            ai.UpdatePlayerRelation(player, dying, true);
                     }
-                    else
+                    else if (ai is StupidAI && ai.GetPlayerTendency(dying) != "unknown")
+                    {
                         ai.UpdatePlayerRelation(player, dying, true);
+                    }
                 }
             }
         }
@@ -771,7 +805,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             double good = 0, bad = 0;
             int wounded_friend = 0;
-            if ((!RoomLogic.IsVirtualCard(room, card) || card.SubCards.Count == 0) && ai.HasSkill("jizhi", player))
+            if ((!RoomLogic.IsVirtualCard(room, card) || card.SubCards.Count == 0) && ai.HasSkill("jizhi|jizhi_jx", player))
                 good += 6;
             if ((ai.HasSkill("kongcheng", player) || ai.HasLoseHandcardEffective()) && player.IsLastHandCard(card, true))
                 good += 5;
@@ -925,8 +959,13 @@ namespace SanguoshaServer.AI
             List<Player> targets = ai.Exclude(room.GetOtherPlayers(player), card, player);
             foreach (Player p in targets)
             {
-                ScoreStruct score = ai.FindCards2Discard(player, p, "hej", FunctionCard.HandlingMethod.MethodDiscard);
-                //room.OutPut(card.Name + p.SceenName + " is " + score.Score.ToString() + " friend ? " + ai.IsFriend(p).ToString());
+                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "hej", FunctionCard.HandlingMethod.MethodDiscard);
+                foreach (string skill in ai.GetKnownSkills(p))
+                {
+                    SkillEvent ev = Engine.GetSkillEvent(skill);
+                    if (ev != null)
+                        score.Score += ev.TargetValueAdjust(ai, card, player, new List<Player>{ p }, p);
+                }
                 scores.Add(score);
             }
             if (scores.Count > 0)
@@ -1002,14 +1041,47 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
+            if (ai is StupidAI && triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+            {
+                foreach (Player p in use.To)
+                {
+                    if (ai.HasSkill("qianxun_jx", p) && ai.GetPlayerTendency(p) != "unknown" && p.HandcardNum > 1 && ai.GetFriends(p).Count > 1)
+                        ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 80);
+                }
+            }
+
             //针对所选择的卡牌判断敌友
-            if (ai.Self == player) return;
+            if (ai.Self == player && !(ai is StupidAI)) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
                 List<string> strs = new List<string>(str.Split(':'));
                 if (strs[1] == Name)
                 {
+                    int card_id = int.Parse(strs[2]);
+                    Player target = room.FindPlayer(strs[4]);
+
+                    if (room.GetCardPlace(card_id) == Player.Place.PlaceJudge)
+                    {
+                        if (room.GetCard(card_id).Name != Lightning.ClassName)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            Player winner = ai.GetWizzardRaceWinner(room.GetCard(card_id).Name, target, target);
+                            if (winner != null && ai.IsFriend(winner, target))
+                                ai.UpdatePlayerRelation(player, target, false);
+                            else
+                                ai.UpdatePlayerRelation(player, target, true);
+                        }
+                    }
+                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceHand && !(ai.HasSkill("qianxun_jx", target) && target.HandcardNum > 1))
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
+                    }
+                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceEquip)
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Player.Place.PlaceEquip) > 0 ? false : true);
+                    }
                 }
             }
         }
@@ -1037,8 +1109,13 @@ namespace SanguoshaServer.AI
             List<Player> targets = ai.Exclude(room.GetOtherPlayers(player), card, player);
             foreach (Player p in targets)
             {
-                ScoreStruct score = ai.FindCards2Discard(player, p, "hej", FunctionCard.HandlingMethod.MethodGet);
-                //room.OutPut(card.Name + p.SceenName + " is " + score.Score.ToString() + " friend ? " + ai.IsFriend(p).ToString());
+                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "hej", FunctionCard.HandlingMethod.MethodGet);
+                foreach (string skill in ai.GetKnownSkills(p))
+                {
+                    SkillEvent ev = Engine.GetSkillEvent(skill);
+                    if (ev != null)
+                        score.Score += ev.TargetValueAdjust(ai, card, player, new List<Player> { p }, p);
+                }
                 scores.Add(score);
             }
             if (scores.Count > 0)
@@ -1119,14 +1196,47 @@ namespace SanguoshaServer.AI
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
+            if (ai is StupidAI && triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+            {
+                foreach (Player p in use.To)
+                {
+                    if (ai.HasSkill("qianxun_jx", p) && ai.GetPlayerTendency(p) != "unknown" && p.HandcardNum > 1 && ai.GetFriends(p).Count > 1)
+                        ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 70);
+                }
+            }
+
             //针对所选择的卡牌判断敌友
-            if (ai.Self == player) return;
+            if (ai.Self == player && !(ai is StupidAI)) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
                 List<string> strs = new List<string>(str.Split(':'));
                 if (strs[1] == Name)
                 {
+                    int card_id = int.Parse(strs[2]);
+                    Player target = room.FindPlayer(strs[4]);
+
+                    if (room.GetCardPlace(card_id) == Player.Place.PlaceJudge)
+                    {
+                        if (room.GetCard(card_id).Name != Lightning.ClassName)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            Player winner = ai.GetWizzardRaceWinner(room.GetCard(card_id).Name, target, target);
+                            if (winner != null && ai.IsFriend(winner, target))
+                                ai.UpdatePlayerRelation(player, target, false);
+                            else
+                                ai.UpdatePlayerRelation(player, target, true);
+                        }
+                    }
+                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceHand && !(ai.HasSkill("qianxun_jx", target) && target.HandcardNum > 1))
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
+                    }
+                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceEquip)
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Player.Place.PlaceEquip) > 0 ? false : true);
+                    }
                 }
             }
         }
@@ -1157,7 +1267,7 @@ namespace SanguoshaServer.AI
                 {
                     SkillEvent skill_e = Engine.GetSkillEvent(skill);
                     if (skill_e != null)
-                        scores[p] += skill_e.TargetValueAdjust(ai, duel, p);
+                        scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
                 }
             }
             foreach (Player p in enemies)
@@ -1200,7 +1310,7 @@ namespace SanguoshaServer.AI
                 {
                     SkillEvent skill_e = Engine.GetSkillEvent(skill);
                     if (skill_e != null)
-                        scores[p] += skill_e.TargetValueAdjust(ai, duel, p);
+                        scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
                 }
             }
             List<Player> targets = new List<Player>(friends);
@@ -1226,7 +1336,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (ai.HasSkill("jijzhi") && !RoomLogic.IsVirtualCard(ai.Room, duel) || ai.HasSkill("jiang"))
+            if (ai.HasSkill("jizhi|jizhi_jx") && !RoomLogic.IsVirtualCard(ai.Room, duel) || ai.HasSkill("jiang"))
             {
                 if (targets.Count > 0 && scores[targets[0]] > 0)
                 {
@@ -1296,12 +1406,32 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
-            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
             {
-                foreach (Player p in use.To)
-                    if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
-                        ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        if (!ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player) 
+                            && (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p)))
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
+                else if (ai is StupidAI _ai)
+                {
+                    foreach (Player p in use.To)
+                    {
+                        if (ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
+                        {
+                            DamageStruct damage = new DamageStruct(use.Card, player, p);
+                            if (_ai.NeedDamage(damage))
+                            {
+                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                return;
+                            }
+
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                        }
+                    }
+                }
             }
 
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
@@ -1542,7 +1672,7 @@ namespace SanguoshaServer.AI
             //野心家
             foreach (Player p in players)
             {
-                if ((!ai.HasSkill("luanji", p) || p.HandcardNum <= 3) && p.Role == "careerist")
+                if ((!ai.HasSkill("luanji", p) || p.HandcardNum <= 3) && p.GetRoleEnum() == Player.PlayerRole.Careerist)
                 {
                     use.To.Add(p);
                     use.Card = card;
@@ -1687,7 +1817,7 @@ namespace SanguoshaServer.AI
             {
                 if (!fire.TargetFilter(room, new List<Player>(), p, player, card)) continue;
                 double adjust = 0;
-                if (ai.HasSkill("jizhi", player) && !RoomLogic.IsVirtualCard(room, card))
+                if (ai.HasSkill("jizhi|jizhi_jx", player) && !RoomLogic.IsVirtualCard(room, card))
                     adjust += 3.5;
 
                 if (!ai.IsCancelTarget(card, p, player) && ai.IsCardEffect(card, p, player))
@@ -1698,24 +1828,8 @@ namespace SanguoshaServer.AI
                     if (ai.IsFriend(p)) score.Score -= 2.5;
 
                     if (score.DoDamage && score.Score > 0 && p.Chained)
-                    {
-                        if (ai.IsGoodSpreadStarter(damage))
-                        {
-                            score.Score += 6;
-                            foreach (Player _p in room.GetOtherPlayers(p))
-                            {
-                                if (!_p.Chained || _p.Removed) continue;
-                                DamageStruct _damage = new DamageStruct(card, player, _p, ai.DamageEffect(damage, DamageStruct.DamageStep.None), DamageStruct.DamageNature.Fire)
-                                {
-                                    Chain = true
-                                };
-                                ScoreStruct _score = ai.GetDamageScore(_damage);
-                                score.Score += score.Score / (score.Score > 0 ? 2 : 1);
-                            }
-                        }
-                        else
-                            score.Score -= 6;
-                    }
+                        score.Score += ai.ChainDamage(damage);
+
                     //计算命中率
                     double rate = 0;
                     if (p == player)
@@ -1763,6 +1877,14 @@ namespace SanguoshaServer.AI
 
                     score.Score *= rate;
                     score.Score += adjust;
+
+                    foreach (string skill in ai.GetKnownSkills(p))
+                    {
+                        SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                        if (skill_e != null)
+                            score.Score += skill_e.TargetValueAdjust(ai, card, player, new List<Player> { p }, p);
+                    }
+
                     scores.Add(score);
                 }
                 else
@@ -1799,6 +1921,48 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
+            Room room = ai.Room;
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && use.Reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+            {
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        if (player != p && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player) &&
+                            (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p)))
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
+                else if (ai is StupidAI _ai)
+                {
+                    foreach (Player p in use.To)
+                    {
+                        if (player != p && ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
+                        {
+                            DamageStruct damage = new DamageStruct(use.Card, player, p, 1, DamageStruct.DamageNature.Fire);
+                            if (_ai.NeedDamage(damage))
+                            {
+                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                return;
+                            }
+
+                            double value = 0;
+                            foreach (string skill in ai.GetKnownSkills(p))
+                            {
+                                SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                                if (skill_e != null)
+                                    value += skill_e.TargetValueAdjust(ai, use.Card, player, use.To, p);
+                            }
+                            if (value > 1.5)
+                            {
+                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                return;
+                            }
+
+                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                        }
+                    }
+                }
+            }
+
             if (ai.Self == player) return;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
@@ -1919,12 +2083,9 @@ namespace SanguoshaServer.AI
 
             DamageStruct damage = new DamageStruct(fire, player, target, 1, DamageStruct.DamageNature.Fire);
             ScoreStruct score = ai.GetDamageScore(damage);
-            if (score.DoDamage && target.Chained)
+            if (score.DoDamage)
             {
-                if (ai.IsGoodSpreadStarter(damage))
-                    score.Score += 6;
-                else
-                    score.Score -= 6;
+                score.Score += ai.ChainDamage(damage);
             }
             if (score.Score > 0)
             {
@@ -2035,7 +2196,7 @@ namespace SanguoshaServer.AI
                 return;
             }
 
-            if (can_recast && (!ai.HasSkill("jizhi", player) || (RoomLogic.IsVirtualCard(room, card) && card.SubCards.Count != 1)))
+            if (can_recast && (!ai.HasSkill("jizhi|jizhi_jx", player) || (RoomLogic.IsVirtualCard(room, card) && card.SubCards.Count != 1)))
             {
                 use.Card = card;
                 return;
@@ -2084,18 +2245,48 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
+            if (ai.Self == player && !(ai is StupidAI)) return;
             if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
-                foreach (Player p in use.To)
+                if (ai is SmartAI)
                 {
-                    if (p == player) continue;
-                    if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
+                    foreach (Player p in use.To)
                     {
-                        if (!p.Chained)
-                            ai.UpdatePlayerRelation(player, p, false);
-                        else
-                            ai.UpdatePlayerRelation(player, p, true);
+                        if (p == player) continue;
+                        if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
+                        {
+                            if (!p.Chained)
+                                ai.UpdatePlayerRelation(player, p, false);
+                            else
+                                ai.UpdatePlayerRelation(player, p, true);
+                        }
+                    }
+                }
+                else if (ai is StupidAI)
+                {
+
+                    foreach (Player p in use.To)
+                    {
+                        if (p == player) continue;
+                        if (ai.GetPlayerTendency(p) != "unknown")
+                        {
+                            if (!p.Chained)
+                            {
+                                double value = 0;
+                                foreach (string skill in ai.GetKnownSkills(p))
+                                {
+                                    SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                                    if (skill_e != null)
+                                        value += skill_e.TargetValueAdjust(ai, use.Card, player, use.To, p);
+                                }
+                                if (value > 1)
+                                    ai.UpdatePlayerRelation(player, p, true);
+                                else
+                                    ai.UpdatePlayerRelation(player, p, false);
+                            }
+                            else
+                                ai.UpdatePlayerRelation(player, p, true);
+                        }
                     }
                 }
             }
@@ -2104,13 +2295,27 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            use.Card = card;
             List<Player> enemis = ai.GetEnemies(player), friends = ai.GetFriends(player);
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
             bool canRecast = fcard.CanRecast(room, player, card);
+            if (canRecast) use.Card = card;
 
-            //if (ai.GetFriends(player).Count == 1 && ai.GetChainedFriends(player).Count <= 1 && !canRecast)
-            //    return;
+            Player luxun = ai.FindPlayerBySkill("qianxun_jx+lianying");
+            if (ai is StupidAI _ai && luxun != null && luxun != player && luxun.HandcardNum > 1
+                && fcard.TargetFilter(room, new List<Player>(), luxun, player, card) && !ai.IsCancelTarget(card, luxun, player) && ai.IsCardEffect(card, luxun, player))
+            {
+                SkillEvent e = Engine.GetSkillEvent("qianxun_jx");
+                if (e != null)
+                {
+                    double value = e.TargetValueAdjust(ai, card, player, new List<Player> { luxun }, luxun);
+                    if (value > 1)
+                    {
+                        use.Card = card;
+                        use.To = new List<Player> { luxun };
+                        return;
+                    }
+                }
+            }
 
             List<Player> friendtargets = new List<Player>(), friendtargets2 = new List<Player>();
             List<Player> enemytargets = new List<Player>();
@@ -2122,8 +2327,9 @@ namespace SanguoshaServer.AI
                     DamageStruct damage_f = new DamageStruct(string.Empty, null, p, 1, DamageStruct.DamageNature.Fire);
                     DamageStruct damage_t = new DamageStruct(string.Empty, null, p, 1, DamageStruct.DamageNature.Thunder);
                     double damage_value = Math.Min(ai.GetDamageScore(damage_f).Score, ai.GetDamageScore(damage_t).Score);
-                    if (ai.IsGoodSpreadStarter(damage_f) || ai.IsGoodSpreadStarter(damage_t))
-                        damage_value += 4;
+                    double max_value_f = ai.ChainDamage(damage_f);
+                    double max_value_t = ai.ChainDamage(damage_t);
+                    damage_value += Math.Max(max_value_f, max_value_t);
                     if (p.Chained && damage_value < 0)
                     {
                         if (RoomLogic.PlayerContainsTrick(room, p, Lightning.ClassName))
@@ -2190,8 +2396,22 @@ namespace SanguoshaServer.AI
                 }
             }
 
+            double use_value = use.To.Count > 0 && ai.HasSkill("jizhi|jizhi_jx") && !RoomLogic.IsVirtualCard(room, card) ? 2 : 0;
+            foreach (Player p in use.To)
+            {
+                foreach (string skill in ai.GetKnownSkills(p))
+                {
+                    SkillEvent ev = Engine.GetSkillEvent(skill);
+                    if (ev != null)
+                        use_value += ev.TargetValueAdjust(ai, card, player, use.To, p);
+                }
+            }
+            if (use_value < 0) return;
+
+            if (use.To.Count > 0 && use.Card == null) use.Card = card;
             if (use.To.Count == 1)
             {
+                if (use_value > 0) return;
                 foreach (Player p in room.GetAlivePlayers())
                     if (p.Chained) return;
 
@@ -2200,6 +2420,7 @@ namespace SanguoshaServer.AI
                     use.To = new List<Player>();
                     return;
                 }
+
                 else if(ai.GetOverflow(player) > 0)
                 {
                     foreach (int id in card.SubCards)
@@ -2654,13 +2875,21 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
-                foreach (Player p in use.To)
-                    if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
-                        ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
+                            ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
+                else if (ai is StupidAI)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPlayerTendency(p) != "unknown")
+                            ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
             }
         }
 
@@ -2719,6 +2948,13 @@ namespace SanguoshaServer.AI
             if (ai.GetKnownCardsNums(Dismantlement.ClassName, "he", enemy, ai.Self) > 0) value += 2;
             value += (room.AliveCount() - ai.PlayerGetRound(enemy)) / 2;
 
+            foreach (string skill in ai.GetKnownSkills(enemy))
+            {
+                SkillEvent ev = Engine.GetSkillEvent(skill);
+                if (ev != null)
+                    value += ev.TargetValueAdjust(ai, card, null, new List<Player> { enemy }, enemy);
+            }
+
             return value;
         }
     }
@@ -2746,13 +2982,20 @@ namespace SanguoshaServer.AI
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
-            Room room = ai.Room;
             if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
-                foreach (Player p in use.To)
-                    if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
-                        ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPossibleId(player).Count == 1 || ai.GetPossibleId(p).Count == 1 || ai.IsKnown(player, p))
+                            ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
+                else if (ai is StupidAI)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPlayerTendency(p) != "unknown")
+                            ai.UpdatePlayerRelation(player, p, false);          //若使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                }
             }
         }
         public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
@@ -2826,6 +3069,14 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill("guidao", enemy)) value -= 3;
             if (ai.HasSkill("tiandu", enemy)) value -= 3;
             if (ai.NeedKongcheng(enemy)) value -= 1;
+
+            foreach (string skill in ai.GetKnownSkills(enemy))
+            {
+                SkillEvent ev = Engine.GetSkillEvent(skill);
+                if (ev != null)
+                    value += ev.TargetValueAdjust(ai, card, null, new List<Player> { enemy }, enemy);
+            }
+
             return value;
         }
     }
@@ -2844,8 +3095,7 @@ namespace SanguoshaServer.AI
                 if (ai.IsFriend(to) && ai.IsGuanxingEffected(to, true, trick))
                 {
                     double value = ai.GetDamageScore(damage).Score;
-                    if (ai.IsGoodSpreadStarter(damage, false))
-                        value -= 6;
+                    value += ai.ChainDamage(damage);
                     if (value < -5)
                     {
                         //wizzard skill
@@ -3504,7 +3754,7 @@ namespace SanguoshaServer.AI
                     foreach (Player p in use.To)
                     {
                         DamageStruct damage = new DamageStruct(fire, player, p, 1 + use.Drank, DamageStruct.DamageNature.Fire);
-                        if (p.Chained && ai.IsGoodSpreadStarter(damage, false))
+                        if (ai.GetDamageScore(damage).Score + ai.ChainDamage(damage) < 0)
                             return false;
                     }
 
@@ -3701,7 +3951,7 @@ namespace SanguoshaServer.AI
         }
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
-            return ai.AjudstDHorseValue(player, card);
+            return ai.AjudstDHorseValue(player, card, place);
         }
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -3740,7 +3990,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             List<Player> fromList = new List<Player>();
             double basic_value = 0;
-            if (ai.HasSkill("jizhi", player))
+            if (ai.HasSkill("jizhi|jizhi_jx", player))
                 basic_value += 4;
             foreach (Player p in room.GetOtherPlayers(player))
             {
@@ -3789,7 +4039,14 @@ namespace SanguoshaServer.AI
 
                 if (needWeapon)
                     from_value += 2;
-                
+
+                foreach (string skill in ai.GetKnownSkills(from))
+                {
+                    SkillEvent ev = Engine.GetSkillEvent(skill);
+                    if (ev != null)
+                        from_value += ev.TargetValueAdjust(ai, card, player, new List<Player> { from }, from);
+                }
+
 
                 Dictionary<Player, double> to_values = new Dictionary<Player, double>();
                 foreach (Player to in room.GetOtherPlayers(from))
@@ -3852,7 +4109,8 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            base.OnEvent(ai, triggerEvent, player, data);
+            //to do
+            //
         }
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)

@@ -1521,7 +1521,8 @@ namespace SanguoshaServer.Package
     }
     public class WendaoCard : SkillCard
     {
-        public WendaoCard() : base("WendaoCard")
+        public static string ClassName = "WendaoCard";
+        public WendaoCard() : base(ClassName)
         {
             target_fixed = true;
         }
@@ -1562,15 +1563,19 @@ namespace SanguoshaServer.Package
     {
         public Wendao() : base("wendao")
         {
-            filter_pattern = ".|red!";
+        }
+
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
+        {
+            return RoomLogic.CanDiscard(room, player, player, to_select.Id) && WrappedCard.IsRed(to_select.Suit) && to_select.Name != PeaceSpell.ClassName;
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasUsed("WendaoCard") && RoomLogic.CanDiscard(room, player, player, "he");
+            return !player.HasUsed(WendaoCard.ClassName) && RoomLogic.CanDiscard(room, player, player, "he");
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard wd = new WrappedCard("WendaoCard")
+            WrappedCard wd = new WrappedCard(WendaoCard.ClassName)
             {
                 ShowSkill = Name,
                 Skill = Name

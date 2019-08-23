@@ -248,7 +248,7 @@ namespace SanguoshaServer.AI
                 {
                     if (p.IsNude() || selected.Contains(p) || !fcard.TargetFilter(room, selected, p, player, card)) continue;
 
-                    ScoreStruct score = ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodDiscard);
+                    ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", FunctionCard.HandlingMethod.MethodDiscard);
                     score.Players = new List<Player> { p };
                     scores.Add(score);
                 }
@@ -449,11 +449,14 @@ namespace SanguoshaServer.AI
                             if (ai.IsFriend(user) && n1 >= 1 && !ai.IsLackCard(target, Slash.ClassName))
                                 score.Score -= 3;
 
-                            if (ai.HasSkill("jiang", target))
-                                score.Score -= 2;
                             if (ai.HasSkill("jiang", user))
-                            {
                                 score.Score += ai.IsFriend(user) ? 2 : -2;
+
+                            foreach (string skill in ai.GetKnownSkills(target))
+                            {
+                                SkillEvent ev = Engine.GetSkillEvent(skill);
+                                if (ev != null)
+                                    score.Score += ev.TargetValueAdjust(ai, card, user, new List<Player> { target }, target);
                             }
                             score.Players = new List<Player> { target, user };
                             scores.Add(score);
@@ -823,7 +826,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in room.GetOtherPlayers(player))
             {
-                ScoreStruct score = ai.FindCards2Discard(player, p, "he", FunctionCard.HandlingMethod.MethodDiscard);
+                ScoreStruct score = ai.FindCards2Discard(player, p, string.Empty, "he", FunctionCard.HandlingMethod.MethodDiscard);
                 scores.Add(score);
             }
             if (scores.Count > 0)
@@ -887,8 +890,8 @@ namespace SanguoshaServer.AI
                 if (ai.HasSkill("hongyan", p)) continue;
                 DamageStruct damage = new DamageStruct(Name, player, p, 2, DamageStruct.DamageNature.Thunder);
                 ScoreStruct score = ai.GetDamageScore(damage);
-                if (score.Score > 0 && score.DoDamage && ai.IsGoodSpreadStarter(damage))
-                    score.Score += 4;
+                if (score.Score > 0 && score.DoDamage)
+                    score.Score += ai.ChainDamage(damage);
                 scores.Add(score);
             }
 
@@ -1352,7 +1355,9 @@ namespace SanguoshaServer.AI
                 To = new List<Player>()
             };
 
-            if (ai.WillShowForAttack() && ai.FriendNoSelf.Count > 0)
+            ((SmartAI)ai).UpdatePlayers();
+            List<Player> friends = ai.FriendNoSelf;
+            if (ai.WillShowForAttack() && friends.Count > 0)
             {
                 WrappedCard card = new WrappedCard("LirangCard")
                 {
@@ -1360,8 +1365,6 @@ namespace SanguoshaServer.AI
                     Skill = Name
                 };
                 List<int> card_ids = player.GetPile("#lirang");
-                List<Player> friends = new List<Player>(ai.FriendNoSelf);
-                ((SmartAI)ai).UpdatePlayers();
                 KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(card_ids, friends);
                 if (pair.Key != null && pair.Value >= 0)
                 {

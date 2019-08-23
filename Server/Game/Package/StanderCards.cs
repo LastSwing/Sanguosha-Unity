@@ -2623,7 +2623,7 @@ namespace SanguoshaServer.Package
             //room.DetachSkillFromPlayer(player, "companion");
             WrappedCard peach = new WrappedCard(Peach.ClassName)
             {
-                Skill = "_comapnion"
+                Skill = "_companion"
             };
             return peach;
         }

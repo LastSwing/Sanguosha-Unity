@@ -56,7 +56,7 @@ namespace SanguoshaServer.AI
 
             return !ai.NeedKongcheng(player);
         }
-        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player to)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             Room room = ai.Room;
             double value = 0;
@@ -129,13 +129,13 @@ namespace SanguoshaServer.AI
             {
                 Player to = damage.To;
                 List<int> disable = new List<int>();
-                foreach (int id in player.GetCards("he"))
+                foreach (int id in to.GetCards("he"))
                 {
                     if (!RoomLogic.CanGetCard(ai.Room, player, to, id))
                         disable.Add(id);
                 }
 
-                if (ai.FindCards2Discard(player, damage.From, "he", FunctionCard.HandlingMethod.MethodGet, 1, true, disable).Score > 0)
+                if (ai.FindCards2Discard(player, damage.From, string.Empty, "he", FunctionCard.HandlingMethod.MethodGet, 1, true, disable).Score > 0)
                     return true;
             }
 
@@ -148,7 +148,7 @@ namespace SanguoshaServer.AI
             {
                 Score = 0
             };
-            if (damage.To != null && damage.From != null && !damage.From.IsNude() && damage.Damage <= damage.To.Hp)
+            if (damage.To != null && damage.From != null && !damage.From.IsNude() && damage.Damage <= damage.To.Hp && ai.HasSkill(Name, damage.To))
             {
                 if (ai.IsFriend(damage.From, damage.To) && damage.From.HasEquip() && damage.From.IsWounded())
                 {
@@ -185,7 +185,7 @@ namespace SanguoshaServer.AI
                     int id = int.Parse(choices[2]);
                     Player target = room.FindPlayer(choices[4]);
 
-                    if (ai.GetPlayerTendency(target) == "unknown" && ai.HasArmorEffect(target, SilverLion.ClassName) && id == target.Armor.Key)
+                    if (ai.GetPlayerTendency(target) == "unknown" && ai.HasArmorEffect(target, SilverLion.ClassName) && target.IsWounded() && id == target.Armor.Key)
                         ai.UpdatePlayerRelation(player, target, true);
                 }
             }
@@ -642,6 +642,33 @@ namespace SanguoshaServer.AI
     {
         public TuxiAI() : base("tuxi")
         {
+            key = new List<string> { "playerChosen" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is string choice && ai.Self != player)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    List<Player> targets = new List<Player>();
+                    foreach (string general in choices[2].Split('+'))
+                        targets.Add(room.FindPlayer(general, true));
+                    
+                    if (!player.HasShownOneGeneral())
+                    {
+                        string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
+                        ai.UpdatePlayerIntention(player, role, 100);
+                    }
+                    foreach (Player p in targets)
+                    {
+                        if (ai.IsKnown(player, p) && ai.GetPlayerTendency(p) == "unknown")
+                            ai.UpdatePlayerRelation(player, p, false);
+                    }
+                }
+            }
         }
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
@@ -1518,30 +1545,52 @@ namespace SanguoshaServer.AI
             return true;
         }
 
-        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
             List<WrappedCard> cards = RoomLogic.GetPlayerHandcards(room, player);
+            WrappedCard jushou = new WrappedCard(JushouCard.ClassName)
+            {
+                Mute = true,
+                Skill = Name
+            };
+            CardUseStruct use = new CardUseStruct(jushou, player, new List<Player>());
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if ((fcard is DefensiveHorse || fcard is Armor || fcard is SpecialEquip) && RoomLogic.CanPutEquip(player, card) && ai.GetSameEquip(card, player) == null)
-                    return new List<int> { card.Id };
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if ((fcard is Weapon || fcard is OffensiveHorse || fcard is Treasure) && RoomLogic.CanPutEquip(player, card) && ai.GetSameEquip(card, player) == null)
-                    return new List<int> { card.Id };
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
             foreach (WrappedCard card in cards)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if (fcard is Armor && player.GetArmor() && RoomLogic.CanPutEquip(player, card) && ai.GetKeepValue(player.Armor.Key, player) < ai.GetUseValue(card.Id, player))
-                    return new List<int> { card.Id };
+                {
+                    jushou.AddSubCard(card);
+                    return use;
+                }
             }
 
-            return ai.AskForDiscard(player.GetCards("h"), string.Empty,  1, 1, false);
+            List<int> subs = ai.AskForDiscard(player.GetCards("h"), string.Empty, 1, 1, false);
+            jushou.AddSubCards(subs);
+            return use;
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            return "use";
         }
     }
 

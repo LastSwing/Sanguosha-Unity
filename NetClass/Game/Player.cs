@@ -30,7 +30,7 @@ namespace CommonClass.Game
         };
         public enum PlayerRole
         {
-            Lord, Loyalist, Rebel, Renegade, Unknown
+            Lord, Loyalist, Rebel, Renegade, Careerist, Unknown
         };
 
         public enum Gender
@@ -950,6 +950,7 @@ namespace CommonClass.Game
             { "loyalist", PlayerRole.Loyalist },
             { "rebel", PlayerRole.Rebel },
             { "renegade", PlayerRole.Renegade },
+            { "careerist", PlayerRole.Careerist },
         };
         public PlayerRole GetRoleEnum()
         {
