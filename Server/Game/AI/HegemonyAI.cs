@@ -233,7 +233,7 @@ namespace SanguoshaServer.AI
 
                 if (choices[0] == "viewCards")
                 {
-                    List<int> ids = new List<int>(player.HandCards);
+                    List<int> ids= player.GetCards("h");
                     if (choices[choices.Count - 1] == "all")
                     {
                         public_handcards[player] = ids;
@@ -242,9 +242,9 @@ namespace SanguoshaServer.AI
                     else if (choices[choices.Count - 1] == self.Name)
                         private_handcards[player] = ids;
                 }
-                else if (choices[1] == "showCards")
+                else if (choices[0] == "showCards")
                 {
-                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[1].Split('+')));
+                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
                     if (choices[choices.Count - 1] == "all")
                     {
                         foreach (int id in ids)
@@ -1108,9 +1108,17 @@ namespace SanguoshaServer.AI
         //更新玩家身份的倾向
         public override void UpdatePlayerIntention(Player player, string kingdom, int intention)
         {
-            player_intention[player][kingdom] += intention;
-            if (id_tendency[player] == "unknown" && player_intention[player][kingdom] >= 100)
-                id_tendency[player] = kingdom;
+            if (kingdom == "careerist")
+            {
+                if (id_tendency[player] == "unknown")
+                    id_tendency[player] = kingdom;
+            }
+            else
+            {
+                player_intention[player][kingdom] += intention;
+                if (id_tendency[player] == "unknown" && player_intention[player][kingdom] >= 100)
+                    id_tendency[player] = kingdom;
+            }
 
             UpdatePlayers();
         }

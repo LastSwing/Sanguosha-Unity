@@ -11,7 +11,7 @@ namespace SanguoshaServer.Game
             MyData data = new MyData
             {
                 Description = PacketDescription.Room2Cient,
-                Protocol = protocol.Message2Room,
+                Protocol = Protocol.Message2Room,
                 Body = new List<string> { string.Empty, message },
             };
 
@@ -26,7 +26,7 @@ namespace SanguoshaServer.Game
             MyData data = new MyData
             {
                 Description = PacketDescription.Room2Cient,
-                Protocol = protocol.Message2Room,
+                Protocol = Protocol.Message2Room,
                 Body = new List<string> { string.Empty, message },
             };
 

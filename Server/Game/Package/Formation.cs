@@ -729,14 +729,17 @@ namespace SanguoshaServer.Package
             if (choice.Contains("handcards"))
             {
                 List<int> blacks = new List<int>();
-                foreach (int card_id in effect.To.HandCards) {
+                foreach (int card_id in effect.To.GetCards("h"))
+                {
                     if (WrappedCard.IsBlack(room.GetCard(card_id).Suit))
                         blacks.Add(card_id);
                 }
+                effect.To.SetFlags("shangyi_target");
                 int to_discard = room.DoGongxin(effect.From, effect.To, blacks, "shangyi", "@shangyi:" + effect.To.Name, effect.Card.SkillPosition);
-                if (to_discard == -1) return;
+                effect.To.SetFlags("-shangyi_target");
 
-                effect.From.RemoveTag("shangyi");
+                if (to_discard == -1) return;
+                
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DISMANTLE, effect.From.Name, effect.To.Name, "shangyi", null)
                 {
                     General = RoomLogic.GetGeneralSkin(room, effect.From, "shangyi", effect.Card.SkillPosition)

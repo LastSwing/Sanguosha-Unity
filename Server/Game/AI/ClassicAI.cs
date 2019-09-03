@@ -270,7 +270,7 @@ namespace SanguoshaServer.AI
 
                 if (choices[0] == "viewCards")
                 {
-                    List<int> ids = new List<int>(player.HandCards);
+                    List<int> ids= player.GetCards("h");
                     if (choices[choices.Count - 1] == "all")
                     {
                         public_handcards[player] = ids;
@@ -279,9 +279,9 @@ namespace SanguoshaServer.AI
                     else if (choices[choices.Count - 1] == self.Name)
                         private_handcards[player] = ids;
                 }
-                else if (choices[1] == "showCards")
+                else if (choices[0] == "showCards")
                 {
-                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[1].Split('+')));
+                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
                     if (choices[choices.Count - 1] == "all")
                     {
                         foreach (int id in ids)
@@ -1075,6 +1075,7 @@ namespace SanguoshaServer.AI
                         if (Process.Contains("<<"))
                         {
                             friends.AddRange(loyalists);        //反贼方大优将主忠当作友方
+                            if (!friends.Contains(lord)) friends.Add(lord);
                             foreach (Player p in loyalists_n)
                             {
                                 if (!rebels_n.Contains(p))
@@ -1561,7 +1562,10 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {
-                    if (IsEnemy(to))
+                    //内奸
+                    if (to.GetRoleEnum() == PlayerRole.Lord && deadly && (roles[PlayerRole.Loyalist] > 0 || roles[PlayerRole.Rebel] > 0))             //对主公的致命伤
+                        value -= 100;
+                    else if (IsEnemy(to))
                     {
                         value += 2;
                         if (deadly)
@@ -1587,11 +1591,18 @@ namespace SanguoshaServer.AI
                                 value -= 10;
                         }
                     }
-                    else if (to.GetRoleEnum() == PlayerRole.Lord && deadly && (roles[PlayerRole.Loyalist] > 0 || roles[PlayerRole.Rebel] > 0))             //对主公的致命伤
-                        value -= 15;
                     else
                     {
-                        if ((GetPlayerTendency(to) == "rebel" && Process.Contains(">")) || (GetPlayerTendency(to) == "loyalist" && Process.Contains("<")))      //根据场面局势调整分数
+                        if (to.GetRoleEnum() == PlayerRole.Lord)
+                        {
+                            if (to.Hp >= 4)
+                                value = 0.5;
+                            else if (to.Hp > 2)
+                                value = 0;
+                            else if (to.Hp <= 2)
+                                value = -1;
+                        }
+                        else if ((GetPlayerTendency(to) == "rebel" && Process.Contains(">")) || (GetPlayerTendency(to) == "loyalist" && Process.Contains("<")))      //根据场面局势调整分数
                         {
                             value = -2;
                             if (deadly) value -= 4;
@@ -1713,7 +1724,7 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
-                if (analeptics.Count > 1 || enemies[player].Count == 1 || (GetOverflow(player) > 0 && drink_hand)) will_use = true;
+                if (analeptics.Count > 1 || GetEnemies(player).Count == 1 || (GetOverflow(player) > 0 && drink_hand)) will_use = true;
                 //room.OutPut(string.Format("{0} 检查酒的数量为 {1} 是否需要使用 {2}", player.SceenName, analeptics.Count, will_use.ToString()));
 
                 FunctionCard fcard = Analeptic.Instance;

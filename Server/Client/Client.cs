@@ -167,7 +167,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Room2Cient,
-                    Protocol = protocol.GameNotification,
+                    Protocol = Protocol.GameNotification,
                     Body = message_body
                 };
                 byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
@@ -183,7 +183,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Room2Cient,
-                    Protocol = protocol.GameRequest,
+                    Protocol = Protocol.GameRequest,
                     Body = message_body
                 };
                 byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
@@ -216,7 +216,7 @@ namespace SanguoshaServer
                 MyData wrong = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.ClientMessage,
+                    Protocol = Protocol.ClientMessage,
                     Body = new List<string> { ClientMessage.PasswordWrong.ToString(), true.ToString() }
                 };
                 SendLoginReply(wrong);
@@ -228,7 +228,7 @@ namespace SanguoshaServer
                 //通知客户端
                 MyData wrong = new MyData {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.ClientMessage,
+                    Protocol = Protocol.ClientMessage,
                     Body = new List<string> { ClientMessage.NoAccount.ToString(), true.ToString() }
                 };
                 SendLoginReply(wrong);
@@ -254,7 +254,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UserProfile,
+                    Protocol = Protocol.UserProfile,
                     Body = new List<string> { JsonUntity.Object2Json(Profile) }
                 };
 
@@ -267,7 +267,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UserProfile,
+                    Protocol = Protocol.UserProfile,
                     Body = new List<string> { JsonUntity.Object2Json(Profile), to_hall.ToString() }
                 };
 
@@ -288,7 +288,7 @@ namespace SanguoshaServer
                 MyData message = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.ClientMessage,
+                    Protocol = Protocol.ClientMessage,
                     Body = new List<string> { ClientMessage.RegisterSuccesful.ToString(), false.ToString() }
                 };
                 SendLoginReply(message);
@@ -309,7 +309,7 @@ namespace SanguoshaServer
                 MyData message = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.ClientMessage,
+                    Protocol = Protocol.ClientMessage,
                     Body = new List<string> { ClientMessage.AccountDuplicated.ToString(), true.ToString() }
                 };
                 SendLoginReply(message);
@@ -326,7 +326,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.NickName,
+                    Protocol = Protocol.NickName,
                     Body = new List<string>() { false.ToString() }
                 };
                 SendProfileReply(data);
@@ -336,7 +336,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.NickName,
+                    Protocol = Protocol.NickName,
                     Body = new List<string>() { true.ToString() }
                 };
                 SendProfileReply(data);
@@ -347,10 +347,10 @@ namespace SanguoshaServer
         //更新个人信息
         public void UpDateProfile(MyData data) {
             switch (data.Protocol) {
-                case protocol.NickName:
+                case Protocol.NickName:
                     InsertNewProfile(data.Body[0]);
                     break;
-                case protocol.UserProfile:
+                case Protocol.UserProfile:
                     Profile profile = JsonUntity.Json2Object<Profile>(data.Body[0]);
                     UpDateProfileAvatar(profile);
                     break;
@@ -401,7 +401,7 @@ namespace SanguoshaServer
             MyData data = new MyData
             {
                 Description = PacketDescription.Hall2Cient,
-                Protocol = protocol.UserProfile,
+                Protocol = Protocol.UserProfile,
                 Body = new List<string> { JsonUntity.Object2Json(profile) }
             };
 
@@ -433,7 +433,7 @@ namespace SanguoshaServer
         public void ControlGame(MyData data)
         {
             CommandType request_command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
-            if (data.Protocol == protocol.GameRequest && IsWaitingReply && request_command == CommandType.S_COMMAND_OPERATE)
+            if (data.Protocol == Protocol.GameRequest && IsWaitingReply && request_command == CommandType.S_COMMAND_OPERATE)
             {
                 List<string> arg = data.Body;
                 arg.RemoveAt(0);
@@ -446,7 +446,7 @@ namespace SanguoshaServer
             }
             else
             {
-                if (data.Protocol == protocol.GameRequest && callbacks.ContainsKey(request_command))
+                if (data.Protocol == Protocol.GameRequest && callbacks.ContainsKey(request_command))
                 {
                     if (data.Body.Count > 1)            //规定由服务器处理的操作，除结束出牌外，不可能由客户端提交结果
                         return;
@@ -527,7 +527,9 @@ namespace SanguoshaServer
             callbacks[CommandType.S_COMMAND_CHOOSE_EXTRA_TARGET] = new Action<List<string>>(OnChooseExtraResponse);
             
             callbacks[CommandType.S_COMMAND_SKILL_MOVECARDS] = new Action<List<string>>(OnGuanxingRespond);
+            callbacks[CommandType.S_COMMAND_SKILL_SORTCARDS] = new Action<List<string>>(OnSortCardRespond);
         }
+
 
         public bool PlayCardRequst(Room room, Player player, CommandType type, string prompt = null,
             HandlingMethod method = HandlingMethod.MethodNone, int notice_index = -1, string position = null)
@@ -984,14 +986,52 @@ namespace SanguoshaServer
             available_deputy_skills.Clear();
             available_equip_skills.Clear();
 
-            guanxing.Top = ups;
-            guanxing.Bottom = downs;
+            guanxing.Top = new List<int>(ups);
+            guanxing.Bottom = new List<int>(downs);
             CheckMoveCards();
 
             Operate arg = GetPacket2Client(true);
             m_do_request = false;
             return room.DoRequest(player, CommandType.S_COMMAND_SKILL_MOVECARDS, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
+        public bool SortCardRequest(Room room, Player player, string reason, List<int> cards, string position)
+        {
+            this.room = room;
+            ExpectedReplyCommand = CommandType.S_COMMAND_SKILL_SORTCARDS;
+            requestor = player;
+
+            m_do_request = true;
+            skill_position = position;
+            pending_skill = null;
+            skill_invoke = false;
+            hightlight_skill = reason;
+            skill_owner = player;
+            cancel_able = true;
+            cancel_enable = true;
+
+            available_cards.Clear();
+            guhuo_cards.Clear();
+            selected_cards.Clear();
+            prepends.Clear();
+            appends.Clear();
+            selected_guhuo = null;
+            available_targets.Clear();
+            selected_targets.Clear();
+            available_head_skills.Clear();
+            available_deputy_skills.Clear();
+            available_equip_skills.Clear();
+
+            guanxing.Moves = new List<int>(cards);
+            guanxing.Top.Clear();
+            guanxing.Bottom.Clear();
+            guanxing.Success = false;
+            ex_information = new List<string> { JsonUntity.Object2Json(cards) };
+
+            Operate arg = GetPacket2Client(true);
+            m_do_request = false;
+            return room.DoRequest(player, CommandType.S_COMMAND_SKILL_SORTCARDS, new List<string> { JsonUntity.Object2Json(arg) }, true);
+        }
+
         private void CheckMoveCards()
         {
             Skill skill = Engine.GetSkill(hightlight_skill);
@@ -1852,7 +1892,7 @@ namespace SanguoshaServer
             //mutex.ReleaseMutex();
             MyData data = new MyData
             {
-                Protocol = protocol.GameReply,
+                Protocol = Protocol.GameReply,
                 Description = PacketDescription.Client2Room,
                 Body = packet
             };
@@ -1865,19 +1905,15 @@ namespace SanguoshaServer
             RequestType type = (RequestType)Enum.Parse(typeof(RequestType), args[0]);
             bool error = false;
 
-            if (type == RequestType.S_REQUEST_MOVECARDS && args.Count == 3)
+            if (type == RequestType.S_REQUEST_MOVECARDS && args.Count == 4)
             {
                 List<int> ups = guanxing.Top, downs = guanxing.Bottom;
-
-                int from = int.Parse(args[1]);
-                int to = int.Parse(args[2]);
-                if (from == 0 || to == 0)
+                if (!int.TryParse(args[1], out int card) || !int.TryParse(args[2], out int from) || from == 0 || !int.TryParse(args[3], out int to) || to == 0)
                 {
                     error = true;
                 }
                 else
                 {
-                    int card = -1;
                     if (from > 0)
                     {
                         from = from - 1;
@@ -1890,7 +1926,6 @@ namespace SanguoshaServer
                     else
                     {
                         from = -from - 1;
-
                         if (available_cards[requestor.Name].Contains(room.GetCard(downs[from])))
                         {
                             card = downs[from];
@@ -1919,7 +1954,7 @@ namespace SanguoshaServer
 
                         CheckMoveCards();
                         GetPacket2Client(false);
-                        List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), args[1], args[2] };
+                        List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), card.ToString(), args[1], args[2] };
                         room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, this);
                     }
                     else
@@ -1940,6 +1975,76 @@ namespace SanguoshaServer
             {
                 error = true;
             }
+
+            if (error)
+            {
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
+                GetPacket2Client(false);
+            }
+
+            mutex.ReleaseMutex();
+        }
+        private void OnSortCardRespond(List<string> args)
+        {
+            mutex.WaitOne();
+            RequestType type = (RequestType)Enum.Parse(typeof(RequestType), args[0]);
+            bool error = false;
+
+            if (type == RequestType.S_REQUEST_MOVECARDS && args.Count == 4)
+            {
+                List<int> moves = guanxing.Moves, ups = guanxing.Top, downs = guanxing.Bottom;
+                if (int.TryParse(args[1], out int card) && moves.Contains(card) && int.TryParse(args[2], out int from) && from >= 0
+                    && int.TryParse(args[4], out int to) && to >= 0 && from != to && from < 3 && to < 3)
+                {
+                    if ((from == 0 && !ups.Contains(card) && !downs.Contains(card)) || (from == 1 && ups.Contains(card) && !downs.Contains(card))
+                        || (from == 2 && downs.Contains(card) && !ups.Contains(card)))
+                    {
+                        switch (from)
+                        {
+                            case 1:
+                                ups.Remove(card);
+                                break;
+                            case 2:
+                                downs.Remove(card);
+                                break;
+                        }
+                        switch (to)
+                        {
+                            case 1:
+                                ups.Add(card);
+                                break;
+                            case 2:
+                                downs.Add(card);
+                                break;
+                        }
+                        Skill skill = Engine.GetSkill(hightlight_skill);
+                        if (skill != null)
+                        {
+                            ok_enable = skill.SortFilter(room, moves, ups, downs);
+                            guanxing.Success = ok_enable;
+                        }
+
+                        ex_information = new List<string> { JsonUntity.Object2Json(ups), JsonUntity.Object2Json(downs) };
+                        GetPacket2Client(false);
+                        List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), card.ToString(), args[1], args[2] };
+                        room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, this);
+                    }
+                    else
+                        error = true;
+                }
+                else
+                    error = true;
+            }
+            else if (type == RequestType.S_REQUEST_SYS_BUTTON && args.Count == 2)
+            {
+                bool confirm = bool.Parse(args[1]);
+                if ((confirm && ok_enable) || (!confirm && cancel_able))
+                    Reply2Server(confirm);
+                else
+                    error = true;
+            }
+            else
+                error = true;
 
             if (error)
             {

@@ -62,7 +62,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             List<int> ids = new List<int>();
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
             {
                 WrappedCard c = room.GetCard(id);
                 if (c.Transferable)
@@ -280,7 +280,7 @@ namespace SanguoshaServer.AI
             if (player.HasFlag(Name)) return null;
 
             Room room = ai.Room;
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
             {
                 WrappedCard card = room.GetCard(id);
                 if (card.Transferable)
@@ -504,7 +504,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             ai.Target[Name] = null;
             if (player.HasUsed(WoodenOxCard.ClassName) || player.IsKongcheng()) return null;
-            List<int> cards = new List<int>(player.HandCards);
+            List<int> cards= player.GetCards("h");
 
             int sub = -1;
             foreach (int id in cards)
@@ -700,7 +700,7 @@ namespace SanguoshaServer.AI
                 {
                     Skill = Name
                 };
-                card.AddSubCards(player.HandCards);
+                card.AddSubCards(player.GetCards("h"));
                 return new List<WrappedCard> { card };
             }
 
@@ -898,7 +898,12 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                     value += ai.GetKeepValue(id, player);
 
-                if (ai.GetDamageScore(damage, DamageStruct.DamageStep.None).Score > -value / 2)
+                ScoreStruct score = ai.GetDamageScore(damage, DamageStruct.DamageStep.None);
+                if (score.DoDamage && score.Damage.Damage >= player.Hp && !ai.CanResist(player, score.Damage.Damage)
+                    && ai.GetKnownCardsNums(Peach.ClassName, "he", player) + ai.GetKnownCardsNums(Analeptic.ClassName, "he", player) < score.Damage.Damage - player.Hp)
+                    return "throw";
+
+                if (score.Score > -value / 2)
                     return "damage";
             }
 
@@ -1943,7 +1948,7 @@ namespace SanguoshaServer.AI
         {
             if (ai.IsCardEffect(card, player, player) && !ai.IsCancelTarget(card, player, player))
             {
-                List<int> ids = new List<int>(player.HandCards);
+                List<int> ids= player.GetCards("h");
                 ids.RemoveAll(t => card.SubCards.Contains(t));
 
                 if (ai.HasSkill("jizhi") && !RoomLogic.IsVirtualCard(ai.Room, card) || ids.Count > 0)

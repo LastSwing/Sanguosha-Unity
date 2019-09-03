@@ -421,6 +421,29 @@ namespace SanguoshaServer.AI
         {
         }
 
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                if (ai is StupidAI _ai)
+                {
+                    Player target = use.To[0];
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                    {
+                        DamageStruct damage = new DamageStruct(new WrappedCard(Duel.ClassName) , use.To[1], target);
+                        if (_ai.NeedDamage(damage))
+                        {
+                            ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(target), 60);
+                            return;
+                        }
+
+                        ai.UpdatePlayerRelation(player, target, false);
+                    }
+                }
+            }
+        }
+
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return Engine.GetCardPriority(Duel.ClassName) + 1;
@@ -665,7 +688,7 @@ namespace SanguoshaServer.AI
             if (player.GetMark(Name) > 0)
             {
                 Room room = ai.Room;
-                List<int> ids = new List<int>(player.HandCards);
+                List<int> ids= player.GetCards("h");
                 ids.AddRange(player.GetHandPile());
                 ai.SortByUseValue(ref ids, false);
                 foreach (int id in ids)
@@ -769,7 +792,7 @@ namespace SanguoshaServer.AI
                 }
 
                 if (discard_hand)
-                    return new List<int>(to.HandCards);
+                    return to.GetCards("h");
             }
             List<int> ids = new List<int>();
             foreach (int id in to.GetEquips())
@@ -917,8 +940,8 @@ namespace SanguoshaServer.AI
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice && ai.Self != player)
             {
                 Room room = ai.Room;
-                string[] choices = choice.Split(':');
-                if (choices[2] == Name && room.GetTag(Name) is JudgeStruct judge && ai.GetPlayerTendency(judge.Who) == "unknown" && choices[4] != "_nil_")
+                string[] choices = choice.Split('%');
+                if (choices[1] == Name && room.GetTag(Name) is JudgeStruct judge && ai.GetPlayerTendency(judge.Who) == "unknown" && choices[4] != "_nil_")
                 {
                     string str = choices[4].Substring(1, choices[4].Length - 2);
                     WrappedCard _card = RoomLogic.ParseCard(room, str);
@@ -1002,7 +1025,7 @@ namespace SanguoshaServer.AI
             {
                 Room room = ai.Room;
                 List<int> ids = new List<int>();
-                foreach (int id in player.HandCards)
+                foreach (int id in player.GetCards("h"))
                 {
                     WrappedCard card = room.GetCard(id);
                     if (WrappedCard.IsBlack(card.Suit) && !RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodResponse, true))
@@ -1496,7 +1519,7 @@ namespace SanguoshaServer.AI
 
                 if (!effect)
                 {
-                    List<int> cards = new List<int>(ai.Self.HandCards);
+                    List<int> cards = ai.Self.GetCards("h");
                     ai.SortByKeepValue(ref cards, false);
                     return room.GetCard(cards[0]);
                 }

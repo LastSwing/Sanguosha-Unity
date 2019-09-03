@@ -515,11 +515,11 @@ namespace SanguoshaServer.Game
                         int double_max_hp = int.Parse(row["HP"].ToString());
                         bool lord = bool.Parse(row["lord"].ToString());
                         bool male = bool.Parse(row["sex"].ToString());
-                        bool hidden = bool.Parse(row["hidden"].ToString());
+                        bool selectable = bool.Parse(row["selectable"].ToString());
                         int hp_adjust = int.Parse(row["adjust_hp"].ToString());
                         //string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false
 
-                        General general = new General(name, kingdom, lord, pack, double_max_hp, male, hidden);
+                        General general = new General(name, kingdom, lord, pack, double_max_hp, male, selectable);
                         if (hp_adjust > 0)
                             general.Head_max_hp_adjusted_value = -hp_adjust;
                         else
@@ -639,7 +639,7 @@ namespace SanguoshaServer.Game
                     foreach (string name in pack_generals[key])
                     {
                         General general = GetGeneral(name, mode);
-                        if (general != null && (include_hidden || !general.Hidden))
+                        if (general != null && (include_hidden || general.Selectable))
                             generals.Add(general.Name);
                     }
                 }

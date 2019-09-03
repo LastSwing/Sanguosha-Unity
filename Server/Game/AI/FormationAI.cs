@@ -415,7 +415,7 @@ namespace SanguoshaServer.AI
                         else if (choice == "handcards")
                         {
                             ai.ClearKnownCards(target);
-                            foreach (int id in target.HandCards)
+                            foreach (int id in target.GetCards("h"))
                                 ai.SetPrivateKnownCards(target, id);
                         }
                     }
@@ -442,7 +442,16 @@ namespace SanguoshaServer.AI
             if (player.ContainsTag(Name))
             {
                 Room room = ai.Room;
-                Player target = room.FindPlayer((string)player.GetTag(Name));
+                Player target = null;
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    if (p.HasFlag("shangyi_target"))
+                    {
+                        target = p;
+                        break;
+                    }
+                }
+
                 if (target != null && !ai.IsFriend(target))
                 {
                     double best = -1000;
@@ -559,7 +568,7 @@ namespace SanguoshaServer.AI
                 Player lord = RoomLogic.FindPlayerBySkillName(room, "wendao");
 
                 List<int> ids = new List<int>();
-                foreach (int id in player.HandCards)
+                foreach (int id in player.GetCards("h"))
                 {
                     WrappedCard card = room.GetCard(id);
                     if (card.Name == PeaceSpell.ClassName && lord != null) continue;
@@ -718,7 +727,7 @@ namespace SanguoshaServer.AI
             Player target = room.Current;
             List<int> ids = new List<int>();
             
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
                 if (RoomLogic.CanDiscard(room, player, player, id))
                     ids.Add(id);
             ai.SortByKeepValue(ref ids, false);

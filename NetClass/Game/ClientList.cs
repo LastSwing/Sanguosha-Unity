@@ -68,14 +68,6 @@ namespace CommonClass.Game
             return userRow;
         }
 
-        public DataRow FindUserRow(int UserID)
-        {
-            DataRow[] rows = clientTable.Select(string.Format("UserID = {0}", UserID));
-            if (rows.Length == 1)
-                return rows[0];
-            else
-                return null;
-        }
         public int FindUserId(string nick_name)
         {
             DataRow[] rows = clientTable.Select(string.Format("NickName = '{0}'", nick_name));
@@ -85,31 +77,14 @@ namespace CommonClass.Game
             return 0;
         }
 
-        public void LeaveDesk(int UserID)
-        {
-            DataRow row = FindUserRow(UserID);
-            if (row != null)
-            {
-                row["RoomNumber"] = 0;
-                row["RoomPosition"] = 0;
-            }
-        }
-
-        public void JoinDesk(int UserID, int newDeskNumber, int newDeskPosition)
-        {
-            DataRow row = FindUserRow(UserID);
-            if (row != null)
-            {
-                row["RoomNumber"] = newDeskNumber;
-                row["RoomPosition"] = newDeskPosition;
-            }
-        }
-
         public void AddClient(int id, string nick_name, int room_number = 0)
         {
-            lock (clientTable)
+            lock (clientTable.Rows.SyncRoot)
             {
-                RemoveClient(id);
+                DataRow[] rows = clientTable.Select(string.Format("UserID = {0}", id));
+                foreach (DataRow row in rows)
+                    clientTable.Rows.Remove(row);
+
                 DataRow newRow = clientTable.NewRow();
                 newRow["UserID"] = id;
                 newRow["NickName"] = nick_name;
@@ -121,20 +96,12 @@ namespace CommonClass.Game
 
         public void RemoveClient(int UserID)
         {
-            lock (clientTable)
+            lock (clientTable.Rows.SyncRoot)
             {
-                DataRow row = FindUserRow(UserID);
-                if (row != null)
-                {
+                DataRow[] rows = clientTable.Select(string.Format("UserID = {0}", UserID));
+                foreach (DataRow row in rows)
                     clientTable.Rows.Remove(row);
-                }
             }
-        }
-
-        public bool FindUser(int UserID)
-        {
-            DataRow row = FindUserRow(UserID);
-            return row == null ? false : true;
         }
 
         public DataRow[] GetHallExceptDeskUserList(string UserID)

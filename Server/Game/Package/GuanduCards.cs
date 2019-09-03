@@ -2,6 +2,7 @@
 using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace SanguoshaServer.Package
 {
@@ -62,7 +63,7 @@ namespace SanguoshaServer.Package
 
                         Player holder = room.Players[0];
                         room.AddToPile(holder, "#catapult", catapult, false);
-                        room.SetEmotion(move.From, "catapult");
+                        room.SetEmotion(move.From, "catapult_broken");
                     }
                 }
             }
@@ -83,6 +84,8 @@ namespace SanguoshaServer.Package
             if (data is DamageStruct damage && (damage.To.GetArmor() || damage.To.GetDefensiveHorse())
                 && room.AskForSkillInvoke(player, Name, damage.To))
             {
+                room.SetEmotion(player, "catapult_invoke");
+                Thread.Sleep(100);
                 return info;
             }
 
@@ -93,6 +96,9 @@ namespace SanguoshaServer.Package
         {
             if (data is DamageStruct damage && damage.To.Alive)
             {
+                room.SetEmotion(damage.To, "catapult_hit");
+                Thread.Sleep(200);
+
                 List<int> ids = new List<int>();
                 if (damage.To.GetArmor()) ids.Add(damage.To.Armor.Key);
                 if (damage.To.GetDefensiveHorse()) ids.Add(damage.To.DefensiveHorse.Key);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -52,6 +53,7 @@ namespace CommonClass.Game
         public bool Mute { get; set; } = false;
         public string Skill { get; set; } = string.Empty;
         public string ShowSkill { get; set; } = string.Empty;
+        //public ConcurrentBag<string> Flags { get; set; } = new ConcurrentBag<string>();
         public List<string> Flags { get; set; } = new List<string>();
         public bool Modified { get; set; } = false;
         public bool Cancelable { get; set; } = true;
@@ -151,31 +153,55 @@ namespace CommonClass.Game
             ExtraTarget = card.ExtraTarget;
             Cancelable = card.Cancelable;
         }
-
+        /*
         public void SetFlags(string flag)
         {
             string symbol_c = "-";
             if (string.IsNullOrEmpty(flag))
                 return;
             else if (flag == ".")
-                Flags.Clear();
+                Flags = new ConcurrentBag<string>();
             else if (flag.StartsWith(symbol_c))
             {
                 string copy = flag.Substring(1);
-                Flags.Remove(copy);
+                Flags.TryTake(out copy);
             }
             else if (!Flags.Contains(flag))
                 Flags.Add(flag);
         }
-
+        public void ClearFlags()
+        {
+            Flags = new ConcurrentBag<string>();
+        }
+        */
+        public void SetFlags(string flag)
+        {
+            lock (Flags)
+            {
+                string symbol_c = "-";
+                if (string.IsNullOrEmpty(flag))
+                    return;
+                else if (flag == ".")
+                    Flags.Clear();
+                else if (flag.StartsWith(symbol_c))
+                {
+                    string copy = flag.Substring(1);
+                    Flags.Remove(copy);
+                }
+                else if (!Flags.Contains(flag))
+                    Flags.Add(flag);
+            }
+        }
+        public void ClearFlags()
+        {
+            lock (Flags)
+            {
+                Flags.Clear();
+            }
+        }
         public bool HasFlag(string flag)
         {
             return Flags.Contains(flag);
-        }
-
-        public void ClearFlags()
-        {
-            Flags.Clear();
         }
 
         public int GetEffectiveId()

@@ -120,7 +120,11 @@ namespace SanguoshaServer.Package
         public static string ClassName = "Slash";
         public Slash() : base(ClassName)
         {
-            Instance = this;
+            if (this is FireSlash || this is ThunderSlash)
+            {
+            }
+            else
+                Instance = this;
         }
         public DamageStruct.DamageNature Nature => nature;
 
@@ -741,16 +745,14 @@ namespace SanguoshaServer.Package
             has_preact = true;
         }
 
-        public override void DoPreAction(Room room, Player player, WrappedCard card)
+        public override void Use(Room room, CardUseStruct card_use)
         {
-            room.SetEmotion(player, "amazine_grace");
-            List<int> card_ids = room.GetNCards(room.GetAllPlayers().Count);
+            room.SetEmotion(card_use.From, "amazine_grace");
+            List<int> card_ids = room.GetNCards(card_use.To.Count);
             room.SetTag(Name, card_ids);
             room.SetTag("AmazingGraceOrigin", new List<int>(card_ids));
             room.FillAG(Name, card_ids);
-        }
-        public override void Use(Room room, CardUseStruct card_use)
-        {
+
             base.Use(room, card_use);
             ClearRestCards(room);
         }
@@ -793,14 +795,18 @@ namespace SanguoshaServer.Package
                 if (slash.Skill == Spear.ClassName)
                 {
                     room.SetEmotion(effect.To, "spear");
-                    Thread.Sleep(400);
+                    Thread.Sleep(200);
                 }
 
-                FunctionCard fcard = Slash.Instance;
+                FunctionCard fcard = Engine.GetFunctionCard(slash.Name);
                 if (fcard != null && fcard is Slash)
                 {
                     string color = WrappedCard.IsRed(RoomLogic.GetCardSuit(room, slash)) ? "red_" : "black_";
-                    string type_str = (fcard is ThunderSlash) ? "thunder_" : (fcard is FireSlash) ? "fire_" : string.Empty;
+                    string type_str = string.Empty;
+                    if (fcard is ThunderSlash)
+                        type_str = "thunder_";
+                    else if (fcard is FireSlash)
+                        type_str = "fire_";
                     room.SetEmotion(effect.To, string.Format("{0}{1}slash", color, type_str));
                 }
             }
@@ -1035,6 +1041,26 @@ namespace SanguoshaServer.Package
                     {
                         stop = true;
                         break;
+                    }
+                    else
+                    {
+                        if (slash.Skill == Spear.ClassName)
+                        {
+                            room.SetEmotion(first, "spear");
+                            Thread.Sleep(200);
+                        }
+
+                        FunctionCard fcard = Engine.GetFunctionCard(slash.Name);
+                        if (fcard != null && fcard is Slash)
+                        {
+                            string color = WrappedCard.IsRed(RoomLogic.GetCardSuit(room, slash)) ? "red_" : "black_";
+                            string type_str = string.Empty;
+                            if (fcard is ThunderSlash)
+                                type_str = "thunder_";
+                            else if (fcard is FireSlash)
+                                type_str = "fire_";
+                            room.SetEmotion(first, string.Format("{0}{1}slash", color, type_str));
+                        }
                     }
                 }
                 if (!stop)
@@ -1705,7 +1731,7 @@ namespace SanguoshaServer.Package
         {
             bool rec = (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_PLAY) && card.CanRecast
                 && !RoomLogic.IsCardLimited(room, to_select, card, HandlingMethod.MethodRecast);
-            List<int> sub = new List<int>(card.SubCards), hand_cards = new List<int>(to_select.HandCards);
+            List<int> sub = new List<int>(card.SubCards), hand_cards = to_select.GetCards("h");
             foreach (int id in sub)
             {
                 if (!hand_cards.Contains(id))
@@ -2079,7 +2105,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            return base.Cost(room, ref data, info);
+            room.SetTag(Name, data);
+            TriggerStruct invoke = base.Cost(room, ref data, info);
+            room.RemoveTag(Name);
+            return invoke;
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {

@@ -528,7 +528,7 @@ namespace SanguoshaServer.AI
             if (player.GetMark("@lord") == 0 || player.IsKongcheng() || !ai.IsSituationClear()) return result;
 
             Room room = ai.Room;
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
             {
                 WrappedCard card = room.GetCard(id);
                 if (RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodUse))
@@ -989,7 +989,7 @@ namespace SanguoshaServer.AI
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             Room room = ai.Room;
-            List<int> ids = new List<int>(player.HandCards);
+            List<int> ids = player.GetCards("h");
             ids.AddRange(player.GetHandPile());
 
             foreach (int id in ids)

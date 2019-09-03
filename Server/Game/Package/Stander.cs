@@ -1391,7 +1391,8 @@ namespace SanguoshaServer.Package
 
     public class QiangxiCard : SkillCard
     {
-        public QiangxiCard() : base("QiangxiCard")
+        public static string ClassName = "QiangxiCard";
+        public QiangxiCard() : base(ClassName)
         {
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -1422,7 +1423,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasUsed("QiangxiCard");
+            return !player.HasUsed(QiangxiCard.ClassName);
         }
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
@@ -1433,7 +1434,7 @@ namespace SanguoshaServer.Package
         {
             if (cards.Count == 0)
             {
-                WrappedCard card = new WrappedCard("QiangxiCard")
+                WrappedCard card = new WrappedCard(QiangxiCard.ClassName)
                 {
                     Skill = Name,
                     ShowSkill = Name
@@ -1442,7 +1443,7 @@ namespace SanguoshaServer.Package
             }
             else if (cards.Count == 1)
             {
-                WrappedCard card = new WrappedCard("QiangxiCard")
+                WrappedCard card = new WrappedCard(QiangxiCard.ClassName)
                 {
                     Skill = Name,
                     ShowSkill = Name
@@ -1618,7 +1619,7 @@ namespace SanguoshaServer.Package
             if (player.IsNude() || caopi == player)
                 return false;
 
-            List<int> ids = new List<int>(player.HandCards);
+            List<int> ids= player.GetCards("h");
             ids.AddRange(player.GetEquips());
 
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, caopi.Name);
@@ -5394,9 +5395,20 @@ namespace SanguoshaServer.Package
                     Player target = room.AskForPlayerChosen(player, targets, "qingcheng", "@qingcheng", true, false, effect.Card.SkillPosition);
                     if (target != null)
                     {
-                        CardEffectStruct new_effect = effect;
-                        effect.To = target;
-                        OnEffect(room, new_effect);
+                        choices.Clear();
+                        if (!Engine.GetGeneral(target.General1, room.Setting.GameMode).IsLord() && !target.General1.Contains("sujiang") && !target.IsDuanchang(true))
+                            choices.Add(target.General1);
+                        if (!string.IsNullOrEmpty(target.General2) && !target.General2.Contains("sujiang") && !target.IsDuanchang(false))
+                            choices.Add(target.General2);
+
+                        if (choices.Count > 0)
+                        {
+                            string choice = choices[0];
+                            if (choices.Count == 2)
+                                choice = room.AskForGeneral(player, choices, null, true, "qingcheng");
+
+                            room.HideGeneral(target, choice == target.General1);
+                        }
                     }
                 }
             }
@@ -6840,9 +6852,9 @@ namespace SanguoshaServer.Package
             int n1 = a.HandcardNum;
             int n2 = b.HandcardNum;
 
-            CardsMoveStruct move1 = new CardsMoveStruct(new List<int>(a.HandCards), b, Place.PlaceHand,
+            CardsMoveStruct move1 = new CardsMoveStruct(a.GetCards("h"), b, Place.PlaceHand,
                 new CardMoveReason(CardMoveReason.MoveReason.S_REASON_SWAP, a.Name, b.Name, "dimeng", null));
-            CardsMoveStruct move2 = new CardsMoveStruct(new List<int>(b.HandCards), a, Place.PlaceHand,
+            CardsMoveStruct move2 = new CardsMoveStruct(b.GetCards("h"), a, Place.PlaceHand,
                 new CardMoveReason(CardMoveReason.MoveReason.S_REASON_SWAP, b.Name, a.Name, "dimeng", null));
             List<CardsMoveStruct> exchangeMove = new List<CardsMoveStruct> { move1, move2 };
             room.MoveCards(exchangeMove, false);

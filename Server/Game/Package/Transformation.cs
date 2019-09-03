@@ -96,8 +96,9 @@ namespace SanguoshaServer.Package
             room.DrawCards(xunyu, 1, Name);
             room.ShowAllCards(xunyu);
             bool same = true;
-            bool isRed = WrappedCard.IsRed(room.GetCard(xunyu.HandCards[0]).Suit);
-            foreach (int id in xunyu.HandCards) {
+            bool isRed = WrappedCard.IsRed(room.GetCard(xunyu.GetCards("h")[0]).Suit);
+            foreach (int id in xunyu.GetCards("h"))
+            {
                 if (WrappedCard.IsRed(room.GetCard(id).Suit) != isRed)
                 {
                     same = false;
@@ -268,7 +269,7 @@ namespace SanguoshaServer.Package
             if (cards.Count == 1 && cards[0].Id < 0)
             {
                 WrappedCard card = new WrappedCard(QiceCard.ClassName);
-                card.AddSubCards(player.HandCards);
+                card.AddSubCards(player.GetCards("h"));
                 card.UserString = cards[0].Name;
                 return card;
             }
@@ -278,7 +279,7 @@ namespace SanguoshaServer.Package
         {
             if (!player.IsKongcheng() && !player.HasUsed(QiceCard.ClassName))
             {
-                foreach (int id in player.HandCards)
+                foreach (int id in player.GetCards("h"))
                 {
                     WrappedCard card = room.GetCard(id);
                     if (RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse))
@@ -305,7 +306,7 @@ namespace SanguoshaServer.Package
                 {
                     CanRecast = false
                 };
-                card.AddSubCards(player.HandCards);
+                card.AddSubCards(player.GetCards("h"));
                 card = RoomLogic.ParseUseCard(room, card);
                 if (CheckGuhuo(room, card, player)) all_cards.Add(card);
             }
@@ -877,7 +878,8 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.GeneralShown && base.Triggerable(player, room) && player.GetMark(Name) == 0 && data is bool head)
+            if (triggerEvent == TriggerEvent.GeneralShown && base.Triggerable(player, room) && player.GetMark(Name) == 0
+                && data is bool head && (head ? RoomLogic.GetHeadActivedSkills(room, player).Contains(this) : RoomLogic.GetDeputyActivedSkills(room, player).Contains(this)))
             {
                 player.SetMark(Name, 1);
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, head ? "head" : "deputy");
@@ -897,7 +899,6 @@ namespace SanguoshaServer.Package
         {
             return new TriggerStruct();
         }
-        
     }
 
     public class YiguiClear : DetachEffectSkill

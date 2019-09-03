@@ -116,9 +116,20 @@ namespace SanguoshaServer.Game
                             name = name.Substring(1);
                         }
                         //国战鏖战模式对桃特殊判断
-                        bool name_match = room.BloodBattle && card.Name == Peach.ClassName && !RoomLogic.IsVirtualCard(room, card)
-                            ? name == Slash.ClassName || name == Jink.ClassName || name == "%Slash" || name == "%Jink"
-                            : Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true || ("%" + card.Name == name);
+
+                        bool name_match = false;
+                        if (room.BloodBattle && card.Name == Peach.ClassName && !RoomLogic.IsVirtualCard(room, card))
+                        {
+                            if (positive && (name == Slash.ClassName || name == "%Slash" || name == Jink.ClassName || name == "%Jink"))
+                                name_match = true;
+                            else if (positive && (name == Peach.ClassName || name == "%Peach"))
+                                name_match = false;
+                            else
+                                name_match = Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true || ("%" + card.Name == name);
+                        }
+                        else
+                            name_match = Engine.GetFunctionCard(card.Name)?.IsKindOf(name) == true || ("%" + card.Name == name);
+                        
                         if (name_match || (int.TryParse(name, out int id) && card.GetEffectiveId() == id))
                             checkpoint = positive;
                         else
@@ -217,7 +228,7 @@ namespace SanguoshaServer.Game
                             }
                             else if (p == "hand" && sub_card.Id >= 0)
                             {
-                                foreach (int h_id in player.HandCards) {
+                                foreach (int h_id in player.GetCards("h")) {
                                     if (h_id == id)
                                     {
                                         checkpoint = true;

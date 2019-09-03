@@ -395,7 +395,7 @@ namespace SanguoshaServer.AI
             List<int> ids = new List<int>();
             if (who == self)
             {
-                ids = new List<int>(self.HandCards);
+                ids= self.GetCards("h");
             }
             else
             {
@@ -412,7 +412,7 @@ namespace SanguoshaServer.AI
             List<int> ids = new List<int>();
             if (who == self)
             {
-                ids = new List<int>(self.HandCards);
+                ids= self.GetCards("h");
                 ids.AddRange(who.GetHandPile());
             }
             else
@@ -434,7 +434,7 @@ namespace SanguoshaServer.AI
             List<int> ids = new List<int>();
             if (self == player)
             {
-                foreach (int id in self.HandCards)
+                foreach (int id in self.GetCards("h"))
                 {
                     if (pre_drink != null && pre_drink.SubCards.Contains(id)) continue;
                     ids.Add(id);
@@ -498,6 +498,10 @@ namespace SanguoshaServer.AI
         {
             List<WrappedCard> result = new List<WrappedCard>();
             WrappedCard card = room.GetCard(id);
+            WrappedCard engine_card = Engine.GetRealCard(id);
+            if (room.GetCardPlace(id) == Place.PlaceDelayedTrick && place == Place.PlaceHand && card.Name != engine_card.Name)
+                card = engine_card;
+
             if (card.Name == Peach.ClassName && room.BloodBattle && room.Setting.GameMode == "Hegemony")
             {
                 WrappedCard slash = new WrappedCard(Slash.ClassName);
@@ -871,6 +875,16 @@ namespace SanguoshaServer.AI
                         expect += 11;
                         if (IsFriend(player))
                             expect_self += 11;
+
+                        if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                        {
+                            double use_value = GetUseValue(light, from);
+                            if (use_value > 0)
+                            {
+                                expect += use_value;
+                                expect_self += use_value;
+                            }
+                        }
                     }
                     if (times > result.Count && indu >= 0 && !(HasSkill("guanxing|yizhi", player)
                             && room.GetAlivePlayers().Count > 3) && !HasSkill("guanxing+yizhi", player))
@@ -881,6 +895,16 @@ namespace SanguoshaServer.AI
                             expect_self += 10;
                         else if (IsEnemy(player))
                             expect_self -= 10;
+
+                        if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                        {
+                            double use_value = GetUseValue(indu, from);
+                            if (use_value > 0)
+                            {
+                                expect += use_value;
+                                expect_self += use_value;
+                            }
+                        }
                     }
                     if (times > result.Count && supply >= 0 && !(HasSkill("guanxing|yizhi", player)
                             && room.GetAlivePlayers().Count > 3) && !HasSkill("guanxing+yizhi", player))
@@ -891,6 +915,16 @@ namespace SanguoshaServer.AI
                             expect_self += 8;
                         else if (IsEnemy(player))
                             expect_self -= 8;
+
+                        if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                        {
+                            double use_value = GetUseValue(supply, from);
+                            if (use_value > 0)
+                            {
+                                expect += use_value;
+                                expect_self += use_value;
+                            }
+                        }
                     }
                     if (times > result.Count && light >= 0 && !result.Contains(light) && light_effect > GetEnemies(from).Count)
                     {
@@ -905,7 +939,7 @@ namespace SanguoshaServer.AI
                 {
                     if (player.HandcardNum - hand_ajust == times - result.Count)
                     {
-                        result.AddRange(player.HandCards);
+                        result.AddRange(player.GetCards("h"));
                         expect += 5;
                         if (IsFriend(player))
                             expect_self += 5;
@@ -924,6 +958,12 @@ namespace SanguoshaServer.AI
                     foreach (int id in ids)
                     {
                         double value = GetKeepValue(id, player);     // todo:
+                        if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                        {
+                            double use_value = GetUseValue(id, from);
+                            if (use_value > 0)
+                                value -= use_value / 2;             //拿友方的价值减半
+                        }
                         if (value < 0)
                         {
                             values.Add(value);
@@ -1039,8 +1079,8 @@ namespace SanguoshaServer.AI
 
                     foreach (int id in equip_ids)
                     {
-                        double value = 0 - GetKeepValue(id, player);     // todo:
-                        if (value < 0)
+                        double value = GetKeepValue(id, player);     // todo:
+                        if (value > 0)
                         {
                             //在局势不明朗时对拆装备的打分进行修正,让AI不会积极的行动
                             if (!IsSituationClear())
@@ -1055,24 +1095,28 @@ namespace SanguoshaServer.AI
                                         value = value * 2 / 3;
                                 }
                             }
+                            if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                                value += GetUseValue(id, from);
+
                             maps.Add(id, value);
                         }
                     }
                 }
+
                 equip_ids = new List<int>(maps.Keys);
-                equip_ids.Sort((x, y) => { return maps[x] < maps[y] ? -1 : 1; });
+                equip_ids.Sort((x, y) => { return maps[x] > maps[y] ? -1 : 1; });
 
                 double hand_value = 0;
                 double singel_value = 0;
                 if (flags.Contains("h") && CanOperate(self, player, "h", method) && times > result.Count)
                 {
-                    foreach (int id in player.HandCards)
+                    foreach (int id in player.GetCards("h"))
                     {
                         if (disable.Contains(id)) continue;
                         if (GetKnownCards(player).Contains(id))
-                            hand_value -= GetKeepValue(id, player);
+                            hand_value += GetKeepValue(id, player);
                         else
-                            hand_value -= (player.HandcardNum - hand_ajust > 8 ? 2 : (player.HandcardNum - hand_ajust > 5 ? 3 : 4));
+                            hand_value += (player.HandcardNum - hand_ajust > 8 ? 2 : (player.HandcardNum - hand_ajust > 5 ? 3 : 4));
                     }
                     singel_value = hand_value / (player.HandcardNum - hand_ajust);
 
@@ -1081,12 +1125,15 @@ namespace SanguoshaServer.AI
                     if (singel_value == hand_value)
                     {
                         if (NeedKongcheng(player))
-                            hand_value = 100;
+                            hand_value = -100;
                     }
 
                     //在局势不明朗时对拆手牌的打分进行修正,让AI不会积极的行动，手牌分数仅为1/4
                     if (room.Setting.GameMode == "Hegemony" && !IsSituationClear())
                         singel_value /= 4;
+
+                    if (IsFriend(from) && singel_value > 0 && method == HandlingMethod.MethodGet)
+                        singel_value *= 1.3;
                 }
 
                 double adjust = 0;                                               //if not move only once,
@@ -1111,7 +1158,7 @@ namespace SanguoshaServer.AI
 
                     //room.OutPut("equip value " + value.ToString());
 
-                    if (hand_value < 0 && (equip_ids.Count == 0 || singel_value < value) && singel_value < 0)
+                    if (hand_value > 0 && (equip_ids.Count == 0 || singel_value > value) && singel_value > 0)
                     {
                         bool append = false;
                         while (!append)
@@ -1123,29 +1170,34 @@ namespace SanguoshaServer.AI
                                 append = true;
                             }
                         }
-                        expect -= singel_value;
+                        expect += singel_value;
                         if (IsFriend(player))
-                            expect_self += singel_value;
-                        else if (IsEnemy(player))
                             expect_self -= singel_value;
+                        else if (IsEnemy(player))
+                            expect_self += singel_value;
+                        else
+                            expect_self += singel_value / 3;
+
                         hand++;
                         hand_value = (hand == player.HandcardNum ? 0 : hand_value - singel_value);
                         if (singel_value == hand_value)
                         {
                             if (NeedKongcheng(player))
-                                hand_value = 100;
+                                hand_value = -100;
                         }
                     }
-                    else if (value < singel_value && value < 0 && (eq == 0 || value + adjust < 0))
+                    else if (value > singel_value && value > 0 && (eq == 0 || value + adjust > 0))
                     {
                         int id = equip_ids[0];
                         equip_ids.Remove(id);
                         result.Add(id);
                         expect -= (value + (eq == 0 ? 0 : adjust));
                         if (IsFriend(player))
-                            expect_self += (value + (eq == 0 ? 0 : adjust));
-                        else if (IsEnemy(player))
                             expect_self -= (value + (eq == 0 ? 0 : adjust));
+                        else if (IsEnemy(player))
+                            expect_self += (value + (eq == 0 ? 0 : adjust));
+                        else
+                            expect_self += (value + (eq == 0 ? 0 : adjust / 3));
                         eq++;
                     }
                     else
@@ -1181,18 +1233,6 @@ namespace SanguoshaServer.AI
             score.Ids = result;
             if (priority_enemies.Contains(player))
                 expect_self *= 1.2;
-
-            if (method == HandlingMethod.MethodGet)
-            {
-                double get_value = 0;
-                foreach (int id in result)
-                    get_value += GetUseValue(id, from, Place.PlaceHand);
-
-                if (IsFriend(from))
-                    expect_self += get_value;
-                else if (IsEnemy(from))
-                    expect_self -= get_value;
-            }
 
             score.Score = expect_self;
             return score;
@@ -2035,7 +2075,7 @@ namespace SanguoshaServer.AI
         public bool HasCrossbowEffect(Player player)
         {
             WrappedCard slash = new WrappedCard(Slash.ClassName);
-            if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash) > 5 || GetCards(CrossBow.ClassName, player).Count > 0)
+            if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash) > 5 || GetKnownCardsNums(CrossBow.ClassName, "he", player) > 0)
                 return true;
 
             return false;
@@ -2511,7 +2551,7 @@ namespace SanguoshaServer.AI
                 foreach (Player target in targets)
                 {
                     ClearPreInfo();
-                    if (!RoomLogic.CanSlash(room, player, target) || SlashProhibit(slash, target, player)) continue;
+                    if (!RoomLogic.CanSlash(room, player, target, slash) || SlashProhibit(slash, target, player)) continue;
                     available_targets.Add(target, SlashIsEffective(slash, target));
                 }
 
@@ -3566,8 +3606,8 @@ namespace SanguoshaServer.AI
 
         public KeyValuePair<Player, int> GetCardNeedPlayer(List<int> ids = null, List<Player> players = null, Place dest_place = Place.PlaceHand)
         {
-            if (ids == null || ids.Count == 0)
-                ids = GetKnownCards(self);
+            ids = ids??GetKnownCards(self);
+            if (ids.Count == 0) return new KeyValuePair<Player, int>();
 
             List<Player> weaks = new List<Player>(), acts = new List<Player>();
             Player target = null;
@@ -3611,6 +3651,7 @@ namespace SanguoshaServer.AI
 
                 if (result > -1)
                 {
+                    Debug.Assert(ids.Contains(result));
                     return new KeyValuePair<Player, int>(current, result);
                 }
             }
@@ -3640,7 +3681,11 @@ namespace SanguoshaServer.AI
                         result = id;
                     }
                 }
-                if (result >= 0) return new KeyValuePair<Player, int>(target, result);
+                if (result >= 0)
+                {
+                    Debug.Assert(ids.Contains(result));
+                    return new KeyValuePair<Player, int>(target, result);
+                }
             }
 
             foreach (Player p in players)
@@ -3664,7 +3709,11 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-            if (target != null) return new KeyValuePair<Player, int>(target, result);
+            if (target != null)
+            {
+                Debug.Assert(ids.Contains(result));
+                return new KeyValuePair<Player, int>(target, result);
+            }
 
             foreach (Player p in acts)
             {
@@ -3687,7 +3736,11 @@ namespace SanguoshaServer.AI
                         result = id;
                     }
                 }
-                if (result >= 0) return new KeyValuePair<Player, int>(target, result);
+                if (result >= 0)
+                {
+                    Debug.Assert(ids.Contains(result));
+                    return new KeyValuePair<Player, int>(target, result);
+                }
             }
 
             return new KeyValuePair<Player, int>();
@@ -4819,7 +4872,7 @@ namespace SanguoshaServer.AI
                         {
                             if (judge.Name == Lightning.ClassName)
                             {
-                                if (for_light != null && for_light.Count == 0)
+                                if (for_light == null || for_light.Count == 0)
                                     break;
                                 else
                                 {
@@ -5124,7 +5177,7 @@ namespace SanguoshaServer.AI
             sames.Add(card);
 
             //如果白银狮子价值最高，则先用（通常是角色已受伤)
-            SortByUseValue(ref sames);
+            List<double> values = SortByUseValue(ref sames);
             if (sames[0].Name == SilverLion.ClassName)
             {
                 if (HasSkill("bazhen"))
@@ -5175,7 +5228,7 @@ namespace SanguoshaServer.AI
             if (!use_same)
             {
                 WrappedCard same = GetSameEquip(card, self);
-                double value = GetUseValue(sames[0], self);
+                double value = values[0];
                 if (same != null)
                 {
                     bool keep = false;
@@ -5210,13 +5263,13 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public List<WrappedCard> FindSameEquipCards(WrappedCard card, bool hand_only = false)
+        public List<WrappedCard> FindSameEquipCards(WrappedCard card, bool hand_only = false, bool sort = true)
         {
             List<WrappedCard> result = new List<WrappedCard>();
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
             if (fcard is EquipCard equip)
             {
-                List<int> ids = new List<int>(self.HandCards);
+                List<int> ids = self.GetCards("h");
                 if (!hand_only)
                     ids.AddRange(self.GetHandPile());
 
@@ -5235,35 +5288,38 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                foreach (int id in equips)
+                if (sort)
                 {
-                    WrappedCard _card = room.GetCard(id);
-                    List<WrappedCard> cards = GetViewAsCards(self, id);
-                    Dictionary<WrappedCard, double> points = new Dictionary<WrappedCard, double>();
-                    foreach (WrappedCard c in cards)
+                    foreach (int id in equips)
                     {
-                        points[c] = GetUseValue(c, self);
-                    }
-                    cards.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
-                    foreach (WrappedCard c in cards)
-                    {
-                        if (c.Name == _card.Name)
+                        WrappedCard _card = room.GetCard(id);
+                        List<WrappedCard> cards = GetViewAsCards(self, id);
+                        Dictionary<WrappedCard, double> points = new Dictionary<WrappedCard, double>();
+                        foreach (WrappedCard c in cards)
                         {
-                            result.Add(c);
-                            break;
+                            points[c] = GetUseValue(c, self);
                         }
-
-                        FunctionCard _fcard = Engine.GetFunctionCard(c.Name);
-                        if (_fcard.IsAvailable(room, self, c))
+                        cards.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
+                        foreach (WrappedCard c in cards)
                         {
-                            CardUseStruct _use = new CardUseStruct(c, self, new List<Player>())
+                            if (c.Name == _card.Name)
                             {
-                                IsDummy = true
-                            };
-                            UseCard use_event = Engine.GetCardUsage(c.Name);
-                            use_event.Use(this, self, ref _use, c);
-                            if (_use.Card != null)
+                                result.Add(c);
                                 break;
+                            }
+
+                            FunctionCard _fcard = Engine.GetFunctionCard(c.Name);
+                            if (_fcard.IsAvailable(room, self, c))
+                            {
+                                CardUseStruct _use = new CardUseStruct(c, self, new List<Player>())
+                                {
+                                    IsDummy = true
+                                };
+                                UseCard use_event = Engine.GetCardUsage(c.Name);
+                                use_event.Use(this, self, ref _use, c);
+                                if (_use.Card != null)
+                                    break;
+                            }
                         }
                     }
                 }
@@ -5297,7 +5353,7 @@ namespace SanguoshaServer.AI
             return value;
         }
 
-        public double AjudstDHorseValue(Player player, WrappedCard card, Player.Place place)
+        public double AjudstDHorseValue(Player player, WrappedCard card, Place place)
         {
             double value = 0;
             if (place != Place.PlaceEquip && (player.GetDefensiveHorse() || player.GetSpecialEquip())) return value;
@@ -5308,12 +5364,12 @@ namespace SanguoshaServer.AI
                     if (RoomLogic.InMyAttackRange(room, p, player) && !RoomLogic.InMyAttackRange(room, p, player, null, 1))
                     {
                         if (IsFriend(player) || IsFriend(p))
-                            value += 0.5;
+                            value += 0.65;
                     }
 
                     if (RoomLogic.DistanceTo(room, p, player, null, true) == 1)
                         if (IsFriend(player) || IsFriend(p))
-                            value += 0.4;
+                            value += 1;
                 }
             }
             else
@@ -5323,32 +5379,43 @@ namespace SanguoshaServer.AI
                     if (!RoomLogic.InMyAttackRange(room, p, player) && RoomLogic.InMyAttackRange(room, p, player, null, -1))
                     {
                         if (IsFriend(player) || IsFriend(p))
-                            value += 0.5;
+                            value += 0.65;
                     }
 
                     if (RoomLogic.DistanceTo(room, p, player, null, true) == 2)
                         if (IsFriend(player) || IsFriend(p))
-                            value += 0.4;
+                            value += 1;
                 }
             }
 
             return value;
         }
 
-        public double AjustOHorseValue(Player player, WrappedCard card)
+        public double AjustOHorseValue(Player player, WrappedCard card, Place place)
         {
             double value = 0;
-            foreach (Player p in GetEnemies(player))
+            if (place != Place.PlaceEquip && (player.GetOffensiveHorse() || player.GetSpecialEquip())) return value;
+            if (place != Place.PlaceEquip)
             {
-                if (!RoomLogic.InMyAttackRange(room, player, p) && RoomLogic.InMyAttackRange(room, player, p, null, -1))
+                foreach (Player p in GetEnemies(player))
                 {
-                    if (IsFriend(player) || IsFriend(p))
-                        value += 0.5;
-                }
+                    if (!RoomLogic.InMyAttackRange(room, player, p) && RoomLogic.InMyAttackRange(room, player, p, null, -1))
+                    {
+                        if (IsFriend(player) || IsFriend(p))
+                            value += 0.5;
+                    }
 
-                if (RoomLogic.DistanceTo(room, p, player, null, true) == 1 && RoomLogic.DistanceTo(room, p, player, card, true) > 1)
-                    if (IsFriend(player) || IsFriend(p))
-                        value += 0.4;
+                    if (RoomLogic.DistanceTo(room, p, player, null, true) == 1 && RoomLogic.DistanceTo(room, p, player, card, true) > 1)
+                        if (IsFriend(player) || IsFriend(p))
+                            value += 0.4;
+                }
+            }
+
+            if (player == self && FindSameEquipCards(card, false, false).Count == 0 && HasCrossbowEffect(player))
+            {
+                foreach (Player p in GetEnemies(player))
+                    if (RoomLogic.DistanceTo(room, player, p, null, true) == 2)
+                        value += 0.1;
             }
 
             return value;
@@ -5504,6 +5571,23 @@ namespace SanguoshaServer.AI
                 //{
                 //    GuanxingDebug(upcards, downcards, result.Top, result.Bottom);
                 //}
+            }
+
+            return result;
+        }
+        public virtual AskForMoveCardsStruct AskForSortCards(List<int> cards, string reason)
+        {
+            AskForMoveCardsStruct result = new AskForMoveCardsStruct
+            {
+                Bottom = new List<int>(),
+                Top = new List<int>(),
+                Success = false
+            };
+
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+            {
+                result = e.OnMoveCards(this, self, new List<int>(cards), new List<int>(), 0, 0);
             }
 
             return result;

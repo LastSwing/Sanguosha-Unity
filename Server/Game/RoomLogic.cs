@@ -2,6 +2,7 @@
 using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -825,6 +826,7 @@ namespace SanguoshaServer.Game
             {
                 case Place.PlaceHand:
                     {
+                        Debug.Assert(player.HandCards.Contains(card_id));
                         player.HandCards.Remove(card_id);
                         break;
                     }
@@ -882,6 +884,7 @@ namespace SanguoshaServer.Game
             {
                 case Place.PlaceHand:
                     {
+                        Debug.Assert(!player.HandCards.Contains(card_id));
                         player.HandCards.Add(card_id);
                         break;
                     }
@@ -927,7 +930,7 @@ namespace SanguoshaServer.Game
         public static List<WrappedCard> GetPlayerHandcards(Room room, Player player)
         {
             List<WrappedCard> cards = new List<WrappedCard>();
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
                 cards.Add(room.GetCard(id));
             return cards;
         }

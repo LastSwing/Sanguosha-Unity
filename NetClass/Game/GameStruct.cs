@@ -943,6 +943,7 @@ namespace CommonClass.Game
 
     public struct AskForMoveCardsStruct
     {
+        public List<int> Moves { set; get; }
         public List<int> Top { set; get; }
         public List<int> Bottom { set; get; }
         public bool Success { set; get; }

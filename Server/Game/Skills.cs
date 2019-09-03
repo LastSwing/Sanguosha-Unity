@@ -174,6 +174,7 @@ namespace SanguoshaServer.Game
             this.name = name;
         }
         public virtual bool MoveFilter(Room room, int id, List<int> downs) => true;
+        public virtual bool SortFilter(Room room, List<int> to_sorts, List<int> ups, List<int> downs) => false;
     }
 
     public class TriggerSkill : Skill

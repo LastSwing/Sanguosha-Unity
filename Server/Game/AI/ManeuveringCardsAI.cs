@@ -100,7 +100,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             ai.Target[Name] = null;
             if (player.HasUsed(ClassicWoodenOxCard.ClassName) || player.IsKongcheng() || player.GetPile("wooden_ox").Count >= 5) return null;
-            List<int> cards = new List<int>(player.HandCards);
+            List<int> cards= player.GetCards("h");
 
             int sub = -1;
             foreach (int id in cards)
@@ -296,7 +296,7 @@ namespace SanguoshaServer.AI
                 {
                     Skill = Name
                 };
-                card.AddSubCards(player.HandCards);
+                card.AddSubCards(player.GetCards("h"));
                 return new List<WrappedCard> { card };
             }
 

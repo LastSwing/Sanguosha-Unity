@@ -271,7 +271,7 @@ namespace SanguoshaServer.Scenario
                 case PlayerPhase.Discard:
                     {
                         List<int> handcards = new List<int>();
-                        foreach (int id in player.HandCards)
+                        foreach (int id in player.GetCards("h"))
                             if (!Engine.IgnoreHandCard(room, player, id))
                                 handcards.Add(id);
 

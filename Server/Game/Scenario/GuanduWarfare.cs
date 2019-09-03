@@ -133,7 +133,7 @@ namespace SanguoshaServer.Scenario
             room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             //按武将强度排序
-            List<string> prefer_cools = new List<string>{ "xunyou", "xunyu", "chengyu", "guojia", "liuye", "caoren", "guanyu_sp", "xuhuang", "zhangliao_jx",
+            List<string> prefer_cools = new List<string>{ "xunyou", "xunyu", "chengyu", "guojia", "liuye", "caoren", "guanyu_sp", "xuhuang_jx", "zhangliao_jx",
                 "hanhaoshihuan", "yujin", "caohong" };
             List<string> prefer_warms = new List<string>{ "chunyuqiong", "xunchen", "shenpei", "liubei_gd", "chenlin_gd", "jvshou",  "xuyou", "zhanghe_gd", "gaolan",
                 "guotupangji", "tianfeng", "yanliangwenchou" };
@@ -440,7 +440,7 @@ namespace SanguoshaServer.Scenario
 
             //杀死敌对阵营获得其手牌
             if (killer != null && killer.Alive && killer.Camp != player.Camp && !player.IsKongcheng())
-                room.ObtainCard(killer, new List<int>(player.HandCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, killer.Name));
+                room.ObtainCard(killer, player.GetCards("h"), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, killer.Name));
 
             room.BuryPlayer(player);
 

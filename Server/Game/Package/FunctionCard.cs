@@ -330,7 +330,7 @@ namespace SanguoshaServer.Package
                     && !RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodRecast));
             if (!rec) return false;
 
-            List<int> hand_cards = player.HandCards;
+            List<int> hand_cards = player.GetCards("h");
 
             if (card.SubCards.Count == 0) return false;
 
@@ -650,7 +650,7 @@ namespace SanguoshaServer.Package
             string str = RoomLogic.CardToString(room, card_use.Card);
             List<string> nullified_list = room.ContainsTag("CardUseNullifiedList") ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
             bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
-            if (all_nullified || targets.Count == 0)
+            if (all_nullified || targets.Count == 0 || RoomLogic.PlayerContainsTrick(room, targets[0], Name))
             {
                 if (movable)
                 {

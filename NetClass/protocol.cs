@@ -12,7 +12,7 @@ namespace CommonClassLibrary
         TypeUnknown
     }
 
-    public enum protocol
+    public enum Protocol
     {
         Unknown,
 
@@ -87,6 +87,10 @@ namespace CommonClassLibrary
         //客户端格式 Body[0] = "lord" or "rebel"
         #endregion
         RoleReserved,
+        #region 客户端向服务器发送点将信息
+        //客户端格式 Body = new List<string>{ "caocao" , "liubei"}
+        #endregion
+        GeneralReserved,
 
         //Game                  type == TypeGameControll
         GameRequest,
@@ -225,6 +229,7 @@ namespace CommonClassLibrary
         S_COMMAND_TRIGGER_ORDER,
         S_COMMAND_CHANGE_SKIN,
         S_COMMAND_SKILL_MOVECARDS,
+        S_COMMAND_SKILL_SORTCARDS,
         S_COMMAND_MIRROR_MOVECARDS_STEP,
         S_COMMAND_SET_VISIBLE_CARDS,
         S_COMMAND_GLOBAL_CHOOSECARD,
@@ -233,7 +238,8 @@ namespace CommonClassLibrary
         S_COMMAND_MAPPING_PLAYER,
         S_COMMAND_OWNER_CHANGE,
         S_COMMAND_UPDATE_PRIVATE_PILE,
-        S_COMMAND_UPDATE_CARD_FOOTNAME
+        S_COMMAND_UPDATE_CARD_FOOTNAME,
+        S_COMMAND_SHOWDISTANCE
     };
 
     public enum GameEventType
@@ -259,7 +265,14 @@ namespace CommonClassLibrary
         S_GAME_EVENT_CLIENT_TIP,
         S_GAME_EVENT_CHAIN_ANIMATION,
         S_GAME_EVENT_SHEFU,
+        S_GAME_EVENT_SHOWDISTANCE,
     };
+
+    public enum MoveCardType
+    {
+        S_TYPE_MOVE,
+        S_TYPE_SORT,
+    }
 
     public enum RequestType
     {
@@ -323,7 +336,7 @@ namespace CommonClassLibrary
     public class MyData
     {
         public PacketDescription Description { get; set; }
-        public protocol Protocol { get; set; }
+        public Protocol Protocol { get; set; }
         public List<string> Body { get; set; }
     }
     public struct Profile

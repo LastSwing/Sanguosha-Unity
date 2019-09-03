@@ -129,7 +129,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             List<int> ids = new List<int>();
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
                 if (RoomLogic.CanDiscard(room, player, player, id))
                     ids.Add(id);
 
@@ -157,7 +157,7 @@ namespace SanguoshaServer.AI
             if (!player.IsKongcheng() && !player.HasUsed(QiceCard.ClassName) && ai.WillShowForAttack())
             {
                 Room room = ai.Room;
-                foreach (int id in player.HandCards)
+                foreach (int id in player.GetCards("h"))
                 {
                     WrappedCard card = room.GetCard(id);
                     if (RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse))
@@ -181,7 +181,7 @@ namespace SanguoshaServer.AI
                 }
                 FunctionCard fcard = Engine.GetFunctionCard(QiceCard.ClassName);
                 WrappedCard qice = new WrappedCard(QiceCard.ClassName);
-                qice.AddSubCards(player.HandCards);
+                qice.AddSubCards(player.GetCards("h"));
 
                 List<WrappedCard> guhuos = QiceVS.GetGuhuoCards(room, player);
                 double good = -1;
@@ -340,6 +340,7 @@ namespace SanguoshaServer.AI
             foreach (int id in player.GetCards("he"))
                 if (room.GetCard(id).HasFlag("can_wanwei"))
                     cards.Add(id);
+            if (cards.Count == 0) return use;
 
             if (target != null && ai.IsFriend(target) && room.ContainsTag("wanwei_data") && room.GetTag("wanwei_data") is List<int> moves)
             {
@@ -415,10 +416,10 @@ namespace SanguoshaServer.AI
                 ScoreStruct get = ai.FindCards2Discard(player, damage.To, string.Empty, "ej", HandlingMethod.MethodGet);
                 ScoreStruct score = ai.GetDamageScore(damage);
 
-                if (get.Score < score.Score)
-                {
-                    Debug.Assert(ai.IsEnemy(damage.To));
-                }
+                //if (get.Score < score.Score)
+                //{
+                //    Debug.Assert(ai.IsEnemy(damage.To));
+                //}
 
                 return get.Score >= score.Score;
             }
@@ -1277,7 +1278,7 @@ namespace SanguoshaServer.AI
                 if (count >= 3)
                 {
                     List<int> ids = new List<int>();
-                    foreach (int id in player.HandCards)
+                    foreach (int id in player.GetCards("h"))
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(ai.Room.GetCard(id).Name);
                         if (fcard is BasicCard && RoomLogic.CanDiscard(ai.Room, player, player, id))
@@ -1585,7 +1586,7 @@ namespace SanguoshaServer.AI
             if (player.UsedTimes("ViewAsSkill_duoshiextraCard") < 4 && (ai.WillShowForAttack() || ai.WillShowForDefence()))
             {
                 Room room = ai.Room;
-                List<int> ids = new List<int>(player.HandCards);
+                List<int> ids= player.GetCards("h");
                 ids.AddRange(player.GetHandPile());
                 ai.SortByKeepValue(ref ids, false);
 

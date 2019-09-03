@@ -189,7 +189,7 @@ namespace SanguoshaServer.AI
 
                 if (choices[0] == "viewCards")
                 {
-                    List<int> ids = new List<int>(player.HandCards);
+                    List<int> ids= player.GetCards("h");
                     if (choices[choices.Count - 1] == "all")
                     {
                         public_handcards[player] = ids;
@@ -198,9 +198,9 @@ namespace SanguoshaServer.AI
                     else if (choices[choices.Count - 1] == self.Name)
                         private_handcards[player] = ids;
                 }
-                else if (choices[1] == "showCards")
+                else if (choices[0] == "showCards")
                 {
-                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[1].Split('+')));
+                    List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
                     if (choices[choices.Count - 1] == "all")
                     {
                         foreach (int id in ids)

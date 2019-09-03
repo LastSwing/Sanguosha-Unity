@@ -5,6 +5,7 @@ using SanguoshaServer.Game;
 using SuperSocket.SocketBase;
 using SuperSocket.SocketBase.Protocol;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading;
@@ -14,46 +15,42 @@ namespace SanguoshaServer
 {
     public class GameHall
     {
-        private Dictionary<int, Client> UId2ClientTable;
-        private Dictionary<MsgPackSession, Client> Session2ClientTable;
-        private Dictionary<int, Room> RId2Room;
-        private Dictionary<Room, Thread> Room2Thread;
+        private ConcurrentDictionary<int, Client> UId2ClientTable;
+        private ConcurrentDictionary<MsgPackSession, Client> Session2ClientTable;
+        private ConcurrentDictionary<int, Room> RId2Room;
+        private ConcurrentDictionary<Room, Thread> Room2Thread;
         private Form1 form;
         private int room_serial = 0;
 
         public GameHall(Form1 form)
         {
             this.form = form;
-            UId2ClientTable = new Dictionary<int, Client>();
-            Session2ClientTable = new Dictionary<MsgPackSession, Client>();
-            RId2Room = new Dictionary<int, Room>();
-            Room2Thread = new Dictionary<Room, Thread>();
+            UId2ClientTable = new ConcurrentDictionary<int, Client>();
+            Session2ClientTable = new ConcurrentDictionary<MsgPackSession, Client>();
+            RId2Room = new ConcurrentDictionary<int, Room>();
+            Room2Thread = new ConcurrentDictionary<Room, Thread>();
 
             new Engine();
         }
         public Room GetRoom(int room_id)
         {
-            if (RId2Room.ContainsKey(room_id))
-                return RId2Room[room_id];
+            if (RId2Room.TryGetValue(room_id, out Room room))
+                return room;
 
             return null;
         }
         public Client GetClient(int uid)
         {
-            if (UId2ClientTable.ContainsKey(uid))
-            {
-                return UId2ClientTable[uid];
-            }
+            if (UId2ClientTable.TryGetValue(uid, out Client client))
+                return client;
             else
-            {
                 return null;
-            }
         }
 
         #region 客户端首次对话时
         public void OnConnected(MsgPackSession session) {
             Client new_client = new Client(this, session);
-            Session2ClientTable.Add(session, new_client);
+            Session2ClientTable.TryAdd(session, new_client);
 
             OutPut(session.LocalEndPoint.ToString() + " 进行了连接");
 
@@ -65,22 +62,20 @@ namespace SanguoshaServer
         #region 客户端断线时操作
         internal void OnDisconnected(MsgPackSession session, CloseReason value)
         {
-            lock (this)
+            OutPut(session.SessionID + " disconnected:" + value);
+            if (Session2ClientTable.TryGetValue(session, out Client client))
             {
-                OutPut(session.SessionID + " disconnected:" + value);
-
-                Client client = Session2ClientTable[session];
                 client.Connected -= OnConnected;
                 //删除session对应
-                Session2ClientTable.Remove(session);
+                Session2ClientTable.TryRemove(session, out Client remove);
                 session = null;
                 //删除uid对应
                 if (client != null)
                 {
                     client.OnDisconnected();
 
-                    if (UId2ClientTable.ContainsValue(client))
-                        UId2ClientTable.Remove(client.UserID);
+                    if (UId2ClientTable.ContainsKey(client.UserID))
+                        UId2ClientTable.TryRemove(client.UserID, out remove);
                     //广播离线信息
                     ClientList.Instance().RemoveClient(client.UserID);
                     //更新到form1
@@ -89,15 +84,13 @@ namespace SanguoshaServer
                     MyData data = new MyData()
                     {
                         Description = PacketDescription.Hall2Cient,
-                        Protocol = protocol.UpdateHallLeave,
+                        Protocol = Protocol.UpdateHallLeave,
                         Body = new List<string> { client.UserID.ToString() }
                     };
 
                     List<Client> clients = new List<Client>(UId2ClientTable.Values);
                     foreach (Client other in clients)
-                    {
                         other.SendProfileReply(data);
-                    }
                 }
             }
         }
@@ -148,7 +141,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.ClientMessage,
+                    Protocol = Protocol.ClientMessage,
                     Body = new List<string> { ClientMessage.LoginDuplicated.ToString(), true.ToString() }
                 };
                 same.SendLoginReply(data);
@@ -159,7 +152,7 @@ namespace SanguoshaServer
                 same.Session.Close();
 
                 //测试
-                UId2ClientTable.Remove(uid);
+                UId2ClientTable.TryRemove(uid, out Client client);
 
                 return true;
             }
@@ -200,13 +193,13 @@ namespace SanguoshaServer
                     case TransferType.TypeLogin:                          //登录相关
                         switch (data.Protocol)
                         {
-                            case protocol.Login:
+                            case Protocol.Login:
                                 client.CheckUserName(data);
                                 break;
-                            case protocol.Register:                       //用户注册
+                            case Protocol.Register:                       //用户注册
                                 client.Register(data);
                                 break;
-                            case protocol.PasswordChange:                 //密码修改
+                            case Protocol.PasswordChange:                 //密码修改
                                 break;
                             default:
                                 return;
@@ -254,34 +247,31 @@ namespace SanguoshaServer
         #region 客户端登录成功时
         public void OnConnected(object sender, EventArgs e)
         {
-            lock (this)
+            if (sender is Client temp)
             {
-                if (sender is Client temp)
+                //同名已连接用户强制离线
+                bool same = HandleSameAccount(temp.UserID);
+
+                //Add the client to the Hashtable 
+                UId2ClientTable.TryAdd(temp.UserID, temp);
+                OutPut("Client Connected:" + temp.UserID);
+
+                //check last game is over
+                bool reconnect = false;
+                if (temp.GameRoom > 0)
                 {
-                    //同名已连接用户强制离线
-                    bool same = HandleSameAccount(temp.UserID);
-
-                    //Add the client to the Hashtable 
-                    UId2ClientTable.Add(temp.UserID, temp);
-                    OutPut("Client Connected:" + temp.UserID);
-
-                    //check last game is over
-                    bool reconnect = false;
-                    if (temp.GameRoom > 0)
+                    if (RId2Room.TryGetValue(temp.GameRoom, out Room room) && room.GameStarted)
                     {
-                        if (RId2Room.ContainsKey(temp.GameRoom) && RId2Room[temp.GameRoom].GameStarted)
-                        {
-                            reconnect = true;
-                        }
-                        else
-                        {
-                            //更新用户room id
-                            ClientDBOperation.UpdateGameRoom(temp.UserName, -1);
-                        }
+                        reconnect = true;
                     }
-
-                    InterHall(temp, reconnect);
+                    else
+                    {
+                        //更新用户room id
+                        ClientDBOperation.UpdateGameRoom(temp.UserName, -1);
+                    }
                 }
+
+                InterHall(temp, reconnect);
             }
         }
 
@@ -307,7 +297,7 @@ namespace SanguoshaServer
                 data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.GetProfile,
+                    Protocol = Protocol.GetProfile,
                     Body = new List<string> { JsonUntity.DataSet2Json(ds) }
                 };
                 client.SendProfileReply(data);
@@ -317,7 +307,7 @@ namespace SanguoshaServer
             data = new MyData()
             {
                 Description = PacketDescription.Hall2Cient,
-                Protocol = protocol.UpdateHallJoin,
+                Protocol = Protocol.UpdateHallJoin,
                 Body = new List<string> { client.UserID.ToString(), client.Profile.NickName, "0" }
             };
 
@@ -342,21 +332,21 @@ namespace SanguoshaServer
 
             List<Client> clients = new List<Client>(UId2ClientTable.Values);
             switch (data.Protocol) {
-                case protocol.Message2Hall:
+                case Protocol.Message2Hall:
                     foreach (Client client in clients)
                     {
                         if (client.GameRoom <= 0)
                             client.SendMessage(message);
                     }
                     break;
-                case protocol.Message2Client:
+                case Protocol.Message2Client:
                     Client destination = GetClient(int.Parse(data.Body[2]));
                     if (destination != null)
                     {
                         destination.SendMessage(message);
                     }
                     break;
-                case protocol.Message2Room:
+                case Protocol.Message2Room:
                     message.Description = PacketDescription.Room2Cient;
                     Room room = GetRoom(sourcer.GameRoom);
                     if (room != null)
@@ -380,7 +370,7 @@ namespace SanguoshaServer
                         }
                     }
                     break;
-                case protocol.MessageSystem:
+                case Protocol.MessageSystem:
                     if (sourcer.UserRight >= 3)
                     {
                         foreach (Client client in clients)
@@ -396,12 +386,13 @@ namespace SanguoshaServer
         #region 更新roomlist、进入/退出游戏房间
         private void RoomSwitch(Client client, MyData data)
         {
+            Room room = null;
             switch (data.Protocol)
             {
-                case protocol.CreateRoom:
+                case Protocol.CreateRoom:
                     CreateRoom(client, JsonUntity.Json2Object<GameSetting>(data.Body[0]));
                     break;
-                case protocol.JoinRoom:
+                case Protocol.JoinRoom:
                     int room_id = -1;
                     string pass = string.Empty;
                     if (data.Body.Count > 0)
@@ -413,10 +404,9 @@ namespace SanguoshaServer
                     {
                         room_id = client.GameRoom;
                     }
-
-                    Room room = RId2Room.ContainsKey(room_id) ? RId2Room[room_id] : null;
+                    
                     bool result = false;
-                    if (room != null)
+                    if (RId2Room.TryGetValue(room_id, out room))
                     {
                         //if (JoinRoom != null)
                         //{
@@ -440,7 +430,7 @@ namespace SanguoshaServer
                         data = new MyData
                         {
                             Description = PacketDescription.Hall2Cient,
-                            Protocol = protocol.JoinRoom,
+                            Protocol = Protocol.JoinRoom,
                         };
                         client.SendSwitchReply(data);
                     }
@@ -450,8 +440,8 @@ namespace SanguoshaServer
                         UpdateUsers(ClientList.Instance().GetUserList(0));
                     }
                     break;
-                case protocol.LeaveRoom:
-                    if (RId2Room.ContainsKey(client.GameRoom))
+                case Protocol.LeaveRoom:
+                    if (RId2Room.TryGetValue(client.GameRoom, out room))
                     {
                         client.RequestLeaveRoom();
 
@@ -460,20 +450,25 @@ namespace SanguoshaServer
                         UpdateUsers(ClientList.Instance().GetUserList(0));
                     }
                     break;
-                case protocol.UpdateRoom:
+                case Protocol.UpdateRoom:
                     client.RequstReady(bool.Parse(data.Body[0]));
                     break;
-                case protocol.RoleReserved:
-                    if (client.UserRight >= 2 && RId2Room.ContainsKey(client.GameRoom))
+                case Protocol.RoleReserved:
+                    if (client.UserRight >= 2 && RId2Room.TryGetValue(client.GameRoom, out room))
                     {
-                        room = RId2Room[client.GameRoom];
                         if (!room.GameStarted && room.Setting.GameMode == "Classic")
                             client.RoleReserved = data.Body[0];
                     }
                     break;
-                case protocol.KickOff:
-                    room = RId2Room.ContainsKey(client.GameRoom) ? RId2Room[client.GameRoom] : null;
-                    if (room != null && room.Host == client && !room.GameStarted)
+                case Protocol.GeneralReserved:
+                    if (client.UserRight >= 2 && RId2Room.TryGetValue(client.GameRoom, out room) && !room.GameStarted
+                        && (room.Setting.GameMode == "Classic" || room.Setting.GameMode == "Hegemony") && data.Body.Count <= 2)
+                    {
+                        client.CheatArgs = data.Body;
+                    }
+                    break;
+                case Protocol.KickOff:
+                    if (RId2Room.TryGetValue(client.GameRoom, out room) && room != null && room.Host == client && !room.GameStarted)
                     {
                         int victim_id = int.Parse(data.Body[0]);
                         Client victim = GetClient(victim_id);
@@ -487,11 +482,24 @@ namespace SanguoshaServer
                         }
                     }
                     break;
-                case protocol.ConfigChange:
-                    room = RId2Room.ContainsKey(client.GameRoom) ? RId2Room[client.GameRoom] : null;
-                    if (room != null && room.Host == client && !room.GameStarted)
+                case Protocol.ConfigChange:
+                    if (RId2Room.TryGetValue(client.GameRoom, out room) && room != null && room.Host == client && !room.GameStarted)
                     {
-                        room.ChangeSetting(JsonUntity.Json2Object<GameSetting>(data.Body[0]));
+                        GameSetting setting = JsonUntity.Json2Object<GameSetting>(data.Body[0]);
+                        GameMode mode = Engine.GetMode(room.Setting.GameMode);
+
+                        if (room.Setting.GameMode == setting.GameMode && room.Setting.PlayerNum == setting.PlayerNum && setting.GeneralPackage.Count > 0 && setting.CardPackage.Count > 0)
+                        {
+                            foreach (string general in setting.GeneralPackage)
+                                if (!mode.GeneralPackage.Contains(general))
+                                    return;
+
+                            foreach (string card in setting.CardPackage)
+                                if (!mode.CardPackage.Contains(card))
+                                    return;
+
+                            room.ChangeSetting(setting);
+                        }
                     }
                     break;
                 default:
@@ -502,54 +510,50 @@ namespace SanguoshaServer
 
         private void CreateRoom(Client client, GameSetting setting)
         {
-            lock (this)
+            //检查游戏设置是否正常
+            GameMode mode = Engine.GetMode(setting.GameMode);
+            if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode && mode.CardPackage.Count > 0 && mode.GeneralPackage.Count > 0
+                && setting.GeneralPackage.Count > 0 && setting.CardPackage.Count > 0)
             {
-                //检查游戏设置是否正常
-                GameMode mode = Engine.GetMode(setting.GameMode);
-                if (!RId2Room.ContainsKey(client.GameRoom) && mode.Name == setting.GameMode && mode.CardPackage.Count > 0 && mode.GeneralPackage.Count > 0
-                    && setting.GeneralPackage.Count > 0 && setting.CardPackage.Count > 0)
+                if (!mode.PlayerNum.Contains(setting.PlayerNum))
+                    setting.PlayerNum = mode.PlayerNum[0];
+                
+                foreach (string general in setting.GeneralPackage)
                 {
-                    if (!mode.PlayerNum.Contains(setting.PlayerNum))
-                        setting.PlayerNum = mode.PlayerNum[0];
-
-                    List<string> general_p = new List<string>();
-                    foreach (string general in setting.GeneralPackage)
+                    if (!mode.GeneralPackage.Contains(general))
                     {
-                        if (mode.GeneralPackage.Contains(general))
-                        {
-                            setting.GeneralPackage = mode.GeneralPackage;
-                            break;
-                        }
+                        setting.GeneralPackage = mode.GeneralPackage;
+                        break;
                     }
-                    foreach (string card in setting.CardPackage)
-                    {
-                        if (!mode.GeneralPackage.Contains(card))
-                        {
-                            setting.CardPackage = mode.CardPackage;
-                            break;
-                        }
-                    }
-
-                    //Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
-
-                    int room_id = ++room_serial;
-                    Room room = new Room(this, room_id, client, setting);
-                    RId2Room.Add(room_id, room);
-
-                    //通知form更新
-                    ClientList.Instance().AddClient(client.UserID, client.Profile.NickName, room_id);
-                    UpdateUsers(ClientList.Instance().GetUserList(0));
                 }
-                else
+                foreach (string card in setting.CardPackage)
                 {
-                    //设置错误，通知客户端
-                    MyData data = new MyData
+                    if (!mode.GeneralPackage.Contains(card))
                     {
-                        Description = PacketDescription.Hall2Cient,
-                        Protocol = protocol.CreateRoom,
-                    };
-                    client.SendSwitchReply(data);
+                        setting.CardPackage = mode.CardPackage;
+                        break;
+                    }
                 }
+
+                //Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
+
+                int room_id = ++room_serial;
+                Room room = new Room(this, room_id, client, setting);
+                RId2Room.TryAdd(room_id, room);
+
+                //通知form更新
+                ClientList.Instance().AddClient(client.UserID, client.Profile.NickName, room_id);
+                UpdateUsers(ClientList.Instance().GetUserList(0));
+            }
+            else
+            {
+                //设置错误，通知客户端
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Hall2Cient,
+                    Protocol = Protocol.CreateRoom,
+                };
+                client.SendSwitchReply(data);
             }
         }
 
@@ -561,7 +565,7 @@ namespace SanguoshaServer
                     ClientDBOperation.UpdateGameRoom(client.UserName, client.GameRoom);
             
             Thread thread = new Thread(room.Run);
-            Room2Thread.Add(room, thread);
+            Room2Thread.TryAdd(room, thread);
             thread.Start();
         }
 
@@ -575,7 +579,7 @@ namespace SanguoshaServer
                 MyData data = new MyData
                 {
                     Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UPdateRoomList,
+                    Protocol = Protocol.UPdateRoomList,
                     Body = new List<string>
                     {
                         room.RoomId.ToString(),
@@ -597,67 +601,65 @@ namespace SanguoshaServer
 
         public void RemoveRoom(Room room, Client host, List<Client> clients)
         {
-            lock (this)
+            //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+
+            //更新该room下用户的房间号为0
+            foreach (Client client in clients)
             {
-                //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
-
-                //更新该room下用户的房间号为0
-                foreach (Client client in clients)
+                if (client.UserID > 0)
                 {
-                    if (client.UserID > 0)
+                    client.GameRoom = 0;
+                    ClientDBOperation.UpdateGameRoom(client.UserName, 0);
+                }
+            }
+
+            //若房主存在，重建一个新的房间
+            if (host != null)
+            {
+                CreateRoom(host, room.Setting);
+                int id = host.GameRoom;
+
+                //Debug(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
+
+                if (id > 0 && id != room.RoomId)
+                {
+                    Room new_room = GetRoom(id);
+                    foreach (Client client in clients)
                     {
-                        client.GameRoom = 0;
-                        ClientDBOperation.UpdateGameRoom(client.UserName, 0);
+                        if (client == host || client.Status != Client.GameStatus.online) continue;
+                        new_room.OnClientRequestInter(client, id, room.Setting.PassWord);
                     }
                 }
+            }
 
-                //若房主存在，重建一个新的房间
-                if (host != null)
-                {
-                    CreateRoom(host, room.Setting);
-                    int id = host.GameRoom;
+            if (!RId2Room.TryRemove(room.RoomId, out Room remove))
+                Debug(string.Format("remove room {0} failed", room.RoomId));
 
-                    //Debug(string.Format("host {0} {1}", host.Profile.NickName, host.GameRoom));
+            if (Room2Thread.TryGetValue(room, out Thread thread))
+            {
+                thread.Abort();
+                Room2Thread.TryRemove(room, out Thread _trhead);
+                thread = null;
+            }
+            RoomList.Instance().RemoveRoom(room.RoomId);
+            int room_id = room.RoomId;
+            room.Dispose();
+            room = null;
 
-                    if (id > 0 && id != room.RoomId)
-                    {
-                        Room new_room = GetRoom(id);
-                        foreach (Client client in clients)
-                        {
-                            if (client == host || client.Status != Client.GameStatus.online) continue;
-                            new_room.OnClientRequestInter(client, id, room.Setting.PassWord);
-                        }
-                    }
-                }
-
-                RId2Room.Remove(room.RoomId);
-                if (Room2Thread.ContainsKey(room))
-                {
-                    Thread thread = Room2Thread[room];
-                    thread.Abort();
-                    Room2Thread.Remove(room);
-                    thread = null;
-                }
-                RoomList.Instance().RemoveRoom(room.RoomId);
-                int room_id = room.RoomId;
-                room.Dispose();
-                room = null;
-
-                MyData data = new MyData
-                {
-                    Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UPdateRoomList,
-                    Body = new List<string>
+            MyData data = new MyData
+            {
+                Description = PacketDescription.Hall2Cient,
+                Protocol = Protocol.UPdateRoomList,
+                Body = new List<string>
                     {
                         room_id.ToString()
                     }
-                };
+            };
 
-                List<Client> all = new List<Client>(UId2ClientTable.Values);
-                foreach (Client client in all)
-                {
-                    client.SendProfileReply(data);
-                }
+            List<Client> all = new List<Client>(UId2ClientTable.Values);
+            foreach (Client client in all)
+            {
+                client.SendProfileReply(data);
             }
         }
 
@@ -674,12 +676,12 @@ namespace SanguoshaServer
         }
         public void AddBot(Client client)
         {
-            UId2ClientTable.Add(client.UserID, client);
+            UId2ClientTable.TryAdd(client.UserID, client);
         }
 
         public void RemoveBot(Client client)
         {
-            UId2ClientTable.Remove(client.UserID);
+            UId2ClientTable.TryRemove(client.UserID, out Client remove);
         }
         #endregion
 
@@ -702,7 +704,8 @@ namespace SanguoshaServer
                 };
 
                 Room room = new Room(this, room_id, setting);
-                RId2Room.Add(room_id, room);
+                if (!RId2Room.TryAdd(room_id, room))
+                    Debug(string.Format("add room {0} failed", room_id));
 
                 BroadCastRoom(room);
             }
@@ -722,7 +725,9 @@ namespace SanguoshaServer
                 };
 
                 Room room = new Room(this, room_id, setting);
-                RId2Room.Add(room_id, room);
+                if (!RId2Room.TryAdd(room_id, room))
+                    Debug(string.Format("add room {0} failed", room_id));
+
 
                 BroadCastRoom(room);
             }
@@ -742,7 +747,8 @@ namespace SanguoshaServer
                 };
 
                 Room room = new Room(this, room_id, setting);
-                RId2Room.Add(room_id, room);
+                if (!RId2Room.TryAdd(room_id, room))
+                    Debug(string.Format("add room {0} failed", room_id));
 
                 BroadCastRoom(room);
             }
@@ -750,47 +756,42 @@ namespace SanguoshaServer
 
         public void RemoveRoom(Room room)
         {
-            lock (this)
+            //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+            GameSetting setting = room.Setting;
+            RId2Room.TryRemove(room.RoomId, out Room remove);
+            if (Room2Thread.TryGetValue(room, out Thread thread))
             {
-                //Debug("remove at " + Thread.CurrentThread.ManagedThreadId.ToString());
+                thread.Abort();
+                Room2Thread.TryRemove(room, out Thread _trhead);
+                thread = null;
+            }
+            RoomList.Instance().RemoveRoom(room.RoomId);
+            int room_id = room.RoomId;
+            room.Dispose();
+            room = null;
 
-                GameSetting setting = room.Setting;
-
-                RId2Room.Remove(room.RoomId);
-                if (Room2Thread.ContainsKey(room))
-                {
-                    Thread thread = Room2Thread[room];
-                    thread.Abort();
-                    Room2Thread.Remove(room);
-                    thread = null;
-                }
-                RoomList.Instance().RemoveRoom(room.RoomId);
-                int room_id = room.RoomId;
-                room.Dispose();
-                room = null;
-
-                MyData data = new MyData
-                {
-                    Description = PacketDescription.Hall2Cient,
-                    Protocol = protocol.UPdateRoomList,
-                    Body = new List<string>
+            MyData data = new MyData
+            {
+                Description = PacketDescription.Hall2Cient,
+                Protocol = Protocol.UPdateRoomList,
+                Body = new List<string>
                     {
                         room_id.ToString()
                     }
-                };
+            };
 
-                List<Client> clients = new List<Client>(UId2ClientTable.Values);
-                foreach (Client client in clients)
-                {
-                    client.SendProfileReply(data);
-                }
-
-                int new_id = ++room_serial;
-                Room new_room = new Room(this, new_id, setting);
-                RId2Room.Add(new_id, new_room);
-
-                BroadCastRoom(new_room);
+            List<Client> clients = new List<Client>(UId2ClientTable.Values);
+            foreach (Client client in clients)
+            {
+                client.SendProfileReply(data);
             }
+
+            int new_id = ++room_serial;
+            Room new_room = new Room(this, new_id, setting);
+            if (!RId2Room.TryAdd(new_id, new_room))
+                Debug(string.Format("add room {0} failed", new_id));
+
+            BroadCastRoom(new_room);
         }
         #endregion
     }

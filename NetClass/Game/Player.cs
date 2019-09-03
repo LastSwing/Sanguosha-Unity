@@ -1,6 +1,7 @@
 ﻿using CommonClassLibrary;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace CommonClass.Game
@@ -286,6 +287,8 @@ namespace CommonClass.Game
 
         public List<int> GetCards(string flags)
         {
+            Debug.Assert(flags.Contains("h") || flags.Contains("e") || flags.Contains("j"));
+
             List <int> cards = new List<int>();
             if (flags.Contains("h"))
                 cards.AddRange(new List<int>(HandCards));

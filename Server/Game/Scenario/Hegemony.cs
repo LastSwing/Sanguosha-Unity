@@ -180,20 +180,69 @@ namespace SanguoshaServer.Scenario
             options = new Dictionary<Player, List<string>>();
 
             int max_choice = room.Setting.GeneralCount;
-            List<string> generals = room.Generals;
+            List<string> generals = new List<string>(room.Generals);
             if (generals.Count < max_choice * room.Players.Count)
                 max_choice = generals.Count / room.Players.Count;
+
+            for (int i = 0; i < room.Clients.Count; i++)
+            {
+                Client client = room.Clients[i];
+                if (client.UserID < 0) continue;
+                List<string> reserved_generals = client.CheatArgs;
+                if (reserved_generals == null || reserved_generals.Count == 0) continue;
+
+                foreach (string general in reserved_generals)
+                {
+                    for (int y = i + 1; y < room.Clients.Count; y++)
+                    {
+                        Client client2 = room.Clients[y];
+                        if (client == client2 || client2.UserID < 0 || client2.CheatArgs == null || client2.CheatArgs.Count == 0) continue;
+                        if (client2.CheatArgs.Contains(general))
+                        {
+                            client.CheatArgs.RemoveAll(t => t == general);
+                            client2.CheatArgs.RemoveAll(t => t == general);
+                        }
+                    }
+                }
+            }
+            foreach (Client client in room.Clients)
+            {
+                if (client.CheatArgs != null && client.CheatArgs.Count > 0 && client.CheatArgs.Count <= 2)
+                {
+                    foreach (Player p in room.Players)
+                    {
+                        if (p.ClientId == client.UserID)
+                        {
+                            options[p] = new List<string>();
+                            foreach (string general in client.CheatArgs)
+                            {
+                                if (generals.Contains(general))
+                                {
+                                    options[p].Add(general);
+                                    generals.Remove(general);
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
 
             foreach (Player player in room.Players)
             {
                 List<string> choices = new List<string>();
-                for (int i = 0; i < max_choice; i++)
+                int adjust = options.ContainsKey(player) ? options[player].Count : 0;
+                for (int i = adjust; i < max_choice; i++)
                 {
-                    Shuffle.shuffle<string>(ref generals);
+                    Shuffle.shuffle(ref generals);
                     choices.Add(generals[0]);
                     generals.RemoveAt(0);
                 }
-                options.Add(player, choices);
+                if (options.ContainsKey(player))
+                    options[player].AddRange(choices);
+                else
+                    options.Add(player, choices);
             }
         }
 

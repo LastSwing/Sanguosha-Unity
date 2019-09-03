@@ -245,7 +245,7 @@ namespace SanguoshaServer.Package
                 if (throw_ids.Count > 0 && throw_ids.Count == target.GetEquips().Count)
                     throw_ids.RemoveAt(0);
 
-                foreach (int id in target.HandCards)
+                foreach (int id in target.GetCards("h"))
                 {
                     if (RoomLogic.CanDiscard(room, target, target, id))
                     {
@@ -421,7 +421,7 @@ namespace SanguoshaServer.Package
                 {
                     ids = room.AskForExchange(player, "paytribute-back", 1, 1, "@paytribute-giveback:" + target.Name, string.Empty, ".", string.Empty);
                     if (ids.Count != 1)
-                        ids = new List<int> { player.HandCards[0] };
+                        ids = new List<int> { player.GetCards("h")[0] };
 
                     room.ObtainCard(target, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "paytribute", "paytribute"), false);
                 }
@@ -1010,7 +1010,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            foreach (int id in player.HandCards)
+            foreach (int id in player.GetCards("h"))
             {
                 WrappedCard card = room.GetCard(id);
                 if (RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodUse))
@@ -1064,7 +1064,7 @@ namespace SanguoshaServer.Package
             {
                 Skill = "_fengying"
             };
-            card.AddSubCards(player.HandCards);
+            card.AddSubCards(player.GetCards("h"));
 
             CardUseStruct use = new CardUseStruct(card, player, new List<Player>());
             room.UseCard(use);
@@ -1345,7 +1345,7 @@ namespace SanguoshaServer.Package
                     {
                         if (RoomLogic.CanGetCard(room, player, target, "h"))
                         {
-                            List<int> ids = new List<int>(target.HandCards);
+                            List<int> ids = target.GetCards("h");
                             room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "weidi", "weidi"), false);
 
                             ids = room.AskForExchange(player, "weidi", ids.Count, ids.Count, 

@@ -70,8 +70,7 @@ namespace CommonClass
             List<int> intList = new List<int>();
             foreach (string str in list)
             {
-                int num;
-                if (int.TryParse(str, out num))
+                if (int.TryParse(str, out int num))
                     intList.Add(num);
             }
 
