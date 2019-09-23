@@ -5,7 +5,7 @@ using System.Configuration;
 using SuperSocket.SocketBase;
 using SuperSocket.SocketBase.Protocol;
 using CommonClassLibrary;
-using System.Data;
+using System.Collections.Generic;
 
 namespace SanguoshaServer
 {
@@ -40,6 +40,7 @@ namespace SanguoshaServer
             {
                 AddLoginMessage("数据库初始化失败");
                 AddDebugMessage(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
+                LogHelper.WriteLog(null, e);
             }
 
             if (init)
@@ -50,19 +51,39 @@ namespace SanguoshaServer
                 serverThread.Start();
 
                 AddLoginMessage("Socket Server Started");
+                AddLoginMessage(string.Format("Server Version {0}", GameHall.Version));
             }
         }
         
 
         public void StartListen()
         {
-            string[] ip_address = ConfigurationManager.AppSettings["ServerIP"].Split(':');
+            string ip_address = ConfigurationManager.AppSettings["ServerIP"];
+            string port = ConfigurationManager.AppSettings["ServerPort"];
             serverListener = new MsgPackServer();
-            if (!serverListener.Setup(int.Parse(ip_address[1])))
+            var serverConfig = new SuperSocket.SocketBase.Config.ServerConfig
+            {
+                Port = int.Parse(port), //set the listening port
+                Ip = ip_address,
+                Name = "GameServer",
+                MaxConnectionNumber = 200,
+                SendBufferSize = 1024 * 4,
+                ReceiveBufferSize = 1024 * 4,
+                SendingQueueSize = 128,
+                SendTimeOut = 10000
+            };
+            if (!serverListener.Setup(serverConfig))
             {
                 AddDebugMessage("server setup failed!");
             }
-
+            /*
+            AddDebugMessage(serverListener.Config.SendTimeOut.ToString());
+            AddDebugMessage(serverListener.Config.SendBufferSize.ToString());
+            AddDebugMessage(serverListener.Config.SendingQueueSize.ToString());
+            AddDebugMessage(serverListener.Config.SyncSend.ToString());
+            AddDebugMessage(serverListener.Config.MaxConnectionNumber.ToString());
+            AddDebugMessage(serverListener.Config.IdleSessionTimeOut.ToString());
+            */
             serverListener.NewSessionConnected += new SessionHandler<MsgPackSession>(Server_NewSessionConnected);
             serverListener.NewRequestReceived += new RequestHandler<MsgPackSession, BinaryRequestInfo>(Server_NewRequestReceived);
             serverListener.SessionClosed += new SessionHandler<MsgPackSession, SuperSocket.SocketBase.CloseReason>(Server_SessionClosed);
@@ -71,7 +92,6 @@ namespace SanguoshaServer
             {
                 AddDebugMessage("server started failed!");
             }
-
         }
 
         private void Server_SessionClosed(MsgPackSession session, SuperSocket.SocketBase.CloseReason value)
@@ -96,29 +116,30 @@ namespace SanguoshaServer
 
         public void AddLoginMessage(string msg)
         {
-            if (LoginMessageBox.Items.Count >= 100)
-                LoginMessageBox.Items.RemoveAt(0);
 
-            LoginMessageBox.Items.Add(msg);
+                if (LoginMessageBox.Items.Count >= 100)
+                    LoginMessageBox.Items.RemoveAt(0);
+
+                LoginMessageBox.Items.Add(msg);
         }
         public void AddDebugMessage(string msg)
         {
-            if (DebugBox.Items.Count >= 100)
-                DebugBox.Items.RemoveAt(0);
 
-            DebugBox.Items.Add(msg);
+                if (DebugBox.Items.Count >= 100)
+                    DebugBox.Items.RemoveAt(0);
+
+                DebugBox.Items.Add(msg);
         }
-        public void UpdateUser(DataTable list)
+
+        public void UpdateUser(Dictionary<int, string> list)
         {
             OnlineUsersBox.Items.Clear();
-            foreach (DataRow row in list.Rows)
+            foreach (int uid in list.Keys)
             {
-                int uid = int.Parse(row["UserID"].ToString());
                 Client client = hall.GetClient(uid);
                 if (client == null) continue;
-                string nick_name = row["NickName"].ToString();
-                int room_id = int.Parse(row["RoomNumber"].ToString());
-                string message = string.Format("uid {0}:账号{3} 昵称 {1}  {2}", uid, nick_name, room_id > 0 ? string.Format("房间{0}游戏中", room_id) : "空闲", client.UserName);
+                string nick_name = list[uid];
+                string message = string.Format("uid {0}:账号{2} 昵称 {1}", uid, nick_name, client.UserName);
                 OnlineUsersBox.Items.Add(message);
             }
         }
@@ -288,7 +309,39 @@ namespace SanguoshaServer
         [STAThread]
         static void Main()
         {
+            BindExceptionHandler();//绑定程序中的异常处理
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             Application.Run(new Form1());
+        }
+
+        private static void BindExceptionHandler()
+        {
+            //设置应用程序处理异常方式：ThreadException处理
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            //处理UI线程异常
+            Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
+            //处理未捕获的异常
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+        }
+        /// <summary>
+        /// 处理UI线程异常
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
+        {
+            LogHelper.WriteLog(null, e.Exception as Exception);
+        }
+        /// <summary>
+        /// 处理未捕获的异常
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            LogHelper.WriteLog(null, e.ExceptionObject as Exception);
         }
 
         private void Form1_Closing(object sender, System.ComponentModel.CancelEventArgs e)

@@ -753,8 +753,7 @@ namespace CommonClass.Game
     {
         //public PromoteStruct();
         //public PromoteStruct(const QString &name, const QString &skill_name, const QString &pattern, CardUseStruct::CardUseReason reason, const QString &skill_position);
-
-        public string Name { set; get; }
+        public Player player { set; get; }
         public string SkillName { set; get; }
         public string Pattern { set; get; }
         public CardUseStruct.CardUseReason Reason { set; get; }
@@ -827,7 +826,7 @@ namespace CommonClass.Game
 
     public struct GameMode
     {
-        public String Name { set; get; }
+        public string Name { set; get; }
         public List<int> PlayerNum { set; get; }
         public bool IsScenario { set; get; }
         public List<string> GeneralPackage { set; get; }
@@ -947,5 +946,16 @@ namespace CommonClass.Game
         public List<int> Top { set; get; }
         public List<int> Bottom { set; get; }
         public bool Success { set; get; }
+    }
+
+    public struct RoomInfoStruct
+    {
+        public int Id { set; get; }
+        public string Name { get; set; }
+        public bool PassWord { set; get; }
+        public string Mode { set; get; }
+        public bool Started { set; get; }
+        public int CurrentPlayers { set; get; }
+        public int MaxPlayres { set; get; }
     }
 }

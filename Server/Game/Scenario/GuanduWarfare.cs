@@ -99,7 +99,7 @@ namespace SanguoshaServer.Scenario
             }
 
             //玩家选将
-            List<Client> receivers = new List<Client>();
+            List<Interactivity> receivers = new List<Interactivity>();
             List<Player> players = new List<Player>();
             foreach (Player player in options.Keys)
             {
@@ -114,7 +114,7 @@ namespace SanguoshaServer.Scenario
                     true.ToString(),
                     false.ToString()
                 };
-                Client client = room.GetClient(player);
+                Interactivity client = room.GetInteractivity(player);
                 if (client != null && !receivers.Contains(client))
                 {
                     client.CommandArgs = args;
@@ -145,14 +145,14 @@ namespace SanguoshaServer.Scenario
                 if (string.IsNullOrEmpty(player.General1))
                 {
                     string generalName = string.Empty;
-                    List<string> reply = room.GetClient(player)?.ClientReply;
+                    List<string> reply = room.GetInteractivity(player)?.ClientReply;
                     bool success = true;
                     if (reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                         success = false;
                     else
                         generalName = reply[0];
 
-                    if (!success || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3)
+                    if (!success || (!options[player].Contains(generalName) && room.GetClient(player).UserRight < 3)
                         || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "wei")
                         || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "qun"))
                     {
@@ -202,10 +202,10 @@ namespace SanguoshaServer.Scenario
             return IsFriendWith(room, player, other);
         }
 
-        public override void OnChooseGeneralReply(Room room, Client client)
+        public override void OnChooseGeneralReply(Room room, Interactivity client)
         {
             //该模式下玩家完成选将会立即先所有人公布
-            Player player = room.GetPlayers(client)[0];
+            Player player = room.GetPlayers(client.ClientId)[0];
             List<string> options = JsonUntity.Json2List<string>((string)player.GetTag("generals"));
             List<string> reply = client.ClientReply;
             bool success = true;
@@ -215,7 +215,7 @@ namespace SanguoshaServer.Scenario
             else
                 generalName = reply[0];
 
-            if (!success || (!options.Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3)
+            if (!success || (!options.Contains(generalName) && room.GetClient(player).UserRight < 3)
                 || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "wei")
                 || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "qun"))
             {
@@ -440,7 +440,10 @@ namespace SanguoshaServer.Scenario
 
             //杀死敌对阵营获得其手牌
             if (killer != null && killer.Alive && killer.Camp != player.Camp && !player.IsKongcheng())
-                room.ObtainCard(killer, player.GetCards("h"), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, killer.Name));
+            {
+                List<int> ids = player.GetCards("h");
+                room.ObtainCard(killer, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, killer.Name));
+            }
 
             room.BuryPlayer(player);
 

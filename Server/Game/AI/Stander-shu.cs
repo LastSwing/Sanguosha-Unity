@@ -903,7 +903,17 @@ namespace SanguoshaServer.AI
         public HuojiAI() : base("huoji")
         {
         }
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return -2;
+        }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card.Name == FireAttack.ClassName && use.Card.Skill == Name)
+                return -2;
 
+            return 0;
+        }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             Room room = ai.Room;

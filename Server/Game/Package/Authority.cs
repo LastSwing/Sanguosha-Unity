@@ -416,14 +416,14 @@ namespace SanguoshaServer.Package
                 };
                 room.SendLog(log);
 
-                room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, "paytribute", "paytribute"), false);
+                room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, "paytribute", "paytribute"), false);
                 if (!player.IsKongcheng() && ids.Count > 1)
                 {
                     ids = room.AskForExchange(player, "paytribute-back", 1, 1, "@paytribute-giveback:" + target.Name, string.Empty, ".", string.Empty);
                     if (ids.Count != 1)
                         ids = new List<int> { player.GetCards("h")[0] };
 
-                    room.ObtainCard(target, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "paytribute", "paytribute"), false);
+                    room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "paytribute", "paytribute"), false);
                 }
 
                 return true;
@@ -796,8 +796,8 @@ namespace SanguoshaServer.Package
             };
             room.SendLog(log);
 
-            room.ObtainCard(target, new List<int>(card_use.Card.SubCards),
-                new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "jieyue", string.Empty), false);
+            List<int> ids = new List<int>(card_use.Card.SubCards);
+            room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "jieyue", string.Empty), false);
         }
     }
 
@@ -821,7 +821,10 @@ namespace SanguoshaServer.Package
             if (card != null)
             {
                 if (card.SubCards.Count == 1 && room.ContainsTag(Name) && room.GetTag(Name) is Player target)
-                    room.ObtainCard(target, new List<int>(card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty));
+                {
+                    List<int> ids = new List<int>(card.SubCards);
+                    room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty));
+                }
 
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
@@ -864,7 +867,7 @@ namespace SanguoshaServer.Package
                     target.SetFlags("-zhengpi");
 
                     if (ids.Count > 0)
-                        room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty));
+                        room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty));
                 }
                 else if (!target.HasShownOneGeneral())
                 {
@@ -979,7 +982,7 @@ namespace SanguoshaServer.Package
 
     public class ZhengpiTar : TargetModSkill
     {
-        public ZhengpiTar() : base("#zhengpi-target")
+        public ZhengpiTar() : base("#zhengpi-target", false)
         {
             pattern = ".";
         }
@@ -998,6 +1001,11 @@ namespace SanguoshaServer.Package
                 return true;
 
             return false;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+                index = -2;
         }
     }
 
@@ -1116,7 +1124,7 @@ namespace SanguoshaServer.Package
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, damage.From.Name, Name, null);
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                     room.NotifySkillInvoked(player, Name);
-                    room.ObtainCard(damage.From, ids, reason);
+                    room.ObtainCard(damage.From, ref ids, reason);
                     return info;
                 }
             }
@@ -1346,11 +1354,11 @@ namespace SanguoshaServer.Package
                         if (RoomLogic.CanGetCard(room, player, target, "h"))
                         {
                             List<int> ids = target.GetCards("h");
-                            room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "weidi", "weidi"), false);
+                            room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "weidi", "weidi"), false);
 
                             ids = room.AskForExchange(player, "weidi", ids.Count, ids.Count, 
                                 string.Format("@weidi-back:{0}::{1}", target.Name, ids.Count), string.Empty, "..", card_use.Card.SkillPosition);
-                            room.ObtainCard(target, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "weidi", "weidi"), false);
+                            room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "weidi", "weidi"), false);
                         }
                         else
                             room.ShowAllCards(target);
@@ -1464,7 +1472,8 @@ namespace SanguoshaServer.Package
                         To = new List<string> { damage.From.Name }
                     };
                     room.SendLog(log);
-                    room.ObtainCard(player, new List<int> { result }, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, damage.From.Name, player.Name, Name), false);
+                    List<int> ids = new List<int> { result };
+                    room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, damage.From.Name, player.Name, Name), false);
                 }
                 else
                 {
@@ -1550,7 +1559,6 @@ namespace SanguoshaServer.Package
     {
         public Xuanhuo() : base("xuanhuo")
         {
-            lord_skill = true;
             events = new List<TriggerEvent> { TriggerEvent.GeneralShown, TriggerEvent.Death, TriggerEvent.DFDebut, TriggerEvent.EventPhaseChanging };
             frequency = Frequency.Compulsory;
         }
@@ -1650,7 +1658,8 @@ namespace SanguoshaServer.Package
             room.FillAG("xuanhuovs", ids, card_use.From, null, null, "@xuanhuo-give:" + target.Name);
             int id = room.AskForAG(card_use.From, ids, false, "xuanhuo");
             room.ClearAG(card_use.From);
-            room.ObtainCard(target, new List<int> { id }, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "xuanhuo"), false);
+            List<int> card_ids = new List<int> { id };
+            room.ObtainCard(target, ref card_ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "xuanhuo"), false);
 
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, "xuanhuo");
             room.BroadcastSkillInvoke("xuanhuo", "male", -1, gsk.General, gsk.SkinId);
@@ -2803,7 +2812,7 @@ namespace SanguoshaServer.Package
 
     public class ZhuweiTar : TargetModSkill
     {
-        public ZhuweiTar() : base("#zhuwei-tar")
+        public ZhuweiTar() : base("#zhuwei-tar", false)
         {
             pattern = Slash.ClassName;
         }

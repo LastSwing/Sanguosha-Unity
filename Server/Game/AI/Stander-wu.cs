@@ -879,7 +879,7 @@ namespace SanguoshaServer.AI
                 liuli.AddSubCard(result);
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
-                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli)) continue;
+                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
                     if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
                     {
                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1);
@@ -1987,7 +1987,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in friends)
                 {
-                    if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())) && p.GetEquip(equip_index) < 0)
+                    if ((ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill)) && RoomLogic.CanPutEquip(p, room.GetCard(card.GetEffectiveId())) && p.GetEquip(equip_index) < 0)
                     {
                         use.Card = card;
                         use.To.Add(p);

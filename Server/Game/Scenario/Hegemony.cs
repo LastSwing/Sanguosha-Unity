@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Data;
 using CommonClass;
 using CommonClass.Game;
@@ -27,7 +28,7 @@ namespace SanguoshaServer.Scenario
         {
             AssignGeneralsForPlayers(room, out Dictionary <Player, List<string> > options);
 
-            List<Client> receivers = new List<Client>();
+            List<Interactivity> receivers = new List<Interactivity>();
             foreach (Player player in options.Keys)
             {
                 player.SetTag("generals", JsonUntity.Object2Json(options[player]));
@@ -40,7 +41,7 @@ namespace SanguoshaServer.Scenario
                     true.ToString(),
                     false.ToString()
                 };
-                Client client = room.GetClient(player);
+                Interactivity client = room.GetInteractivity(player);
                 if (client != null && !receivers.Contains(client))
                 {
                     client.CommandArgs = args;
@@ -62,16 +63,16 @@ namespace SanguoshaServer.Scenario
                 player.RemoveTag("generals");
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
-                Client client = room.GetClient(player);
+                Interactivity client = room.GetInteractivity(player);
                 List<string> reply = client?.ClientReply;
-                if (client == null || !room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
+                if (client == null || !client.IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                     success = false;
                 else
                 {
                     string generalName = reply[0];
                     string[] generals = generalName.Split('+');
-                    if (generals.Length != 2 || (!options[player].Contains(Engine.GetMainGeneral(generals[0])) && room.GetClient(player).UserRight < 3)
-                        || (!options[player].Contains(Engine.GetMainGeneral(generals[1])) && room.GetClient(player).UserRight < 3)
+                    if (generals.Length != 2 || (!options[player].Contains(generals[0]) && room.GetClient(player).UserRight < 3)
+                        || (!options[player].Contains(generals[1]) && room.GetClient(player).UserRight < 3)
                         || !SetPlayerGeneral(room, player, generals[0], true)
                         || !SetPlayerGeneral(room, player, generals[1], false))
                     {
@@ -188,7 +189,7 @@ namespace SanguoshaServer.Scenario
             {
                 Client client = room.Clients[i];
                 if (client.UserID < 0) continue;
-                List<string> reserved_generals = client.CheatArgs;
+                List<string> reserved_generals = client.GeneralReserved;
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
 
                 foreach (string general in reserved_generals)
@@ -196,25 +197,25 @@ namespace SanguoshaServer.Scenario
                     for (int y = i + 1; y < room.Clients.Count; y++)
                     {
                         Client client2 = room.Clients[y];
-                        if (client == client2 || client2.UserID < 0 || client2.CheatArgs == null || client2.CheatArgs.Count == 0) continue;
-                        if (client2.CheatArgs.Contains(general))
+                        if (client == client2 || client2.UserID < 0 || client2.GeneralReserved == null || client2.GeneralReserved.Count == 0) continue;
+                        if (client2.GeneralReserved.Contains(general))
                         {
-                            client.CheatArgs.RemoveAll(t => t == general);
-                            client2.CheatArgs.RemoveAll(t => t == general);
+                            client.GeneralReserved.RemoveAll(t => t == general);
+                            client2.GeneralReserved.RemoveAll(t => t == general);
                         }
                     }
                 }
             }
             foreach (Client client in room.Clients)
             {
-                if (client.CheatArgs != null && client.CheatArgs.Count > 0 && client.CheatArgs.Count <= 2)
+                if (client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
                 {
                     foreach (Player p in room.Players)
                     {
                         if (p.ClientId == client.UserID)
                         {
                             options[p] = new List<string>();
-                            foreach (string general in client.CheatArgs)
+                            foreach (string general in client.GeneralReserved)
                             {
                                 if (generals.Contains(general))
                                 {
@@ -227,6 +228,8 @@ namespace SanguoshaServer.Scenario
                         }
                     }
                 }
+
+                client.GeneralReserved = null;
             }
 
             foreach (Player player in room.Players)
@@ -405,21 +408,21 @@ namespace SanguoshaServer.Scenario
             }
         }
 
-        public override void OnChooseGeneralReply(Room room, Client client)
+        public override void OnChooseGeneralReply(Room room, Interactivity client)
         {
-            Player player = room.GetPlayers(client)[0];
+            Player player = room.GetPlayers(client.ClientId)[0];
             List<string> options = JsonUntity.Json2List<string>((string)player.GetTag("generals"));
             List<string> reply = client.ClientReply;
             bool success = true;
             string generalName = string.Empty;
-            if (!room.GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
+            if (!client.IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                 success = false;
             else
             {
                 generalName = reply[0];
                 string[] generals = generalName.Split('+');
-                if (generals.Length != 2 || (!options.Contains(Engine.GetMainGeneral(generals[0])) && room.GetClient(player).UserRight < 3)
-                    || (!options.Contains(Engine.GetMainGeneral(generals[1])) && room.GetClient(player).UserRight < 3)
+                if (generals.Length != 2 || (!options.Contains(generals[0]) && room.GetClient(player).UserRight < 3)
+                    || (!options.Contains(generals[1]) && room.GetClient(player).UserRight < 3)
                     || !SetPlayerGeneral(room, player, generals[0], true)
                     || !SetPlayerGeneral(room, player, generals[1], false))
                 {
@@ -469,28 +472,16 @@ namespace SanguoshaServer.Scenario
         {
             List<string> generals = candidates;
                 string kingdom = null;
-            if (assign_kingdom) {
-                foreach (string name in candidates) {
+            if (assign_kingdom)
+            {
+                foreach (string name in candidates)
+                {
                     if (string.IsNullOrEmpty(kingdom))
                         kingdom = Engine.GetGeneral(name, room.Setting.GameMode).Kingdom;
-                    else if (kingdom != Engine.GetGeneral(name, room.Setting.GameMode).Kingdom) {
+                    else if (kingdom != Engine.GetGeneral(name, room.Setting.GameMode).Kingdom)
+                    {
                         kingdom = string.Empty;
                         break;
-                    }
-                }
-            }
-
-            foreach (string name in candidates) {
-                List<string> subs = Engine.GetConverPairs(name);
-                if (subs.Count != 0) {
-                    generals.Remove(name);
-                    subs.Add(name);
-                    Shuffle.shuffle<string>(ref subs);
-                    foreach (string general in subs) {
-                        if (string.IsNullOrEmpty(kingdom) || Engine.GetGeneral(general, room.Setting.GameMode).Kingdom == kingdom) {
-                            generals.Add(general);
-                            break;
-                        }
                     }
                 }
             }
@@ -523,15 +514,15 @@ namespace SanguoshaServer.Scenario
             return points;
         }
 
-        private readonly Dictionary<string, double> points = new Dictionary<string, double>();
+        private ConcurrentDictionary<string, double> points = new ConcurrentDictionary<string, double>();
         private Dictionary<string, double> CalculateDeputyValue(Room room, string first, List<string> _candidates)
         {
             List<string> candidates = _candidates;
             Dictionary<string, double> points = new Dictionary<string, double>();
             foreach (string second in candidates) {
-                if (this.points.ContainsKey(string.Format("{0}+{1}", first, second)))
+                if (this.points.TryGetValue(string.Format("{0}+{1}", first, second), out double value))
                 {
-                    points[string.Format("{0}+{1}", first, second)] = this.points[string.Format("{0}+{1}", first, second)];
+                    points[string.Format("{0}+{1}", first, second)] = value;
                     continue;
                 }
 
@@ -539,10 +530,11 @@ namespace SanguoshaServer.Scenario
                 DataRow[] rows1 = pair_value.Select(string.Format("general1 = '{0}' and general2 = '{1}'", first, second));
                 if (rows1.Length > 0)
                 {
-                    this.points[string.Format("{0}+{1}", first, second)] = int.Parse(rows1[0]["value1"].ToString());
+                    this.points.TryAdd(string.Format("{0}+{1}", first, second), int.Parse(rows1[0]["value1"].ToString()));
                     points[string.Format("{0}+{1}", first, second)] = int.Parse(rows1[0]["value1"].ToString());
                 }
-                else {
+                else
+                {
                     General general1 = Engine.GetGeneral(first, room.Setting.GameMode);
                     General general2 = Engine.GetGeneral(second, room.Setting.GameMode);
                     double general2_value = Engine.GetGeneralValue(second, "Hegemony");
@@ -578,7 +570,7 @@ namespace SanguoshaServer.Scenario
                                 v -= 5;
                         }
                     }
-                    this.points[string.Format("{0}+{1}", first, second)] = v;
+                    this.points.TryAdd(string.Format("{0}+{1}", first, second), v);
                     points[string.Format("{0}+{1}", first, second)] = v;
                 }
             }

@@ -21,7 +21,7 @@ namespace SanguoshaServer.Package
 
         public enum CardType
         {
-            TypeSkill, TypeBasic, TypeTrick, TypeEquip
+            TypeUnknow, TypeSkill, TypeBasic, TypeTrick, TypeEquip
         };
 
         public enum HandlingMethod
@@ -107,7 +107,7 @@ namespace SanguoshaServer.Package
                 if (big_kingdoms.Count > 0)
                 {
                     string target_kingdom = (use.To[0].HasShownOneGeneral() ?
-                                          (use.To[0].GetRoleEnum() == Player.PlayerRole.Careerist ? use.To[0].Name : use.To[0].Kingdom) : string.Empty);
+                                          (use.To[0].GetRoleEnum() == PlayerRole.Careerist ? use.To[0].Name : use.To[0].Kingdom) : string.Empty);
                     bool big = big_kingdoms.Contains(target_kingdom);
                     if (big)
                         use.Pattern = "big";
@@ -125,7 +125,6 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             room.SortByActionOrder(ref card_use);
-            List<Player> targets = card_use.To;
 
             bool hidden = (TypeID == CardType.TypeSkill && !WillThrow);
             LogMessage log = new LogMessage("#UseCard")
@@ -405,8 +404,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(log);
-
-                        room.BroadcastSkillInvoke(skill.Name, player);
+                        if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, player);
+                            room.NotifySkillInvoked(player, skill.Name);
+                        }
                     }
                     else
                     {
@@ -483,8 +485,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(log);
-
-                        room.BroadcastSkillInvoke(skill.Name, player);
+                        if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, player);
+                            room.NotifySkillInvoked(player, skill.Name);
+                        }
                     }
                     else
                     {
@@ -567,8 +572,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(log);
-
-                        room.BroadcastSkillInvoke(skill.Name, player);
+                        if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, player);
+                            room.NotifySkillInvoked(player, skill.Name);
+                        }
                         continue;
                     }
                     if (player.HasFlag(card_str + "_delay_trick_cancel")) continue;
@@ -952,6 +960,7 @@ namespace SanguoshaServer.Package
     {
         public SkillCard(string name) : base(name)
         {
+            type_id = CardType.TypeSkill;
         }
 
         public override string GetSubtype() => "skill_card";

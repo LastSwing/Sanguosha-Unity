@@ -39,7 +39,7 @@ namespace SanguoshaServer.Game
         private static Dictionary<string, Dictionary<string, General>> generals = new Dictionary<string, Dictionary<string, General>>();
         private static Dictionary<string, List<string>> pack_generals = new Dictionary<string, List<string>>();
         private static Dictionary<string, List<string>> related_skills = new Dictionary<string, List<string>>();
-        private static Dictionary<string, List<string>> convert_pairs = new Dictionary<string, List<string>>();
+        private static Dictionary<string, List<General>> convert_pairs = new Dictionary<string, List<General>>();
         private static Dictionary<string, SkillEvent> ai_skill_event = new Dictionary<string, SkillEvent>();
         private static Dictionary<string, UseCard> ai_card_event = new Dictionary<string, UseCard>();
 
@@ -103,20 +103,13 @@ namespace SanguoshaServer.Game
                         GeneralPackage pack = (GeneralPackage)Activator.CreateInstance(t);
                         foreach (FunctionCard card in pack.SkillCards)
                         {
-                            System.Diagnostics.Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated skill card {0} in  package {1}", card.Name, pack.Name));
+                            Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated skill card {0} in  package {1}", card.Name, pack.Name));
                             function_cards.Add(card.Name, card);
                         }
                         foreach (string key in pack.RelatedSkills.Keys)
                         {
-                            System.Diagnostics.Debug.Assert(!related_skills.ContainsKey(key), string.Format("duplicated related skill {0} in  package {1}", key, pack.Name));
+                            Debug.Assert(!related_skills.ContainsKey(key), string.Format("duplicated related skill {0} in  package {1}", key, pack.Name));
                             related_skills.Add(key, pack.RelatedSkills[key]);
-                        }
-                        foreach (string key in pack.ConvertPairs.Keys)
-                        {
-                            if (convert_pairs.ContainsKey(key))
-                                convert_pairs[key].AddRange(pack.ConvertPairs[key]);
-                            else
-                                convert_pairs.Add(key, pack.ConvertPairs[key]);
                         }
                         AddSkills(pack.Skills);
                         foreach (string key in pack.Patterns.Keys)
@@ -517,7 +510,7 @@ namespace SanguoshaServer.Game
                         bool male = bool.Parse(row["sex"].ToString());
                         bool selectable = bool.Parse(row["selectable"].ToString());
                         int hp_adjust = int.Parse(row["adjust_hp"].ToString());
-                        //string name, string kingdom, bool classic_lord = false, bool hegemony_lord = false, int double_max_hp = 4, bool male = true, bool hidden = false
+                        string main = row["main"].ToString();
 
                         General general = new General(name, kingdom, lord, pack, double_max_hp, male, selectable);
                         if (hp_adjust > 0)
@@ -531,6 +524,14 @@ namespace SanguoshaServer.Game
 
                         generals[mode].Add(name, general);              //按模式分类武将
                         general_names.Add(name);
+
+                        if (!string.IsNullOrEmpty(main))                //添加主武将
+                        {
+                            if (convert_pairs.ContainsKey(main))
+                                convert_pairs[main].Add(general);
+                            else
+                                convert_pairs[main] = new List<General> { general };
+                        }
                     }
                     pack_generals[pack] = general_names;                //按卡牌包给武将分类
                 }
@@ -648,23 +649,23 @@ namespace SanguoshaServer.Game
             return generals;
         }
 
-        public static List<string> GetConverPairs(string name)
+        public static List<General> GetConverPairs(string name)
         {
             if (convert_pairs.ContainsKey(name))
                 return convert_pairs[name];
             else
-                return new List<string>();
+                return new List<General>();
         }
 
-        public static string GetMainGeneral(string general_name)
+        public static string GetMainGeneral(General general)
         {
             foreach (string name in convert_pairs.Keys)
             {
-                if (name == general_name || convert_pairs[name].Contains(general_name))
+                if (name == general.Name || convert_pairs[name].Contains(general))
                     return name;
             }
 
-            return general_name;
+            return general.Name;
         }
 
         public static General GetGeneral(string name, string mode)
@@ -890,7 +891,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    CardPattern p = Engine.GetPattern(skill.Pattern);
+                    CardPattern p = GetPattern(skill.Pattern);
                     if (p.Match(from, room, card))
                     {
                         int residue = skill.GetResidueNum(room, from, card);

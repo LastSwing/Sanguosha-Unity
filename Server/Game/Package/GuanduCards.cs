@@ -245,8 +245,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(log);
-
-                        room.BroadcastSkillInvoke(skill.Name, player);
+                        if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, player);
+                            room.NotifySkillInvoked(player, skill.Name);
+                        }
                     }
                     else
                         use.To.Add(p);

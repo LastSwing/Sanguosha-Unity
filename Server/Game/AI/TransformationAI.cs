@@ -1217,7 +1217,7 @@ namespace SanguoshaServer.AI
         {
             if (ai.HasSkill(TrustedAI.LoseEquipSkill)) return new List<Player>();
             foreach (Player p in target)
-                if (ai.IsFriend(p) && ai.HasSkill(TrustedAI.LoseEquipSkill, p))
+                if (ai.IsFriend(p) && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
                     return new List<Player> { p };
 
             Room room = ai.Room;

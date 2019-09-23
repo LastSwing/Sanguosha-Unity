@@ -26,7 +26,6 @@ namespace SanguoshaServer.Package
                 new YijueInvalid(),
                 new PaoxiaoJX(),
                 new PaoxiaoRecord(),
-                new PaoxiaoTar(),
                 new Tishen(),
                 new TishenGet(),
                 new LongdanJX(),
@@ -87,7 +86,7 @@ namespace SanguoshaServer.Package
             related_skills = new Dictionary<string, List<string>>
             {
                 { "wusheng_jx", new List<string> { "#wusheng-target" } },
-                { "paoxiao_jx", new List<string> { "#paoxiao-record", "#paoxiao-target" } },
+                { "paoxiao_jx", new List<string> { "#paoxiao-record" } },
                 { "kongcheng_jx", new List<string> { "#kongcheng_jx-prohibit" } },
                 { "tishen", new List<string> { "#tishen-get" } },
                 { "zhaxiang", new List<string> { "#zhaxiang-tm" } },
@@ -189,7 +188,11 @@ namespace SanguoshaServer.Package
                 {
                     WrappedCard card = room.AskForCard(p, "jijiang", Slash.ClassName, string.Format("@jijiang-target:{0}:{1}", player.Name, string.Join("+", targets)),
                         null, HandlingMethod.MethodUse);
-                    if (card != null) return card;
+                    if (card != null)
+                    {
+                        Thread.Sleep(500);
+                        return card;
+                    }
                 }
             }
 
@@ -269,11 +272,14 @@ namespace SanguoshaServer.Package
         public WushengTar() : base("#wusheng-target") { }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
         {
-            if (RoomLogic.PlayerHasSkill(room, from, "wusheng_jx") && Engine.MatchExpPattern(room, pattern, from, card)
-                && RoomLogic.GetCardSuit(room, card) == WrappedCard.CardSuit.Diamond)
+            if (RoomLogic.PlayerHasSkill(room, from, "wusheng_jx") && RoomLogic.GetCardSuit(room, card) == WrappedCard.CardSuit.Diamond)
                 return true;
 
             return false;
+        }
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = -2;
         }
     }
 
@@ -415,6 +421,15 @@ namespace SanguoshaServer.Package
             else
                 return 0;
         }
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
+        {
+            return from.HasFlag(Name);
+        }
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            if (type == ModType.DistanceLimit)
+                index = -2;
+        }
     }
 
     public class PaoxiaoRecord : TriggerSkill
@@ -428,19 +443,7 @@ namespace SanguoshaServer.Package
                 player.SetFlags("paoxiao_jx");
         }
     }
-
-    public class PaoxiaoTar : TargetModSkill
-    {
-        public PaoxiaoTar() : base("#paoxiao-target") { }
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
-        {
-            if (from.HasFlag("paoxiao_jx") && Engine.MatchExpPattern(room, pattern, from, card))
-                return true;
-
-            return false;
-        }
-    }
-
+    
     public class Tishen : TriggerSkill
     {
         public Tishen() : base("tishen")
@@ -555,7 +558,7 @@ namespace SanguoshaServer.Package
                         ids.Add(id);
 
                 if (ids.Count > 0)
-                    room.ObtainCard(ask_who, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, ask_who.Name, "tishen", string.Empty));
+                    room.ObtainCard(ask_who, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, ask_who.Name, "tishen", string.Empty));
             }
 
             return false;
@@ -687,7 +690,7 @@ namespace SanguoshaServer.Package
                 player.RemoveTag(Name);
                 player.RemoveTag("yajiao_data");
 
-                room.ObtainCard(p, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE, player.Name, p.Name, Name, string.Empty));
+                room.ObtainCard(p, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE, player.Name, p.Name, Name, string.Empty));
                 if (discard)
                     room.AskForDiscard(player, Name, 1, 1, false, true, "@yajiao-disacard", false, info.SkillPosition);
             }
@@ -908,9 +911,6 @@ namespace SanguoshaServer.Package
         }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
         {
-            if (!Engine.MatchExpPattern(room, pattern, from, card))
-                return false;
-
             if (RoomLogic.PlayerHasSkill(room, from, Name))
                 return true;
             else
@@ -1034,6 +1034,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
             room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
             return false;
         }
@@ -1197,6 +1198,7 @@ namespace SanguoshaServer.Package
         public static string ClassName = "HujiaCard";
         public HujiaCard() : base(ClassName)
         {
+            target_fixed = true;
         }
         public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
         {
@@ -1219,7 +1221,11 @@ namespace SanguoshaServer.Package
                 {
                     WrappedCard slash = room.AskForCard(p, "hujia", Jink.ClassName, "@hujia:" + player.Name, null,
                         room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE ? HandlingMethod.MethodResponse : HandlingMethod.MethodUse);
-                    if (slash != null) return slash;
+                    if (slash != null)
+                    {
+                        Thread.Sleep(500);
+                        return slash;
+                    }
                 }
             }
 
@@ -1427,7 +1433,7 @@ namespace SanguoshaServer.Package
                 if (card is EquipCard) equip = true;
                 if (card is TrickCard) trick = true;
             }
-            room.ObtainCard(use.To[0], ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, ask_who.Name, use.To[0].Name, Name, string.Empty));
+            room.ObtainCard(use.To[0], ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, ask_who.Name, use.To[0].Name, Name, string.Empty));
             if (room.Current != null)
             {
                 if (basic) room.Current.AddMark(Name, 1);
@@ -1595,7 +1601,7 @@ namespace SanguoshaServer.Package
                     player.RemoveTag(Name);
                     if (invoke)
                     {
-                        room.ObtainCard(player, get, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty));
+                        room.ObtainCard(player, ref get, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty));
                         return info;
                     }
                 }
@@ -1739,8 +1745,8 @@ namespace SanguoshaServer.Package
             room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
             room.NotifySkillInvoked(player, "yiji_jx");
             room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
-
-            room.ObtainCard(target, new List<int>(card_use.Card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "yiji_jx", string.Empty), false);
+            List<int> ids = new List<int>(card_use.Card.SubCards);
+            room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "yiji_jx", string.Empty), false);
         }
     }
     public class LuoshenJX : TriggerSkill
@@ -1848,9 +1854,6 @@ namespace SanguoshaServer.Package
                 ShowSkill = Name
             };
             zhiheng_card.AddSubCards(cards);
-            if (player.IsLastHandCard(zhiheng_card, true))
-                zhiheng_card.UserString = "1";
-
             return zhiheng_card;
         }
     }
@@ -1861,6 +1864,12 @@ namespace SanguoshaServer.Package
         public ZhihengJCard() : base(ClassName)
         {
             target_fixed = true;
+        }
+        public override void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
+        {
+            if (use.From.IsLastHandCard(use.Card, true))
+                use.Card.UserString = "1";
+            base.OnCardAnnounce(room, use, ignore_rule);
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
@@ -2292,7 +2301,7 @@ namespace SanguoshaServer.Package
 
     public class ZhaxiangTM : TargetModSkill
     {
-        public ZhaxiangTM() : base("#zhaxiang-tm")
+        public ZhaxiangTM() : base("#zhaxiang-tm", false)
         {
         }
         public override int GetResidueNum(Room room, Player from, WrappedCard card)
@@ -2302,7 +2311,7 @@ namespace SanguoshaServer.Package
 
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
         {
-            return Engine.MatchExpPattern(room, pattern, from, card) && from.GetMark("zhaxiang") > 0 && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card));
+            return from.GetMark("zhaxiang") > 0 && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card));
         }
     }
 
@@ -2504,7 +2513,10 @@ namespace SanguoshaServer.Package
             {
                 foreach (Player p in room.GetAlivePlayers())
                     if (p.GetPile(Name).Count > 0)
-                        room.ObtainCard(p, p.GetPile(Name), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXCHANGE_FROM_PILE, p.Name, Name, string.Empty), false);
+                    {
+                        List<int> ids = p.GetPile(Name);
+                        room.ObtainCard(p, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXCHANGE_FROM_PILE, p.Name, Name, string.Empty), false);
+                    }
             }
         }
 

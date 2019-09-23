@@ -1,5 +1,6 @@
 ﻿using CommonClass.Game;
 using SanguoshaServer.Game;
+using System;
 using System.Collections.Generic;
 
 namespace SanguoshaServer.Extensions
@@ -8,9 +9,17 @@ namespace SanguoshaServer.Extensions
     {
         public static void Event(TriggerEvent triggerEvent, Room room, Player player, object data)
         {
-            foreach (Title title in Engine.GetTitleCollector())
-                if (title.EventList.Contains(triggerEvent))
-                    title.OnEvent(triggerEvent, room, player, data);
+            try
+            {
+                foreach (Title title in Engine.GetTitleCollector())
+                    if (title.EventList.Contains(triggerEvent))
+                        title.OnEvent(triggerEvent, room, player, data);
+            }
+            catch (Exception e)
+            {
+                LogHelper.WriteLog(null, e);
+                room.Debug(string.Format("error when proceeing title {0} {1}", e.Message, e.TargetSite));
+            }
         }
     }
 

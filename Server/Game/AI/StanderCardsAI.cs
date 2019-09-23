@@ -1747,7 +1747,8 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             NulliResult result = new NulliResult();
-            if (keep || !from.Alive || to.IsKongcheng() || from.IsKongcheng() || ai.Self == from || from.HasFlag("FireAttackFailedPlayer_" + to.Name)) return result;
+            if (keep || !from.Alive || to.IsKongcheng() || from.IsKongcheng() || ai.Self == from
+                || from.HasFlag("FireAttackFailedPlayer_" + to.Name) || ai.IsFriend(from)) return result;
 
             DamageStruct damage = new DamageStruct(trick, from, to, 1, DamageStruct.DamageNature.Fire);
             if (ai.DamageEffect(damage, DamageStruct.DamageStep.Done) == 0 || from.HandcardNum < 3
@@ -1920,10 +1921,23 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (scores[0].Score > 4 || (scores[0].Score > 0 && hand && ai.GetOverflow(player) > 0))
+                if (scores[0].Score > 4)
                 {
                     use.Card = card;
                     use.To = scores[0].Players;
+                }
+                else if (hand && ai.GetOverflow(player) > 0)
+                {
+                    foreach (ScoreStruct score in scores)
+                    {
+                        Player target = score.Players[0];
+                        if (score.Score >= 0 && !player.HasFlag("FireAttackFailedPlayer_" + target.Name))
+                        {
+                            use.Card = card;
+                            use.To = score.Players;
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -3907,8 +3921,24 @@ namespace SanguoshaServer.AI
                 value -= 10;
 
             if (ai.HasSkill("bazhen", player))
-                value -= 2;
-            
+                value -= 5;
+
+                
+            if (ai.Self == player)
+            {
+                int count = 0;
+                List<int> ids = player.GetCards("he");
+                ids.AddRange(player.GetHandPile());
+                foreach (int id in ids)
+                    if (ai.IsCard(id, "Jink", player))
+                        count++;
+
+                if (count == 0)
+                    value -= 6;
+            }
+            else if (ai.IsLackCard(player, Jink.ClassName))
+                value -= 6;
+
             foreach (Player p in ai.GetFriends(player))
                 if (p != player && p.Chained)
                     value -= 0.7;
@@ -3920,7 +3950,7 @@ namespace SanguoshaServer.AI
                 foreach (Player p in ai.GetEnemies(player))
                 {
                     if (p.HasWeapon(Fan.ClassName) || RoomLogic.PlayerHasSkill(ai.Room, p, "huoji") || ai.GetKnownCardsNums(FireAttack.ClassName, "he", player, p) > 0)
-                        value -= 1.5;
+                        value -= 3;
                 }
             }
 

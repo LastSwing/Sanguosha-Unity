@@ -1195,7 +1195,8 @@ namespace SanguoshaServer.AI
                         WrappedCard equip = room.GetCard(result_id);
                         foreach (Player p in room.GetOtherPlayers(who))
                         {
-                            if (ai.GetSameEquip(equip, p) == null && ai.HasSkill(TrustedAI.LoseEquipSkill, who) && RoomLogic.CanPutEquip(p, equip))
+                            if (ai.GetSameEquip(equip, p) == null && (ai.HasSkill(TrustedAI.NeedEquipSkill, who) || ai.HasSkill(TrustedAI.LoseEquipSkill, who))
+                                && RoomLogic.CanPutEquip(p, equip))
                                 return new KeyValuePair<int, Player>(result_id, p);
                         }
                         List<Player> friends = ai.GetFriends(player);
@@ -1224,7 +1225,7 @@ namespace SanguoshaServer.AI
                         ai.SortByDefense(ref friends, false);
                         foreach (Player p in friends)
                         {
-                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill("shensu", p)))
+                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
                                 return new KeyValuePair<int, Player>(result_id, p);
                         }
 
@@ -1238,7 +1239,7 @@ namespace SanguoshaServer.AI
                     {
                         foreach (Player p in friends)
                         {
-                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill("shensu", p)))
+                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
                                 return new KeyValuePair<int, Player>(result_id, p);
                         }
 
@@ -1258,8 +1259,7 @@ namespace SanguoshaServer.AI
         {
             List<int> to_discard = new List<int>();
             if (!ai.WillShowForAttack()) return to_discard;
-
-            ((SmartAI)ai).UpdatePlayers();
+            
             List<int> cards= player.GetCards("h");
             ai.SortByKeepValue(ref cards, false);
             Room room = ai.Room;
@@ -1267,7 +1267,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player ap in room.GetOtherPlayers(player))
             {
-                if (ai.HasSkill("tuxi", ap) && ai.IsEnemy(ap))
+                if (ai.HasSkill("tuxi|tuxi_jx", ap) && ai.IsEnemy(ap))
                 {
                     stealer = ap;
                     break;
@@ -1333,7 +1333,7 @@ namespace SanguoshaServer.AI
                             return to_discard;
                 }
             }
-            else if (phase == Player.PlayerPhase.Draw && !player.IsSkipped(Player.PlayerPhase.Draw) && !ai.HasSkill("tuxi"))
+            else if (phase == Player.PlayerPhase.Draw && !player.IsSkipped(Player.PlayerPhase.Draw) && !ai.HasSkill("tuxi|tuxi_jx"))
             {
                 ai.Target["qiaobian1"] = null;
                 ai.Target["qiaobian2"] = null;
@@ -2171,8 +2171,16 @@ namespace SanguoshaServer.AI
 
             Dictionary<Player, double> strenth = new Dictionary<Player, double>();
             List<Player> enemis = ai.GetEnemies(player);
-            foreach (Player p in enemis)
-                strenth.Add(p, ((SmartAI)ai).EvaluatePlayerStrength(p));
+            if (ai is SmartAI smart)
+            {
+                foreach (Player p in enemis)
+                    strenth.Add(p, smart.EvaluatePlayerStrength(p));
+            }
+            else if (ai is StupidAI stupid)
+            {
+                foreach (Player p in enemis)
+                    strenth.Add(p, stupid.EvaluatePlayerStrength(p));
+            }
 
             enemis.Sort((x, y) => { return strenth[x] > strenth[y] ? -1 : 1; });
             foreach (Player p in enemis)

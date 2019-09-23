@@ -227,13 +227,21 @@ namespace SanguoshaServer.Package
                     {
                         if (player.GetSlashCount() <= Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, card) + 1
                                 && player.UsedTimes("Slash_" + name) < skill.GetResidueNum(room, player, card))
+                        {
+                            if (!skill.SkillRelated)
+                            {
+                                player.AddHistory("Slash_" + name);
+                                return;
+                            }
                             targetModSkills.Add(skill);
+                        }
                         else
                         {
                             foreach (Player p in use.To)
                             {
                                 if (skill.CheckSpecificAssignee(room, player, p, card))
                                 {
+                                    if (!skill.SkillRelated) return;
                                     targetModSkills.Add(skill);
                                     break;
                                 }
@@ -267,9 +275,8 @@ namespace SanguoshaServer.Package
 
                 List<TriggerStruct> skills = new List<TriggerStruct>();
                 foreach (string skill in q)
-                {
                     skills.Add(new TriggerStruct(skill, player));
-                }
+
                 TriggerStruct r = room.AskForSkillTrigger(player, "declare_skill_invoke", skills, false, null, true);
 
                 if (r.SkillName.EndsWith(CrossBow.ClassName))
@@ -606,14 +613,13 @@ namespace SanguoshaServer.Package
         public override string GetSubtype() => "buff_card";
         public static bool IsAnalepticAvailable(Room room, Player player, WrappedCard analeptic = null)
         {
-            WrappedCard card = new WrappedCard(Analeptic.ClassName);
-            WrappedCard THIS_ANAL = analeptic ?? card;
+            WrappedCard THIS_ANAL = analeptic ?? new WrappedCard(ClassName);
             if (RoomLogic.IsCardLimited(room, player, THIS_ANAL, HandlingMethod.MethodUse) || RoomLogic.IsProhibited(room, player, player, THIS_ANAL) != null)
                 return false;
 
             if (player.HasFlag("Global_Dying")) return true;
 
-            if (player.UsedTimes(Analeptic.ClassName) <= Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, THIS_ANAL))
+            if (player.UsedTimes(ClassName) <= Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, THIS_ANAL))
                 return true;
 
             if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.SpecificAssignee, player, player, THIS_ANAL))
@@ -668,10 +674,19 @@ namespace SanguoshaServer.Package
                     {
                         if (player.UsedTimes(Name) <= Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, card) + 1
                                 && player.UsedTimes("Analeptic_" + name) < skill.GetResidueNum(room, player, card))
+                        {
+                            if (!skill.SkillRelated)
+                            {
+                                player.AddHistory("Analeptic_" + name);
+                                return;
+                            }
                             q.Add(skill.Name);
-
+                        }
                         if (skill.CheckSpecificAssignee(room, player, player, card))
+                        {
+                            if (!skill.SkillRelated) return;
                             q.Add(skill.Name);
+                        }
                     }
                 }
                 List<TriggerStruct> skills = new List<TriggerStruct>();
@@ -1147,6 +1162,7 @@ namespace SanguoshaServer.Package
                     {
                         if (tarmod.GetDistanceLimit(room, player, use.To[0], card))
                         {
+                            if (!tarmod.SkillRelated) return;
                             Skill main_skill = Engine.GetMainSkill(tarmod.Name);
                             if (RoomLogic.PlayerHasShownSkill(room, player, main_skill) || !RoomLogic.PlayerHasSkill(room, player, main_skill.Name))
                             {
@@ -1424,6 +1440,7 @@ namespace SanguoshaServer.Package
                     {
                         if (tarmod.GetDistanceLimit(room, player, use.To[0], card))
                         {
+                            if (!tarmod.SkillRelated) return;
                             Skill main_skill = Engine.GetMainSkill(tarmod.Name);
                             if (RoomLogic.PlayerHasShownSkill(room, player, main_skill) || !RoomLogic.PlayerHasSkill(room, player, main_skill.Name))
                             {
@@ -1640,8 +1657,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(log);
-
-                        room.BroadcastSkillInvoke(skill.Name, p);
+                        if (RoomLogic.PlayerHasShownSkill(room, p, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, p);
+                            room.NotifySkillInvoked(p, skill.Name);
+                        }
                     }
                     else
                     {

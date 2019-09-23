@@ -109,7 +109,7 @@ namespace SanguoshaServer.Game
 
         DFDebut, // for Dragon Phoenix Debut
 
-        //XuyouDraw,
+        CardDrawing,
         NumOfEvents,
     };
 
@@ -901,8 +901,9 @@ namespace SanguoshaServer.Game
     public class TargetModSkill : Skill
     {
         protected string pattern = Slash.ClassName;
-        public TargetModSkill(string name) : base(name)
+        public TargetModSkill(string name, bool skill_related = true) : base(name)
         {
+            SkillRelated = skill_related;
         }
 
         public enum ModType
@@ -915,6 +916,7 @@ namespace SanguoshaServer.Game
             History,
         };
 
+        public bool SkillRelated { get; protected set; }
         public virtual string Pattern => pattern;
         public virtual int GetResidueNum(Room room, Player from, WrappedCard card) => 0;
         public virtual int GetExtraTargetNum(Room room, Player from, WrappedCard card) => 0;

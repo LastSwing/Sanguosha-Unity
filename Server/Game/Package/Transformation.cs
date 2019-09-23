@@ -1754,7 +1754,7 @@ namespace SanguoshaServer.Package
             if (card_use.Card.SubCards.Count == 0 && target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
             {
                 int id = room.AskForCardChosen(player, target, "e", "diaodu", false, HandlingMethod.MethodGet); List<int> ids = new List<int> { id };
-                room.ObtainCard(player, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "diaodu", string.Empty));
+                room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "diaodu", string.Empty));
 
                 if (ids.Count == 1 && room.GetCardPlace(ids[0]) == Place.PlaceHand && room.GetCardOwner(ids[0]) == player)
                 {
@@ -1765,11 +1765,14 @@ namespace SanguoshaServer.Package
                     Player second = room.AskForPlayerChosen(player, targets, "diaodu", "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
                     player.RemoveTag("diaodu");
                     if (second != null)
-                        room.ObtainCard(second, ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, "diaodu", string.Empty));
+                        room.ObtainCard(second, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, "diaodu", string.Empty));
                 }
             }
             else if (card_use.Card.SubCards.Count == 1)
-                room.ObtainCard(target, new List<int>(card_use.Card.SubCards), new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "diaodu", string.Empty));
+            {
+                List<int> ids = new List<int>(card_use.Card.SubCards);
+                room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "diaodu", string.Empty));
+            }
         }
     }
 

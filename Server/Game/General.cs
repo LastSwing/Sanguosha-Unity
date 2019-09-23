@@ -13,11 +13,10 @@ namespace SanguoshaServer.Game
         public List<string> Companions { set; get; } = new List<string>();
         public int Head_max_hp_adjusted_value { set; get; } = 0;
         public int Deputy_max_hp_adjusted_value { set; get; } = 0;
-
         public bool Selectable { get; private set; }
-        
+        public string Package { get; private set; }
+
         private readonly bool lord;
-        private readonly string package_name;
 
         public General(string name, string kingdom, bool lord, string pack, int double_max_hp, bool male, bool selectable)
         {
@@ -26,7 +25,7 @@ namespace SanguoshaServer.Game
             DoubleMaxHp = double_max_hp;
             GeneralGender = male ? Gender.Male : Gender.Female;
             Selectable = selectable;
-            package_name = pack;
+            Package = pack;
             this.lord = lord;
         }
 
@@ -37,7 +36,7 @@ namespace SanguoshaServer.Game
         public bool CompanionWith(string name)
         {
             General other = Engine.GetGeneral(name, "Hegemony");
-            if (other == null || !Engine.GetMode("Hegemony").GeneralPackage.Contains(package_name)) return false;
+            if (other == null || !Engine.GetMode("Hegemony").GeneralPackage.Contains(Package)) return false;
 
             if (Kingdom != other.Kingdom)
                 return false;

@@ -1,4 +1,7 @@
-﻿using System.Data;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 
 namespace CommonClass.Game
 {
@@ -6,7 +9,7 @@ namespace CommonClass.Game
     public class RoomList
     {
         private static RoomList mySingleton;
-        private static DataTable RoomTable;
+        private static ConcurrentDictionary<int, RoomInfoStruct> RoomTable;
 
         private RoomList()
         {
@@ -24,113 +27,46 @@ namespace CommonClass.Game
 
         private void GenTable()
         {
-            RoomTable = new DataTable("RoomList");
-            DataColumn col;
-
-            col = RoomTable.Columns.Add("RoomId", typeof(int));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("Name", typeof(string));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("PassWord", typeof(bool));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("Mode", typeof(string));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("Started", typeof(bool));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("CurrentPlayers", typeof(int));
-            col.AllowDBNull = false;
-            col = RoomTable.Columns.Add("MaxPlayers", typeof(int));
-            col.AllowDBNull = false;
-
-            RoomTable.PrimaryKey = new DataColumn[] { RoomTable.Columns["RoomId"] };
+            RoomTable = new ConcurrentDictionary<int, RoomInfoStruct>();
         }
 
 
-        public DataRow FindRoomRow(int id)
+        public RoomInfoStruct FindRoomRow(int id)
         {
-            DataRow[] rows = RoomTable.Select(string.Format("RoomId = {0}", id));
-            if (rows.Length == 1)
-                return rows[0];
-            else
-                return null;
-        }
-
-        public void LeaveDesk(int id)
-        {
-            DataRow row = FindRoomRow(id);
-            if (row != null)
-            {
-                row["RoomNumber"] = 0;
-                row["RoomPosition"] = 0;
-            }
-        }
-
-        public void JoinDesk(int id, int newDeskNumber, int newDeskPosition)
-        {
-            DataRow row = FindRoomRow(id);
-            if (row != null)
-            {
-                row["RoomNumber"] = newDeskNumber;
-                row["RoomPosition"] = newDeskPosition;
-            }
+            RoomTable.TryGetValue(id, out RoomInfoStruct info);
+            return info;
         }
 
         public void AddRoom(int id, string name, bool pass, string gameMode, bool status, int current, int max)
         {
-            lock (RoomTable)
+            RoomTable.TryRemove(id, out RoomInfoStruct old);
+            RoomInfoStruct Info = new RoomInfoStruct()
             {
-                RemoveRoom(id);
-                DataRow newRow = RoomTable.NewRow();
-                newRow["RoomId"] = id;
-                newRow["Name"] = name;
-                newRow["PassWord"] = pass;
-                newRow["Mode"] = gameMode;
-                newRow["Started"] = status;
-                newRow["CurrentPlayers"] = current;
-                newRow["MaxPlayers"] = max;
-
-                RoomTable.Rows.Add(newRow);
-
-                DataView dView = RoomTable.DefaultView;
-                dView.Sort = "RoomId asc";               //按RoomId升序
-                RoomTable = dView.ToTable();
-            }
+                Id = id,
+                Name = name,
+                PassWord = pass,
+                Mode = gameMode,
+                Started = status,
+                CurrentPlayers = current,
+                MaxPlayres = max,
+            };
+            RoomTable.TryAdd(id, Info);
         }
 
         public void RemoveRoom(int room_id)
         {
-            lock (RoomTable)
-            {
-                DataRow row = FindRoomRow(room_id);
-                if (row != null)
-                {
-                    RoomTable.Rows.Remove(row);
-                }
-            }
+            RoomTable.TryRemove(room_id, out RoomInfoStruct old);
         }
 
-        public bool FindRoom(int room_id)
+        public Dictionary<int, RoomInfoStruct> GetRoomList()
         {
-            DataRow row = FindRoomRow(room_id);
-            if (row == null)
-                return false;
-            else
-                return true;
+            var myDictionary = RoomTable.ToDictionary(entry => entry.Key,
+                                                       entry => entry.Value);
+            return myDictionary;
         }
-
-        public DataTable GetRoomList()
+        public void Init(ConcurrentDictionary<int, RoomInfoStruct> db)
         {
-            return RoomTable;
-        }
-        public void Init(DataTable db)
-        {
-            if (db.Rows.Count == 0)
-            {
-                GenTable();
-                return;
-            }
-
-            RoomTable = db.Copy();
+            RoomTable = db;
         }
     }
 }

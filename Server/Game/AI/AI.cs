@@ -1142,7 +1142,6 @@ namespace SanguoshaServer.AI
                     if (HasSkill("xiaoji", player)) adjust += 6;
                     if (HasSkill("xuanlue", player)) adjust += 3;
                 }
-
                 if ((HasSkill("lianying", player) && (Reason == Dismantlement.ClassName || Reason == Snatch.ClassName || times - result.Count >= player.HandcardNum))
                     || (HasSkill("shoucheng", player) && player.HandcardNum == 1))
                 {
@@ -1608,6 +1607,8 @@ namespace SanguoshaServer.AI
                             damage.Damage--;
                     }
                 }
+                if (from != null && from.Alive && from != to && HasSkill("yuanyu", to) && room.GetNextAlive(from) != to && room.GetNextAlive(to) != from)
+                    damage.Damage--;
 
                 if (damage.Damage <= 0) return 0;
 
@@ -2450,6 +2451,8 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+                else if (values[0].Score > 0 && values[0].Card.SubCards.Count == 0)
+                    will_slash = true;
 
                 //todo: adjust ai personality
                 if (!will_slash && GetOverflow(player) > 0)
@@ -2551,7 +2554,7 @@ namespace SanguoshaServer.AI
                 foreach (Player target in targets)
                 {
                     ClearPreInfo();
-                    if (!RoomLogic.CanSlash(room, player, target, slash) || SlashProhibit(slash, target, player)) continue;
+                    if (!Slash.Instance.TargetFilter(room, new List<Player>(), target, player, slash)) continue;
                     available_targets.Add(target, SlashIsEffective(slash, target));
                 }
 

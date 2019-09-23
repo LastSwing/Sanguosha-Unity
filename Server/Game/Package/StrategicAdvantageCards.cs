@@ -687,8 +687,11 @@ namespace SanguoshaServer.Package
                         Arg2 = Name
                     };
                     room.SendLog(log);
-
-                    room.BroadcastSkillInvoke(skill.Name, player);
+                    if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                    {
+                        room.BroadcastSkillInvoke(skill.Name, player);
+                        room.NotifySkillInvoked(player, skill.Name);
+                    }
                 }
                 else
                    card_use.To.Add(player);
@@ -937,7 +940,11 @@ namespace SanguoshaServer.Package
                                     Arg2 = Name
                                 };
                                 room.SendLog(log);
-                                room.BroadcastSkillInvoke(skill.Name, player);
+                                if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                                {
+                                    room.BroadcastSkillInvoke(skill.Name, player);
+                                    room.NotifySkillInvoked(player, skill.Name);
+                                }
                             }
                         }
                     }
@@ -996,7 +1003,11 @@ namespace SanguoshaServer.Package
                             Arg2 = Name
                         };
                         room.SendLog(_log);
-                        room.BroadcastSkillInvoke(skill.Name, p);
+                        if (RoomLogic.PlayerHasShownSkill(room, p, skill))
+                        {
+                            room.BroadcastSkillInvoke(skill.Name, p);
+                            room.NotifySkillInvoked(p, skill.Name);
+                        }
                     }
                     else
                         targets.Add(p);
@@ -1336,19 +1347,20 @@ namespace SanguoshaServer.Package
     {
         public ThreatenEmperorSkill() : base(ThreatenEmperor.ClassName)
         {
-            events.Add(TriggerEvent.EventPhaseEnd);
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseChanging };
             global = true;
         }
-        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            List<TriggerStruct> list = new List<TriggerStruct>();
-            if (player.Phase != PlayerPhase.Discard)
-                return list;
-            foreach (Player p in room.GetAllPlayers())
-                if (p.GetMark("ThreatenEmperorExtraTurn") > 0)
-                    list.Add(new TriggerStruct(Name, p));
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.GetMark("ThreatenEmperorExtraTurn") > 0)
+                player.SetMark("ThreatenEmperorExtraTurn", 0);
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Phase == PlayerPhase.Discard && player.Alive && player.GetMark("ThreatenEmperorExtraTurn") > 0)
+                return new TriggerStruct(Name, player);
 
-            return list;
+            return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
@@ -1370,47 +1382,6 @@ namespace SanguoshaServer.Package
         }
     }
 
-    /*
-    public class ThreatenEmperorSkill : TriggerSkill
-    {
-        public ThreatenEmperorSkill() : base(ThreatenEmperor.ClassName)
-        {
-            events.Add(TriggerEvent.EventPhaseChanging);
-            global = true;
-        }
-        public override int GetPriority() => 1;
-        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            List<TriggerStruct> list = new List<TriggerStruct>();
-            PhaseChangeStruct change = (PhaseChangeStruct)data;
-            if (change.To != PlayerPhase.NotActive)
-                return list;
-            foreach (Player p in room.GetAllPlayers())
-                if (p.GetMark("ThreatenEmperorExtraTurn") > 0)
-                    list.Add(new TriggerStruct(Name, p));
-
-            return list;
-        }
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            ask_who.RemoveMark("ThreatenEmperorExtraTurn");
-            if (room.AskForCard(ask_who, Name, "..", "@threaten_emperor", data, Name) != null)
-                return info;
-            return new TriggerStruct();
-        }
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            LogMessage l = new LogMessage
-            {
-                Type = "#Fangquan",
-                To = new List<string> { ask_who.Name }
-            };
-            room.SendLog(l);
-            room.GainAnExtraTurn(ask_who);
-            return false;
-        }
-    }
-    */
     public class Edict : GlobalEffect
     {
         public static string ClassName = "Edict";
@@ -1450,8 +1421,11 @@ namespace SanguoshaServer.Package
                         Arg2 = Name
                     };
                     room.SendLog(log);
-
-                    room.BroadcastSkillInvoke(skill.Name, p);
+                    if (RoomLogic.PlayerHasShownSkill(room, p, skill))
+                    {
+                        room.BroadcastSkillInvoke(skill.Name, p);
+                        room.NotifySkillInvoked(p, skill.Name);
+                    }
                 }
                 else
                     targets.Add(p);

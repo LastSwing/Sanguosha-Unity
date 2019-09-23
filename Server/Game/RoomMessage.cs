@@ -1,4 +1,5 @@
 ﻿using CommonClassLibrary;
+using System;
 using System.Collections.Generic;
 
 namespace SanguoshaServer.Game
@@ -7,32 +8,49 @@ namespace SanguoshaServer.Game
     {
         public static void NotifyPlayerJoinorLeave(Room room, Client client, bool join)
         {
-            string message = string.Format("{0}:{1}", join ? "@join_game" : "@leave_game", client.Profile.NickName);
-            MyData data = new MyData
+            try
             {
-                Description = PacketDescription.Room2Cient,
-                Protocol = Protocol.Message2Room,
-                Body = new List<string> { string.Empty, message },
-            };
+                string message = string.Format("{0}:{1}", join ? "@join_game" : "@leave_game", client.Profile.NickName);
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Room2Cient,
+                    Protocol = Protocol.Message2Room,
+                    Body = new List<string> { string.Empty, message },
+                };
 
-            foreach (Client c in room.Clients)
-                if (c.GameRoom == room.RoomId)
-                    c.SendMessage(data);
+                List<Client> clients = new List<Client>(room.Clients);
+                foreach (Client c in clients)
+                    if (c.GameRoom == room.RoomId)
+                        c.SendMessage(data);
+            }
+            catch (Exception e)
+            {
+                room.Debug(string.Format("error on NotifyPlayerJoinorLeave {0} {1} {2}", e.Message, e.Source, e.HelpLink));
+            }
         }
 
         public static void NotifyPlayerDisconnected(Room room, Client client)
         {
-            string message = string.Format("@disconnected:{0}", client.Profile.NickName);
-            MyData data = new MyData
+            try
             {
-                Description = PacketDescription.Room2Cient,
-                Protocol = Protocol.Message2Room,
-                Body = new List<string> { string.Empty, message },
-            };
+                string message = string.Format("@disconnected:{0}", client.Profile.NickName);
+                MyData data = new MyData
+                {
+                    Description = PacketDescription.Room2Cient,
+                    Protocol = Protocol.Message2Room,
+                    Body = new List<string> { string.Empty, message },
+                };
 
-            foreach (Client c in room.Clients)
-                if (c.GameRoom == room.RoomId)
-                    c.SendMessage(data);
+                List<Client> clients = new List<Client>(room.Clients);
+                foreach (Client c in clients)
+                    if (c.GameRoom == room.RoomId)
+                        c.SendMessage(data);
+            }
+            catch (Exception e)
+            {
+                LogHelper.WriteLog(null, e);
+                room.Debug(string.Format("error on NotifyPlayerDisconnected {0} {1} {2}", e.Message, e.Source, e.HelpLink));
+            }
         }
     }
 }

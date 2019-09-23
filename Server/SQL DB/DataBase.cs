@@ -30,7 +30,7 @@ namespace SanguoshaServer
 
         public static DataTable GetData(string sql, bool athur = true)
         {
-            using (SqlConnection SqlDrConn = new SqlConnection(GetConnString(athur)))
+                using (SqlConnection SqlDrConn = new SqlConnection(GetConnString(athur)))
             {
                 SqlDrConn.Open();
                 SqlCommand Cmd = new SqlCommand(sql, SqlDrConn);
@@ -45,20 +45,17 @@ namespace SanguoshaServer
                 }
                 //SqlDrConn.Close();
                 return dt;
-            }
+                }
         }
 
         public static int UpdateData(string sql)
         {
-            int result = 0;
-            using (SqlConnection SqlDrConn = new SqlConnection(GetConnString()))
-            {
-                SqlDrConn.Open();
-                SqlCommand Cmd = new SqlCommand(sql, SqlDrConn);
-                result = Cmd.ExecuteNonQuery();
-            }
-
-            return result;
+                using (SqlConnection SqlDrConn = new SqlConnection(GetConnString()))
+                {
+                    SqlDrConn.Open();
+                    SqlCommand Cmd = new SqlCommand(sql, SqlDrConn);
+                    return Cmd.ExecuteNonQuery();
+                }
         }
         public static DataTable LoginDB(string Account)
         {

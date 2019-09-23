@@ -148,7 +148,7 @@ namespace SanguoshaServer.Scenario
             {
                 room.AddPlayerSkill(lord, skill);
                 Skill s = Engine.GetSkill(skill);
-                if (skill != null && s.SkillFrequency == Frequency.Limited  && !string.IsNullOrEmpty(s.LimitMark))
+                if (s != null && s.SkillFrequency == Frequency.Limited  && !string.IsNullOrEmpty(s.LimitMark))
                     room.SetPlayerMark(lord, s.LimitMark, 1);
             }
             room.SendPlayerSkillsToOthers(lord, true);
@@ -166,7 +166,7 @@ namespace SanguoshaServer.Scenario
             }
 
             //其他玩家选将
-            List<Client> receivers = new List<Client>();
+            List<Interactivity> receivers = new List<Interactivity>();
             List<Player> players = new List<Player>();
             foreach (Player player in options.Keys)
             {
@@ -181,7 +181,7 @@ namespace SanguoshaServer.Scenario
                     true.ToString(),
                     false.ToString()
                 };
-                Client client = room.GetClient(player);
+                Interactivity client = room.GetInteractivity(player);
                 if (client != null && !receivers.Contains(client))
                 {
                     client.CommandArgs = args;
@@ -206,7 +206,7 @@ namespace SanguoshaServer.Scenario
                 if (string.IsNullOrEmpty(player.General1))
                 {
                     string generalName = string.Empty;
-                    Client client = room.GetClient(player);
+                    Interactivity client = room.GetInteractivity(player);
                     List<string> reply = client?.ClientReply;
                     bool success = true;
                     if (reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
@@ -214,7 +214,7 @@ namespace SanguoshaServer.Scenario
                     else
                         generalName = reply[0];
 
-                    if (!success || (!options[player].Contains(Engine.GetMainGeneral(generalName)) && room.GetClient(player).UserRight < 3))
+                    if (!success || (!options[player].Contains(generalName) && room.GetClient(player).UserRight < 3))
                     {
                         TrustedAI ai = room.GetAI(player);
                         if (ai != null && ai is StupidAI)
@@ -258,7 +258,7 @@ namespace SanguoshaServer.Scenario
                     choice,
                     JsonUntity.Object2Json(prompts)
                 };
-                Client client = room.GetClient(player);
+                Interactivity client = room.GetInteractivity(player);
                 if (client != null && !receivers.Contains(client))
                 {
                     client.CommandArgs = args;
@@ -279,7 +279,7 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in players)
             {
                 string answer = string.Empty;
-                List<string> clientReply = room.GetClient(player).ClientReply;
+                List<string> clientReply = room.GetInteractivity(player).ClientReply;
                 if (clientReply != null && clientReply.Count > 0)
                     answer = clientReply[0];
 
@@ -306,9 +306,9 @@ namespace SanguoshaServer.Scenario
                 room.BroadcastProperty(player, "Kingdom");
             }
         }
-        public override void OnChooseGeneralReply(Room room, Client client)
+        public override void OnChooseGeneralReply(Room room, Interactivity client)
         {
-            Player player = room.GetPlayers(client)[0];
+            Player player = room.GetPlayers(client.ClientId)[0];
             List<string> options = JsonUntity.Json2List<string>((string)player.GetTag("generals"));
             List<string> reply = client.ClientReply;
             bool success = true;
@@ -318,7 +318,7 @@ namespace SanguoshaServer.Scenario
             else
                 generalName = reply[0];
 
-            if (!success || (!options.Contains(Engine.GetMainGeneral(generalName)) && client.UserRight < 3))
+            if (!success || (!options.Contains(generalName) && room.GetClient(client.ClientId).UserRight < 3))
             {
                 generalName = options[0];
             }
@@ -344,7 +344,7 @@ namespace SanguoshaServer.Scenario
             {
                 Client client = room.Clients[i];
                 if (client.UserID < 0) continue;
-                List<string> reserved_generals = client.CheatArgs;
+                List<string> reserved_generals = client.GeneralReserved;
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
 
                 foreach (string general in reserved_generals)
@@ -352,25 +352,25 @@ namespace SanguoshaServer.Scenario
                     for (int y = i + 1; y < room.Clients.Count; y++)
                     {
                         Client client2 = room.Clients[y];
-                        if (client == client2 || client2.UserID < 0 || client2.CheatArgs == null || client2.CheatArgs.Count == 0) continue;
-                        if (client2.CheatArgs.Contains(general))
+                        if (client == client2 || client2.UserID < 0 || client2.GeneralReserved == null || client2.GeneralReserved.Count == 0) continue;
+                        if (client2.GeneralReserved.Contains(general))
                         {
-                            client.CheatArgs.RemoveAll(t => t == general);
-                            client2.CheatArgs.RemoveAll(t => t == general);
+                            client.GeneralReserved.RemoveAll(t => t == general);
+                            client2.GeneralReserved.RemoveAll(t => t == general);
                         }
                     }
                 }
             }
             foreach (Client client in room.Clients)
             {
-                if (client.CheatArgs != null && client.CheatArgs.Count > 0 && client.CheatArgs.Count <= 2)
+                if (client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
                 {
                     foreach (Player p in room.Players)
                     {
                         if (p.ClientId == client.UserID)
                         {
                             options[p] = new List<string>();
-                            foreach (string general in client.CheatArgs)
+                            foreach (string general in client.GeneralReserved)
                             {
                                 if (generals.Contains(general))
                                 {
@@ -383,6 +383,8 @@ namespace SanguoshaServer.Scenario
                         }
                     }
                 }
+
+                client.GeneralReserved = null;
             }
 
 

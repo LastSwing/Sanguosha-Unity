@@ -69,20 +69,27 @@ namespace SanguoshaServer.Game
             string winner = game_rule.GetWinner(room);
             if (!string.IsNullOrEmpty(winner))
                 room.GameOver(winner);
-
-            //try
-            //{
+#if !DEBUG
+            try
+            {
+#endif
                 Trigger(TriggerEvent.GameStart, room, null);
                 ConstructTriggerTable();
                 ActionNormal();
-            //}
-            //catch (Exception e)
-            //{
-            //    room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
-            //}
+#if !DEBUG
+            }
+            catch (Exception e)
+            {
+                if (!(e is System.Threading.ThreadAbortException))
+                {
+                    LogHelper.WriteLog(null, e);
+                    room.Debug(string.Format("{0} : {1} {2}", e.Message, e.TargetSite, e.Source));
+                }
+            }
 
-            //if (!room.RoomTerminated)
-            //    room.GameOver(".");
+            if (!room.RoomTerminated)
+                room.GameOver(".");
+#endif
         }
 
         protected virtual void ActionNormal()//(GameRule* game_rule)

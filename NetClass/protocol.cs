@@ -124,7 +124,8 @@ namespace CommonClassLibrary
         RegisterSuccesful,          //注册
         AccountDuplicated,          //帐号申请重复
         PasswordChangeSuccesful,    //密码修改
-        WrongMessage                //协议错误
+        WrongMessage,               //协议错误
+        VersionNotMatch             //版本号不匹配
     }
 
     public enum CheatCode
@@ -266,6 +267,7 @@ namespace CommonClassLibrary
         S_GAME_EVENT_CHAIN_ANIMATION,
         S_GAME_EVENT_SHEFU,
         S_GAME_EVENT_SHOWDISTANCE,
+        S_GAME_EVENT_SKILL_TURN,
     };
 
     public enum MoveCardType

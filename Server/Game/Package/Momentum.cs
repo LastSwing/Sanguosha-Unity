@@ -725,7 +725,8 @@ namespace SanguoshaServer.Package
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
 
             player.RemoveTag("yongjue_ids");
-            room.ObtainCard(player, move.Card_ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, player.Name));
+            List<int> ids = new List<int>(move.Card_ids);
+            room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, player.Name));
             return false;
         }
     }

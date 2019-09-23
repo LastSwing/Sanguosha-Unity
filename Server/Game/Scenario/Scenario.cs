@@ -25,7 +25,7 @@ namespace SanguoshaServer.Scenario
         public abstract void Assign(Room room);
         public abstract void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile);
         public abstract void PrepareForPlayers(Room room);
-        public abstract void OnChooseGeneralReply(Room room, Client client);
+        public abstract void OnChooseGeneralReply(Room room, Interactivity client);
         public virtual RoomThread GetThread(Room room)
         {
             return new RoomThread(room, rule);
@@ -302,6 +302,7 @@ namespace SanguoshaServer.Scenario
             PhaseChangeStruct change = (PhaseChangeStruct)data;
             if (change.To == PlayerPhase.NotActive)
             {
+                if (player.GetMark("TurnPlayed") == 0) player.SetMark("TurnPlayed", 1);
                 player.SetFlags(".");
                 RoomLogic.ClearPlayerCardLimitation(player, true);
                 foreach (Player p in room.GetAllPlayers()) {
@@ -423,10 +424,10 @@ namespace SanguoshaServer.Scenario
             DyingStruct dying = (DyingStruct)data;
 
             bool askforpeach = true;
-            Client client = room.GetClient(player);
+            Interactivity client = room.GetInteractivity(player);
             List<Player> controlls = new List<Player> { player };
             if (client != null)
-                controlls = room.GetPlayers(client);
+                controlls = room.GetPlayers(client.ClientId);
 
             if (!controlls.Contains(dying.Who))
             {

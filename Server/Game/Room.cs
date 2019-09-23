@@ -65,7 +65,8 @@ namespace SanguoshaServer.Game
 
         private int _m_lastMovementId;
         private List<Player> m_players = new List<Player>();
-        private List<Client> m_watcher = new List<Client>();
+        private Dictionary<int, Interactivity> m_interactivities = new Dictionary<int, Interactivity>();
+        private List<Interactivity> m_watcher = new List<Interactivity>();
         private List<int> pile1 = new List<int>(), table_cards = new List<int>(), m_drawPile = new List<int>(), m_discardPile = new List<int>();
         private Queue<DamageStruct> m_damageStack = new Queue<DamageStruct>();
         private bool create_new;
@@ -134,11 +135,11 @@ namespace SanguoshaServer.Game
             }
         }
 
-        public List<Player> GetPlayers(Client client)
+        public List<Player> GetPlayers(int client_id)
         {
             List<Player>  players = new List<Player>();
             foreach (Player p in m_players)
-                if (p.ClientId == client.UserID)
+                if (p.ClientId == client_id)
                     players.Add(p);
 
             return players;
@@ -179,15 +180,12 @@ namespace SanguoshaServer.Game
                     result.Assist += n;
                     reason.Who.Result = result;
                 }
-
-                List<int> card_ids = GetNCards(n, true);
-                /*
+                
                 List<int> card_ids = GetNCards(n, false);
-                Object data = card_ids;
-                RoomThread.Trigger(TriggerEvent.XuyouDraw, this, player, ref data);
+                object data = card_ids;
+                RoomThread.Trigger(TriggerEvent.CardDrawing, this, player, ref data);
                 card_ids = (List<int>)data;
                 RemoveFromDrawPile(card_ids);
-                */
 
                 CardsMoveStruct move = new CardsMoveStruct(card_ids, player, Place.PlaceHand,
                     new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DRAW, reason.Who != null ? reason.Who.Name : string.Empty, player.Name, reason.Reason, string.Empty));
@@ -284,10 +282,9 @@ namespace SanguoshaServer.Game
                     if (m_drawPile[0] != id)
                     {
                         int index = m_drawPile.IndexOf(id);
-                        LogMessage log = new LogMessage("$RemoveFromDrawPile")
+                        LogMessage log = new LogMessage("#RemoveFromDrawPile")
                         {
                             Arg = (index + 1).ToString(),
-                            Card_str = id.ToString()
                         };
                         SendLog(log);
                     }
@@ -390,28 +387,37 @@ namespace SanguoshaServer.Game
             }
 
             //当不存在AI时才记录胜负记录
-            if (!bot)
+            try
             {
-                List<int> clients = new List<int>();
-                foreach (Player p in m_players)
+                if (!bot)
                 {
-                    int id = p.ClientId;
-                    if (!clients.Contains(id))
+                    List<int> clients = new List<int>();
+                    foreach (Player p in m_players)
                     {
-                        clients.Add(id);
-                        int win = 0;
-                        if (winner != ".")
+                        int id = p.ClientId;
+                        if (!clients.Contains(id))
                         {
-                            if (winner.Contains(p.Name))
-                                win = 1;
-                            else
-                                win = -1;
+                            clients.Add(id);
+                            int win = 0;
+                            if (winner != ".")
+                            {
+                                if (winner.Contains(p.Name))
+                                    win = 1;
+                                else
+                                    win = -1;
+                            }
+
+                            ClientDBOperation.UpdateProfileGamePlay(Hall.GetClient(id), id, win, p.Status == "escape");
                         }
-                        
-                        ClientDBOperation.UpdateProfileGamePlay(Hall.GetClient(id), id, win, p.Status == "escape");
                     }
                 }
             }
+            catch (Exception e)
+            {
+                Debug(string.Format("error on updating game play {0} {1}", e.Message, e.TargetSite));
+                LogHelper.WriteLog(null, e);
+            }
+
 
             StopGame();
         }
@@ -912,6 +918,9 @@ namespace SanguoshaServer.Game
 
         private void SetCardMapping(int card_id, Player owner, Place place)
         {
+            if (place == Place.PlaceHand)
+                System.Diagnostics.Debug.Assert(!owner.GetEquips().Contains(card_id));
+
             owner_map[card_id] = owner;
             place_map[card_id] = (place == Place.DrawPileBottom ? Place.DrawPile : place);
         }
@@ -1058,13 +1067,11 @@ namespace SanguoshaServer.Game
                 for (int j = 0; j < cards_move.Card_ids.Count; j++)
                 {
                     int card_id = cards_move.Card_ids[j];
-
+                    Player from = FindPlayer(cards_move.From, true);
                     if (cards_move.From_place == Place.PlaceHand || cards_move.From_place == Place.PlaceEquip)
-                        System.Diagnostics.Debug.Assert(cards_move.From != null, card_id.ToString());
-                    if (cards_move.From != null) // Hand/Equip/Judge
-                    {
-                        RoomLogic.RemovePlayerCard(this, FindPlayer(cards_move.From, true), card_id, cards_move.From_place);
-                    }
+                        System.Diagnostics.Debug.Assert(from != null, card_id.ToString());
+                    if (from != null) // Hand/Equip/Judge
+                        RoomLogic.RemovePlayerCard(this, from, card_id, cards_move.From_place);
 
                     switch (cards_move.From_place)
                     {
@@ -1533,7 +1540,7 @@ namespace SanguoshaServer.Game
                     bool relevant = false;
                     Player from = (cards_move.From != null ? FindPlayer(cards_move.From, true) : null);
                     Player to = (cards_move.To != null ? FindPlayer(cards_move.To, true) : null);
-                    Player p = GetPlayers(player)[0];
+                    Player p = GetPlayers(player.UserID)[0];
 
                     foreach (Player p2 in GetAlivePlayers())
                     {
@@ -1616,6 +1623,13 @@ namespace SanguoshaServer.Game
                 return list.Find(t => names.Contains(t.General1) || names.Contains(t.Name));
             }
             return list.Find(t => t.General1 == general_name || t.Name == general_name);
+        }
+
+        public void SetPromotSkill(Player player, string skill_name, string head, string pattern, CardUseStruct.CardUseReason reason)
+        {
+            Interactivity interactivity = GetInteractivity(player);
+            if (interactivity != null)
+                interactivity.SetPromoteSkill(player, skill_name, head, pattern, reason);
         }
 
         private List<CardsMoveStruct> _separateMoves(List<CardsMoveOneTimeStruct> moveOneTimes)
@@ -1982,77 +1996,88 @@ namespace SanguoshaServer.Game
         #region 客户端进入请求
         public bool OnClientRequestInter(Client client, int id, string pwd)
         {
-            if (id != RoomId || Clients.Count == 0 || banned_clients.Contains(client.UserID))
-                return false;
-
-            bool reconnect = false;
-
-            if (!GameStarted && (IsFull() || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord)))
+            try
             {
-                return false;
-            }
-            else if (GameStarted)
-            {
-                //检查room中玩家是否符合重连条件
-                foreach (Player p in Players)
-                {
-                    if (p.ClientId == client.UserID)
-                    {
-                        reconnect = true;
-                        break;
-                    }
-                }
-
-                if (!reconnect)
+                if (id != RoomId || Clients.Count == 0 || banned_clients.Contains(client.UserID))
                     return false;
-            }
 
-            lock (this)
-            {
-                client.Disconnected += OnClientDisconnected;
-                client.LeaveRoom += OnClientLeave;
-                client.GetReady += OnClientReady;
-                client.GameControl += ProcessClientPacket;
+                bool reconnect = false;
 
-                Clients.Add(client);
-                client.GameRoom = RoomId;
-                client.RoleReserved = string.Empty;
-                client.CheatArgs = new List<string>();
-
-                SendRoomSetting2Client(client);
-
-                //为改玩家安排座次
-                foreach (int index in seat2clients.Keys)
+                if (!GameStarted && (IsFull() || (!string.IsNullOrEmpty(Setting.PassWord) && pwd != Setting.PassWord)))
                 {
-                    if (seat2clients[index] == null)
+                    return false;
+                }
+                else if (GameStarted)
+                {
+                    //检查room中玩家是否符合重连条件
+                    foreach (Player p in Players)
                     {
-                        seat2clients[index] = client;
-                        break;
+                        if (p.ClientId == client.UserID)
+                        {
+                            reconnect = true;
+                            break;
+                        }
+                    }
+
+                    if (!reconnect)
+                        return false;
+                }
+
+                lock (this)
+                {
+                    client.Disconnected += OnClientDisconnected;
+                    client.LeaveRoom += OnClientLeave;
+                    client.GetReady += OnClientReady;
+                    //client.GameControl += ProcessClientPacket;
+
+                    Clients.Add(client);
+                    client.GameRoom = RoomId;
+                    client.RoleReserved = string.Empty;
+                    client.GeneralReserved = new List<string>();
+
+                    SendRoomSetting2Client(client);
+
+                    //为改玩家安排座次
+                    foreach (int index in seat2clients.Keys)
+                    {
+                        if (seat2clients[index] == null)
+                        {
+                            seat2clients[index] = client;
+                            break;
+                        }
+                    }
+                    client.Status = Client.GameStatus.normal;
+                    if (GameStarted)
+                        client.Status = Client.GameStatus.online;
+
+                    //通知room中的其他玩家
+                    RoomMessage.NotifyPlayerJoinorLeave(this, client, true);
+                    UpdateClientsInfo();
+
+                    //测试
+                    //int id = Thread.CurrentThread.ManagedThreadId;
+                    //OutPut(string.Format("current thread {0}", id));
+
+                    //room_thread = new RoomThread(this);
+                    //thread = new Thread(room_thread.Start);
+                    //thread.Start();
+
+                    //reconnect
+                    if (reconnect)
+                    {
+                        Marshal(client);
                     }
                 }
-                client.Status = Client.GameStatus.normal;
-                if (GameStarted)
-                    client.Status = Client.GameStatus.online;
-
-                //通知room中的其他玩家
-                RoomMessage.NotifyPlayerJoinorLeave(this, client, true);
-                UpdateClientsInfo();
-
-                //测试
-                //int id = Thread.CurrentThread.ManagedThreadId;
-                //OutPut(string.Format("current thread {0}", id));
-
-                //room_thread = new RoomThread(this);
-                //thread = new Thread(room_thread.Start);
-                //thread.Start();
-
-                //reconnect
-                if (reconnect)
-                {
-                    Marshal(client);
-                }
+                return true;
             }
-            return true;
+            catch (Exception e)
+            {
+                Debug(string.Format("{0} {1} {2}", e.Message, e.TargetSite, e.Source));
+                Debug(string.Format("error at client {0} {1} into room", client.UserName, client.Profile.NickName));
+                LogHelper.WriteLog(null, e);
+            }
+
+            return false;
         }
 
         private Dictionary<int, Client> seat2clients;
@@ -2062,7 +2087,7 @@ namespace SanguoshaServer.Game
             {
                 Host.Disconnected += OnClientDisconnected;
                 Host.LeaveRoom += OnClientLeave;
-                Host.GameControl += ProcessClientPacket;
+                //Host.GameControl += ProcessClientPacket;
 
                 Clients.Add(Host);
 
@@ -2081,7 +2106,7 @@ namespace SanguoshaServer.Game
                 Host.GameRoom = RoomId;
                 Host.Status = Client.GameStatus.ready;
                 Host.RoleReserved = string.Empty;
-                Host.CheatArgs = new List<string>();
+                Host.GeneralReserved = new List<string>();
 
                 SendRoomSetting2Client(Host);
 
@@ -2193,15 +2218,6 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    if (client.IsWaitingReply)
-                    {
-                        MyData data = new MyData
-                        {
-                            Body = new List<string> { client.ExpectedReplyCommand.ToString() }
-                        };
-                        ProcessClientReply(client, data);
-                    }
-
                     if (!human_stay)
                     {
                         //游戏结束结算战绩
@@ -2209,7 +2225,7 @@ namespace SanguoshaServer.Game
                         return;
                     }
 
-                    foreach (Player p in GetPlayers(client))
+                    foreach (Player p in GetPlayers(client.UserID))
                     {
                         p.Status = "offline";
                         BroadcastProperty(p, "Status");
@@ -2253,15 +2269,6 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    if (client.IsWaitingReply)
-                    {
-                        MyData data = new MyData
-                        {
-                            Body = new List<string> { client.ExpectedReplyCommand.ToString() }
-                        };
-                        ProcessClientReply(client, data);
-                    }
-
                     if (!human_stay)
                     {
                         //游戏结束结算战绩
@@ -2272,7 +2279,7 @@ namespace SanguoshaServer.Game
                     //游戏继续
                     //判断是否因角色死亡而离开
                     bool check = true;
-                    foreach (Player p in GetPlayers(client))
+                    foreach (Player p in GetPlayers(client.UserID))
                     {
                         if (p.Alive)
                         {
@@ -2281,7 +2288,7 @@ namespace SanguoshaServer.Game
                         }
                     }
 
-                    foreach (Player p in GetPlayers(client))
+                    foreach (Player p in GetPlayers(client.UserID))
                     {
                         p.Status = check ? "leave" : "escape";
                         BroadcastProperty(p, "Status");
@@ -2319,13 +2326,14 @@ namespace SanguoshaServer.Game
 
         private void RomoveClientOnGamePlay(Client client)
         {
-            if (client.IsWaitingReply)
+            Interactivity interactivity = GetInteractivity(client.UserID);
+            if (interactivity != null && interactivity.IsWaitingReply)
             {
                 MyData data = new MyData
                 {
-                    Body = new List<string> { client.ExpectedReplyCommand.ToString() }
+                    Body = new List<string> { interactivity.ExpectedReplyCommand.ToString() }
                 };
-                ProcessClientReply(client, data);
+                ProcessClientReply(interactivity, data);
             }
 
             foreach (int index in seat2clients.Keys)
@@ -2337,13 +2345,13 @@ namespace SanguoshaServer.Game
                 }
             }
 
-            foreach (Player p in GetPlayers(client))
+            foreach (Player p in GetPlayers(client.UserID))
                 player_client.Remove(p);
             Clients.Remove(client);
             client.Disconnected -= OnClientDisconnected;
             client.LeaveRoom -= OnClientLeave;
             client.GetReady -= OnClientReady;
-            client.GameControl -= ProcessClientPacket;
+            //client.GameControl -= ProcessClientPacket;
 
             if (client == Host)
             {
@@ -2372,7 +2380,7 @@ namespace SanguoshaServer.Game
                 client.Disconnected -= OnClientDisconnected;
                 client.LeaveRoom -= OnClientLeave;
                 client.GetReady -= OnClientReady;
-                client.GameControl -= ProcessClientPacket;
+                //client.GameControl -= ProcessClientPacket;
             }
             /*
             for (int i = 0; i < m_players.Count; i++)
@@ -2478,20 +2486,24 @@ namespace SanguoshaServer.Game
         #region 通过游戏操作指令执行的客户端交互
         public void ProcessClientPacket(Client client, MyData data)
         {
-            CommandType command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
-            List<string> arg = new List<string>(data.Body);
-            arg.RemoveAt(0);
-
             try
             {
+                Interactivity interactivity = GetInteractivity(client.UserID);
+                CommandType command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
+                List<string> arg = new List<string>(data.Body);
+                arg.RemoveAt(0);
+
                 switch (data.Protocol)
                 {
                     case Protocol.GameReply:
-                        ProcessClientReply(client, data);
+                        ProcessClientReply(interactivity, data);
                         break;
                     case Protocol.GameRequest:
-                        interactions[command](client, arg);
-                        break;
+                        {
+                            if (!interactivity.ControlGame(data))
+                                interactions[command](client, arg);
+                            break;
+                        }
                     case Protocol.GameNotification:
                         callbacks[command](client, arg);
                         break;
@@ -2499,61 +2511,70 @@ namespace SanguoshaServer.Game
             }
             catch (Exception e)
             {
-                Debug(string.Format("{0} {1} {2}", e.Message, e.TargetSite, e.Source));
-                Debug(string.Format("error at command {0} when ProcessClientPacket, data: {1}", command.ToString(), JsonUntity.Object2Json(arg)));
+                Debug(string.Format("error at room ProcessClientPacket {0} {1} {2}", e.Message, e.TargetSite, e.Source));
+                LogHelper.WriteLog(null, e);
             }
         }
 
-        private void ProcessClientReply(Client player, MyData data)
+        public void ProcessClientReply(Interactivity player, MyData data)
         {
-            lock (this)
+            try
             {
-                player.mutex.WaitOne();
-                bool success = false;
-                CommandType reply_command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
-                if (!player.IsWaitingReply || player.IsClientResponseReady)
-                    Debug(string.Format("Server is not waiting for reply from {0}", player.UserName));
-                else if (reply_command != player.ExpectedReplyCommand
-                         && (!m_requestResponsePair.ContainsKey(player.ExpectedReplyCommand) || m_requestResponsePair[player.ExpectedReplyCommand] != reply_command))
-                    Debug(string.Format("Reply command should be {0} instead of {1}", player.ExpectedReplyCommand, reply_command));
-                //else if (packet.localSerial != player->m_expectedReplySerial)
-                //            emit room_message(tr("Reply serial should be %1 instead of %2")
-                //    .arg(player->m_expectedReplySerial).arg(packet.localSerial));
-                else
-                    success = true;
-
-                if (success)
+                lock (this)
                 {
-                    data.Body.RemoveAt(0);
-                    player.ClientReply = data.Body;
+                    player.mutex.WaitOne();
+                    bool success = false;
+                    CommandType reply_command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
+                    CommandType player_command = player.ExpectedReplyCommand;
+                    if (!player.IsWaitingReply || player.IsClientResponseReady)
+                        Debug(string.Format("Server is not waiting for reply from {0}", GetClient(player.ClientId).UserName));
+                    else if (reply_command != player_command
+                             && (!m_requestResponsePair.ContainsKey(player_command) || m_requestResponsePair[player_command] != reply_command))
+                        Debug(string.Format("Reply command should be {0} instead of {1}", player_command, reply_command));
+                    //else if (packet.localSerial != player->m_expectedReplySerial)
+                    //            emit room_message(tr("Reply serial should be %1 instead of %2")
+                    //    .arg(player->m_expectedReplySerial).arg(packet.localSerial));
+                    else
+                        success = true;
 
-                    if (!replies.ContainsKey(player.ExpectedReplyCommand))
+                    if (success)
                     {
-                        player.IsClientResponseReady = true;
-                        if (m_broadcardrequest)
-                            m_broadcardrequest_result--;
-                        if (!m_broadcardrequest || m_broadcardrequest_result <= 0)
-                        {
-                            timer.Enabled = false;
-                            _waitHandle.Set();
-                        }
-                        else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL)
-                            OnChooseGeneralReply(player);
-                    }
-                }
+                        data.Body.RemoveAt(0);
+                        player.ClientReply = data.Body;
 
-                player.mutex.ReleaseMutex();
-                if (success && replies.ContainsKey(player.ExpectedReplyCommand))
-                    replies[player.ExpectedReplyCommand](player);
+                        if (!replies.ContainsKey(player_command))
+                        {
+                            player.IsClientResponseReady = true;
+                            if (m_broadcardrequest)
+                                m_broadcardrequest_result--;
+                            if (!m_broadcardrequest || m_broadcardrequest_result <= 0)
+                            {
+                                timer.Enabled = false;
+                                _waitHandle.Set();
+                            }
+                            else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL)
+                                OnChooseGeneralReply(player);
+                        }
+                    }
+
+                    player.mutex.ReleaseMutex();
+                    if (success && replies.ContainsKey(player_command))
+                        replies[player_command](player);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug(string.Format("error at room ProcessClientReply {0} {1} {2}", e.Message, e.TargetSite, e.Source));
+                LogHelper.WriteLog(null, e);
             }
         }
 
-        private void OnChooseGeneralReply(Client client)
+        private void OnChooseGeneralReply(Interactivity client)
         {
             Scenario.OnChooseGeneralReply(this, client);
         }
 
-        private void OnRaceReply(Client client)
+        private void OnRaceReply(Interactivity client)
         {
             client.mutex.WaitOne();
             // do not give this client any more change
@@ -2568,7 +2589,7 @@ namespace SanguoshaServer.Game
                 {
                     Player player = FindPlayer(client.ClientReply[0]);
                     WrappedCard card = RoomLogic.ParseCard(this, client.ClientReply[1]);
-                    if (player != null && player.ClientId == client.UserID && card != null)
+                    if (player != null && player.ClientId == client.ClientId && card != null)
                     {
                         check = true;
                         _m_raceWinner = player;
@@ -2585,7 +2606,7 @@ namespace SanguoshaServer.Game
             client.mutex.ReleaseMutex();
         }
 
-        private void OnLuckCardReply(Client player)
+        private void OnLuckCardReply(Interactivity player)
         {
             player.mutex.WaitOne();
             bool check = true;
@@ -2604,14 +2625,14 @@ namespace SanguoshaServer.Game
                     {
                         Type = "#UseLuckCard"
                     };
-                    foreach (Player p in GetPlayers(player))
+                    foreach (Player p in GetPlayers(player.ClientId))
                     {
                         log.From = p.Name;
                         SendLog(log);
                     }
 
                     List<int> draw_list = new List<int>();
-                    foreach (Player p in GetPlayers(player))
+                    foreach (Player p in GetPlayers(player.ClientId))
                     {
                         draw_list.Add(p.HandcardNum);
 
@@ -2650,7 +2671,7 @@ namespace SanguoshaServer.Game
                     }
                     Shuffle.shuffle<int>(ref m_drawPile);
                     int index = -1;
-                    foreach (Player p in GetPlayers(player))
+                    foreach (Player p in GetPlayers(player.ClientId))
                     {
                         index++;
                         List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
@@ -2689,7 +2710,7 @@ namespace SanguoshaServer.Game
 
             if (!check || player_luckcard[player] == 0)
             {
-                DoNotify(player, CommandType.S_COMMAND_UNKNOWN, new List<string> { true.ToString() });
+                DoNotify(GetClient(player.ClientId), CommandType.S_COMMAND_UNKNOWN, new List<string> { true.ToString() });
                 player.ExpectedReplyCommand = CommandType.S_COMMAND_UNKNOWN;
                 player.IsWaitingReply = false;
                 player.IsClientResponseReady = true;
@@ -2716,7 +2737,7 @@ namespace SanguoshaServer.Game
 
         private readonly Dictionary<CommandType, Action<Client, List<string>>> interactions = new Dictionary<CommandType, Action<Client, List<string>>>();
         private readonly Dictionary<CommandType, Action<Client, List<string>>> callbacks = new Dictionary<CommandType, Action<Client, List<string>>>();
-        private Dictionary<CommandType, Action<Client>> replies = new Dictionary<CommandType, Action<Client>>();
+        private Dictionary<CommandType, Action<Interactivity>> replies = new Dictionary<CommandType, Action<Interactivity>>();
         private Dictionary<CommandType, CommandType> m_requestResponsePair = new Dictionary<CommandType, CommandType>();
         private void InitCallbacks()
         {
@@ -2740,8 +2761,8 @@ namespace SanguoshaServer.Game
             callbacks[CommandType.S_COMMAND_FILL_ROBOTS] = new Action<Client, List<string>>(FillRobotsCommand);
 
             // handle reply
-            replies[CommandType.S_COMMAND_NULLIFICATION] = new Action<Client>(OnRaceReply);
-            replies[CommandType.S_COMMAND_LUCK_CARD] = new Action<Client>(OnLuckCardReply);
+            replies[CommandType.S_COMMAND_NULLIFICATION] = new Action<Interactivity>(OnRaceReply);
+            replies[CommandType.S_COMMAND_LUCK_CARD] = new Action<Interactivity>(OnLuckCardReply);
 
             // Cheat commands
             //cheatCommands[".BroadcastRoles"] = &Room::broadcastRoles;
@@ -2793,6 +2814,8 @@ namespace SanguoshaServer.Game
             for (int i = 0; i < Clients.Count; i++)
             {
                 m_players.Add(new Player { Name = string.Format("SGS{0}", i + 1), Seat = i + 1 });
+                if (Clients[i].UserID > 0)
+                    m_interactivities.Add(Clients[i].UserID, new Interactivity(this, Clients[i].UserID));
             }
 
             //加载武将
@@ -2902,17 +2925,18 @@ namespace SanguoshaServer.Game
             bool remove = general.StartsWith("-") ? true : false;
             string general_name = general;
             if (remove) general_name = general_name.Substring(1);
-            string main = Engine.GetMainGeneral(general_name);
+            string main = Engine.GetMainGeneral(Engine.GetGeneral(general_name, Setting.GameMode));
             if (remove)
                 UsedGeneral.Remove(main);
-            else if (!UsedGeneral.Contains(general))
+            else if (!UsedGeneral.Contains(main))
                 UsedGeneral.Add(main);
-            foreach (string sub in Engine.GetConverPairs(main))
+            foreach (General sub in Engine.GetConverPairs(main))
             {
+                if (!Setting.GeneralPackage.Contains(sub.Package)) continue;
                 if (remove)
-                    UsedGeneral.Remove(sub);
-                else if (!UsedGeneral.Contains(sub))
-                    UsedGeneral.Add(sub);
+                    UsedGeneral.Remove(sub.Name);
+                else if (!UsedGeneral.Contains(sub.Name))
+                    UsedGeneral.Add(sub.Name);
             }
         }
 
@@ -2988,7 +3012,7 @@ namespace SanguoshaServer.Game
                 {
                     bool trust = false;
 
-                    foreach (Player p in GetPlayers(client))
+                    foreach (Player p in GetPlayers(client.UserID))
                     {
                         if (!trust && p.Status == "online")
                             trust = true;
@@ -2996,13 +3020,14 @@ namespace SanguoshaServer.Game
                         BroadcastProperty(p, "Status");
                     }
                     DoNotify(client, CommandType.S_COMMAND_TRUST, new List<string>());
-                    if (trust && client.IsWaitingReply)
+                    Interactivity interactivity = GetInteractivity(client.UserID);
+                    if (trust && interactivity.IsWaitingReply)
                     {
                         MyData data = new MyData
                         {
-                            Body = new List<string> { client.ExpectedReplyCommand.ToString() }
+                            Body = new List<string> { interactivity.ExpectedReplyCommand.ToString() }
                         };
-                        ProcessClientReply(client, data);
+                        ProcessClientReply(interactivity, data);
                     }
                 }
             }
@@ -3088,22 +3113,24 @@ namespace SanguoshaServer.Game
             Player player = FindPlayer(args[0]);
             string skill_name = args[1];
             TriggerSkill skill = Engine.GetTriggerSkill(skill_name);
-            if (player == null || GetClient(player) != client || !player.OwnSkill(skill_name) || skill == null || !skill.CanPreShow()) return;
-            GetClient(player).mutex.WaitOne();
+            Interactivity interactivity = GetInteractivity(player);
+            if (player == null || interactivity == null || !player.OwnSkill(skill_name) || skill == null || !skill.CanPreShow()) return;
+            interactivity.mutex.WaitOne();
             bool head = bool.Parse(args[2]);
             bool isPreshowed = player.HasPreshowedSkill(skill_name, head);
             player.SetSkillPreshowed(skill_name, !isPreshowed, head);
             NotifyPlayerPreshow(player, head ? "h" : "d");
-            GetClient(player).mutex.ReleaseMutex();
+            interactivity.mutex.ReleaseMutex();
         }
 
         private void ProcessRequestCheat(Client client, List<string> arg)
         {
             if (client.UserRight < 3) return;
 
-            client.CheatArgs = arg;
-            if (client.IsWaitingReply
-                && client.ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
+            Interactivity interactivity = GetInteractivity(client.UserID);
+            interactivity.CheatArgs = arg;
+            if (interactivity.IsWaitingReply
+                && interactivity.ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
                 && _m_roomState.GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
             {
                 timer.Enabled = false;
@@ -3113,10 +3140,11 @@ namespace SanguoshaServer.Game
 
         private bool MakeCheat(Player player)
         {
-            List<string> arg = GetClient(player).CheatArgs;
-            if (arg == null || arg.Count == 0) return false;
+            Interactivity interactivity = GetInteractivity(player);
+            if (interactivity.CheatArgs == null || interactivity.CheatArgs.Count == 0) return false;
 
-            GetClient(player).CheatArgs = null;
+            List<string> arg = new List<string>(interactivity.CheatArgs);
+            interactivity.CheatArgs = null;
             CheatCode code = (CheatCode)Enum.Parse(typeof(CheatCode), arg[0]);
             //if (code == CheatCode.S_CHEAT_KILL_PLAYER)
             //{
@@ -3204,7 +3232,7 @@ namespace SanguoshaServer.Game
             DoNotify(client, CommandType.S_COMMAND_ARRANGE_SEATS, players);
             //五谷丰登
             if (ContainsTag("AmazingGraceOrigin") && GetTag("AmazingGraceOrigin") is List<int> amazing && amazing.Count > 0)
-                FillAG(AmazingGrace.ClassName, amazing, GetPlayers(client)[0]);
+                FillAG(AmazingGrace.ClassName, amazing, GetPlayers(client.UserID)[0]);
             //鏖战通知
             if (BloodBattle)
             {
@@ -3213,7 +3241,7 @@ namespace SanguoshaServer.Game
             }
 
             //装备、手牌
-            List<Player> _players = new List<Player> { GetPlayers(client)[0] };
+            List<Player> _players = new List<Player> { GetPlayers(client.UserID)[0] };
             foreach (Player player in m_players)
             {
                 if (player.IsAllNude()) continue;
@@ -3268,7 +3296,7 @@ namespace SanguoshaServer.Game
                 NotifyMoveCards(false, moves, false, _players);
             }
 
-            foreach (Player p in GetPlayers(client))
+            foreach (Player p in GetPlayers(client.UserID))
             {
                 p.Status = "online";
                 BroadcastProperty(p, "Status");
@@ -3309,6 +3337,25 @@ namespace SanguoshaServer.Game
                 return player_client[player];
 
             return null;
+        }
+
+        public Client GetClient(int client_id)
+        {
+            foreach (Client client in Clients)
+                if (client.UserID == client_id)
+                    return client;
+
+            return null;
+        }
+
+        public Interactivity GetInteractivity(Player player)
+        {
+            return GetInteractivity(player.ClientId);
+        }
+        public Interactivity GetInteractivity(int client_id)
+        {
+            m_interactivities.TryGetValue(client_id, out Interactivity interactivity);
+            return interactivity;
         }
 
         public TrustedAI GetAI(Player player, bool ai = false)
@@ -3472,25 +3519,25 @@ namespace SanguoshaServer.Game
 
         #region 向客户端发送请求
         //全局请求（选将）
-        public bool DoBroadcastRequest(List<Client> receivers, CommandType command)
+        public bool DoBroadcastRequest(List<Interactivity> receivers, CommandType command)
         {
             float timeOut = Setting.GetCommandTimeout(command, ProcessInstanceType.S_SERVER_INSTANCE);
             return DoBroadcastRequest(receivers, command, timeOut);
         }
         private bool m_broadcardrequest = false;
         private int m_broadcardrequest_result;
-        public bool DoBroadcastRequest(List<Client> players, CommandType command, float timeOut, bool wait = false)
+        public bool DoBroadcastRequest(List<Interactivity> players, CommandType command, float timeOut, bool wait = false)
         {
-            List<Client> receivers = new List<Client>();
-            foreach (Client player in players)
+            List<Interactivity> receivers = new List<Interactivity>();
+            foreach (Interactivity player in players)
             {
-                if (player.Status == Client.GameStatus.online)
+                if (GetPlayers(player.ClientId)[0].Status == "online")
                     receivers.Add(player);
             }
             if (receivers.Count == 0 && !(timeOut > 0 && wait)) return true;
             m_broadcardrequest_result = receivers.Count;
             m_broadcardrequest = true;
-            foreach (Client player in receivers)
+            foreach (Interactivity player in receivers)
                 DoRequest(player, command, player.CommandArgs, timeOut, false);
 
             Stopwatch sw = new Stopwatch();
@@ -3516,16 +3563,16 @@ namespace SanguoshaServer.Game
             _m_raceStarted = true;
             _m_raceWinner = null;
 
-            List<Client> receivers = new List<Client>();
+            List<Interactivity> receivers = new List<Interactivity>();
             foreach (Player player in players)
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 if (GetAI(player) == null && !receivers.Contains(client))
                     receivers.Add(client);
             }
 
             m_broadcardrequest_result = receivers.Count;
-            foreach (Client player in receivers)
+            foreach (Interactivity player in receivers)
                 DoRequest(player, command, player.CommandArgs, timeOut, false);
 
             /*
@@ -3568,7 +3615,7 @@ namespace SanguoshaServer.Game
             return GetRaceResult(receivers, command, time);
         }
 
-        public Player GetRaceResult(List<Client> players, CommandType command, float timeOut)
+        public Player GetRaceResult(List<Interactivity> players, CommandType command, float timeOut)
         {
 
             if (timeOut != 0 || Setting.NullTime != 0)
@@ -3580,7 +3627,7 @@ namespace SanguoshaServer.Game
 
             lock (this)
             {
-                foreach (Client player in players)
+                foreach (Interactivity player in players)
                 {
                     player.mutex.WaitOne();
                     player.ExpectedReplyCommand = CommandType.S_COMMAND_UNKNOWN;
@@ -3603,40 +3650,38 @@ namespace SanguoshaServer.Game
         public bool DoRequest(Player player, CommandType command, List<string> arg, bool wait = true)
         {
             float timeOut = Setting.GetCommandTimeout(command, ProcessInstanceType.S_SERVER_INSTANCE);
-            return DoRequest(GetClient(player), command, arg, timeOut, wait);
+            return DoRequest(GetInteractivity(player), command, arg, timeOut, wait);
         }
 
         public bool DoRequest(Player player, CommandType command, List<string> arg, float timeOut, bool wait)
         {
-            return DoRequest(GetClient(player), command, arg, timeOut, wait);
+            return DoRequest(GetInteractivity(player), command, arg, timeOut, wait);
         }
-        public bool DoRequest(Client client, CommandType command, List<string> arg, float timeOut, bool wait)
+        public bool DoRequest(Interactivity interactivity, CommandType command, List<string> arg, float timeOut, bool wait)
         {
-            if (client == null && client.GameRoom != RoomId) return false;
+            if (interactivity == null) return false;
+            interactivity.mutex.WaitOne();
+            interactivity.IsClientResponseReady = false;
+            interactivity.ClientReply = null;
+            interactivity.IsWaitingReply = true;
+            interactivity.ExpectedReplyCommand = command;
 
-            //Packet packet(S_SRC_ROOM | S_TYPE_REQUEST | S_DEST_CLIENT, command);
-            //    packet.setMessageBody(arg);
-            //client->acquireLock(ServerClient::SEMA_MUTEX);
-            client.mutex.WaitOne();
-            client.IsClientResponseReady = false;
-            //client->drainLock(ServerClient::SEMA_COMMAND_INTERACTIVE);
-            client.ClientReply = null;
-            client.IsWaitingReply = true;
-            //client.ExpectedReplySerial = packet.createGlobalSerial();
-            client.ExpectedReplyCommand = command;
-            client.SendRoomRequest(command, arg);
-            //client->releaseLock(ServerClient::SEMA_MUTEX);
-            client.mutex.ReleaseMutex();
-            if (wait) return GetResult(client, timeOut);
+            Client client = GetClient(interactivity.ClientId);
+            if (client != null)
+                client.SendRoomRequest(command, arg);
+            
+            interactivity.mutex.ReleaseMutex();
+            if (wait) return GetResult(interactivity, timeOut);
             else return true;
         }
 
-        bool GetResult(Client player, float timeOut)
+        bool GetResult(Interactivity player, float timeOut)
         {
             bool validResult = false;
             player.mutex.WaitOne();
 
-            if (player.Status == Client.GameStatus.online)
+            List<Player> players = GetPlayers(player.ClientId);
+            if (players[0].Status == "online")
             {
                 player.mutex.ReleaseMutex();
 
@@ -4495,7 +4540,7 @@ namespace SanguoshaServer.Game
                     invoked = false;
                 else
                 {
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
                     if (clientReply != null && clientReply.Count > 0)
                     {
@@ -4553,7 +4598,7 @@ namespace SanguoshaServer.Game
                 else
                 {
                     bool success = DoRequest(player, CommandType.S_COMMAND_MULTIPLE_CHOICE, new List<string> { player.Name, skill_name, choices, JsonUntity.Object2Json(descriptions) }, true);
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
                     if (client == null || !success || clientReply == null || clientReply.Count == 0)
                     {
@@ -4611,12 +4656,12 @@ namespace SanguoshaServer.Game
 
             if (lords.Count > 0)
             {
-                List<Client> receivers = new List<Client>();
+                List<Interactivity> receivers = new List<Interactivity>();
                 foreach (Player player in lords)
                 {
                     List<string> args = new List<string> { player.Name, "userdefine:changetolord", null };
                     TrustedAI ai = GetAI(player);
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     if (!receivers.Contains(client) && ai == null)
                     {
                         client.CommandArgs = args;
@@ -4636,7 +4681,7 @@ namespace SanguoshaServer.Game
                 int human = 0;
                 foreach (Client client in Clients)
                 {
-                    if (client.Status != Client.GameStatus.bot)
+                    if (GetPlayers(client.UserID)[0].Status != "bot")
                         human++;
                 }
                 if (human > 1)
@@ -4665,14 +4710,14 @@ namespace SanguoshaServer.Game
 
                 foreach (Player player in lords)
                 {
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     if (client != null && client.IsClientResponseReady && receivers.Contains(client))
                     {
                         List<string> invoke = client.ClientReply;
                         if (invoke != null && invoke.Count > 0 && bool.TryParse(invoke[0], out bool success) && success)
                         {
                             player.ActualGeneral1 = "lord_" + player.ActualGeneral1;
-                            NotifyProperty(client, player, "ActualGeneral1");
+                            NotifyProperty(GetClient(player), player, "ActualGeneral1");
                         }
                     }
                 }
@@ -4690,7 +4735,7 @@ namespace SanguoshaServer.Game
             {
                 Dictionary<Player, string> answers = new Dictionary<Player, string>();
                 Dictionary<Player, List<TriggerStruct>> choices = new Dictionary<Player, List<TriggerStruct>>();
-                List<Client> receivers = new List<Client>();
+                List<Interactivity> receivers = new List<Interactivity>();
                 foreach (Player player in no_shown)
                 {
                     List<TriggerStruct> skills = new List<TriggerStruct>();
@@ -4736,7 +4781,7 @@ namespace SanguoshaServer.Game
                             JsonUntity.Object2Json(skills)
                         };
 
-                        Client client = GetClient(player);
+                        Interactivity client = GetInteractivity(player);
                         if (client != null && !receivers.Contains(client))
                         {
                             client.CommandArgs = args;
@@ -4760,12 +4805,12 @@ namespace SanguoshaServer.Game
                 foreach (Player player in no_shown)
                 {
                     string answer = "cancel";
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     if (receivers.Contains(client))
                     {
                         bool success = true;
-                        List<string> reply = GetClient(player).ClientReply;
-                        if (!GetClient(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
+                        List<string> reply = GetInteractivity(player).ClientReply;
+                        if (!GetInteractivity(player).IsClientResponseReady || reply == null || reply.Count == 0 || string.IsNullOrEmpty(reply[0]))
                             success = false;
 
                         if (success && reply[0] != "cancel")
@@ -4778,8 +4823,9 @@ namespace SanguoshaServer.Game
                                 else
                                     answer = trigger.SkillName;
                             }
-                            catch
+                            catch(Exception e)
                             {
+                                LogHelper.WriteLog(null, e);
                                 Debug("Parse Kingdom Summon Reply error");
                                 success = false;
                             }
@@ -4843,19 +4889,20 @@ namespace SanguoshaServer.Game
             }
         }
 
-        private Dictionary<Client, int> player_luckcard = new Dictionary<Client, int>();
+        private Dictionary<Interactivity, int> player_luckcard = new Dictionary<Interactivity, int>();
         public void AskForLuckCard(int count)
         {
             if (count <= 0) return;
             player_luckcard.Clear();
-            List<Client> players = new List<Client>();
+            List<Interactivity> players = new List<Interactivity>();
             foreach (Client player in Clients)
             {
-                player.CommandArgs = new List<string>();
-                if (GetAI(GetPlayers(player)[0]) == null)
+                Interactivity interactivity = GetInteractivity(player.UserID);
+                if (interactivity != null && GetAI(GetPlayers(player.UserID)[0]) == null)
                 {
-                    players.Add(player);
-                    player_luckcard[player] = count;
+                    interactivity.CommandArgs = new List<string>();
+                    players.Add(interactivity);
+                    player_luckcard[interactivity] = count;
                 }
             }
 
@@ -4897,9 +4944,8 @@ namespace SanguoshaServer.Game
             foreach (string skill_name in skills)
             {
                 Skill s = Engine.GetSkill(skill_name);
-                if (s != null && (s is ViewHasSkill))
+                if (s != null && s is ViewHasSkill skill)
                 {
-                    ViewHasSkill skill = (ViewHasSkill)s;
                     foreach (string name1 in skill.Skills)
                     {
                         Skill mskill = Engine.GetSkill(name1);
@@ -4915,19 +4961,17 @@ namespace SanguoshaServer.Game
 
             foreach (Skill skill in _skills)
             {
-                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is FilterSkill))
+                if (RoomLogic.PlayerHasShownSkill(this, player, skill))
                 {
-                    FilterSkill filter = (FilterSkill)skill;
-                    filterSkills.Add(filter);
-                }
-                if (RoomLogic.PlayerHasShownSkill(this, player, skill) && (skill is TriggerSkill))
-                {
-                    TriggerSkill trigger = (TriggerSkill)skill;
-                    ViewAsSkill vsskill = trigger.ViewAsSkill;
-                    if (vsskill != null && (vsskill is FilterSkill))
+                    if (skill is FilterSkill filter)
                     {
-                        FilterSkill filter = (FilterSkill)vsskill;
                         filterSkills.Add(filter);
+                    }
+                    else if (skill is TriggerSkill trigger)
+                    {
+                        ViewAsSkill vsskill = trigger.ViewAsSkill;
+                        if (vsskill != null && vsskill is FilterSkill _filter)
+                            filterSkills.Add(_filter);
                     }
                 }
             }
@@ -4936,19 +4980,15 @@ namespace SanguoshaServer.Game
             for (int i = 0; i < ids.Count; i++)
             {
                 WrappedCard card = GetCard(ids[i]);
-                for (int fTime = 0; fTime < filterSkills.Count; fTime++)
+                foreach (FilterSkill skill in filterSkills)
                 {
-                    bool converged = true;
-                    foreach (FilterSkill skill in filterSkills)
+                    if (skill.ViewFilter(this, card, player))
                     {
-                        if (skill.ViewFilter(this, card, player))
-                        {
-                            skill.ViewAs(this, ref card, player);
-                            converged = false;
-                            cardChanged[i] = true;
-                        }
+                        skill.ViewAs(this, ref card, player);
+                        card.Modified = true;
+                        cardChanged[i] = true;
+                        break;
                     }
-                    if (converged) break;
                 }
             }
 
@@ -5566,9 +5606,9 @@ namespace SanguoshaServer.Game
                     }
                     else
                     {
-                        Client client = GetClient(player);
+                        Interactivity client = GetInteractivity(player);
                         bool success = client != null && client.PlayCardRequst(this, player, CommandType.S_COMMAND_RESPONSE_CARD, prompt, method);
-                        List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                        List<string> clientReply = client?.ClientReply;
                         if (client != null && success && clientReply != null && clientReply.Count != 0)
                         {
                             card = RoomLogic.ParseCard(this, clientReply[1]);
@@ -5969,7 +6009,7 @@ namespace SanguoshaServer.Game
                 {
                     List<string> args = new List<string> { player.Name, reason, optional.ToString(), JsonUntity.Object2Json(all_skills) };
                     bool success = DoRequest(player, CommandType.S_COMMAND_TRIGGER_ORDER, args, true);
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
                     if (clientReply == null || clientReply.Count == 0) success = false;
                     if (success && clientReply[0] != "cancel")
@@ -5983,8 +6023,9 @@ namespace SanguoshaServer.Game
                                 answer = new TriggerStruct();
                             }
                         }
-                        catch
+                        catch (Exception e)
                         {
+                            LogHelper.WriteLog(null, e);
                             Debug("Parse AskForSkillTrigger Reply error");
                             success = false;
                         }
@@ -6265,9 +6306,9 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 success = client != null && client.DiscardRequest(this, player, ids, prompt, reason, position, discard_num, min_num, optional);
-                if (client != null && client.GameRoom == RoomId)
+                if (client != null)
                 {
                     List<string> clientReply = client.ClientReply;
                     string str = success && clientReply != null && clientReply.Count > 0 ? clientReply[0] : null;
@@ -6496,8 +6537,8 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                bool success = GetClient(player).PlayCardRequst(this, player, CommandType.S_COMMAND_PLAY_CARD);
-                List<string> clientReply = GetClient(player).ClientReply;
+                bool success = GetInteractivity(player).PlayCardRequst(this, player, CommandType.S_COMMAND_PLAY_CARD);
+                List<string> clientReply = GetInteractivity(player).ClientReply;
 
                 //if (m_surrenderRequestReceived)
                 //{
@@ -6641,11 +6682,11 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 int peaches = 1 - dying.Hp;
                 
                 bool success = client != null && client.PeachRequest(this, dying, peaches);
-                if (client != null && client.GameRoom == RoomId)
+                if (client != null)
                 {
                     List<string> clientReply = client.ClientReply;
                     if (!success || clientReply == null || clientReply.Count == 0)
@@ -6896,7 +6937,7 @@ namespace SanguoshaServer.Game
                 {
                     List<string> req = new List<string> { player.Name, refusable.ToString() };
                     bool success = DoRequest(player, CommandType.S_COMMAND_AMAZING_GRACE, req, true);
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
 
                     if (client != null && success && clientReply != null && clientReply.Count > 0)
@@ -6931,10 +6972,10 @@ namespace SanguoshaServer.Game
             if (card == null) return;
 
             List<int> card_ids = new List<int>(card.SubCards);
-            ObtainCard(target, card_ids, reason, unhide);
+            ObtainCard(target, ref card_ids, reason, unhide);
         }
 
-        public void ObtainCard(Player target, List<int> card_ids, CardMoveReason reason, bool unhide = true)
+        public void ObtainCard(Player target, ref List<int> card_ids, CardMoveReason reason, bool unhide = true)
         {
             if (card_ids.Count == 0) return;
 
@@ -6991,11 +7032,11 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     bool success = client != null && client.PlayCardRequst(this, player, CommandType.S_COMMAND_RESPONSE_CARD, prompt, method, notice_index, position);
                     if (success)
                     {
-                        List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                        List<string> clientReply = client?.ClientReply;
                         card_use.Card = clientReply != null && clientReply.Count > 1 ? RoomLogic.ParseCard(this, clientReply[1]) : null;
                         isCardUsed = card_use.Card != null;
                         if (clientReply.Count > 2)
@@ -7191,20 +7232,20 @@ namespace SanguoshaServer.Game
 
             if (validHumanPlayers.Count > 0)
             {
-                List<Client> receivers = new List<Client>();
+                List<Interactivity> receivers = new List<Interactivity>();
                 foreach (Player p in validHumanPlayers)
                 {
-                    Client client = GetClient(p);
+                    Interactivity client = GetInteractivity(p);
                     if (!receivers.Contains(client))
                         receivers.Add(client);
                 }
                 if (_m_AIraceWinner != null)
                     validHumanPlayers.Add(_m_AIraceWinner);
 
-                foreach (Client p in receivers)
+                foreach (Interactivity p in receivers)
                 {
                     p.NullificationRequest(this, trick_name, from, to);
-                    DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { trick.Name });
+                    DoNotify(GetClient(p.ClientId), CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { trick.Name });
                 }
 
                 repliedPlayer = DoBroadcastRaceRequest(validHumanPlayers, CommandType.S_COMMAND_NULLIFICATION, timeOut);
@@ -7232,7 +7273,7 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    Client client = GetClient(repliedPlayer);
+                    Interactivity client = GetInteractivity(repliedPlayer);
                     List<string> clientReply = client?.ClientReply;
                     if (clientReply != null && clientReply.Count > 1)
                     {
@@ -7406,7 +7447,7 @@ namespace SanguoshaServer.Game
                     bool success = DoRequest(player, CommandType.S_COMMAND_CHOOSE_CARD, arg, true);
 
                     //@todo: check if the card returned is valid
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
                     if (!success || clientReply == null || clientReply.Count != 2)
                     {
@@ -7506,9 +7547,9 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     bool success = client != null && client.ShowCardRequest(this, player, requestor);
-                    List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                    List<string> clientReply = client?.ClientReply;
                     if (!success || clientReply == null || clientReply.Count == 0 || !int.TryParse(clientReply[1], out card_id))
                     {
                         card_id = -1;
@@ -7662,9 +7703,9 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 bool success = client != null && client.ExtraRequest(this, player, selected_targets, card, prompt, skillName, position);
-                List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                List<string> clientReply = client?.ClientReply;
                 if (success && clientReply != null && clientReply.Count > 0)
                     result = RoomLogic.ParsePlayers(this, JsonUntity.Json2List<string>(clientReply[0]));
             }
@@ -7732,9 +7773,9 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     bool success = client != null && client.ChooseRequest(this, player, targets, prompt, skillName, position, 1, optional ? 0 : 1);
-                    List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                    List<string> clientReply = client?.ClientReply;
                     if (success && clientReply != null && clientReply.Count > 0)
                     {
                         List<Player> result = RoomLogic.ParsePlayers(this, JsonUntity.Json2List<string>(clientReply[0]));
@@ -7804,10 +7845,9 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 bool success = client != null && client.ChooseRequest(this, player, targets, prompt, skillName, position, max_num, min_num);
-
-                List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                List<string> clientReply = client?.ClientReply;
                 if (success && clientReply != null && clientReply.Count > 0)
                 {
                     result = RoomLogic.ParsePlayers(this, JsonUntity.Json2List<string>(clientReply[0]));
@@ -7932,7 +7972,7 @@ namespace SanguoshaServer.Game
                 };
                 bool success = DoRequest(player, CommandType.S_COMMAND_CHOOSE_GENERAL, options, true);
 
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 List<string> clientResponse = client?.ClientReply;
                 if (clientResponse != null && clientResponse.Count > 0)
                 {
@@ -7940,13 +7980,12 @@ namespace SanguoshaServer.Game
                     bool valid = true;
                     foreach (string name in answer)
                     {
-                        if (skill_name == "gamerule" && !generals.Contains(name) && !(generals.Contains(Engine.GetMainGeneral(name)) && can_convert)
-                            && GetClient(player).UserRight < 3)
+                        if (skill_name == "gamerule" && !generals.Contains(name) && GetClient(player).UserRight < 3)
                         {
                             valid = false;
                             break;
                         }
-                        else if (skill_name != "gamerule" && (!can_convert && !generals.Contains(name) || !generals.Contains(Engine.GetMainGeneral(name))))
+                        else if (skill_name != "gamerule" && !generals.Contains(name))
                         {
                             valid = false;
                             break;
@@ -8223,7 +8262,8 @@ namespace SanguoshaServer.Game
 
         public void DisconnectSkillsFromOthers(Player player, bool head_skill = true, bool trigger = true)
         {
-            foreach (string skill in head_skill ? player.HeadSkills.Keys : player.DeputySkills.Keys)
+            List<string> skills = head_skill ? new List<string>(player.HeadSkills.Keys) : new List<string>(player.DeputySkills.Keys);
+            foreach (string skill in skills)
             {
                 object _skill = new InfoStruct { Info = skill, Head = head_skill };
                 if (trigger)
@@ -8339,10 +8379,10 @@ namespace SanguoshaServer.Game
                 }
                 else
                 {
-                    Client client = GetClient(guojia);
+                    Interactivity client = GetInteractivity(guojia);
                     bool success = client != null && client.YijiRequest(this, guojia, cards, players, prompt, max_num, optional, expand_pile, position);
                     //Validate client response
-                    List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                    List<string> clientReply = client?.ClientReply;
                     if (!success || clientReply == null || clientReply.Count != 2)
                         break;
 
@@ -8457,12 +8497,12 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 bool success = client != null && client.ExchangeRequest(this, player, prompt, reason, position, exchange_num, min_num, new_pattern, _expand_pile);
                 //@todo: also check if the player does have that card!!!
                 if (success)
                 {
-                    List<string> clientReply = client != null && client.GameRoom == RoomId ? client.ClientReply : null;
+                    List<string> clientReply = client?.ClientReply;
                     if (clientReply != null && clientReply.Count > 0)
                     {
                         to_exchange = JsonUntity.Json2List<int>(clientReply[0]);
@@ -8766,14 +8806,14 @@ namespace SanguoshaServer.Game
             int i = 0;
             while (players.Count > 0)
             {
-                List<Client> responsers = new List<Client>();
+                List<Interactivity> responsers = new List<Interactivity>();
                 List<Player> response_players = new List<Player>();
                 foreach (Player p in players)
                 {
-                    if (!responsers.Contains(GetClient(p)))
+                    if (!responsers.Contains(GetInteractivity(p)))
                     {
-                        GetClient(p).PindianRequest(this, p, from);
-                        responsers.Add(GetClient(p));
+                        GetInteractivity(p).PindianRequest(this, p, from);
+                        responsers.Add(GetInteractivity(p));
                         response_players.Add(p);
                     }
                 }
@@ -8785,15 +8825,15 @@ namespace SanguoshaServer.Game
                 foreach (Player player in response_players)
                 {
                     WrappedCard c = null;
-                    Client client = GetClient(player);
+                    Interactivity client = GetInteractivity(player);
                     List<string> clientReply = client?.ClientReply;
                     if (client == null || !client.IsClientResponseReady || clientReply == null || clientReply.Count == 0)
                     {
                         int card_id = GetRandomHandCard(player);
                         c = GetCard(card_id);
 
-                        DoBroadcastNotify(CommandType.S_COMMAND_PINDIAN, new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), player.Name, "-1" }, client);
-                        DoNotify(client, CommandType.S_COMMAND_PINDIAN, new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), player.Name, card_id.ToString() });
+                        DoBroadcastNotify(CommandType.S_COMMAND_PINDIAN, new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), player.Name, "-1" }, GetClient(player));
+                        DoNotify(GetClient(player), CommandType.S_COMMAND_PINDIAN, new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), player.Name, card_id.ToString() });
                     }
                     else
                     {
@@ -9073,7 +9113,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(zhuge);
+                Interactivity client = GetInteractivity(zhuge);
                 if (client != null)
                     client.GuanxingRequest(this, zhuge, skillName, upcards, downcards, min_num, max_num, can_refuse, write_step, position);
                 AskForMoveCardsStruct guanxin = new AskForMoveCardsStruct
@@ -9082,7 +9122,7 @@ namespace SanguoshaServer.Game
                     Bottom = new List<int>()
                 };
 
-                if (client != null && client.GameRoom == RoomId && client.ClientReply != null && client.ClientReply.Count > 0)
+                if (client != null && client.ClientReply != null && client.ClientReply.Count > 0)
                     guanxin = JsonUntity.Json2Object<AskForMoveCardsStruct>(client.ClientReply[0]);
                 success = guanxin.Success;
                 if (success)
@@ -9213,7 +9253,7 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                Client client = GetClient(player);
+                Interactivity client = GetInteractivity(player);
                 if (client != null)
                     client.SortCardRequest(this, player, skillName, cards, position);
                 AskForMoveCardsStruct guanxin = new AskForMoveCardsStruct
@@ -9222,7 +9262,7 @@ namespace SanguoshaServer.Game
                     Bottom = new List<int>()
                 };
 
-                if (client != null && client.GameRoom == RoomId && client.ClientReply != null && client.ClientReply.Count > 0)
+                if (client != null && client.ClientReply != null && client.ClientReply.Count > 0)
                     guanxin = JsonUntity.Json2Object<AskForMoveCardsStruct>(client.ClientReply[0]);
                 success = guanxin.Success;
                 if (success)
@@ -9424,7 +9464,7 @@ namespace SanguoshaServer.Game
                     position
                 };
                 bool success = DoRequest(shenlvmeng, CommandType.S_COMMAND_SKILL_GONGXIN, gongxinArgs, true);
-                List<string> clientReply = GetClient(shenlvmeng).ClientReply;
+                List<string> clientReply = GetInteractivity(shenlvmeng).ClientReply;
                 if (!success || clientReply == null || clientReply.Count == 0 || !target.HandCards.Contains(int.Parse(clientReply[0])))
                 {
                 }

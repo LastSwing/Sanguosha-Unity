@@ -67,10 +67,10 @@ namespace SanguoshaServer.Package
 
     public class BladeTag : TargetModSkill
     {
-        public BladeTag() : base("#blade-target-mod") {}
+        public BladeTag() : base("#blade-target-mod", false) {}
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
         {
-            if (Engine.MatchExpPattern(room, pattern, from, card) && from.HasWeapon("ClassicBlade") && room.GetCard(from.Weapon.Key).HasFlag("using"))
+            if (from.HasWeapon("ClassicBlade") && room.GetCard(from.Weapon.Key).HasFlag("using"))
                 return true;
 
             return false;

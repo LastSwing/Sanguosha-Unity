@@ -115,8 +115,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Client\Interactivity.cs" />
     <Compile Include="Client\Client.cs" />
     <Compile Include="Client\ClientDBOperation.cs" />
+    <Compile Include="Game\AI\HegemonySpecialAI.cs" />
+    <Compile Include="Game\AI\NaturefourAI.cs" />
     <Compile Include="Game\Extensions\AchieveCollector.cs" />
     <Compile Include="Game\AI\AI.cs" />
     <Compile Include="Game\AI\AICore.cs" />
@@ -143,6 +146,8 @@
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
     <Compile Include="Game\Extensions\Titles.cs" />
+    <Compile Include="Game\Package\ClassicYing.cs" />
+    <Compile Include="Game\Package\FamousGeneral.cs" />
     <Compile Include="Game\Package\ClassicStander.cs" />
     <Compile Include="Game\Package\ClassicStanderCards.cs" />
     <Compile Include="Game\AI\ClassicStanderCardsAI.cs" />
@@ -153,11 +158,13 @@
     <Compile Include="Game\Package\Formation.cs" />
     <Compile Include="Game\Package\GuanduCards.cs" />
     <Compile Include="Game\Package\GuanduLimited.cs" />
+    <Compile Include="Game\Package\Naturefour.cs" />
+    <Compile Include="Game\Package\HegemonySpecial.cs" />
     <Compile Include="Game\Package\LordCards.cs" />
     <Compile Include="Game\Package\ManeuveringCards.cs" />
     <Compile Include="Game\Package\Momentum.cs" />
     <Compile Include="Game\Package\Package.cs" />
-    <Compile Include="Game\Package\Special.cs" />
+    <Compile Include="Game\Package\ClassicSpecial.cs" />
     <Compile Include="Game\Package\Stander.cs" />
     <Compile Include="Game\Package\StanderCards.cs" />
     <Compile Include="Game\Package\StrategicAdvantageCards.cs" />
@@ -170,6 +177,7 @@
     <Compile Include="Game\Scenario\Hegemony.cs" />
     <Compile Include="Game\Scenario\Scenario.cs" />
     <Compile Include="Game\Skills.cs" />
+    <Compile Include="LogHelper.cs" />
     <Compile Include="SQL DB\DataBase.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
@@ -191,6 +199,9 @@
     </Compile>
     <None Include="Config\log4net.config" />
     <None Include="Config\log4net.unix.config" />
+    <None Include="log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

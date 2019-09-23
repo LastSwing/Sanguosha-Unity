@@ -712,51 +712,25 @@ namespace SanguoshaServer.AI
             }
 
             result = new List<int>();
-            if (optional)
-                return result;
+            if (optional) return result;
+
+           SortByKeepValue(ref ids, false);
+            for (int i = 0; i < min_num; i++)
+                result.Add(ids[i]);
+
+            if (result.Count < discard_num)
             {
-                bool use = self.FaceUp;
-                if (use && (room.Current != self || self.Phase > Player.PlayerPhase.Play || self.GetMark("ThreatenEmperorExtraTurn") == 0))
+                for (int i = result.Count - 1; i < Math.Min(result.Count, ids.Count); i++)
                 {
-                    Player next = room.Current;
-                    if ((next.Phase > Player.PlayerPhase.Play && (next.GetMark("ThreatenEmperorExtraTurn") == 0 || !next.FaceUp)) || self.Removed)
-                        next = room.GetNextAlive(next, 1, false);
-                    int i = 0;
-                    while (next != self)
-                    {
-                        if (next.FaceUp && !IsFriend(next))
-                        {
-                            use = false;
-                            break;
-                        }
-                        next = room.GetNextAlive(next, 1, false);
-                        i++;
-                        if (i > 10)
-                            room.Debug("get next error");
-                    }
+                    if (ids[i] < 0)
+                        result.Add(ids[i]);
+                    else
+                        break;
                 }
-
-                if (use)
-                    SortByUseValue(ref ids, false);
-                else
-                    SortByKeepValue(ref ids, false);
-
-                for (int i = 0; i < min_num; i++)
-                    result.Add(ids[i]);
-
-                if (result.Count < discard_num)
-                {
-                    for (int i = result.Count - 1; i < Math.Min(result.Count, ids.Count); i++)
-                    {
-                        if (ids[i] < 0)
-                            result.Add(ids[i]);
-                        else
-                            break;
-                    }
-                }
-
-                return result;
             }
+
+            return result;
+
         }
 
         public override int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids)
