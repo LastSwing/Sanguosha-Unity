@@ -834,7 +834,7 @@ namespace SanguoshaServer.Package
             {
                 room.RemoveTag("shuangren_pd");
                 Player target = pd.To;
-                bool success = room.Pindian(pd);
+                bool success = room.Pindian(ref pd);
                 if (success)
                 {
                     List<int> ids = new List<int>();
@@ -1022,7 +1022,7 @@ namespace SanguoshaServer.Package
     {
         public Polu() : base("polu")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TurnStart, TriggerEvent.GameStart };
+            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TurnStart };
             frequency = Frequency.Compulsory;
             skill_type = SkillType.Alter;
         }
@@ -1070,7 +1070,7 @@ namespace SanguoshaServer.Package
                     room.MoveCardsAtomic(exchangeMove, true);
                 }
                 CardsMoveStruct move2 = new CardsMoveStruct(new List<int> { catapult }, room.GetCardOwner(catapult), player, room.GetCardPlace(catapult),
-                                      Player.Place.PlaceEquip, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PUT, player.Name, Name, string.Empty));
+                                      Place.PlaceEquip, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PUT, player.Name, Name, string.Empty));
                 exchangeMove.Add(move2);
                 room.MoveCardsAtomic(exchangeMove, true);
 
@@ -1084,7 +1084,7 @@ namespace SanguoshaServer.Package
 
                 if (equipped_id != -1)
                 {
-                    if (room.GetCardPlace(equipped_id) == Player.Place.PlaceTable)
+                    if (room.GetCardPlace(equipped_id) == Place.PlaceTable)
                     {
                         CardsMoveStruct move3 = new CardsMoveStruct(new List<int> { equipped_id }, null, Player.Place.DiscardPile,
                            new CardMoveReason(CardMoveReason.MoveReason.S_REASON_CHANGE_EQUIP, player.Name));

@@ -1633,30 +1633,59 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             int id = int.Parse(pattern.Split('|')[0]);
-            if (room.GetTag("shefu_data") is CardUseStruct use && ai.IsEnemy(use.From))
+            
+            if (room.GetTag("shefu_data") is CardUseStruct use)
             {
-                if (use.Card.Name.Contains(Slash.ClassName))
+                if (ai is StupidAI _ai && player.GetRoleEnum() == Player.PlayerRole.Renegade)
                 {
-                    foreach (Player p in use.To)
-                    {
-                        if (ai.IsFriend(p) && !ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
-                        {
-                            DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
-                            if (use.Card.Name == FireSlash.ClassName)
-                                damage.Nature = DamageStruct.DamageNature.Fire;
-                            else if (damage.Card.Name == ThunderSlash.ClassName)
-                                damage.Nature = DamageStruct.DamageNature.Thunder;
+                    if (use.Card.Name == Peach.ClassName && use.To[0].GetRoleEnum() == Player.PlayerRole.Lord && use.To[0].HasFlag("Global_Dying") && room.AliveCount() > 2)
+                        return new List<int>();
 
-                            ScoreStruct score = ai.GetDamageScore(damage);
-                            if ((ai.IsWeak(p) && score.Score < 0) || score.Score < -5)
-                                return new List<int> { id };
+                    if (use.Card.Name.Contains(Slash.ClassName))
+                    {
+                        foreach (Player p in use.To)
+                        {
+                            if (!ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
+                            {
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
+                                if (use.Card.Name == FireSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Fire;
+                                else if (damage.Card.Name == ThunderSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                                ScoreStruct score = ai.GetDamageScore(damage);
+                                if (score.Score < -10)
+                                    return new List<int> { id };
+                            }
                         }
                     }
-
-                    return new List<int>();
                 }
 
-                return new List<int> { id };
+                if (ai.IsEnemy(use.From))
+                {
+                    if (use.Card.Name.Contains(Slash.ClassName))
+                    {
+                        foreach (Player p in use.To)
+                        {
+                            if (ai.IsFriend(p) && !ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
+                            {
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
+                                if (use.Card.Name == FireSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Fire;
+                                else if (damage.Card.Name == ThunderSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                                ScoreStruct score = ai.GetDamageScore(damage);
+                                if ((ai.IsWeak(p) && score.Score < 0) || score.Score < -5)
+                                    return new List<int> { id };
+                            }
+                        }
+
+                        return new List<int>();
+                    }
+
+                    return new List<int> { id };
+                }
             }
             else if (room.GetTag("shefu_data") is CardResponseStruct resp && ai.IsEnemy(resp.From))
             {

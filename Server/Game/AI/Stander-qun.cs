@@ -432,7 +432,7 @@ namespace SanguoshaServer.AI
                     if (ai.GetPlayerTendency(target) != "unknown")
                     {
                         DamageStruct damage = new DamageStruct(new WrappedCard(Duel.ClassName) , use.To[1], target);
-                        if (_ai.NeedDamage(damage))
+                        if (_ai.NeedDamage(damage) || (ai.IsFriend(use.To[1], target) && ai.HasSkill("zhiman_jx", use.To[1])))
                         {
                             ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(target), 60);
                             return;

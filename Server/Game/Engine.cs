@@ -904,7 +904,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
-                    CardPattern p = Engine.GetPattern(skill.Pattern);
+                    CardPattern p = GetPattern(skill.Pattern);
                     if (p.Match(from, room, card))
                         x += skill.GetExtraTargetNum(room, from, card);
                 }

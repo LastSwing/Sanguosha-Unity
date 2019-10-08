@@ -122,14 +122,17 @@ namespace SanguoshaServer
             try
             {
                 CommandType request_command = (CommandType)Enum.Parse(typeof(CommandType), data.Body[0]);
-                if (data.Protocol == Protocol.GameRequest && IsWaitingReply && request_command == CommandType.S_COMMAND_OPERATE)
+                if (data.Protocol == Protocol.GameRequest && request_command == CommandType.S_COMMAND_OPERATE)
                 {
-                    List<string> arg = data.Body;
-                    arg.RemoveAt(0);
-                    CommandType command = ExpectedReplyCommand;
-                    if (m_requestResponsePair.ContainsKey(ExpectedReplyCommand))
-                        m_requestResponsePair.TryGetValue(ExpectedReplyCommand, out command);
-                    callbacks[command](arg);
+                    if (IsWaitingReply)
+                    {
+                        List<string> arg = data.Body;
+                        arg.RemoveAt(0);
+                        CommandType command = ExpectedReplyCommand;
+                        if (m_requestResponsePair.ContainsKey(ExpectedReplyCommand))
+                            m_requestResponsePair.TryGetValue(ExpectedReplyCommand, out command);
+                        callbacks[command](arg);
+                    }
                     return true;
                 }
                 else
@@ -779,7 +782,7 @@ namespace SanguoshaServer
             //pre active skill
             PromoteStruct promote = promote_skill;
             promote_skill = new PromoteStruct();
-            Player promoter = promote.player;
+            Player promoter = promote.Player;
             if (promoter != null && !skill_invoke && pending_skill == null && !string.IsNullOrEmpty(promote.SkillName) && room.GetPlayers(ClientId).Contains(promoter)
                     && room.GetRoomState().GetCurrentCardUsePattern(promoter) == promote.Pattern && reason == promote.Reason)
             {
@@ -1283,6 +1286,11 @@ namespace SanguoshaServer
                                 break;
                             }
                         }
+
+                        available_targets.Clear();
+                        foreach (Player p in room.GetAlivePlayers())
+                            if (fcard.TargetFilter(room, targets, p, player, viewas_card))
+                                available_targets.Add(p);
                     }
 
                     //player chain animation
@@ -1520,7 +1528,7 @@ namespace SanguoshaServer
 
         public void SetPromoteSkill(Player player, string skill_name, string head, string pattern, CardUseStruct.CardUseReason reason)
         {
-            promote_skill.player = player;
+            promote_skill.Player = player;
             promote_skill.SkillName = skill_name;
             promote_skill.SkillPosition = head;
             promote_skill.Pattern = pattern;

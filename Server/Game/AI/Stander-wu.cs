@@ -46,6 +46,7 @@ namespace SanguoshaServer.AI
                 new TianyiCardAI(),
                 new JieyinCardAI(),
                 new DimengCardAI(),
+                new HaoshiCardAI(),
                 new ZhijianCardAI(),
                 new FenxunCardAI()
             };
@@ -1839,6 +1840,23 @@ namespace SanguoshaServer.AI
         public DimengCardAI() : base("DimengCard")
         { }
 
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is CardUseStruct use && player != ai.Self)
+            {
+                Player target1 = use.To[0];
+                Player target2 = use.To[1];
+                Player target = null;
+                if (target1.HandcardNum > target2.HandcardNum)
+                    target = target2;
+                else if (target2.HandcardNum > target1.HandcardNum)
+                    target = target1;
+
+                if (ai is StupidAI && target != null && ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+                if (ai is SmartAI && target != null) ai.UpdatePlayerRelation(player, target, true);
+            }
+        }
+
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 2.8;
@@ -1849,7 +1867,8 @@ namespace SanguoshaServer.AI
             List<Player> targets = new List<Player>();
             List<int> subs = new List<int>();
             double best = 0;
-            foreach (Player enemy in ai.GetEnemies(player))
+            List<Player> enemies = ai.GetEnemies(player);
+            foreach (Player enemy in enemies)
             {
                 foreach (Player friend in ai.FriendNoSelf)
                 {
@@ -1857,6 +1876,12 @@ namespace SanguoshaServer.AI
                     if (count > 0)
                     {
                         double good = count * 2;
+                        if (ai.HasSkill("lianying", enemy))
+                            good -= 1.5 * Math.Min(enemy.HandcardNum, enemies.Count);
+
+                        if (ai.HasSkill("lianying", friend))
+                            good += 1.5 * Math.Min(friend.HandcardNum, ai.GetFriends(player).Count);
+
                         List<int> ids = new List<int>();
                         foreach (int id in player.GetCards("he"))
                             if (RoomLogic.CanDiscard(room, player, player, id))
@@ -1896,6 +1921,73 @@ namespace SanguoshaServer.AI
                 card.AddSubCards(subs);
                 use.Card = card;
                 use.To = targets;
+            }
+
+            foreach (Player friend in ai.FriendNoSelf)
+            {
+                if (ai.HasSkill("lianying", friend))
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (friend == p) continue;
+                        int count = Math.Abs(p.HandcardNum - friend.HandcardNum);
+                        double good = 1.5 * Math.Min(friend.HandcardNum, ai.GetFriends(player).Count);
+                        if (!ai.IsFriend(p)) good -= (friend.HandcardNum - p.HandcardNum) * 1.5;
+
+                        List<int> ids = new List<int>();
+                        foreach (int id in player.GetCards("he"))
+                            if (RoomLogic.CanDiscard(room, player, player, id))
+                                ids.Add(id);
+
+                        if (ids.Count >= count)
+                        {
+                            double cost = 0;
+                            ai.SortByKeepValue(ref ids, false);
+                            int over = ai.GetOverflow(player);
+                            List<int> result = new List<int>();
+                            for (int i = 0; i < count; i++)
+                            {
+                                double value = ai.GetKeepValue(ids[i], player);
+                                if (value > 0 && room.GetCardPlace(ids[i]) == Player.Place.PlaceHand && over > 0)
+                                {
+                                    value /= 10;
+                                    over--;
+                                }
+                                cost += value;
+                                result.Add(ids[i]);
+                            }
+
+                            double v = good - cost;
+                            if (v > best)
+                            {
+                                targets = new List<Player> { p, friend };
+                                subs = new List<int>(result);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (targets.Count > 0)
+            {
+                card.AddSubCards(subs);
+                use.Card = card;
+                use.To = targets;
+            }
+        }
+    }
+
+    public class HaoshiCardAI : UseCard
+    {
+        public HaoshiCardAI() : base(HaoshiCard.ClassName) { }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is CardUseStruct use && player != ai.Self)
+            {
+                Player target = use.To[0];
+                if (ai is StupidAI && ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+                if (ai is SmartAI && ai.Self != target) ai.UpdatePlayerRelation(player, target, true);
             }
         }
     }
@@ -2011,7 +2103,27 @@ namespace SanguoshaServer.AI
     public class GuzhengAI : SkillEvent
     {
         public GuzhengAI() : base("guzheng")
-        { }
+        {
+            key = new List<string> { "cardExchange" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && ai is StupidAI && data is string str && player != ai.Self)
+            {
+                string[] strs = str.Split(':');
+                Room room = ai.Room;
+                if (strs[1] == Name && ai.GetPlayerTendency(room.Current) != "unknown" && string.IsNullOrEmpty(strs[2]))
+                {
+                    string role = ai.GetPlayerTendency(room.Current);
+                    if (role == "lord" || role == "loyalist")
+                        ai.UpdatePlayerIntention(player, "rebel", 50);
+                    else
+                        ai.UpdatePlayerIntention(player, "loyalist", 50);
+                }
+            }
+        }
+
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;

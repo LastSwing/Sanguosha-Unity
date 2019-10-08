@@ -723,9 +723,9 @@ namespace SanguoshaServer
         #endregion
 
         #region 自动生成AI进行游戏压力测试
-        public void AutoTest()
+        public void AutoTest(int classic, int guandu, int hegemony)
         {
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < hegemony; i++)
             {
                 int room_id = ++room_serial;
                 GameMode mode = Engine.GetMode("Hegemony");
@@ -747,7 +747,7 @@ namespace SanguoshaServer
                 BroadCastRoom(room);
             }
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < classic; i++)
             {
                 int room_id = ++room_serial;
                 GameMode mode = Engine.GetMode("Classic");
@@ -769,7 +769,7 @@ namespace SanguoshaServer
                 BroadCastRoom(room);
             }
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < guandu; i++)
             {
                 int room_id = ++room_serial;
                 GameMode mode = Engine.GetMode("GuanduWarfare");

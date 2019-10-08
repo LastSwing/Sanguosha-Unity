@@ -1474,7 +1474,7 @@ namespace SanguoshaServer.Package
         {
             Player target = card_use.To[0];
             PindianStruct pd = room.PindianSelect(card_use.From, target, "quhu");
-            bool success = room.Pindian(pd);
+            bool success = room.Pindian(ref pd);
 
             if (success)
             {
@@ -3205,7 +3205,7 @@ namespace SanguoshaServer.Package
             PindianStruct pd = (PindianStruct)room.GetTag("lieren_pd");
             room.RemoveTag("lieren_pd");
             Player target = pd.To;
-            bool success = room.Pindian(pd);
+            bool success = room.Pindian(ref pd);
             if (!success) return false;
 
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, zhurong, Name, info.SkillPosition);
@@ -3273,9 +3273,11 @@ namespace SanguoshaServer.Package
 
     public class FangquanCard : SkillCard
     {
-        public FangquanCard() : base("FangquanCard")
+        public static string ClassName = "FangquanCard";
+        public FangquanCard() : base(ClassName)
         {
         }
+
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             return targets.Count == 0 && to_select != Self;
@@ -5000,7 +5002,7 @@ namespace SanguoshaServer.Package
             if (pd.From != null)
             {
                 Player target = pd.To;
-                bool success = room.Pindian(pd);
+                bool success = room.Pindian(ref pd);
                 if (success)
                 {
                     WrappedCard slash = new WrappedCard(Slash.ClassName)
@@ -6216,7 +6218,8 @@ namespace SanguoshaServer.Package
     }
     public class TianxiangCard : SkillCard
     {
-        public TianxiangCard() : base("TianxiangCard")
+        public static string ClassName = "TianxiangCard";
+        public TianxiangCard() : base(ClassName)
         {
         }
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
@@ -6391,7 +6394,7 @@ namespace SanguoshaServer.Package
             Player target = card_use.To[0];
             PindianStruct pd = room.PindianSelect(card_use.From, target, "tianyi");
 
-            bool success = room.Pindian(pd);
+            bool success = room.Pindian(ref pd);
             if (success)
                 card_use.From.SetFlags("TianyiSuccess");
             else
@@ -6938,8 +6941,6 @@ namespace SanguoshaServer.Package
                 if (!check) return;
 
                 List<int> guzhengToGet = move.From.ContainsTag("GuzhengToGet") ? (List<int>)move.From.GetTag("GuzhengToGet") : new List<int>();
-
-
                 foreach (int card_id in move.Card_ids)
                 {
                     if (!guzhengToGet.Contains(card_id))

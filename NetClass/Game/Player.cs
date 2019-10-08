@@ -850,15 +850,26 @@ namespace CommonClass.Game
             if (in_pile)
             {
                 if (Piles.ContainsKey(pile_name))
-                    Piles[pile_name].AddRange(card_ids);
+                {
+                    foreach (int id in card_ids)
+                    {
+                        Debug.Assert(!Piles[pile_name].Contains(id));
+                        Piles[pile_name].Add(id);
+                    }
+                }
                 else
                     Piles[pile_name] = new List<int>(card_ids);
             }
             else
             {
                 if (Piles.ContainsKey(pile_name))
+                {
                     foreach (int id in card_ids)
+                    {
+                        Debug.Assert(Piles[pile_name].Contains(id));
                         Piles[pile_name].Remove(id);
+                    }
+                }
             }
         }
         public bool IsSkipped(PlayerPhase phase)

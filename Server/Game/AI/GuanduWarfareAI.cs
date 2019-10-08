@@ -155,7 +155,7 @@ namespace SanguoshaServer.AI
                             if (guanxing.Value[0] != id)
                             {
                                 List<int> top_cards = new List<int>(guanxing.Value);
-                                for (int y = top_cards.IndexOf(id); y < top_cards.Count; y++)
+                                for (int y = top_cards.Count - 1; y >= top_cards.IndexOf(id); y--)
                                     guanxing.Value.RemoveAt(y);
                             }
                             else

@@ -158,7 +158,7 @@ namespace SanguoshaServer.Game
             }
 
             StringBuilder str = new StringBuilder(string.Format("{0}:{1}[{2}:{3}]={4}&{5}:{6}${7}%{8};{9}", card.Name, card.Skill,
-                GetSuitString(GetCardSuit(room, card)), GetNumberString(GetCardNumber(room, card)), card.SubcardString(),
+                GetSuitString(card.Suit), GetNumberString(card.Number), card.SubcardString(),
                 card.ShowSkill, card.ExtraTarget.ToString(), card.DistanceLimited.ToString(), card.SkillPosition, card.UserString));
 
             if (card.Mute) str.Append("*");
@@ -866,10 +866,8 @@ namespace SanguoshaServer.Game
                 case Place.PlaceSpecial:
                     {
                         string pile_name = player.GetPileName(card_id);
-
-                        //@todo: sanity check required
-                        if (!string.IsNullOrEmpty(pile_name))
-                            player.PileChange(pile_name, new List<int> { card_id }, false);
+                        Debug.Assert(!string.IsNullOrEmpty(pile_name));
+                        player.PileChange(pile_name, new List<int> { card_id }, false);
 
                         break;
                     }

@@ -5,6 +5,7 @@ using SanguoshaServer.Package;
 using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using static CommonClass.Game.Player;
@@ -43,7 +44,7 @@ namespace SanguoshaServer.AI
             {
                 if (p.GetRoleEnum() == PlayerRole.Lord)
                 {
-                    id_tendency[p] = p.Role;
+                    id_tendency[p] = "lord";
                     lord = p;
                 }
                 else if (p == self)
@@ -80,7 +81,7 @@ namespace SanguoshaServer.AI
                     {
                         player_intention[p]["loyalist"] += 5;
 
-                        if (HasSkill("jijian", lord) && HasSkill("yajiao", p))      //主公刘备，赵云偏忠
+                        if (HasSkill("jijiang", lord) && HasSkill("yajiao", p))      //主公刘备，赵云偏忠
                             player_intention[p]["loyalist"] += 5;
                     }
 
@@ -236,7 +237,7 @@ namespace SanguoshaServer.AI
                             if (guanxing.Value[0] != id)
                             {
                                 List<int> top_cards = new List<int>(guanxing.Value);
-                                for (int y = top_cards.IndexOf(id); y < top_cards.Count; y++)
+                                for (int y = top_cards.Count - 1; y >= top_cards.IndexOf(id); y--)
                                     guanxing.Value.RemoveAt(y);
                             }
                             else
@@ -340,6 +341,54 @@ namespace SanguoshaServer.AI
                         {
                             foreach (int id in moves)
                                 room.SetCardFlag(id, "visible2" + choices[1]);
+                        }
+                    }
+                }
+                else if (choices[0] == "Nullification" && self != player)
+                {
+                    string trick = choices[1];
+                    Player to = room.FindPlayer(choices[3]);
+                    Player from = null;
+                    if (!string.IsNullOrEmpty(choices[2]))
+                        from = room.FindPlayer(choices[2], true);
+                    bool positive = bool.Parse(choices[4]);
+
+                    if (player != to && GetPlayerTendency(to) != "unknown")
+                    {
+                        if (trick == Indulgence.ClassName || trick == SupplyShortage.ClassName || trick == Lightning.ClassName)
+                            UpdatePlayerRelation(player, to, positive);
+                        else if (trick == Duel.ClassName || trick == SavageAssault.ClassName || trick == ArcheryAttack.ClassName)
+                        {
+                            if (to.Hp == 1)
+                                UpdatePlayerRelation(player, to, positive);
+                        }
+                        else if (trick == Snatch.ClassName || trick == Dismantlement.ClassName)
+                        {
+                            if (IsFriend(from, to))
+                            {
+                                if (RoomLogic.PlayerContainsTrick(room, to, Indulgence.ClassName) || RoomLogic.PlayerContainsTrick(room, to, SupplyShortage.ClassName))
+                                    UpdatePlayerRelation(player, to, !positive);
+                                else
+                                {
+                                    foreach (int id in to.GetEquips())
+                                    {
+                                        if (GetKeepValue(id, to, Place.PlaceEquip) < 0)
+                                        {
+                                            UpdatePlayerRelation(player, to, !positive);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            else if (!to.IsNude())
+                                UpdatePlayerRelation(player, to, positive);
+                        }
+                        else if (trick == IronChain.ClassName)
+                        {
+                            if (!to.Chained)
+                                UpdatePlayerRelation(player, to, positive);
+                            else
+                                UpdatePlayerRelation(player, to, !positive);
                         }
                     }
                 }
@@ -455,138 +504,158 @@ namespace SanguoshaServer.AI
             CountPlayers();
             //分析身份
             List<Player> loyalists = new List<Player>(), rebels = new List<Player>(), rends = new List<Player>();
-
-            switch (self.GetRoleEnum())
-            {
-                case PlayerRole.Loyalist:
-                    loyalists.Add(self);
-                    break;
-                case PlayerRole.Rebel:
-                    rebels.Add(self);
-                    break;
-                case PlayerRole.Renegade:
-                    rends.Add(self);
-                    break;
-            }
-
-            Player lord = null;
-            if (self.GetRoleEnum() == PlayerRole.Lord) lord = self;
-            //首先选出已确定身份的角色
-            foreach (Player p in room.GetOtherPlayers(self))
-            {
-                if (p.GetRoleEnum() == PlayerRole.Lord)
-                {
-                    lord = p;
-                }
-                if (id_tendency[p] != "unknown")
-                {
-                    switch (id_tendency[p])
-                    {
-                        case "loyalist":
-                            loyalists.Add(p);
-                            break;
-                        case "rebel":
-                            rebels.Add(p);
-                            break;
-                        case "renegade":
-                            rends.Add(p);
-                            break;
-                    }
-                }
-            }
-            //匹配剩余身份数量，如不符合，则重新识别
-            if (loyalists.Count > roles[PlayerRole.Loyalist])
-            {
-                List<Player> re = new List<Player>(loyalists);
-                foreach (Player p in re)
-                {
-                    if (p == self) continue;
-                    loyalists.Remove(p);
-                    id_tendency[p] = "unknown";
-                }
-            }
-            if (rebels.Count > roles[PlayerRole.Rebel])
-            {
-                List<Player> re = new List<Player>(rebels);
-                foreach (Player p in re)
-                {
-                    if (p == self) continue;
-                    rebels.Remove(p);
-                    id_tendency[p] = "unknown";
-                }
-            }
-            if (rends.Count > roles[PlayerRole.Renegade])
-            {
-                List<Player> re = new List<Player>(rends);
-                foreach (Player p in re)
-                {
-                    if (p == self) continue;
-                    rends.Remove(p);
-                    id_tendency[p] = "unknown";
-                }
-            }
-
-            //填补剩余坑位
-            int loyal_c = roles[PlayerRole.Loyalist] - loyalists.Count;
-            int rebel_c = roles[PlayerRole.Rebel] - rebels.Count;
-            int rends_c = roles[PlayerRole.Renegade] - rends.Count;
-            
-            int count = 0;
-            if (loyal_c == 0) count++;
-            if (rebel_c == 0) count++;
-            if (rends_c == 0) count++;
-            if (count == 2)
-            {
-                if (loyal_c > 0)
-                {
-                    foreach (Player p in room.GetOtherPlayers(self))
-                    {
-                        if (id_tendency[p] == "unknown")
-                        {
-                            id_tendency[p] = "loyalist";
-                            loyalists.Add(p);
-                        }
-                    }
-                }
-                else if (rebel_c > 0)
-                {
-                    foreach (Player p in room.GetOtherPlayers(self))
-                    {
-                        if (id_tendency[p] == "unknown")
-                        {
-                            id_tendency[p] = "rebel";
-                            rebels.Add(p);
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (Player p in room.GetOtherPlayers(self))
-                    {
-                        if (id_tendency[p] == "unknown")
-                        {
-                            id_tendency[p] = "renegade";
-                            rends.Add(p);
-                        }
-                    }
-                }
-
-                count = 3;
-            }
-
             List<Player> loyalists_n = new List<Player>(), rebels_n = new List<Player>();
-            foreach (Player p in room.GetOtherPlayers(self))
-            {
-                if (p.GetRoleEnum() == PlayerRole.Lord || id_tendency[p] != "unknown") continue;
+            Player lord = null;
 
-                List<string> roles = GetPossibleId(p);
-                if (roles.Count > 0)
+            if (self.GetRoleEnum() == PlayerRole.Renegade && room.Round > 1)        //内奸第二回合起自带身份透视
+            {
+                foreach (Player p in room.GetAlivePlayers())
                 {
-                    foreach (string role in roles)
+                    switch (p.GetRoleEnum())
                     {
-                        if (player_intention[p][role] >= 80)
+                        case PlayerRole.Lord:
+                            lord = p;
+                            break;
+                        case PlayerRole.Loyalist:
+                            loyalists.Add(p);
+                            break;
+                        case PlayerRole.Rebel:
+                            rebels.Add(p);
+                            break;
+                        case PlayerRole.Renegade:
+                            rends.Add(p);
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                switch (self.GetRoleEnum())
+                {
+                    case PlayerRole.Loyalist:
+                        loyalists.Add(self);
+                        break;
+                    case PlayerRole.Rebel:
+                        rebels.Add(self);
+                        break;
+                    case PlayerRole.Renegade:
+                        rends.Add(self);
+                        break;
+                }
+
+                if (self.GetRoleEnum() == PlayerRole.Lord) lord = self;
+                //首先选出已确定身份的角色
+                foreach (Player p in room.GetOtherPlayers(self))
+                {
+                    if (p.GetRoleEnum() == PlayerRole.Lord)
+                        lord = p;
+
+                    if (id_tendency[p] != "unknown")
+                    {
+                        switch (id_tendency[p])
                         {
-                            switch (role)
+                            case "loyalist":
+                                loyalists.Add(p);
+                                break;
+                            case "rebel":
+                                rebels.Add(p);
+                                break;
+                            case "renegade":
+                                rends.Add(p);
+                                break;
+                        }
+                    }
+                }
+                //匹配剩余身份数量，如不符合，则重新识别
+                if (loyalists.Count > roles[PlayerRole.Loyalist])
+                {
+                    List<Player> re = new List<Player>(loyalists);
+                    foreach (Player p in re)
+                    {
+                        if (p == self) continue;
+                        loyalists.Remove(p);
+                        id_tendency[p] = "unknown";
+                    }
+                }
+                if (rebels.Count > roles[PlayerRole.Rebel])
+                {
+                    List<Player> re = new List<Player>(rebels);
+                    foreach (Player p in re)
+                    {
+                        if (p == self || p.GetRoleEnum() == PlayerRole.Rebel) continue;         //小作弊，已经确定身份的反贼不会再改变身份识别
+                        rebels.Remove(p);
+                        id_tendency[p] = "unknown";
+                    }
+                }
+                if (rends.Count > roles[PlayerRole.Renegade])
+                {
+                    List<Player> re = new List<Player>(rends);
+                    foreach (Player p in re)
+                    {
+                        if (p == self) continue;
+                        rends.Remove(p);
+                        id_tendency[p] = "unknown";
+                    }
+                }
+
+                //填补剩余坑位
+                int loyal_c = roles[PlayerRole.Loyalist] - loyalists.Count;
+                int rebel_c = roles[PlayerRole.Rebel] - rebels.Count;
+                int rends_c = roles[PlayerRole.Renegade] - rends.Count;
+
+                int count = 0;
+                if (loyal_c == 0) count++;
+                if (rebel_c == 0) count++;
+                if (rends_c == 0) count++;
+                if (count == 2)                         //当其中2个身份已识别完毕，则自动将剩余玩家的身份归为未识别完成的那一个
+                {
+                    if (loyal_c > 0)
+                    {
+                        foreach (Player p in room.GetOtherPlayers(self))
+                        {
+                            if (id_tendency[p] == "unknown")
+                            {
+                                id_tendency[p] = "loyalist";
+                                loyalists.Add(p);
+                            }
+                        }
+                    }
+                    else if (rebel_c > 0)
+                    {
+                        foreach (Player p in room.GetOtherPlayers(self))
+                        {
+                            if (id_tendency[p] == "unknown")
+                            {
+                                id_tendency[p] = "rebel";
+                                rebels.Add(p);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (Player p in room.GetOtherPlayers(self))
+                        {
+                            if (id_tendency[p] == "unknown")
+                            {
+                                id_tendency[p] = "renegade";
+                                rends.Add(p);
+                            }
+                        }
+                    }
+
+                    count = 3;
+                }
+
+                foreach (Player p in room.GetOtherPlayers(self))
+                {
+                    if (p.GetRoleEnum() == PlayerRole.Lord || id_tendency[p] != "unknown") continue;
+
+                    List<string> roles = GetPossibleId(p);
+                    if (roles.Count > 0)
+                    {
+                        if (player_intention[p][roles[0]] >= 80)
+                        {
+                            switch (roles[0])
                             {
                                 case "loyalist":
                                     loyalists_n.Add(p);
@@ -695,8 +764,28 @@ namespace SanguoshaServer.AI
                 if (diff < -12)
                     Process += "<";
             }
-            //room.Debug(string.Format("player {0}{1}, role {2} lord: {3} rebel: {4}, {5}", self.SceenName, self.General1, self.Role, roles_points[PlayerRole.Lord], roles_points[PlayerRole.Rebel], Process));
+#if DEBUG
+            if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
+            {
+                room.Speak(room.GetClient(Self),
+                    string.Format("player {0}{1}, role {2} lord: {3} rebel: {4}, {5}",
+                    self.SceenName, self.General1, self.Role, roles_points[PlayerRole.Lord], roles_points[PlayerRole.Rebel], Process));
 
+                foreach (Player p in loyalists)
+                    room.Speak(room.GetClient(Self), string.Format("{0} {1} is loyalist", p.SceenName, p.General1));
+
+                foreach (Player p in loyalists_n)
+                    room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe loyalist", p.SceenName, p.General1));
+
+                foreach (Player p in rebels)
+                    room.Speak(room.GetClient(Self), string.Format("{0} {1} is rebel", p.SceenName, p.General1));
+
+                foreach (Player p in rebels_n)
+                    room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe rebel", p.SceenName, p.General1));
+            }
+
+            Debug.Assert(true);
+#endif
             //根据场上形势识别敌我
             friends.Clear();
             enemies.Clear();
@@ -790,8 +879,21 @@ namespace SanguoshaServer.AI
                         foreach (Player p in rends)
                         {
                             PlayersLevel[p] = 1;
-                            this.friends[p] = Process.Contains(">>") ? enemies : new List<Player> { p };    //主忠方优势大时将反贼当作友方
+                            this.friends[p] = Process.Contains(">>") ? enemies : new List<Player> { p };    //主忠方优势大时内奸将反贼当作友方
                             this.enemies[p] = loyalists;
+                        }
+                        if (!Process.Contains(">>"))
+                        {
+                            foreach (Player p in loyalists_n)
+                            {
+                                if (!rebels_n.Contains(p))
+                                {
+                                    friends.Add(p);
+                                    PlayersLevel[p] = 0;
+                                    this.friends[p] = friends;
+                                    this.enemies[p] = enemies;
+                                }
+                            }
                         }
                     }
                     else if (Process.Contains("<"))
@@ -804,7 +906,7 @@ namespace SanguoshaServer.AI
                             if (!rebels_n.Contains(p))
                             {
                                 friends.Add(p);
-                                PlayersLevel[p] = 1;
+                                PlayersLevel[p] = -1;
                                 this.friends[p] = friends;
                                 this.enemies[p] = enemies;
                             }
@@ -813,7 +915,7 @@ namespace SanguoshaServer.AI
                         foreach (Player p in rends)
                         {
                             PlayersLevel[p] = Process.Contains("<<") ? -1 : 0;
-                            this.friends[p] = Process.Contains("<<") ? friends : new List<Player> { p };    //反贼方优势大时将主忠方当作友方
+                            this.friends[p] = Process.Contains("<<") ? friends : new List<Player> { p };    //反贼方优势大时内奸将主忠方当作友方
                             this.enemies[p] = enemies;
                         }
                     }
@@ -1028,10 +1130,6 @@ namespace SanguoshaServer.AI
                                     friends.Add(p);
                             }
                         }
-                        this.friends[self] = friends;
-                        this.enemies[self] = enemies;
-                        priority_enemies = enemies;
-                        PlayersLevel[self] = -1;
 
                         List<Player> l_friends = new List<Player>(loyalists)
                         {
@@ -1082,10 +1180,6 @@ namespace SanguoshaServer.AI
                                     friends.Add(p);
                             }
                         }
-                        this.friends[self] = friends;
-                        this.enemies[self] = enemies;
-                        priority_enemies = enemies;
-                        PlayersLevel[self] = -1;
 
                         List<Player> r_enemies = new List<Player>(loyalists)
                         {
@@ -1116,8 +1210,28 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
+
+                    this.friends[self] = friends;
+                    this.enemies[self] = enemies;
+                    priority_enemies = enemies;
+                    PlayersLevel[self] = -1;
                 }
             }
+
+#if DEBUG
+            if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
+            {
+                foreach (Player p in friends[Self])
+                    room.Speak(room.GetClient(Self),
+                        string.Format("{0} {1} is friend", p.SceenName, p.General1));
+
+                foreach (Player p in enemies[Self])
+                    room.Speak(room.GetClient(Self),
+                        string.Format("{0} {1} is enemy", p.SceenName, p.General1));
+
+                Debug.Assert(true);
+            }
+#endif
         }
 
         public override List<string> GetPossibleId(Player who)
@@ -1138,133 +1252,158 @@ namespace SanguoshaServer.AI
             return result;
         }
 
+        public override string GetPlayerTendency(Player player)
+        {
+            if (player.GetRoleEnum() == PlayerRole.Lord || player != Self)
+                return id_tendency[player];
+            else
+                return id_public[self];
+        }
+
         //更新玩家关系
         public override void UpdatePlayerRelation(Player from, Player to, bool friendly)
         {
             if (from == to) return;
 
-            if (to != self)
+            if (to != self || self.GetRoleEnum() == PlayerRole.Lord)
             {
                 if (id_tendency[to] == "lord")
                 {
-                    UpdatePlayerIntention(from, friendly ? "loyalist" : "rebel", 100);
+                    UpdatePlayerIntention(from, friendly ? "loyalist" : "rebel", 80);
                 }
                 else if (id_tendency[to] == "loyalist" && from.GetRoleEnum() != PlayerRole.Lord)
                 {
-                    UpdatePlayerIntention(from, friendly ? "loyalist" : "rebel", 100);
+                    UpdatePlayerIntention(from, friendly ? "loyalist" : "rebel", 80);
                 }
                 else if (id_tendency[to] == "rebel" && from.GetRoleEnum() != PlayerRole.Lord)
                 {
-                    UpdatePlayerIntention(from, friendly ? "rebel" : "loyalist", 100);
+                    UpdatePlayerIntention(from, friendly ? "rebel" : "loyalist", 80);
                 }
             }
             else if (self == to && id_public[self] == "rebel")
             {
-                UpdatePlayerIntention(from, "loyalist", 80);
+                UpdatePlayerIntention(from, "loyalist", 60);
             }
             else if (self == to && id_public[self] == "loyalist")
             {
-                UpdatePlayerIntention(from, "rebel", 80);
+                UpdatePlayerIntention(from, "rebel", 60);
             }
         }
 
         //更新玩家身份的倾向
+        //倾向上限值为150，超过100时即确定身份
+        //AI作弊，已经确定反贼身份后若其真实身份为反贼就不会再变动
+        //已确定角色身份后，身份倾向值增减减半
         public override void UpdatePlayerIntention(Player player, string role, int intention)
         {
             if (player.GetRoleEnum() == PlayerRole.Lord) return;
             if (player == self)         //记录自己的行为表现
             {
-                if (((role == "loyalist" && player_intention_public[player]["rebel"] >= 50)
-                    || (role == "rebel" && player_intention_public[player]["loyalist"] >= 50)) && roles[PlayerRole.Renegade] > 0)
-                {
-                    player_intention_public[player]["loyalist"] = 0;
-                    player_intention_public[player]["rebel"] = 0;
-                    id_public[player] = "renegade";
-                }
-                else if ((role == "rebel" && roles[PlayerRole.Rebel] > 0) || (role == "loyalist" && roles[PlayerRole.Loyalist] > 0))
+                if (player.GetRoleEnum() == PlayerRole.Rebel && id_public[player] == "rebel") return;
+
+                if (id_public[player] != "unknown") intention /= 2;
+                if ((role == "rebel" && roles[PlayerRole.Rebel] > 0) || (role == "loyalist" && roles[PlayerRole.Loyalist] > 0))
                 {
                     player_intention_public[player][role] += intention;
-                    if (id_public[player] == "unknown" && player_intention_public[player][role] >= 100)
-                        id_public[player] = role;
+                    player_intention_public[player][role] = Math.Min(player_intention_public[player][role], 150);
+                    player_intention_public[player][role] = Math.Max(player_intention_public[player][role], 0);
+
+                    if (role == "rebel")
+                    {
+                        player_intention_public[player]["loyalist"] -= intention;
+                    }
+                    else
+                    {
+                        player_intention_public[player]["rebel"] -= intention;
+                    }
                 }
                 else if (role == "renegade")                //身份倾向不会直接赋值内奸，需要根据形势判断
                 {
                     if (Process.Contains("<"))
                     {
-                        if (intention < 0)
-                        {
-                            player_intention[player]["rebel"] -= intention;
-                            if (id_public[player] == "unknown" && player_intention_public[player]["rebel"] >= 100)
-                                id_public[player] = "rebel";
-                        }
-                        else
-                        {
-                            player_intention_public[player]["loyalist"] += intention;
-                            if (id_public[player] == "unknown" && player_intention_public[player]["loyalist"] >= 100)
-                                id_public[player] = "loyalist";
-                        }
+                        player_intention_public[player]["rebel"] -= intention;
+                        player_intention_public[player]["loyalist"] += intention;
                     }
                     else if (Process.Contains(">"))
                     {
-                        if (intention > 0)
-                        {
-                            player_intention_public[player]["rebel"] += intention;
-                            if (id_public[player] == "unknown" && player_intention_public[player]["rebel"] >= 100)
-                                id_public[player] = "rebel";
-                        }
-                        else
-                        {
-                            player_intention_public[player]["loyalist"] -= intention;
-                            if (id_public[player] == "unknown" && player_intention_public[player]["loyalist"] >= 100)
-                                id_public[player] = "loyalist";
-                        }
+                        player_intention_public[player]["rebel"] += intention;
+                        player_intention_public[player]["loyalist"] -= intention;
                     }
                 }
-            }
-            else if (((role == "loyalist" && player_intention[player]["rebel"] >= 50) || (role == "rebel" && player_intention[player]["loyalist"] >= 50)) && roles[PlayerRole.Renegade] > 0)
-            {
-                player_intention[player]["loyalist"] = 0;
-                player_intention[player]["rebel"] = 0;
-                id_tendency[player] = "renegade";
-            }
-            else if ((role == "rebel" && roles[PlayerRole.Rebel] > 0) || (role == "loyalist" && roles[PlayerRole.Loyalist] > 0))
-            {
-                player_intention[player][role] += intention;
-                if (id_tendency[player] == "unknown" && player_intention[player][role] >= 100)
-                    id_tendency[player] = role;
-            }
-            else if (role == "renegade")                //身份倾向不会直接赋值内奸，需要根据形势判断
-            {
-                if (Process.Contains("<"))
+
+                player_intention_public[player]["loyalist"] = Math.Min(player_intention_public[player]["loyalist"], 150);
+                player_intention_public[player]["loyalist"] = Math.Max(player_intention_public[player]["loyalist"], 0);
+
+                player_intention_public[player]["rebel"] = Math.Min(player_intention_public[player]["rebel"], 150);
+                player_intention_public[player]["rebel"] = Math.Max(player_intention_public[player]["rebel"], 0);
+
+                if (player_intention_public[player]["rebel"] >= 60 && player_intention_public[player]["loyalist"] >= 60)
                 {
-                    if (intention < 0)
-                    {
-                        player_intention[player]["rebel"] -= intention;
-                        if (id_tendency[player] == "unknown" && player_intention[player]["rebel"] >= 100)
-                            id_tendency[player] = "rebel";
-                    }
+                    if (roles[PlayerRole.Renegade] > 0)
+                        id_public[player] = "renegade";
                     else
-                    {
-                        player_intention[player]["loyalist"] += intention;
-                        if (id_tendency[player] == "unknown" && player_intention[player]["loyalist"] >= 100)
-                            id_tendency[player] = "loyalist";
-                    }
+                        id_public[player] = "unknown";
                 }
-                else if (Process.Contains(">"))
+                else if (player_intention_public[player]["rebel"] >= 100)
+                    id_public[player] = "rebel";
+                else if (player_intention_public[player]["loyalist"] >= 100)
+                    id_public[player] = "loyalist";
+                else
+                    id_public[player] = "unknown";
+            }
+            else
+            {
+                if (player.GetRoleEnum() == PlayerRole.Rebel && id_tendency[player] == "rebel") return;       //小作弊，已经确定反贼身份就不会再变动
+
+                if (id_tendency[player] != "unknown") intention /= 2;
+                if ((role == "rebel" && roles[PlayerRole.Rebel] > 0) || (role == "loyalist" && roles[PlayerRole.Loyalist] > 0))
                 {
-                    if (intention > 0)
-                    {
-                        player_intention[player]["rebel"] += intention;
-                        if (id_tendency[player] == "unknown" && player_intention[player]["rebel"] >= 100)
-                            id_tendency[player] = "rebel";
-                    }
-                    else
+                    player_intention[player][role] += intention;
+                    player_intention[player][role] = Math.Min(player_intention[player][role], 150);
+                    player_intention[player][role] = Math.Max(player_intention[player][role], 0);
+
+                    if (role == "rebel")
                     {
                         player_intention[player]["loyalist"] -= intention;
-                        if (id_tendency[player] == "unknown" && player_intention[player]["loyalist"] >= 100)
-                            id_tendency[player] = "loyalist";
+                    }
+                    else
+                    {
+                        player_intention[player]["rebel"] -= intention;
                     }
                 }
+                else if (role == "renegade")                //身份倾向不会直接赋值内奸，需要根据形势判断
+                {
+                    if (Process.Contains("<"))
+                    {
+                        player_intention[player]["rebel"] -= intention;
+                        player_intention[player]["loyalist"] += intention;
+                    }
+                    else if (Process.Contains(">"))
+                    {
+                        player_intention[player]["rebel"] += intention;
+                        player_intention[player]["loyalist"] -= intention;
+                    }
+                }
+
+                player_intention[player]["loyalist"] = Math.Min(player_intention[player]["loyalist"], 150);
+                player_intention[player]["loyalist"] = Math.Max(player_intention[player]["loyalist"], 0);
+
+                player_intention[player]["rebel"] = Math.Min(player_intention[player]["rebel"], 150);
+                player_intention[player]["rebel"] = Math.Max(player_intention[player]["rebel"], 0);
+
+                if (player_intention[player]["rebel"] >= 60 && player_intention[player]["loyalist"] >= 60)
+                {
+                    if (roles[PlayerRole.Renegade] > 0)
+                        id_tendency[player] = "renegade";
+                    else
+                        id_tendency[player] = "unknown";
+                }
+                else if (player_intention[player]["rebel"] >= 100)
+                    id_tendency[player] = "rebel";
+                else if (player_intention[player]["loyalist"] >= 100)
+                    id_tendency[player] = "loyalist";
+                else
+                    id_tendency[player] = "unknown";
             }
 
             UpdatePlayers();
@@ -1281,90 +1420,65 @@ namespace SanguoshaServer.AI
                 Chain = _damage.Chain
             };
 
-            damage.Damage = DamageEffect(damage, step);
             Player from = damage.From;
             Player to = damage.To;
-            if (damage.Steped < DamageStruct.DamageStep.Caused)
-                damage.Steped = DamageStruct.DamageStep.Caused;
-
             ScoreStruct result_score = new ScoreStruct
             {
                 Damage = damage,
                 DoDamage = true
             };
 
-            damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
-            damage.Steped = DamageStruct.DamageStep.Done;
-            result_score.Damage = damage;
-
-            List<ScoreStruct> scores = new List<ScoreStruct>();
-            if (damage.Damage > 0 && !to.Removed)
+            if (!HasSkill("jueqing", from))
             {
-                double value = 0;
-                value = Math.Min(damage.Damage, to.Hp) * -3.5;
-                if (IsWeak(to))
-                {
-                    value -= 4;
-                    if (damage.Damage > to.Hp)
-                        if (!CanSave(to, damage.Damage - to.Hp + 1))
-                        {
-                            int over_damage = damage.Damage - to.Hp;
-                            for (int i = 1; i <= over_damage; i++)
-                            {
-                                double x = HasSkill("buqu_jx", to) ? 1 / Math.Pow(i, 2) : (double)8 / Math.Pow(i, 2);
-                                value -= x;
-                            }
-                        }
-                        else
-                            return false;
-                }
+                damage.Damage = DamageEffect(damage, step);
+                if (damage.Steped < DamageStruct.DamageStep.Caused)
+                    damage.Steped = DamageStruct.DamageStep.Caused;
 
-                if (!to.Removed && CanResist(to, damage.Damage)) result_score.Score = -3;
-
-                foreach (SkillEvent e in skill_events.Values)
-                {
-                    if (e.Name != damage.Reason)
-                        value += e.GetDamageScore(room.GetAI(to, true), damage).Score;
-                }
-                if (priority_enemies.Contains(to) && value > 0)
-                    value *= 1.5;
-                else if (!IsSituationClear() && value > 0)
-                    value /= 2;
-
-                //ai debug log
-                /*
-                if (IsFriend(to) && value > 0)
-                {
-                    string damage_from = damage.From != null ? string.Format("{0} has skills {1}", damage.From.ActualGeneral1, string.Join(",", GetKnownSkills(damage.From))) : "no damage from";
-                    string damage_str = string.Format("nature {0} count {1} reason {2}", damage.Nature == DamageStruct.DamageNature.Normal ? "normal" : damage.Nature == DamageStruct.DamageNature.Fire ?
-                        "fire" : "thunder", damage.Damage, damage.Card != null ? damage.Card.Name : damage.Reason);
-                    string damage_to = string.Format("{0} has skills {1}", damage.To.ActualGeneral1, string.Join(",", GetKnownSkills(damage.To)));
-                    string self_str = self.ActualGeneral1;
-
-                    File.AppendAllText("ai_classic_damage_log.txt", string.Format("{0} judge damage {1} against {2} {6} and value is {3} and ai judge target is my {4} and I'm {5}\r\n",
-                        damage_from, damage_str, damage_to, value, IsFriend(self, to) ? "friend" : "enemy", self_str, to.Chained ? "chained" : string.Empty));
-                }
-                */
-                result_score.Score = value;
+                damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
+                damage.Steped = DamageStruct.DamageStep.Done;
+                result_score.Damage = damage;
             }
-            scores.Add(result_score);
+            else
+                result_score.DoDamage = false;
 
-            if (from != null && HasSkill("zhiman", from) && RoomLogic.GetPlayerCards(room, to, "ej").Count > 0)
+            if (result_score.DoDamage && result_score.Damage.Damage < to.Hp && damage.Damage == 1)
             {
-                ScoreStruct score = FindCards2Discard(from, to, string.Empty, "ej", HandlingMethod.MethodGet);
-                scores.Add(score);
-            }
-            if (damage.Card != null && from != null && !damage.Transfer)
-            {
-                if (damage.Card.Name.Contains(Slash.ClassName) && from.HasWeapon(IceSword.ClassName) && !to.IsNude())
+                if (HasSkill("yiji_jx|chouce", to)) return true;
+                List<Player> friends = GetFriends(to);
+                if (HasSkill("jieming_jx", to))
                 {
-                    ScoreStruct score = FindCards2Discard(from, to, string.Empty, "he", HandlingMethod.MethodDiscard, 2, true);
-                    scores.Add(score);
+                    foreach (Player p in friends)
+                        if (p.MaxHp - p.HandcardNum <= 2) return true;
+                }
+
+                if (HasSkill("fangzhu", to))
+                {
+                    foreach (Player p in friends)
+                        if (p != to && !p.FaceUp) return true;
+
+                    if (!IsWeak(to))
+                        foreach (Player p in GetEnemies(to))
+                            if (!p.FaceUp) return true;
                 }
             }
 
-            CompareByScore(ref scores);
-            return scores[0].Score > 0;
+            if (HasSkill("hunzi", to) && to.GetMark("hunzi") == 0 && damage.Damage == 1 && to.Hp == 2)
+            {
+                bool save = true;
+                Player next = room.GetNextAlive(room.Current, 1, false);
+                while (next != to)
+                {
+                    if (!WillSkipPlayPhase(next) && !IsFriend(next, to))
+                    {
+                        save = false;
+                        break;
+                    }
+                }
+
+                if (!save) return false;
+            }
+
+            return false;
         }
 
         public override ScoreStruct GetDamageScore(DamageStruct _damage, DamageStruct.DamageStep step = DamageStruct.DamageStep.Caused)
@@ -1377,8 +1491,8 @@ namespace SanguoshaServer.AI
                 TransferReason = _damage.TransferReason,
                 Chain = _damage.Chain
             };
-
-            damage.Damage = DamageEffect(damage, step);
+            if (damage.From == null || !HasSkill("jueqing", damage.From))
+                damage.Damage = DamageEffect(damage, step);
             Player from = damage.From;
             Player to = damage.To;
             if (damage.Steped < DamageStruct.DamageStep.Caused)
@@ -1395,7 +1509,8 @@ namespace SanguoshaServer.AI
                 result_score.Score = -20;
                 return result_score;
             }
-            damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
+            if (from == null || !HasSkill("jueqing", from))
+                damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
 
@@ -1422,7 +1537,7 @@ namespace SanguoshaServer.AI
                             deadly = true;
                 }
 
-                if (!to.Removed && CanResist(to, damage.Damage)) result_score.Score = 3;
+                if (!to.Removed && CanResist(to, damage.Damage) && (from == null || !HasSkill("jueqing", damage.From))) result_score.Score = 3;
 
                 //根据身份矫正分数
                 if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Loyalist)
@@ -1439,7 +1554,7 @@ namespace SanguoshaServer.AI
                             else
                             {
                                 value -= 4;
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude())
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
                                     value -= from.GetCards("he").Count * 1.5;
                             }
                         }
@@ -1453,7 +1568,7 @@ namespace SanguoshaServer.AI
                             {
                                 value += 5;
                             }
-                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive)
+                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive && !HasSkill("jueqing", from))
                             {
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                             }
@@ -1507,7 +1622,7 @@ namespace SanguoshaServer.AI
                             }
                             else
                             {
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude())
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
                                     value += from.GetCardCount(true) * 1.5;
                             }
                         }
@@ -1523,7 +1638,12 @@ namespace SanguoshaServer.AI
                             {
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                                 if (to.Hp == 1 && to.GetCardCount(true) < 2 && !MaySave(to) && GetPlayerTendency(from) == "rebel")      //无可救药的反贼同伴宁可被自己人收掉
-                                    value += 4;
+                                {
+                                    if (!HasSkill("jueqing", from))
+                                        value += 4;
+                                    else
+                                        value += 1;
+                                }
                             }
                         }
                     }
@@ -1576,7 +1696,7 @@ namespace SanguoshaServer.AI
                             }
                             else
                             {
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude())
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
                                     value += from.GetCardCount(true) * 1.5;
                             }
                         }
@@ -1648,7 +1768,7 @@ namespace SanguoshaServer.AI
             }
             scores.Add(result_score);
 
-            if (from != null && HasSkill("zhiman", from) && RoomLogic.GetPlayerCards(room, to, "ej").Count > 0)
+            if (from != null && HasSkill("zhiman|zhiman_jx", from) && RoomLogic.GetPlayerCards(room, to, "ej").Count > 0)
             {
                 ScoreStruct score = FindCards2Discard(from, to, string.Empty, "ej", HandlingMethod.MethodGet);
                 scores.Add(score);
@@ -2019,7 +2139,7 @@ namespace SanguoshaServer.AI
         public override double ChainDamage(DamageStruct damage)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To))
+                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
                 return 0;
 
             List<Player> players = GetSpreadTargets(damage);
@@ -2038,7 +2158,7 @@ namespace SanguoshaServer.AI
                 {
                     if (IsFriend(p))
                     {
-                        if (spread.From != null && HasSkill("zhiman", spread.From) && IsFriend(spread.From, spread.To))
+                        if (spread.From != null && HasSkill("zhiman|zhiman_jx", spread.From) && IsFriend(spread.From, spread.To))
                         {
                             if (spread.To.JudgingArea.Count > 0 || GetLostEquipEffect(spread.To) < 0)
                             {
@@ -2049,7 +2169,7 @@ namespace SanguoshaServer.AI
                     }
                     else if (IsEnemy(p))
                     {
-                        if (spread.From != null && HasSkill("zhiman", spread.From) && IsFriend(spread.From, spread.To))
+                        if (spread.From != null && HasSkill("zhiman|zhiman_jx", spread.From) && IsFriend(spread.From, spread.To))
                         {
                             if (spread.To.JudgingArea.Count > 0 || GetLostEquipEffect(spread.To) < 0)
                             {
@@ -2109,6 +2229,21 @@ namespace SanguoshaServer.AI
 
         public override WrappedCard AskForCard(string reason, string pattern, string prompt, object data)
         {
+            if (HasSkill("aocai") && Self.Phase == PlayerPhase.NotActive && self.GetPile("#aocai").Count == 0           //傲才耦合
+                && (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
+                || room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
+            {
+                WrappedCard aocai = new WrappedCard(AocaiCard.ClassName) { Skill = "aocai" };
+                WrappedCard slash = new WrappedCard(Slash.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, slash)) return aocai;
+                WrappedCard jink = new WrappedCard(Jink.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, jink)) return aocai;
+                WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, ana)) return aocai;
+                WrappedCard peach = new WrappedCard(Peach.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, peach)) return aocai;
+            }
+
             UseCard card = Engine.GetCardUsage(reason);
             if (card != null)
                 return card.OnResponding(this, self, pattern, prompt, data).Card;
@@ -2444,6 +2579,21 @@ namespace SanguoshaServer.AI
             }
             else
             {
+                if (HasSkill("aocai") && Self.Phase == PlayerPhase.NotActive && self.GetPile("#aocai").Count == 0           //傲才耦合
+                    && (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
+                    || room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
+                {
+                    WrappedCard aocai = new WrappedCard(AocaiCard.ClassName) { Skill = "aocai" };
+                    WrappedCard slash = new WrappedCard(Slash.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, slash)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard jink = new WrappedCard(Jink.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, jink)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, ana)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard peach = new WrappedCard(Peach.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, peach)) return new CardUseStruct(aocai, self, new List<Player>());
+                }
+
                 if (!string.IsNullOrEmpty(room.GetRoomState().GetCurrentResponseSkill()))
                 {
                     string skill_name = room.GetRoomState().GetCurrentResponseSkill();
@@ -2572,11 +2722,11 @@ namespace SanguoshaServer.AI
             if (trick.Name == SavageAssault.ClassName && IsFriend(to) && positive)
             {
                 Player menghuo = FindPlayerBySkill("huoshou");
-                if (menghuo != null && RoomLogic.PlayerHasShownSkill(room, menghuo, "huoshou") && IsFriend(to, menghuo) && HasSkill("zhiman", menghuo))
+                if (menghuo != null && RoomLogic.PlayerHasShownSkill(room, menghuo, "huoshou") && IsFriend(to, menghuo) && HasSkill("zhiman|zhiman_jx", menghuo))
                     return null;
             }
 
-            if (from != null && IsFriend(to, from) && IsFriend(to) && positive && HasSkill("zhiman"))
+            if (from != null && IsFriend(to, from) && IsFriend(to) && positive && HasSkill("zhiman|zhiman_jx"))
                 return null;
 
             int null_num = nullcards.Count;

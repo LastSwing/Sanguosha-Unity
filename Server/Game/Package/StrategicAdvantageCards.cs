@@ -768,12 +768,12 @@ namespace SanguoshaServer.Package
     {
         public LureTigerSkill() : base("lure_tiger_effect")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.EventPhaseChanging, TriggerEvent.HpChanged };
+            events = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.EventPhaseChanging, TriggerEvent.HpChanging };
             global = true;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.HpChanged || !player.HasFlag("LureTigerUser"))
+            if (triggerEvent == TriggerEvent.HpChanging || !player.HasFlag("LureTigerUser"))
                 return;
             if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change)
             {
@@ -793,7 +793,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.HpChanged && player.Removed)
+            if (triggerEvent == TriggerEvent.HpChanging && player.Removed)
             {
                 return new TriggerStruct(Name, player);
             }

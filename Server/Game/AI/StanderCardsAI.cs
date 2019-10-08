@@ -100,23 +100,83 @@ namespace SanguoshaServer.AI
                     {
                         if (ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
                         {
-                            if (ai.HasSkill("leiji", p) && !ai.IsLackCard(p, "Jink") && (ai.HasArmorEffect(p, EightDiagram.ClassName) || p.HandcardNum >= 3)
+                            if (ai.HasSkill("leiji|leiji_jx", p) && !ai.IsLackCard(p, "Jink") && (ai.HasArmorEffect(p, EightDiagram.ClassName) || p.HandcardNum >= 3)
                                 && !ai.HasSkill("tieqi_jx|liegong_jx"))
                             {
                                 ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
-                                return;
                             }
-
-                            DamageStruct damage = new DamageStruct(use.Card, player, p, 1 + use.Drank);
-                            if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
-                            else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
-                            if (_ai.NeedDamage(damage))
+                            else if (ai.HasSkill(TrustedAI.MasochismSkill, p) && ai.HasSkill("jueqing", player))
                             {
-                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
-                                return;
+                                ai.UpdatePlayerRelation(player, p, false);
                             }
+                            else
+                            {
+                                DamageStruct damage = new DamageStruct(use.Card, player, p, 1 + use.Drank);
+                                if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
+                                else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
 
-                            ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                                if ((ai.HasSkill("zhiman_jx", player) || player.HasWeapon(IceSword.ClassName)) && ai.GetPlayerTendency(player) != "unknown")
+                                    continue;
+
+                                if (ai.HasSkill("zhiman_jx", player))
+                                {
+                                    bool good = p.JudgingArea.Count > 0;
+                                    if (!good)
+                                    {
+                                        foreach (int id in p.GetEquips())
+                                        {
+                                            if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                            {
+                                                good = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (good)
+                                    {
+                                        if (ai.GetPlayerTendency(p) == "lord" || ai.GetPlayerTendency(p) == "loyalist")
+                                            ai.UpdatePlayerIntention(player, "rebel", 20);
+                                        else
+                                            ai.UpdatePlayerIntention(player, "loyalist", 20);
+
+                                        continue;
+                                    }
+                                }
+
+                                if (player.HasWeapon(IceSword.ClassName))
+                                {
+                                    int good = 0;
+                                    foreach (int id in p.GetEquips())
+                                    {
+                                        if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                        {
+                                            good++;
+                                        }
+                                    }
+                                    if (good > 0 && (good > 1 || p.HandcardNum == 0))
+                                    {
+                                        if (ai.GetPlayerTendency(p) == "lord" || ai.GetPlayerTendency(p) == "loyalist")
+                                            ai.UpdatePlayerIntention(player, "rebel", 20);
+                                        else
+                                            ai.UpdatePlayerIntention(player, "loyalist", 20);
+
+                                        continue;
+                                    }
+
+                                    if (_ai.NeedDamage(damage) && player.GetCardCount(true) - good > 1)
+                                    {
+                                        if (ai.GetPlayerTendency(p) == "lord" || ai.GetPlayerTendency(p) == "loyalist")
+                                            ai.UpdatePlayerIntention(player, "rebel", 40);
+                                        else
+                                            ai.UpdatePlayerIntention(player, "loyalist", 40);
+                                    }
+                                }
+
+                                if (_ai.NeedDamage(damage))
+                                    ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
+                                else
+                                    ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
+                            }
                         }
                     }
                 }
@@ -207,18 +267,22 @@ namespace SanguoshaServer.AI
                 else
                     value *= rate;
 
-                if (ai.HasSkill("leiji", player)) value += 2;
+                if (ai.HasSkill("leiji|leiji_jx", player)) value += 3;
+                if (player.Phase != Player.PlayerPhase.NotActive) value += 3;
                 if (result.Skill == "longdan")
                 {
-                    if (ai.HasSkill("chongzhen", player) && !ai.IsFriend(player, effect.From) && !effect.From.IsKongcheng())
-                        value += 2;
-
                     foreach (Player p in ai.Room.GetOtherPlayers(player))
                     {
-                        if (p.IsWounded() && ai.IsFriend(p, player))
+                        if (p.IsWounded() && ai.IsFriend(p, player) && p != effect.From)
+                        {
                             value += 3;
+                            break;
+                        }
                     }
                 }
+
+                if (result.Skill == "longdan_jx" && ai.HasSkill("chongzhen", player) && !ai.IsFriend(player, effect.From) && !effect.From.IsKongcheng())
+                    value += 2;
 
                 if (damage.Damage > 0 && score.Score < -2 && ai.HasSkill("tianxiang", player))
                 {
@@ -226,6 +290,17 @@ namespace SanguoshaServer.AI
                     if (tianxiang != null)
                     {
                         CardUseStruct tianxiang_use = tianxiang.OnResponding(ai, player, "@@tianxiang", string.Empty, damage);
+                        if (tianxiang_use.Card != null && tianxiang_use.To != null && tianxiang_use.To.Count > 0)
+                            score.Score = -2;
+                    }
+                }
+
+                if (damage.Damage > 0 && score.Score < -2 && ai.HasSkill("tianxiang_jx", player))
+                {
+                    SkillEvent tianxiang = Engine.GetSkillEvent("tianxiang_jx");
+                    if (tianxiang != null)
+                    {
+                        CardUseStruct tianxiang_use = tianxiang.OnResponding(ai, player, "@@tianxiang_jx", string.Empty, damage);
                         if (tianxiang_use.Card != null && tianxiang_use.To != null && tianxiang_use.To.Count > 0)
                             score.Score = -2;
                     }
@@ -242,7 +317,7 @@ namespace SanguoshaServer.AI
                     else
                         value += score.Score * Math.Min(1, need - 1);
                 }
-                if (available > rest && ai.GetOverflow(player) > 0) value += 2;
+                if (available > rest && ai.GetOverflow(player) > 0 || !ai.IsSituationClear()) value += 2;
 
                 if (value >= score.Score) use.Card = result;
 
@@ -1174,7 +1249,7 @@ namespace SanguoshaServer.AI
                         use = true;
                     else if (ai.GetEnemies(ai.Self).Count == 1)
                         use = true;
-                    else if (ai.Self == to && num > 0)
+                    else if (!ai.IsFriend(from) && ai.Self == to && num > 0)
                         use = true;
 
                     if (use)
@@ -1421,10 +1496,35 @@ namespace SanguoshaServer.AI
                         if (ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
                         {
                             DamageStruct damage = new DamageStruct(use.Card, player, p);
+                            if (ai.HasSkill("zhiman_jx", player))
+                            {
+                                bool good = p.JudgingArea.Count > 0;
+                                if (!good)
+                                {
+                                    foreach (int id in p.GetEquips())
+                                    {
+                                        if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                        {
+                                            good = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (good)
+                                {
+                                    if (ai.GetPlayerTendency(p) == "lord" || ai.GetPlayerTendency(p) == "loyalist")
+                                        ai.UpdatePlayerIntention(player, "rebel", 20);
+                                    else
+                                        ai.UpdatePlayerIntention(player, "loyalist", 20);
+
+                                    continue;
+                                }
+                            }
+
                             if (_ai.NeedDamage(damage))
                             {
                                 ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
-                                return;
+                                continue;
                             }
 
                             ai.UpdatePlayerRelation(player, p, false);          //若杀的使用者和目标中的一方身份已判明，则更新双方关系为敌对
@@ -1469,27 +1569,52 @@ namespace SanguoshaServer.AI
 
             DamageStruct damage = new DamageStruct(trick, from, to);
             ScoreStruct score = ai.GetDamageScore(damage);
-            if (positive)
+            if (ai is SmartAI)
             {
-                if (ai.IsFriend(to) && score.Score < -3)
+                if (positive)
                 {
-                    if (ai.IsEnemy(from) && ai.IsFriend(to))
+                    if (ai.IsFriend(to) && score.Score < -3)
+                    {
+                        if (ai.IsEnemy(from) && ai.IsFriend(to))
+                        {
+                            int wushuang_from = RoomLogic.PlayerHasShownSkill(ai.Room, from, "wushuang") ? 2 : 1;
+                            int wushuang_to = RoomLogic.PlayerHasShownSkill(ai.Room, to, "wushuang") ? 2 : 1;
+                            if (ai.GetKnownCardsNums(Slash.ClassName, "he", to, ai.Self) * wushuang_to > ai.GetKnownCardsNums(Slash.ClassName, "he", from, ai.Self) * wushuang_from)
+                                return result;
+                        }
+
+                        if (keep && score.Score > -6)
+                            return result;
+
+                        result.Null = true;
+                    }
+                }
+                else if (ai.IsEnemy(to) && ai.IsFriend(damage.From) && score.Score > 5 && !keep)
+                {
+                    result.Null = true;
+                }
+            }
+            else
+            {
+                if (positive)
+                {
+                    if (score.Score < -3)
                     {
                         int wushuang_from = RoomLogic.PlayerHasShownSkill(ai.Room, from, "wushuang") ? 2 : 1;
                         int wushuang_to = RoomLogic.PlayerHasShownSkill(ai.Room, to, "wushuang") ? 2 : 1;
                         if (ai.GetKnownCardsNums(Slash.ClassName, "he", to, ai.Self) * wushuang_to > ai.GetKnownCardsNums(Slash.ClassName, "he", from, ai.Self) * wushuang_from)
                             return result;
+
+                        if (keep && score.Score > -4)
+                            return result;
+
+                        result.Null = true;
                     }
-
-                    if (keep && score.Score > -6)
-                        return result;
-
+                }
+                else if (ai.IsEnemy(to) && score.Score > 5 && !keep)
+                {
                     result.Null = true;
                 }
-            }
-            else if (ai.IsEnemy(to) && ai.IsFriend(damage.From) && score.Score > 5 && !keep)
-            {
-                result.Null = true;
             }
 
             return result;
@@ -1886,13 +2011,25 @@ namespace SanguoshaServer.AI
                     }
 
                     score.Score *= rate;
+                    if (player == p)
+                        score.Score -= 2;
+                    if (ai.IsFriend(p) && score.Score > 0)              //尽量不要火攻自己人
+                        score.Score /= 3;
+
+                    if (adjust > 0 && score.Score < 0)
+                        score.Score = 0;
                     score.Score += adjust;
 
                     foreach (string skill in ai.GetKnownSkills(p))
                     {
                         SkillEvent skill_e = Engine.GetSkillEvent(skill);
                         if (skill_e != null)
-                            score.Score += skill_e.TargetValueAdjust(ai, card, player, new List<Player> { p }, p);
+                        {
+                            double points = skill_e.TargetValueAdjust(ai, card, player, new List<Player> { p }, p);
+                            if (points > 0 && score.Score < 0 && ai.IsFriend(p))
+                                score.Score = 0;
+                            score.Score += points;
+                        }
                     }
 
                     scores.Add(score);
@@ -1931,7 +2068,18 @@ namespace SanguoshaServer.AI
                     foreach (ScoreStruct score in scores)
                     {
                         Player target = score.Players[0];
-                        if (score.Score >= 0 && !player.HasFlag("FireAttackFailedPlayer_" + target.Name))
+                        if (score.Score > 0 && !player.HasFlag("FireAttackFailedPlayer_" + target.Name))
+                        {
+                            use.Card = card;
+                            use.To = score.Players;
+                            return;
+                        }
+                    }
+
+                    foreach (ScoreStruct score in scores)
+                    {
+                        Player target = score.Players[0];
+                        if (!player.HasFlag("FireAttackFailedPlayer_" + target.Name) && !ai.IsFriend(target))
                         {
                             use.Card = card;
                             use.To = score.Players;
@@ -1962,10 +2110,7 @@ namespace SanguoshaServer.AI
                         {
                             DamageStruct damage = new DamageStruct(use.Card, player, p, 1, DamageStruct.DamageNature.Fire);
                             if (_ai.NeedDamage(damage))
-                            {
-                                ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
-                                return;
-                            }
+                                continue;
 
                             double value = 0;
                             foreach (string skill in ai.GetKnownSkills(p))
@@ -3726,11 +3871,11 @@ namespace SanguoshaServer.AI
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = ai.AjustWeaponRangeValue(player, card);
-            string skills = TrustedAI.MasochismSkill + "|tianxiang";
+            string skills = TrustedAI.MasochismSkill + "|tianxiang|tianxiang_jx";
             foreach (Player p in ai.GetEnemies(player))
             {
                 if (ai.HasSkill(skills, p) && RoomLogic.DistanceTo(ai.Room, player, p, null, true) <= 2)
-                    value += 1;
+                    value += 2;
             }
 
             return value;

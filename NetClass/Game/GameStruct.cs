@@ -709,6 +709,7 @@ namespace CommonClass.Game
             Use = false;
             Retrial = false;
             Handcard = true;
+            Reason = string.Empty;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, Player who)
@@ -719,6 +720,7 @@ namespace CommonClass.Game
             Use = false;
             Retrial = false;
             Handcard = true;
+            Reason = string.Empty;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, bool isUse)
@@ -729,6 +731,7 @@ namespace CommonClass.Game
             Use = isUse;
             Retrial = false;
             Handcard = true;
+            Reason = string.Empty;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, Player who, bool isUse)
@@ -739,6 +742,7 @@ namespace CommonClass.Game
             Use = isUse;
             Retrial = false;
             Handcard = true;
+            Reason = string.Empty;
         }
 
         public Player From { set; get; }
@@ -746,6 +750,7 @@ namespace CommonClass.Game
         public Player Who { set; get; }
         public bool Use { set; get; }
         public bool Handcard { set; get; }
+        public string Reason { set; get; }
         public bool Retrial { set; get; }
     };
 
@@ -753,7 +758,7 @@ namespace CommonClass.Game
     {
         //public PromoteStruct();
         //public PromoteStruct(const QString &name, const QString &skill_name, const QString &pattern, CardUseStruct::CardUseReason reason, const QString &skill_position);
-        public Player player { set; get; }
+        public Player Player { set; get; }
         public string SkillName { set; get; }
         public string Pattern { set; get; }
         public CardUseStruct.CardUseReason Reason { set; get; }

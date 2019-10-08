@@ -199,7 +199,7 @@ namespace SanguoshaServer.AI
                             if (guanxing.Value[0] != id)
                             {
                                 List<int> top_cards = new List<int>(guanxing.Value);
-                                for (int y = top_cards.IndexOf(id); y < top_cards.Count; y++)
+                                for (int y = top_cards.Count - 1; y >= top_cards.IndexOf(id); y--)
                                     guanxing.Value.RemoveAt(y);
                             }
                             else
@@ -233,7 +233,7 @@ namespace SanguoshaServer.AI
 
                 if (choices[0] == "viewCards")
                 {
-                    List<int> ids= player.GetCards("h");
+                    List<int> ids = player.GetCards("h");
                     if (choices[choices.Count - 1] == "all")
                     {
                         public_handcards[player] = ids;
@@ -255,8 +255,8 @@ namespace SanguoshaServer.AI
                     }
                     else if (choices[choices.Count - 1] == self.Name)
                         foreach (int id in ids)
-                        if (!private_handcards[player].Contains(id))
-                            private_handcards[player].Add(id);
+                            if (!private_handcards[player].Contains(id))
+                                private_handcards[player].Add(id);
                 }
                 else if (choices[0] == "cardShow")
                 {
@@ -303,6 +303,54 @@ namespace SanguoshaServer.AI
                         {
                             foreach (int id in moves)
                                 room.SetCardFlag(id, "visible2" + choices[1]);
+                        }
+                    }
+                }
+                else if (choices[0] == "Nullification" && self != player)
+                {
+                    string trick = choices[1];
+                    Player to = room.FindPlayer(choices[3]);
+                    Player from = null;
+                    if (!string.IsNullOrEmpty(choices[2]))
+                        from = room.FindPlayer(choices[2], true);
+                    bool positive = bool.Parse(choices[4]);
+
+                    if (player != to)
+                    {
+                        if (trick == Indulgence.ClassName || trick == SupplyShortage.ClassName || trick == Lightning.ClassName)
+                            UpdatePlayerRelation(player, to, positive);
+                        else if (trick == Duel.ClassName || trick == SavageAssault.ClassName || trick == ArcheryAttack.ClassName)
+                        {
+                            if (to.Hp == 1)
+                                UpdatePlayerRelation(player, to, positive);
+                        }
+                        else if (trick == Snatch.ClassName || trick == Dismantlement.ClassName)
+                        {
+                            if (IsFriend(from, to))
+                            {
+                                if (RoomLogic.PlayerContainsTrick(room, to, Indulgence.ClassName) || RoomLogic.PlayerContainsTrick(room, to, SupplyShortage.ClassName))
+                                    UpdatePlayerRelation(player, to, !positive);
+                                else
+                                {
+                                    foreach (int id in to.GetEquips())
+                                    {
+                                        if (GetKeepValue(id, to, Player.Place.PlaceEquip) < 0)
+                                        {
+                                            UpdatePlayerRelation(player, to, !positive);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            else if (!to.IsNude())
+                                UpdatePlayerRelation(player, to, positive);
+                        }
+                        else if (trick == IronChain.ClassName)
+                        {
+                            if (!to.Chained)
+                                UpdatePlayerRelation(player, to, positive);
+                            else
+                                UpdatePlayerRelation(player, to, !positive);
                         }
                     }
                 }

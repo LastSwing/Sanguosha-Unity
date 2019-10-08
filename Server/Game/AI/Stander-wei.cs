@@ -1746,7 +1746,7 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {
-                    if (!ai.HasSkill("zhiman"))
+                    if (!ai.HasSkill("zhiman|zhiman_jx"))
                     {
                         foreach (Player p in room.GetOtherPlayers(player))
                         {
@@ -1825,7 +1825,7 @@ namespace SanguoshaServer.AI
                     {
                         if (p != target && p.Hp > player.Hp && !p.IsKongcheng()
                             && RoomLogic.InMyAttackRange(room, p, target) && ai.IsEnemy(p) && RoomLogic.IsFriendWith(room, p, target)
-                            && !ai.HasSkill("zhiman", p))
+                            && !ai.HasSkill("zhiman|zhiman_jx", p))
                         {
                             int max = 0;
                             WrappedCard enemy_max = ai.GetMaxCard(p);
@@ -2111,6 +2111,12 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+                if (ai.GetFriends(damage.To).Count == 1)
+                {
+                    value /= 1.5;
+                    if (ai.WillSkipPlayPhase(damage.To))
+                        value /= 2;
+                }
 
                 if (damage.Damage > 1) value /= 1.5;
                 if (damage.Damage >= damage.To.Hp) value /= 2;
@@ -2155,7 +2161,7 @@ namespace SanguoshaServer.AI
                 if (p != player && !p.FaceUp)
                     return new List<Player> { p };
 
-            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou", room.Current))
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou|jushou_jx", room.Current))
             {
                 List<string> kingdoms = new List<string>();
                 foreach (Player p in room.Players)

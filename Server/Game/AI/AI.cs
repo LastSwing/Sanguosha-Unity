@@ -886,7 +886,7 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
-                    if (times > result.Count && indu >= 0 && !(HasSkill("guanxing|yizhi", player)
+                    if (times > result.Count && indu >= 0 && !(HasSkill("guanxing|yizhi|guanxing_jx", player)
                             && room.GetAlivePlayers().Count > 3) && !HasSkill("guanxing+yizhi", player))
                     {
                         result.Add(indu);
@@ -906,7 +906,7 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
-                    if (times > result.Count && supply >= 0 && !(HasSkill("guanxing|yizhi", player)
+                    if (times > result.Count && supply >= 0 && !(HasSkill("guanxing|yizhi|guanxing_jx", player)
                             && room.GetAlivePlayers().Count > 3) && !HasSkill("guanxing+yizhi", player))
                     {
                         result.Add(supply);
@@ -960,9 +960,12 @@ namespace SanguoshaServer.AI
                         double value = GetKeepValue(id, player);     // todo:
                         if (IsFriend(from) && method == HandlingMethod.MethodGet)
                         {
-                            double use_value = GetUseValue(id, from);
-                            if (use_value > 0)
-                                value -= use_value / 2;             //拿友方的价值减半
+                            if (FindSameEquipCards(room.GetCard(id), false, false).Count == 0)
+                            {
+                                double use_value = GetUseValue(id, from);
+                                if (use_value > 0)
+                                    value -= use_value / 3;             //拿友方的价值大减
+                            }
                         }
                         if (value < 0)
                         {
@@ -2076,8 +2079,13 @@ namespace SanguoshaServer.AI
         public bool HasCrossbowEffect(Player player)
         {
             WrappedCard slash = new WrappedCard(Slash.ClassName);
-            if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash) > 5 || GetKnownCardsNums(CrossBow.ClassName, "he", player) > 0)
+            if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash) > 5)
                 return true;
+
+            if (player.HasWeapon(CrossBow.ClassName)) return true;
+            List<int> ids = GetKnownCards(player);
+            foreach (int id in ids)
+                if (room.GetCard(id).Name == CrossBow.ClassName) return true;
 
             return false;
         }
@@ -2332,6 +2340,11 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
+                    else if (reason == "qiangwu" && IsFriend(who) && judge.Card.Number >= 10 && who.HandcardNum > 4)
+                    {
+                        if (!is_peach && card_x.Number < 5)
+                            can_use.Add(id);
+                    }
                     else
                         break;
                 }
@@ -2440,7 +2453,8 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
-                else if (IsSituationClear())
+
+                if (!will_slash && IsSituationClear())
                 {
                     foreach (Player p in values[0].Players)
                     {
@@ -2451,7 +2465,8 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
-                else if (values[0].Score > 0 && values[0].Card.SubCards.Count == 0)
+
+                if (!will_slash && values[0].Score > 0 && (values[0].Card.SubCards.Count == 0 || player.Phase == PlayerPhase.NotActive))
                     will_slash = true;
 
                 //todo: adjust ai personality
@@ -2485,18 +2500,6 @@ namespace SanguoshaServer.AI
                     }
                     else
                     {
-                        //ai debug log
-                        /*
-                        foreach (Player p in values[0].Players)
-                        {
-                            if (RoomLogic.IsFriendWith(room, player, p))
-                            {
-                                File.AppendAllText("ai_slash_log.txt", string.Format("{0},{1} use Slash {2} number{3} against {4},{5} {8} and value is {6} and ai judge target is my {7}\r\n",
-                                    player.ActualGeneral1, player.ActualGeneral2, WrappedCard.GetSuitString(values[0].Card.Suit), values[0].Card.Number, p.ActualGeneral1, p.ActualGeneral2,
-                                    values[0].Score, IsFriend(player, p) ? "friend" : "enemy", p.Chained ? "chained" : string.Empty));
-                            }
-                        }
-                        */
                         use.From = player;
                         use.To = values[0].Players;
                         use.Card = values[0].Card;
@@ -3424,7 +3427,7 @@ namespace SanguoshaServer.AI
             }
             scores.Add(result_score);
 
-            if (from != null && HasSkill("zhiman", from) && RoomLogic.GetPlayerCards(room, to, "ej").Count > 0)
+            if (from != null && HasSkill("zhiman|zhiman_jx", from) && RoomLogic.GetPlayerCards(room, to, "ej").Count > 0)
             {
                 ScoreStruct score = FindCards2Discard(from, to, string.Empty, "ej", HandlingMethod.MethodGet);
                 scores.Add(score);
@@ -3455,7 +3458,7 @@ namespace SanguoshaServer.AI
         public virtual bool IsSpreadStarter(DamageStruct damage, bool for_self = true)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To))
+                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
                 return false;
 
             List<Player> players = GetSpreadTargets(damage);
@@ -3465,7 +3468,7 @@ namespace SanguoshaServer.AI
         public virtual double ChainDamage(DamageStruct damage)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To))
+                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
                 return 0;
 
             List<Player> players = GetSpreadTargets(damage);
@@ -3484,7 +3487,7 @@ namespace SanguoshaServer.AI
                 {
                     if (IsFriend(p))
                     {
-                        if (spread.From != null && HasSkill("zhiman", spread.From) && IsFriend(spread.From, spread.To))
+                        if (spread.From != null && HasSkill("zhiman|zhiman_jx", spread.From) && IsFriend(spread.From, spread.To))
                         {
                             if (spread.To.JudgingArea.Count > 0 || GetLostEquipEffect(spread.To) < 0)
                             {
@@ -3495,7 +3498,7 @@ namespace SanguoshaServer.AI
                     }
                     else if (IsEnemy(p))
                     {
-                        if (spread.From != null && HasSkill("zhiman", spread.From) && IsFriend(spread.From, spread.To))
+                        if (spread.From != null && HasSkill("zhiman|zhiman_jx", spread.From) && IsFriend(spread.From, spread.To))
                         {
                             if (spread.To.JudgingArea.Count > 0 || GetLostEquipEffect(spread.To) < 0)
                             {
@@ -3754,7 +3757,9 @@ namespace SanguoshaServer.AI
             Player from = damage.From;
             Player to = damage.To;
 
-            if (!HasSkill("tianxiang", to) || damage.Damage <= 0 || IsFriend(to)
+            if (from == null || HasSkill("jueqing", from)) return false;
+
+            if (!HasSkill("tianxiang|tianxiang_jx", to) || damage.Damage <= 0 || IsFriend(to)
                 || (GetKnownCards(to).Count == to.HandcardNum && GetKnownCardsNums(".|heart", "h", to, self) == 0)
                 || IsLackCard(to, "heart"))
                 return false;
@@ -3763,7 +3768,7 @@ namespace SanguoshaServer.AI
 
             if (from != null && from.Alive && !IsFriend(from, to))
             {
-                if (HasSkill("zhiman", from)
+                if (HasSkill("zhiman|zhiman_jx", from)
                         || (!damage.Transfer && damage.Card != null && (damage.Card.Name.Contains(Slash.ClassName) || damage.Card.Name == Duel.ClassName) && HasSkill("chuanxin", from))
                         || (!damage.Transfer && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && !to.IsNude() && from.HasWeapon(IceSword.ClassName)))
                     return false;
@@ -5427,7 +5432,7 @@ namespace SanguoshaServer.AI
         public bool IsPriorFriendOfSlash(Player friend, WrappedCard card, Player source)
         {
             source = source ?? Self;
-            if (HasSkill("zhiman", source) && FindCards2Discard(source, friend, string.Empty, "ej", HandlingMethod.MethodGet).Score >= 0)
+            if (HasSkill("zhiman|zhiman_jx", source) && FindCards2Discard(source, friend, string.Empty, "ej", HandlingMethod.MethodGet).Score >= 0)
                 return true;
 
             if (card.Name.Contains(Slash.ClassName) && card.Name != Slash.ClassName && friend.Chained)
@@ -5757,7 +5762,7 @@ namespace SanguoshaServer.AI
             if (min_num == 0)
                 return to_discard;
             else
-                return room.ForceToDiscard(self, min_num, pattern, expand_pile, false);
+                return room.ForceToExchange(self, min_num, pattern, expand_pile);
         }
     }
 }

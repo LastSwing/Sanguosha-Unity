@@ -1435,12 +1435,18 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardsMoveOneTimeStruct move && move.From.Alive && ask_who.Alive 
-                && room.AskForSkillInvoke(ask_who, Name, move.From, info.SkillPosition))
+            if (data is CardsMoveOneTimeStruct move && move.From.Alive && ask_who.Alive)
             {
-                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, move.From.Name);
-                return info;
+                move.From.SetFlags("fenji_target");
+                bool invoke = room.AskForSkillInvoke(ask_who, Name, move.From, info.SkillPosition);
+                move.From.SetFlags("-fenji_target");
+
+                if (invoke)
+                {
+                    room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, move.From.Name);
+                    return info;
+                }
             }
             return new TriggerStruct();
         }
@@ -1457,12 +1463,38 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class TianxiangJXViewAsSkill : OneCardViewAsSkill
+    {
+        public TianxiangJXViewAsSkill() : base("tianxiang_jx")
+        {
+        }
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == "@@tianxiang_jx";
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard tianxiangCard = new WrappedCard(TianxiangCard.ClassName);
+            tianxiangCard.AddSubCard(card);
+            tianxiangCard.Skill = Name;
+            return tianxiangCard;
+        }
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
+        {
+            if (RoomLogic.IsJilei(room, player, to_select)) return false;
+            string pat = ".|heart|.|hand";
+            CardPattern pattern = Engine.GetPattern(pat);
+            return pattern.Match(player, room, to_select);
+        }
+    }
+
     public class TianxiangJX : TriggerSkill
     {
         public TianxiangJX() : base("tianxiang_jx")
         {
             events.Add(TriggerEvent.DamageInflicted);
             skill_type = SkillType.Defense;
+            view_as_skill = new TianxiangJXViewAsSkill();
         }
         public override bool CanPreShow() => true;
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player xiaoqiao, ref object data, Player ask_who)
@@ -1475,7 +1507,7 @@ namespace SanguoshaServer.Package
         {
             xiaoqiao.SetFlags("-tianxiang_invoke");
             room.SetTag("TianxiangDamage", data);
-            room.AskForUseCard(xiaoqiao, "@@tianxiang", "@tianxiang_jx-card", -1, HandlingMethod.MethodDiscard, true, info.SkillPosition);
+            room.AskForUseCard(xiaoqiao, "@@tianxiang_jx", "@tianxiang_jx-card", -1, HandlingMethod.MethodDiscard, true, info.SkillPosition);
             room.RemoveTag("TianxiangDamage");
             if (xiaoqiao.HasFlag("tianxiang_invoke"))
                 return info;
@@ -1518,11 +1550,13 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player xiaoqiao, ref object data, Player player, TriggerStruct info)
         {
             Player target = room.FindPlayer((string)xiaoqiao.GetTag("tianxiang_target"));
-            xiaoqiao.RemoveTag("tianxiang_target");
             xiaoqiao.SetFlags("-tianxiang_invoke");
             DamageStruct damage = (DamageStruct)data;
-
+            room.SetTag("TianxiangDamage", data);
             string choice = room.AskForChoice(xiaoqiao, "tianxiang_jx", "damage+losehp");
+            room.RemoveTag("TianxiangDamage");
+            xiaoqiao.RemoveTag("tianxiang_target");
+
             if (choice == "damage")
             {
                 room.Damage(new DamageStruct("tianxiang_jx", damage.From, target));
@@ -1596,44 +1630,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd && pd.Reason == Name && base.Triggerable(pd.To, room)
-                && pd.To.Alive && !pd.Success)
-            {
-                return new TriggerStruct(Name, pd.To);
-            }
             return new TriggerStruct();
-        }
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            if (data is PindianStruct pd)
-            {
-                room.SetTag(Name, pd.To);
-                bool invoke = room.AskForSkillInvoke(ask_who, Name, "@zhiba", info.SkillPosition);
-                room.RemoveTag(Name);
-                if (invoke)
-                {
-                    //room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                    return info;
-                }
-            }
-
-            return new TriggerStruct();
-        }
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            if (data is PindianStruct pindian)
-            {
-                List<int> ids = new List<int>();
-                if (room.GetCardPlace(pindian.From_card.Id) == Place.PlaceTable)
-                    ids.Add(pindian.From_card.Id);
-                if (room.GetCardPlace(pindian.To_card.Id) == Place.PlaceTable)
-                    ids.Add(pindian.To_card.Id);
-
-                if (ids.Count > 0 && ask_who.Alive)
-                    room.ObtainCard(ask_who, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, ask_who.Name));
-            }
-
-            return false;
         }
     }
 
@@ -1708,7 +1705,17 @@ namespace SanguoshaServer.Package
                 }
 
                 PindianStruct pd = room.PindianSelect(player, target, "zhiba");
-                room.Pindian(pd);
+                if (!room.Pindian(ref pd) && room.AskForSkillInvoke(target, "zhiba", "@zhiba"))
+                {
+                    List<int> ids = new List<int>();
+                    if (room.GetCardPlace(pd.From_card.Id) == Place.DiscardPile)
+                        ids.Add(pd.From_card.Id);
+                    if (room.GetCardPlace(pd.To_card.Id) == Place.DiscardPile)
+                        ids.Add(pd.To_card.Id);
+
+                    if (ids.Count > 0 && target.Alive)
+                        room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, target.Name));
+                }
             }
         }
     }

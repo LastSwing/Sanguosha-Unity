@@ -44,6 +44,7 @@ namespace SanguoshaServer.AI
             use_cards = new List<UseCard>
             {
                 new RendeCardAI(),
+                new FangquanCardAI(),
             };
         }
     }
@@ -1194,11 +1195,26 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class FangquanCardAI : UseCard
+    {
+        public FangquanCardAI() : base(FangquanCard.ClassName) { }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (ai is StupidAI && data is CardUseStruct use && player != ai.Self)
+            {
+                Player target = use.To[0];
+                if (ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+            }
+        }
+    }
+
     public class FangquanAI : SkillEvent
     {
         public FangquanAI() : base("fangquan")
         {
         }
+       
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             ai.Target[Name] = null;
@@ -1266,7 +1282,7 @@ namespace SanguoshaServer.AI
 
                 ai.SortByKeepValue(ref cards, false);
 
-                use.Card = new WrappedCard("FangquanCard")
+                use.Card = new WrappedCard(FangquanCard.ClassName)
                 {
                     Skill = Name
                 };

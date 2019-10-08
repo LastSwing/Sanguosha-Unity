@@ -382,7 +382,10 @@ namespace SanguoshaServer.Package
             else
             {
                 room.ObtainCard(player, id);
-                if (room.AskForSkillInvoke(player, "yijue", target))
+                target.SetFlags("yijue");
+                bool invoke = room.AskForSkillInvoke(player, "yijue", target);
+                target.SetFlags("-yijue");
+                if (invoke)
                 {
                     RecoverStruct recover = new RecoverStruct
                     {
@@ -517,7 +520,7 @@ namespace SanguoshaServer.Package
             {
                 List<int> ids = new List<int>();
                 foreach (int id in _use.Card.SubCards)
-                    if (room.GetCardPlace(id) == Place.PlaceTable)
+                    if (room.GetCardPlace(id) == Place.DiscardPile)
                         ids.Add(id);
 
                 if (ids.Count > 0)
@@ -539,7 +542,7 @@ namespace SanguoshaServer.Package
             {
                 List<int> ids = new List<int>();
                 foreach (int id in _use.Card.SubCards)
-                    if (room.GetCardPlace(id) == Place.PlaceTable)
+                    if (room.GetCardPlace(id) == Place.DiscardPile)
                         ids.Add(id);
 
                 if (ids.Count > 0) return info;
@@ -554,7 +557,7 @@ namespace SanguoshaServer.Package
             {
                 List<int> ids = new List<int>();
                 foreach (int id in _use.Card.SubCards)
-                    if (room.GetCardPlace(id) == Place.PlaceTable)
+                    if (room.GetCardPlace(id) == Place.DiscardPile)
                         ids.Add(id);
 
                 if (ids.Count > 0)
@@ -728,7 +731,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player skill_target, ref object data, Player player, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, skill_target, info.SkillPosition))
+            skill_target.SetFlags("TieqiTarget"); //for AI
+            bool invoke = room.AskForSkillInvoke(player, Name, skill_target, info.SkillPosition);
+            skill_target.SetFlags("-TieqiTarget");
+            if (invoke)
             {
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
@@ -747,7 +753,7 @@ namespace SanguoshaServer.Package
         private void DoTieqi(Room room, Player target, Player source, ref CardUseStruct use, TriggerStruct info)
         {
             int index = use.To.IndexOf(target);
-
+            room.SetPlayerMark(target, "@tieqi_jx", 1);
             JudgeStruct judge = new JudgeStruct
             {
                 Reason = Name,
@@ -1025,8 +1031,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is CardsMoveOneTimeStruct move && move.From != null && move.From_places.Contains(Place.PlaceHand) && RoomLogic.PlayerHasSkill(room, move.From, Name)
-                && move.From.IsKongcheng())
+            if (data is CardsMoveOneTimeStruct move && move.From != null && move.From_places.Contains(Place.PlaceHand) && base.Triggerable(move.From, room) && move.From.IsKongcheng())
                 return new TriggerStruct(Name, move.From);
 
             return new TriggerStruct();
@@ -2010,7 +2015,9 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use)
             {
+                room.SetTag(Name, data);
                 List<Player> players = room.AskForPlayersChosen(ask_who, new List<Player>(use.To), Name, 0, use.To.Count, "@fenwei:::" + use.Card.Name, true, info.SkillPosition);
+                room.RemoveTag(Name);
                 if (players.Count > 0)
                 {
                     room.SetTag(Name, players);

@@ -89,8 +89,7 @@ namespace SanguoshaServer.Package
 
         public override int GetExtraTargetNum(Room room, Player from, WrappedCard card)
         {
-            if (from.HasWeapon(Name) && Engine.MatchExpPattern(room, pattern, from, card)
-                && card.SubCards.Count > 0 && from.IsLastHandCard(card, true) && !card.SubCards.Contains(from.Weapon.Key))
+            if (from.HasWeapon(Name) && card.SubCards.Count > 0 && from.IsLastHandCard(card, true) && !card.SubCards.Contains(from.Weapon.Key))
                 return 2;
 
             return 0;

@@ -165,6 +165,16 @@ namespace SanguoshaServer.Scenario
                 room.BroadcastProperty(lord, "Kingdom");
             }
 
+            LogMessage log = new LogMessage
+            {
+                Type = "#lord_selected",
+                From = lord.Name,
+                Arg = lord.General1
+            };
+            room.SendLog(log);
+
+            Thread.Sleep(1000);
+
             //其他玩家选将
             List<Interactivity> receivers = new List<Interactivity>();
             List<Player> players = new List<Player>();
@@ -435,6 +445,17 @@ namespace SanguoshaServer.Scenario
                     options[player].AddRange(choices);
                 else
                     options.Add(player, choices);
+            }
+
+            foreach (Player player in options.Keys)
+            {
+                List<string> all = new List<string>(options[player]);
+                foreach (string general in all)
+                {
+                    foreach (General g in Engine.GetConverPairs(general))
+                        if (room.Setting.GeneralPackage.Contains(g.Package))
+                            options[player].Add(g.Name);
+                }
             }
         }
 

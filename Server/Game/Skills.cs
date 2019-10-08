@@ -24,10 +24,12 @@ namespace SanguoshaServer.Game
 
         AfterDrawNCards,
         DrawPileChanged,
+        CardDrawing,
 
         PreHpRecover,
         HpRecover,
         PreHpLost,
+        HpChanging,
         HpChanged,
         MaxHpChanged,
         PostHpReduced,
@@ -36,7 +38,7 @@ namespace SanguoshaServer.Game
         EventLoseSkill,
         EventAcquireSkill,
 
-        StartJudge,             //#20
+        StartJudge,
         AskForRetrial,
         FinishRetrial,
         FinishJudge,
@@ -60,7 +62,7 @@ namespace SanguoshaServer.Game
         DamageComplete,   // the moment for trigger iron chain
 
         Dying,
-        QuitDying,              //#40
+        QuitDying,
         AskForPeaches,
         AskForPeachesDone,
         Death,
@@ -109,7 +111,6 @@ namespace SanguoshaServer.Game
 
         DFDebut, // for Dragon Phoenix Debut
 
-        CardDrawing,
         NumOfEvents,
     };
 

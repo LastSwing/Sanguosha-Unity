@@ -4,6 +4,7 @@ using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System;
 using System.Collections.Generic;
+using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
 
 namespace SanguoshaServer.Package
@@ -18,20 +19,25 @@ namespace SanguoshaServer.Package
                 new ChenglueTar(),
                 new ShicaiJX(),
                 new Cunmu(),
+                new Tushe(),
+                new Limu(),
+                new LimuTar(),
             };
 
             skill_cards = new List<FunctionCard>
             {
                 new ChenglueCard(),
+                new LimuCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
             {
                 { "chenglue", new List<string>{ "#chenglue-tar" } },
+                { "limu", new List<string>{ "#limu-tar" } },
             };
         }
     }
-    
+
     public class Chenglue : TriggerSkill
     {
         public Chenglue() : base("chenglue")
@@ -81,7 +87,7 @@ namespace SanguoshaServer.Package
     {
         public ChenglueTar() : base("#chenglue-tar", false)
         {
-            pattern = "BasicCard|TrickCard";
+            pattern = "BasicCard,TrickCard";
         }
 
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
@@ -229,13 +235,23 @@ namespace SanguoshaServer.Package
 
                 List<int> dis = new List<int>();
                 foreach (int id in use.Card.SubCards)
-                    if (room.GetCardPlace(id) == Place.DiscardPile)
+                    if ((room.GetCardPlace(id) == Place.DiscardPile && triggerEvent == TriggerEvent.CardFinished) ||
+                        (triggerEvent == TriggerEvent.TargetConfirmed && room.GetCardPlace(id) == Place.PlaceTable))
                         dis.Add(id);
 
                 if (dis.Count > 0 && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
                 {
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                    room.ReturnToDrawPile(dis, false, player, true);
+                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PUT, player.Name, Name, string.Empty);
+                    CardsMoveStruct move = new CardsMoveStruct(dis, null, Place.DrawPile, reason)
+                    {
+                        To_pile_name = string.Empty,
+                        From = null
+                    };
+
+                    List<CardsMoveStruct> moves = new List<CardsMoveStruct> { move };
+                    room.MoveCardsAtomic(moves, true);
+
                     return info;
                 }
             }
@@ -274,6 +290,160 @@ namespace SanguoshaServer.Package
             }
 
             return false;
+        }
+    }
+
+    public class Tushe : TriggerSkill
+    {
+        public Tushe() : base("tushe")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen };
+            skill_type = SkillType.Replenish;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is EquipCard) && !(fcard is SkillCard))
+                {
+                    bool check = true;
+                    foreach (int id in player.GetCards("h"))
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (Engine.GetFunctionCard(card.Name) is BasicCard)
+                        {
+                            check = false;
+                            break;
+                        }
+                    }
+                    if (check)
+                        return new TriggerStruct(Name, player);
+                }
+            }
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            bool check = true;
+            foreach (int id in player.GetCards("h"))
+            {
+                WrappedCard card = room.GetCard(id);
+                if (Engine.GetFunctionCard(card.Name) is BasicCard)
+                {
+                    check = false;
+                    break;
+                }
+            }
+            if (check && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use)
+                room.DrawCards(player, use.To.Count, Name);
+
+            return false;
+        }
+    }
+
+    public class Limu : OneCardViewAsSkill
+    {
+        public Limu() : base("limu")
+        {
+            filter_pattern = ".|diamond";
+            response_or_use = true;
+            skill_type = SkillType.Alter;
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            WrappedCard card = new WrappedCard(Indulgence.ClassName);
+            return !RoomLogic.PlayerContainsTrick(room, player, Indulgence.ClassName) && RoomLogic.IsProhibited(room, player, player, card) == null;
+        }
+
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard indulgence = new WrappedCard(LimuCard.ClassName);
+            indulgence.AddSubCard(card);
+            return indulgence;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = 1;
+        }
+    }
+
+    public class LimuCard : SkillCard
+    {
+        public static string ClassName = "LimuCard";
+        public LimuCard() : base(ClassName)
+        {
+            will_throw = false;
+            target_fixed = true;
+        }
+
+        public override void OnUse(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            WrappedCard indulgence = new WrappedCard(Indulgence.ClassName)
+            {
+                Skill = "limu",
+                ShowSkill = "limu"
+            };
+            indulgence.AddSubCard(card_use.Card.GetEffectiveId());
+            indulgence = RoomLogic.ParseUseCard(room, indulgence);
+            room.UseCard(new CardUseStruct(indulgence, player, player));
+
+            if (player.IsWounded())
+            {
+                RecoverStruct recover = new RecoverStruct
+                {
+                    Who = player,
+                    Recover = 1
+                };
+                room.Recover(player, recover, true);
+            }
+        }
+    }
+
+    public class LimuTar : TargetModSkill
+    {
+        public LimuTar() : base("#limu-tar")
+        {
+            pattern = "BasicCard,TrickCard";
+        }
+
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
+        {
+            if (from != null && to != null && RoomLogic.PlayerHasShownSkill(room, from, "limu") && RoomLogic.InMyAttackRange(room, from, to, card)
+                && from.JudgingArea.Count > 0)
+                return true;
+
+            return false;
+        }
+
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        {
+            if (from != null && to != null && RoomLogic.PlayerHasShownSkill(room, from, "limu") && RoomLogic.InMyAttackRange(room, from, to, card)
+                && from.JudgingArea.Count > 0)
+                return true;
+
+            return false;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = 2;
         }
     }
 }
