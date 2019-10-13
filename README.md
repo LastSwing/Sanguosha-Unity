@@ -9,4 +9,4 @@
 3、支持多种游戏模式，目前已支持国战和身份模式，以及小场景官渡之战。  
 4、网络传输使用SuperSocket和MsgPack，Json使用Newtonsoft  
   
-Client DEMO vedio：https://www.bilibili.com/video/av58008252/
+Client DEMO video：https://www.bilibili.com/video/av58008252/
