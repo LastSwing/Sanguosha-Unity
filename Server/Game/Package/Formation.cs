@@ -869,25 +869,11 @@ namespace SanguoshaServer.Package
             room.SendCompulsoryTriggerLog(ask_who, Name, true);
             CardUseStruct use = (CardUseStruct)data;
             int x = use.To.IndexOf(skill_target);
-            bool done = false;
-            for (int i = 0; i < use.EffectCount.Count; i++)
-            {
-                EffctCount count = use.EffectCount[i];
-                if (count.Index == x && count.From == ask_who && count.To == skill_target)
-                {
-                    done = true;
-                    if (count.Count > 0)
-                        count.Count = 2;
-                }
-            }
-            if (!done)
-            {
-                EffctCount count = new EffctCount(ask_who, skill_target, 2)
-                {
-                    Index = x
-                };
-                use.EffectCount.Add(count);
-            }
+
+            CardBasicEffect effect = use.EffectCount[x];
+            effect.Effect2 = 0;
+            use.EffectCount[x] = effect;
+            data = use;
 
             return false;
         }
@@ -1339,8 +1325,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.GetMark("@jizhao") > 0 && player.Hp <= 0 && data is DyingStruct dying
-                && dying.Who == player)
+            if (data is DyingStruct dying && dying.Who == player && base.Triggerable(player, room) && player.GetMark("@jizhao") > 0 && player.Hp <= 0)
                 return new TriggerStruct(Name, player);
             return new TriggerStruct();
         }

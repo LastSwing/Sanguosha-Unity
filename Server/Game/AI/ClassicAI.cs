@@ -2710,8 +2710,10 @@ namespace SanguoshaServer.AI
 
             return base.AskForPlayersChosen(targets, reason, max_num, min_num);
         }
-        public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
+        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive)
         {
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Choice[HegNullification.ClassName] = null;
             if (!to.Alive) return null;
 
@@ -2764,7 +2766,7 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-            if (RoomLogic.IsCardLimited(room, self, null_card, FunctionCard.HandlingMethod.MethodUse)) return null;
+            if (RoomLogic.IsCardLimited(room, self, null_card, HandlingMethod.MethodUse)) return null;
 
             if (null_num == 1 && HasSkill("kanpo") && self.Phase == Player.PlayerPhase.NotActive && self.IsLastHandCard(null_card))
             {
@@ -2806,7 +2808,7 @@ namespace SanguoshaServer.AI
             UseCard use = Engine.GetCardUsage(trick.Name);
             if (use != null)
             {
-                UseCard.NulliResult result = use.OnNullification(this, from, to, trick, positive, keep);
+                UseCard.NulliResult result = use.OnNullification(this, effect, positive, keep);
                 if (result.Null)
                 {
                     if (result.Heg)

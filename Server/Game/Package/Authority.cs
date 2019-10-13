@@ -2182,26 +2182,10 @@ namespace SanguoshaServer.Package
                     From = target.Name
                 };
                 room.SendLog(log);
+                
+                CardBasicEffect effect = use.EffectCount[index];
+                effect.Effect2 = 0;
 
-                bool done = false;
-                for (int i = 0; i < use.EffectCount.Count; i++)
-                {
-                    EffctCount effect = use.EffectCount[i];
-                    if (effect.Index == index)
-                    {
-                        effect.Count = 0;
-                        done = true;
-                        use.EffectCount[i] = effect;
-                    }
-                }
-                if (!done)
-                {
-                    EffctCount effect = new EffctCount(source, target, 0)
-                    {
-                        Index = index
-                    };
-                    use.EffectCount.Add(effect);
-                }
                 Thread.Sleep(500);
             }
             else
@@ -2269,26 +2253,11 @@ namespace SanguoshaServer.Package
                 From = target.Name
             };
             room.SendLog(log);
-            bool done = false;
+
             int index = use.To.IndexOf(target);
-            for (int i = 0; i < use.EffectCount.Count; i++)
-            {
-                EffctCount effect = use.EffectCount[i];
-                if (effect.Index == index)
-                {
-                    effect.Count = 0;
-                    done = true;
-                    use.EffectCount[i] = effect;
-                }
-            }
-            if (!done)
-            {
-                EffctCount effect = new EffctCount(player, target, 0)
-                {
-                    Index = index
-                };
-                use.EffectCount.Add(effect);
-            }
+            CardBasicEffect effect = use.EffectCount[index];
+            effect.Effect2 = 0;
+            data = use;
 
             return false;
         }

@@ -461,10 +461,12 @@ namespace CommonClass.Game
         {
             if (Marks.ContainsKey(mark))
             {
-                if (Marks[mark] != value)
+                if (value == 0)
+                    Marks.Remove(mark);
+                else if (Marks[mark] != value)
                     Marks[mark] = value;
             }
-            else
+            else if (value > 0)
                 Marks.Add(mark, value);
         }
 

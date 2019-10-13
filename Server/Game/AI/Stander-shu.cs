@@ -1054,7 +1054,7 @@ namespace SanguoshaServer.AI
             {
                 if (use.From != null && RoomLogic.IsFriendWith(ai.Room, use.From, player))
                 {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank,
+                    DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank + use.ExDamage,
                         use.Card.Name.Contains("Fire") ? DamageStruct.DamageNature.Fire : use.Card.Name.Contains("Thunder") ? DamageStruct.DamageNature.Thunder : DamageStruct.DamageNature.Normal);
                     ScoreStruct score = ai.GetDamageScore(damage);
                     if (score.DoDamage)
@@ -1072,8 +1072,12 @@ namespace SanguoshaServer.AI
         {
             CardUseStruct result = new CardUseStruct();
             Room room = ai.Room;
-            if (data is Player target)
+            if (data is CardUseStruct use)
             {
+                int index = (int)player.GetTag(Name);
+                Player target = use.To[index];
+                CardBasicEffect effect = use.EffectCount[index];
+
                 List<int> ids = new List<int>();
                 foreach (int id in player.GetCards("h"))
                 {
@@ -1085,9 +1089,7 @@ namespace SanguoshaServer.AI
 
                 if (ids.Count > 0)
                 {
-                    List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
-                    CardUseStruct use = list[list.Count - 1];
-                    DamageStruct damage = new DamageStruct(use.Card, player, target, 1 + use.Drank,
+                    DamageStruct damage = new DamageStruct(use.Card, player, target, 1 + use.Drank + use.ExDamage + effect.Effect1,
                         use.Card.Name.Contains("Fire") ? DamageStruct.DamageNature.Fire : use.Card.Name.Contains("Thunder") ? DamageStruct.DamageNature.Thunder : DamageStruct.DamageNature.Normal);
                     ScoreStruct score = ai.GetDamageScore(damage);
                     if (score.DoDamage)

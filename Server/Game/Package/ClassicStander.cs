@@ -160,7 +160,6 @@ namespace SanguoshaServer.Package
             if (use.Reason == CardUseReason.CARD_USE_REASON_PLAY)
                 player.SetFlags(string.Format("jijiang_activate_{0}", room.GetRoomState().GlobalActivateID));
             else
-
                 player.SetFlags(string.Format("jijiang_{0}", room.GetRoomState().GetCurrentResponseID()));
 
             LogMessage log = new LogMessage("$jijiang-slash")
@@ -752,7 +751,6 @@ namespace SanguoshaServer.Package
 
         private void DoTieqi(Room room, Player target, Player source, ref CardUseStruct use, TriggerStruct info)
         {
-            int index = use.To.IndexOf(target);
             room.SetPlayerMark(target, "@tieqi_jx", 1);
             JudgeStruct judge = new JudgeStruct
             {
@@ -790,25 +788,22 @@ namespace SanguoshaServer.Package
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, source, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
 
-                bool done = false;
+                int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    EffctCount effect = use.EffectCount[i];
-                    if (effect.Index == index)
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (effect.To == target)
                     {
-                        effect.Count = 0;
-                        done = true;
-                        use.EffectCount[i] = effect;
+                        index++;
+                        if (index == info.Times)
+                        {
+                            effect.Effect2 = 0;
+                            use.EffectCount[i] = effect;
+                            break;
+                        }
                     }
                 }
-                if (!done)
-                {
-                    EffctCount effect = new EffctCount(source, target, 0)
-                    {
-                        Index = index
-                    };
-                    use.EffectCount.Add(effect);
-                }
+
                 Thread.Sleep(500);
             }
             else
@@ -2037,12 +2032,14 @@ namespace SanguoshaServer.Package
             room.RemoveTag(Name);
             if (data is CardUseStruct use)
             {
-                foreach (Player p in players)
+                for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    if (use.NullifiedList != null)
-                        use.NullifiedList.Add(p.Name);
-                    else if (!use.NullifiedList.Contains(p.Name))
-                        use.NullifiedList = new List<string> { p.Name };
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (players.Contains(effect.To))
+                    {
+                        effect.Nullified = true;
+                        use.EffectCount[i] = effect;
+                    }
                 }
 
                 data = use;
@@ -2277,28 +2274,22 @@ namespace SanguoshaServer.Package
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
 
-                int index = use.To.IndexOf(player);
-
-                bool done = false;
+                int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    EffctCount effect = use.EffectCount[i];
-                    if (effect.Index == index)
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (effect.To == player)
                     {
-                        effect.Count = 0;
-                        done = true;
-                        use.EffectCount[i] = effect;
+                        index++;
+                        if (index == info.Times)
+                        {
+                            effect.Effect2 = 0;
+                            use.EffectCount[i] = effect;
+                            data = use;
+                            break;
+                        }
                     }
                 }
-                if (!done)
-                {
-                    EffctCount effect = new EffctCount(ask_who, player, 0)
-                    {
-                        Index = index
-                    };
-                    use.EffectCount.Add(effect);
-                }
-                data = use;
                 Thread.Sleep(500);
             }
 

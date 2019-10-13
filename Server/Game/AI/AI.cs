@@ -2834,6 +2834,14 @@ namespace SanguoshaServer.AI
                     if (to.HandcardNum >= from.Hp || to.HandcardNum <= RoomLogic.GetAttackRange(room, from, weapon))
                         force_hit = 1;
                 }
+                if (HasSkill("liegong_jx", from))
+                {
+                    int count = from.HandcardNum;
+                    foreach (int id in card.SubCards)
+                        if (from.HandCards.Contains(id)) count--;
+
+                    if (count >= to.HandcardNum) force_hit = 1;
+                }
                 if (force_hit < 1 && HasArmorEffect(to, EightDiagram.ClassName))
                 {
                     if (HasSkill("tiandu+qingguo", to) && !no_black)
@@ -2980,8 +2988,9 @@ namespace SanguoshaServer.AI
                     return result_score;
                 }
             }
-
-            DamageStruct damage = new DamageStruct(card, from, to)
+            int damage_count = 1;
+            if (!IsFriend(to) && HasSkill("liegong_jx", from) && from.Hp <= to.Hp) damage_count++;
+            DamageStruct damage = new DamageStruct(card, from, to, damage_count)
             {
                 Nature = card.Name == Slash.ClassName ? DamageStruct.DamageNature.Normal
                         : card.Name == FireSlash.ClassName ? DamageStruct.DamageNature.Fire : DamageStruct.DamageNature.Thunder
@@ -2993,9 +3002,7 @@ namespace SanguoshaServer.AI
             {
                 result_score.Score = result + score.Score;
                 result_score.Rate = 1;
-
-                //room.OutPut(string.Format("{0}:friend {1} result {2}",from.SceenName, to.SceenName, result_score.Score));
-
+                
                 return result_score;
             }
             else
@@ -3004,9 +3011,7 @@ namespace SanguoshaServer.AI
                 double rate = force_hit + (1 - force_hit) * (1 - jink);
                 result_score.Score = result + score.Score * rate;
                 result_score.Rate = rate;
-
-                //room.OutPut(string.Format("{0}:enemy {1}, hit rate{3} result {2}", from.SceenName, to.SceenName, result_score.Score, rate));
-
+                
                 return result_score;
             }
         }
@@ -3077,6 +3082,10 @@ namespace SanguoshaServer.AI
                     if (to.HandcardNum >= from.Hp || to.HandcardNum <= RoomLogic.GetAttackRange(room, from, weapon))
                         force_hit = 1;
                 }
+
+                if (HasSkill("liegong_jx", from) && from.HandcardNum >= to.HandcardNum)
+                    force_hit = 1;
+
                 if (force_hit < 1 && HasArmorEffect(to, EightDiagram.ClassName))
                 {
                     if (HasSkill("tiandu+qingguo", to) && !no_black)
@@ -3162,8 +3171,6 @@ namespace SanguoshaServer.AI
                     return result_score;
                 }
 
-                //room.OutPut(string.Format("{0}: {1} dodge rate {2}", from.SceenName, to.SceenName, dodge));
-
                 jink = dodge;
             }
             else if (JiaozhuneedSlash(to))
@@ -3223,8 +3230,9 @@ namespace SanguoshaServer.AI
                     return result_score;
                 }
             }
-
-            DamageStruct damage = new DamageStruct(card, from, to)
+            int damage_count = 1;
+            if (!IsFriend(from, to) && HasSkill("liegong_jx", from) && from.Hp <= to.Hp) damage_count++;
+            DamageStruct damage = new DamageStruct(card, from, to, damage_count)
             {
                 Nature = card.Name == Slash.ClassName ? DamageStruct.DamageNature.Normal
                         : card.Name == FireSlash.ClassName ? DamageStruct.DamageNature.Fire : DamageStruct.DamageNature.Thunder
@@ -3795,7 +3803,7 @@ namespace SanguoshaServer.AI
 
         public bool NotSlashJiaozhu(Player jiaozhu)
         {
-            if (IsFriend(jiaozhu) || !HasSkill("leiji", jiaozhu)) return false;
+            if (IsFriend(jiaozhu) || !HasSkill("leiji|leiji_jx", jiaozhu)) return false;
 
             DamageStruct damage = new DamageStruct
             {
@@ -5600,7 +5608,7 @@ namespace SanguoshaServer.AI
 
             return result;
         }
-        public virtual WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive) => null;
+        public virtual WrappedCard AskForNullification(CardEffectStruct effect, bool positive) => null;
         public virtual int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids) => -1;
         public virtual List<int> AskForCardsChosen(List<Player> targets, string flags, string reason, int min, int max, List<int> disabled_ids) => new List<int>();
         public virtual WrappedCard AskForCard(string reason, string pattern, string prompt, object data)

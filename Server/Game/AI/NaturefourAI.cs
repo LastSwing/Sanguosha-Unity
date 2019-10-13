@@ -85,13 +85,6 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
-        {
-            if (step <= DamageStruct.DamageStep.Caused && damage.From != null && damage.From.Alive && ai.HasSkill(Name, damage.From) && damage.To.Hp >= damage.From.Hp
-                && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && !damage.Transfer && !damage.Chain)
-                damage.Damage++;
-        }
-
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             if (data is Player target && ai.IsEnemy(target))

@@ -111,7 +111,9 @@ namespace SanguoshaServer.AI
                             }
                             else
                             {
-                                DamageStruct damage = new DamageStruct(use.Card, player, p, 1 + use.Drank);
+                                int count = 1 + use.Drank + use.ExDamage;
+                                if (ai.HasSkill("liegong_jx", player) && player.Hp <= p.Hp) count++;
+                                DamageStruct damage = new DamageStruct(use.Card, player, p, count);
                                 if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
                                 else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
 
@@ -223,7 +225,7 @@ namespace SanguoshaServer.AI
             if (prompt.StartsWith("slash-jink") || prompt.StartsWith("@multi-jink"))
             {
                 SlashEffectStruct effect = (SlashEffectStruct)data;
-                DamageStruct damage = new DamageStruct(effect.Slash, effect.From, effect.To, 1 + effect.Drank);
+                DamageStruct damage = new DamageStruct(effect.Slash, effect.From, effect.To, 1 + effect.Drank + effect.ExDamage);
                 if (effect.Slash.Name == FireSlash.ClassName)
                     damage.Nature = DamageStruct.DamageNature.Fire;
                 else if (effect.Slash.Name == ThunderSlash.ClassName)
@@ -739,10 +741,12 @@ namespace SanguoshaServer.AI
             use.Card = card;
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Player player = ai.Self;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
@@ -929,10 +933,12 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Player player = ai.Self;
 
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
@@ -1062,9 +1068,12 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
+
             NulliResult result = new NulliResult();
             int num = ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self);
             if (!from.Alive || !to.Alive || to.IsAllNude() || (keep && num == 1)) return result;
@@ -1212,9 +1221,11 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             NulliResult result = new NulliResult();
             int num = ai.GetKnownCardsNums(Nullification.ClassName, "he", ai.Self);
             if (!from.Alive || !to.Alive || to.IsAllNude() || (keep && num == 1 && ai.Self != to)) return result;
@@ -1440,7 +1451,11 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             Player target = room.FindPlayer(strs[1]);
 
-            DamageStruct damage = new DamageStruct(effect.Card, target, player);
+            int damage_count = 1 + effect.ExDamage;
+            if (effect.From == target)
+                damage_count += effect.BasicEffect.Effect1;
+
+            DamageStruct damage = new DamageStruct(effect.Card, target, player, damage_count);
             CardUseStruct use = new CardUseStruct
             {
                 From = player,
@@ -1495,7 +1510,7 @@ namespace SanguoshaServer.AI
                     {
                         if (ai.GetPlayerTendency(p) != "unknown" && !ai.IsCancelTarget(use.Card, p, player) && ai.IsCardEffect(use.Card, p, player))
                         {
-                            DamageStruct damage = new DamageStruct(use.Card, player, p);
+                            DamageStruct damage = new DamageStruct(use.Card, player, p, 1 + use.ExDamage);
                             if (ai.HasSkill("zhiman_jx", player))
                             {
                                 bool good = p.JudgingArea.Count > 0;
@@ -1547,7 +1562,7 @@ namespace SanguoshaServer.AI
                             use = uses[uses.Count - 1];
                             if (use.Card != null && use.Card.Name == Name)
                             {
-                                DamageStruct damage = new DamageStruct(use.Card, use.From, player);
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.ExDamage);
                                 ScoreStruct score = ai.GetDamageScore(damage);
                                 bool lack = true;
                                 if (ai.IsFriend(use.From, player) && score.Score > 0)
@@ -1563,11 +1578,13 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
 
-            DamageStruct damage = new DamageStruct(trick, from, to);
+            DamageStruct damage = new DamageStruct(trick, from, to, 1 + effect.ExDamage + effect.BasicEffect.Effect1);
             ScoreStruct score = ai.GetDamageScore(damage);
             if (ai is SmartAI)
             {
@@ -1631,12 +1648,13 @@ namespace SanguoshaServer.AI
             use.Card = card;
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             if (keep)
                 return result;
-
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             bool last = false;
             WrappedCard nul = ai.GetCards(Nullification.ClassName, ai.Self, true)[0];
             if (ai.Self.IsLastHandCard(nul) && ai.HasLoseHandcardEffective(ai.Self))
@@ -1699,12 +1717,13 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             if (keep)
                 return result;
-
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             bool last = false;
             WrappedCard nul = ai.GetCards(Nullification.ClassName, ai.Self, true)[0];
             if (ai.Self.IsLastHandCard(nul) && ai.HasLoseHandcardEffective(ai.Self))
@@ -1750,8 +1769,10 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             NulliResult result = new NulliResult();
             if (keep)
                 return result;
@@ -1868,9 +1889,11 @@ namespace SanguoshaServer.AI
             key = new List<string> { "cardShow", "cardResponded" };
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             NulliResult result = new NulliResult();
             if (keep || !from.Alive || to.IsKongcheng() || from.IsKongcheng() || ai.Self == from
                 || from.HasFlag("FireAttackFailedPlayer_" + to.Name) || ai.IsFriend(from)) return result;
@@ -2605,9 +2628,11 @@ namespace SanguoshaServer.AI
                 use.To = new List<Player>();
             }
         }
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (keep) return result;
             Room room = ai.Room;
 
@@ -2798,10 +2823,12 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Player player = ai.Self;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
@@ -2962,10 +2989,12 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Player player = ai.Self;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
@@ -3028,9 +3057,11 @@ namespace SanguoshaServer.AI
         public IndulgenceAI() : base(Indulgence.ClassName)
         { }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (positive)
             {
                 if (ai.IsFriend(to) && !ai.IsGuanxingEffected(to, false, trick))
@@ -3175,9 +3206,11 @@ namespace SanguoshaServer.AI
                 }
             }
         }
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (positive)
             {
                 if (ai.IsFriend(to) && !ai.IsGuanxingEffected(to, false, trick))
@@ -3263,8 +3296,10 @@ namespace SanguoshaServer.AI
         public LightningAI() : base(Lightning.ClassName)
         {
         }
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             DamageStruct damage = new DamageStruct(trick, null, to, 3, DamageStruct.DamageNature.Thunder);
             NulliResult result = new NulliResult();
             if (positive)
@@ -3658,7 +3693,7 @@ namespace SanguoshaServer.AI
                 List<int> ids = player.GetCards("he");
                 ids.Remove(player.Weapon.Key);
                 Room room = ai.Room;
-                DamageStruct damage = new DamageStruct(effect.Slash, effect.From, effect.To, effect.Drank + 1);
+                DamageStruct damage = new DamageStruct(effect.Slash, effect.From, effect.To, effect.Drank + 1 + effect.ExDamage);
                 if (effect.Slash.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
                 else if (effect.Slash.Name == "Thunder") damage.Nature = DamageStruct.DamageNature.Thunder;
                 ScoreStruct score = ai.GetDamageScore(damage);
@@ -3930,7 +3965,7 @@ namespace SanguoshaServer.AI
                     fire = RoomLogic.ParseUseCard(ai.Room, fire);
                     foreach (Player p in use.To)
                     {
-                        DamageStruct damage = new DamageStruct(fire, player, p, 1 + use.Drank, DamageStruct.DamageNature.Fire);
+                        DamageStruct damage = new DamageStruct(fire, player, p, 1 + use.Drank + use.ExDamage, DamageStruct.DamageNature.Fire);
                         if (ai.GetDamageScore(damage).Score + ai.ChainDamage(damage) < 0)
                             return false;
                     }
@@ -4382,9 +4417,11 @@ namespace SanguoshaServer.AI
             return use;
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (positive && ai.Self == to && ai.IsEnemy(from) && ai.HasSkill("jiewei"))
                 result.Null = true;
 

@@ -102,7 +102,7 @@ namespace SanguoshaServer.AI
         {
         }
         public virtual List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids) => null;
-        public virtual NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public virtual NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult
             {

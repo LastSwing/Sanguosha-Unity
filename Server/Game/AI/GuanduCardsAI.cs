@@ -91,12 +91,13 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
@@ -183,10 +184,12 @@ namespace SanguoshaServer.AI
                 use.Card = null;
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (positive && !keep)
             {
                 if (ai.IsFriend(to) && ai.HasSkill("gangzhi", to) && !to.Chained)

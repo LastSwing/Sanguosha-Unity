@@ -225,7 +225,7 @@ namespace SanguoshaServer.AI
                     damage.From = slash.From;
                     damage.To = slash.To;
                     damage.Card = slash.Slash;
-                    damage.Damage = slash.Drank + 1;
+                    damage.Damage = slash.Drank + 1 + slash.ExDamage;
                     damage.Nature = DamageStruct.DamageNature.Normal;
                     if (damage.Card.Name == FireSlash.ClassName)
                         damage.Nature = DamageStruct.DamageNature.Fire;

@@ -129,7 +129,10 @@ namespace SanguoshaServer.Package
         public DamageStruct.DamageNature Nature => nature;
 
         public override string GetSubtype() => "attack_card";
-
+        public override CardBasicEffect FillCardBasicEffct(Room room, Player to)
+        {
+            return new CardBasicEffect(to, 0, 1, 0);        //第一个数字为针对此目标的伤害增加；第二个数字为需要使用闪的数量，0则不可闪避；
+        }
         public override void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
         {
             //方天画戟多杀动画耦合
@@ -193,21 +196,11 @@ namespace SanguoshaServer.Package
                 Slash = card_effect.Card,
                 To = card_effect.To,
                 Drank = card_effect.Drank,
-                Nullified = card_effect.Nullified,
-                Jink_num = 1
+                ExDamage = card_effect.ExDamage + card_effect.BasicEffect.Effect1,
+                Nullified = card_effect.BasicEffect.Nullified,
+                Jink_num = card_effect.BasicEffect.Effect2
             };
-
-            if (card_effect.EffectCount != null)
-            {
-                foreach (EffctCount count in card_effect.EffectCount)
-                {
-                    if (count.From == card_effect.From && count.To == card_effect.To)
-                    {
-                        effect.Jink_num = count.Count;
-                        break;
-                    }
-                }
-            }
+            
 
             room.SlashEffect(effect);
         }
@@ -1009,7 +1002,10 @@ namespace SanguoshaServer.Package
     {
         public static string ClassName = "Duel";
         public Duel() : base(ClassName) { }
-
+        public override CardBasicEffect FillCardBasicEffct(Room room, Player to)
+        {
+            return new CardBasicEffect(to, 0, 1, 1);        //第一个数字为针对此目标的伤害增加；第二个数字为目标需要出杀的数量；第三个数字为使用者需要出杀的数量
+        }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             int total_num = 1 + Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card);
@@ -1030,17 +1026,11 @@ namespace SanguoshaServer.Package
             room.SetEmotion(second, "duel");
             Thread.Sleep(400);
 
-            Dictionary<Player, int> counts = new Dictionary<Player, int> { { first, 1 }, { second, 1 } };
-            if (effect.EffectCount != null)
+            Dictionary<Player, int> counts = new Dictionary<Player, int>
             {
-                foreach (EffctCount count in effect.EffectCount)
-                {
-                    if (count.From == second && count.To == first)
-                        counts[first] = count.Count;
-                    if (count.From == first && count.To == second)
-                        counts[second] = count.Count;
-                }
-            }
+                { first, effect.BasicEffect.Effect2 },
+                { second, effect.BasicEffect.Effect3 }
+            };
 
             bool stop = false;
             do
@@ -1083,7 +1073,11 @@ namespace SanguoshaServer.Package
             }
             while (!stop);
 
-            DamageStruct damage = new DamageStruct(effect.Card, second.Alive ? second : null, first);
+            int damage_count = 1 + effect.ExDamage;
+            if (second == effect.From && second.Alive)
+                damage_count += effect.BasicEffect.Effect1;
+
+            DamageStruct damage = new DamageStruct(effect.Card, second.Alive ? second : null, first, damage_count);
             if (second != effect.From)
                 damage.ByUser = false;
             room.Damage(damage);
@@ -1262,7 +1256,6 @@ namespace SanguoshaServer.Package
             {
                 Reason = card_use.Reason,
                 IsHandcard = card_use.IsHandcard,
-                NullifiedList = card_use.NullifiedList,
                 AddHistory = card_use.AddHistory
             };
 

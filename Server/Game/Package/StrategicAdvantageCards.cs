@@ -721,25 +721,28 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             List<Player> targets = card_use.To;
-            List<string> nullified_list = room.ContainsTag("CardUseNullifiedList") ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
-            bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
-            foreach (Player target in targets) {
+            for (int index = 0; index < targets.Count; index++)
+            {
+                Player target = targets[index];
                 CardEffectStruct effect = new CardEffectStruct
                 {
                     Card = card_use.Card,
                     From = card_use.From,
                     To = target,
                     Multiple = (targets.Count > 1),
-                    Nullified = (all_nullified || nullified_list.Contains(target.Name))
+                    Drank = card_use.Drank,
+                    ExDamage = 0,
+                    BasicEffect = card_use.EffectCount[index]
                 };
 
                 List<Player> players = new List<Player>();
-                for (int i = targets.IndexOf(target); i < targets.Count; i++)
+                for (int i = index; i < targets.Count; i++)
                 {
-                    if (!nullified_list.Contains(targets[i].Name) && !all_nullified)
+                    if (card_use.EffectCount.Count <= i || !card_use.EffectCount[i].Nullified)
                         players.Add(targets[i]);
                 }
                 room.SetTag("targets" + RoomLogic.CardToString(room, card_use.Card), players);
+                effect.StackPlayers = players;
 
                 room.CardEffect(effect);
             }
@@ -1076,26 +1079,29 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             List<Player> targets = card_use.To;
-            List<string> nullified_list = room.ContainsTag("CardUseNullifiedList") ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
-            bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
-            foreach (Player target in targets)
+
+            for (int index = 0; index < targets.Count; index++)
             {
+                Player target = targets[index];
                 CardEffectStruct effect = new CardEffectStruct
                 {
                     Card = card_use.Card,
                     From = card_use.From,
                     To = target,
                     Multiple = (targets.Count > 1),
-                    Nullified = (all_nullified || nullified_list.Contains(target.Name))
+                    Drank = card_use.Drank,
+                    ExDamage = 0,
+                    BasicEffect = card_use.EffectCount.Count > index ? card_use.EffectCount[index] : new CardBasicEffect(target, 0, 0, 0)
                 };
 
                 List<Player> players = new List<Player>();
-                for (int i = targets.IndexOf(target); i < targets.Count; i++)
+                for (int i = index; i < targets.Count; i++)
                 {
-                    if (!nullified_list.Contains(targets[i].Name) && !all_nullified)
+                    if (card_use.EffectCount.Count <= i || !card_use.EffectCount[i].Nullified)
                         players.Add(targets[i]);
                 }
                 room.SetTag("targets" + RoomLogic.CardToString(room, card_use.Card), players);
+                effect.StackPlayers = players;
 
                 if (target == card_use.From)
                 {

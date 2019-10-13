@@ -883,9 +883,13 @@ namespace SanguoshaServer.AI
             }
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
-            return base.OnNullification(ai, from, to, trick, positive, keep);
+            NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
+
+            return result;
         }
 
         public override string OnChoice(TrustedAI ai, Player player, string choices, object data)
@@ -917,12 +921,13 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
@@ -1357,12 +1362,13 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
             Room room = ai.Room;
             Player player = ai.Self;
-
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
             List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
@@ -1623,9 +1629,11 @@ namespace SanguoshaServer.AI
             return strs[0];
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (!ai.IsFriend(to) && !ai.IsEnemy(to)) return result;
             Room room = ai.Room;
             Player player = ai.Self;
@@ -1915,9 +1923,11 @@ namespace SanguoshaServer.AI
             return use;
         }
 
-        public override NulliResult OnNullification(TrustedAI ai, Player from, Player to, WrappedCard trick, bool positive, bool keep)
+        public override NulliResult OnNullification(TrustedAI ai, CardEffectStruct effect, bool positive, bool keep)
         {
             NulliResult result = new NulliResult();
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             if (positive)
             {
                 if (ai.IsEnemy(from) && !from.IsNude()) result.Null = true;

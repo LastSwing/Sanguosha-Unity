@@ -83,7 +83,6 @@ namespace SanguoshaServer.Package
 
         public virtual void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
         {
-            if (use.EffectCount == null) use.EffectCount = new List<EffctCount>();
             use.Card = RoomLogic.ParseUseCard(room, use.Card);
             room.ShowSkill(use.From, use.Card.ShowSkill, use.Card.SkillPosition);
 
@@ -230,39 +229,24 @@ namespace SanguoshaServer.Package
         {
             WrappedCard card = card_use.Card;
             List<Player> targets = card_use.To;
-            List<string> nullified_list = room.GetTag("CardUseNullifiedList") != null ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
-            bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
-            foreach (Player target in targets) {
+            for (int index = 0; index < targets.Count; index++)
+            {
+                Player target = targets[index];
                 CardEffectStruct effect = new CardEffectStruct
                 {
                     Card = card,
                     From = card_use.From,
                     To = target,
                     Multiple = (targets.Count > 1),
-                    Nullified = (all_nullified || nullified_list.Contains(target.Name)),
                     Drank = card_use.Drank,
+                    ExDamage = card_use.ExDamage,
+                    BasicEffect = card_use.EffectCount.Count > index ? card_use.EffectCount[index] : new CardBasicEffect(target, 0, 0, 0)
                 };
-                if (card_use.EffectCount != null)
-                {
-                    foreach (EffctCount count in new List<EffctCount>(card_use.EffectCount))
-                    {
-                        if ((count.From == card_use.From && count.To == target && count.Index == targets.IndexOf(target))
-                            || (count.To == card_use.From && count.From == target) && count.Index == targets.IndexOf(target))
-                        {
-                            card_use.EffectCount.Remove(count);
-                            if (effect.EffectCount != null)
-                                effect.EffectCount.Add(count);
-                            else
-                                effect.EffectCount = new List<EffctCount> { count };
-                            break;
-                        }
-                    }
-                }
 
                 List<Player> players = new List<Player>();
-                for (int i = targets.IndexOf(target); i < targets.Count; i++)
+                for (int i = index; i < targets.Count; i++)
                 {
-                    if (!nullified_list.Contains(targets[i].Name) && !all_nullified)
+                    if (card_use.EffectCount.Count <= i || !card_use.EffectCount[i].Nullified)
                         players.Add(targets[i]);
                 }
                 room.SetTag("targets" + RoomLogic.CardToString(room, card), players);
@@ -354,6 +338,11 @@ namespace SanguoshaServer.Package
             return card;
         }
         public virtual bool IsCancelable(Room room, CardEffectStruct effect) => effect.Card != null && effect.Card.Cancelable;
+
+        public virtual CardBasicEffect FillCardBasicEffct(Room room, Player to)
+        {
+            return new CardBasicEffect(to, 0, 0, 0);
+        }
     }
     public abstract class BasicCard : FunctionCard
     {
@@ -582,6 +571,7 @@ namespace SanguoshaServer.Package
                     if (player.HasFlag(card_str + "_delay_trick_cancel")) continue;
 
                     CardUseStruct use = new CardUseStruct(room.GetCard(card.GetEffectiveId()), null, player);
+                    use.EffectCount = new List<CardBasicEffect> { FillCardBasicEffct(room, player) };
                     object data = use;
                     thread.Trigger(TriggerEvent.TargetConfirming, room, player, ref data);
                     CardUseStruct new_use = (CardUseStruct)data;
@@ -592,6 +582,9 @@ namespace SanguoshaServer.Package
                         break;
                     }
 
+                    thread.Trigger(TriggerEvent.TargetChosen, room, null, ref data);
+                    thread.Trigger(TriggerEvent.TargetConfirmed, room, player, ref data);
+
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, string.Empty)
                     {
                         CardString = RoomLogic.CardToString(room, card)
@@ -599,10 +592,6 @@ namespace SanguoshaServer.Package
                     room.MoveCardTo(card, null, player, Place.PlaceDelayedTrick, reason, true);
                     move = true;
 
-                    foreach (Player p2 in room.GetAllPlayers())
-                        thread.Trigger(TriggerEvent.TargetChosen, room, p2, ref data);
-                    foreach (Player p2 in room.GetAllPlayers())
-                        thread.Trigger(TriggerEvent.TargetConfirmed, room, p2, ref data);
                     break;
                 }
             }

@@ -2410,8 +2410,6 @@ namespace SanguoshaServer.Package
 
         private void DoTieqi(Room room, Player target, Player source, ref CardUseStruct use, TriggerStruct info)
         {
-            int index = use.To.IndexOf(target);
-
             JudgeStruct judge = new JudgeStruct
             {
                 Reason = "tieqi",
@@ -2476,26 +2474,22 @@ namespace SanguoshaServer.Package
 
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, source, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
-                
-                bool done = false;
+
+                int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    EffctCount effect = use.EffectCount[i];
-                    if (effect.Index == index)
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (effect.To == target)
                     {
-                        effect.Count = 0;
-                        done = true;
-                        use.EffectCount[i] = effect;
+                        index++;
+                        if (index == info.Times)
+                        {
+                            effect.Effect2 = 0;
+                            break;
+                        }
                     }
                 }
-                if (!done)
-                {
-                    EffctCount effect = new EffctCount(source, target, 0)
-                    {
-                        Index = index
-                    };
-                    use.EffectCount.Add(effect);
-                }
+
                 Thread.Sleep(500);
             }
             else {
@@ -2628,25 +2622,22 @@ namespace SanguoshaServer.Package
                 Type = "#NoJink",
                 From = target.Name
             };
-            room.SendLog(log); bool done = false;
-            int index = use.To.IndexOf(target);
+            room.SendLog(log);
+
+            int index = 0;
             for (int i = 0; i < use.EffectCount.Count; i++)
             {
-                EffctCount effect = use.EffectCount[i];
-                if (effect.Index == index)
+                CardBasicEffect effect = use.EffectCount[i];
+                if (effect.To == target)
                 {
-                    effect.Count = 0;
-                    done = true;
-                    use.EffectCount[i] = effect;
+                    index++;
+                    if (index == info.Times)
+                    {
+                        effect.Effect2 = 0;
+                        data = use;
+                        break;
+                    }
                 }
-            }
-            if (!done)
-            {
-                EffctCount effect = new EffctCount(player, target, 0)
-                {
-                    Index = index
-                };
-                use.EffectCount.Add(effect);
             }
 
             return false;
@@ -2772,15 +2763,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who)
         {
-            if (base.Triggerable(target, room) && target.GetMark("@nirvana") > 0 && data is DyingStruct dying_data)
-            {
-                if (target.Hp > 0)
-                    return new TriggerStruct();
-
-                if (dying_data.Who != target)
-                    return new TriggerStruct();
+            if (data is DyingStruct dying && dying.Who == target && target.Hp <= 0
+                && base.Triggerable(target, room) && target.GetMark("@nirvana") > 0)
                 return new TriggerStruct(Name, target);
-            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player pangtong, ref object data, Player ask_who, TriggerStruct info)
@@ -3256,16 +3242,31 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(liushan, Name);
             CardUseStruct use = (CardUseStruct)data;
-            
-            if (room.AskForCard(use.From, Name, ".Basic", "@xiangle-discard:" + liushan.Name, liushan) == null)
+
+            int index = 0, i;
+            for (i = 0; i < use.EffectCount.Count; i++)
             {
-                if (use.NullifiedList != null)
-                    use.NullifiedList.Add(liushan.Name);
-                else
-                    use.NullifiedList = new List<string> { liushan.Name };
+                CardBasicEffect effect = use.EffectCount[i];
+                if (effect.To == liushan)
+                {
+                    index++;
+                    if (index == info.Times)
+                    {
+                        use.From.SetTag(Name, i);
+                        break;
+                    }
+                }
+            }
+
+            if (room.AskForCard(use.From, Name, ".Basic", "@xiangle-discard:" + liushan.Name, data) == null)
+            {
+                CardBasicEffect effect = use.EffectCount[i];
+                effect.Nullified = true;
 
                 data = use;
             }
+
+            use.From.RemoveTag(Name);
 
             return false;
         }
@@ -3690,50 +3691,40 @@ namespace SanguoshaServer.Package
                 if (triggerEvent != TriggerEvent.TargetChosen)
                     return false;
 
-                int x = use.To.IndexOf(target);
-                bool done = false;
+                int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    EffctCount count = use.EffectCount[i];
-                    if (count.Index == x && count.From == ask_who && count.To == target)
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (effect.To == target)
                     {
-                        done = true;
-                        if (count.Count > 0)
-                            count.Count = 2;
+                        index++;
+                        if (index == info.Times)
+                        {
+                            effect.Effect2 = 2;
+                            break;
+                        }
                     }
-                }
-                if (!done)
-                {
-                    EffctCount count = new EffctCount(ask_who, target, 2)
-                    {
-                        Index = x
-                    };
-                    use.EffectCount.Add(count);
                 }
             }
             else if (fcard is Duel && use.To.Contains(ask_who))
             {
-                int x = use.To.IndexOf(ask_who);
-                bool done = false;
+                int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    EffctCount count = use.EffectCount[i];
-                    if (count.Index == x && count.From == ask_who && count.To == target)
+                    CardBasicEffect effect = use.EffectCount[i];
+                    if (effect.To == ask_who)
                     {
-                        done = true;
-                        if (count.Count < 2)
-                            count.Count = 2;
+                        index++;
+                        if (index == info.Times)
+                        {
+                            effect.Effect3 = 0;
+                            break;
+                        }
                     }
                 }
-                if (!done)
-                {
-                    EffctCount count = new EffctCount(ask_who, target, 2)
-                    {
-                        Index = x
-                    };
-                    use.EffectCount.Add(count);
-                }
             }
+
+            data = use;
 
             return false;
         }
@@ -4313,26 +4304,22 @@ namespace SanguoshaServer.Package
 
                 if ((bool)pangde.GetTag(tag_name))
                 {
-                    int index = use.To.IndexOf(target);
-                    bool done = false;
+                    int index = 0;
                     for (int i = 0; i < use.EffectCount.Count; i++)
                     {
-                        EffctCount effect = use.EffectCount[i];
-                        if (effect.Index == index)
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
                         {
-                            effect.Count = 0;
-                            done = true;
-                            use.EffectCount[i] = effect;
+                            index++;
+                            if (index == info.Times)
+                            {
+                                effect.Effect2 = 0;
+                                data = use;
+                                break;
+                            }
                         }
                     }
-                    if (!done)
-                    {
-                        EffctCount effect = new EffctCount(pangde, target, 0)
-                        {
-                            Index = index
-                        };
-                        use.EffectCount.Add(effect);
-                    }
+
                     data = use;
                 }
                 else
@@ -5970,12 +5957,33 @@ namespace SanguoshaServer.Package
         {
             CardUseStruct use = (CardUseStruct)data;
             use.From.SetFlags("LiuliSlashSource");      // a temp nasty trick
+
             foreach (Player p in use.To)
                 p.SetFlags("LiuliSlashTarget");
+
             string prompt = "@liuli:" + use.From.Name;
             room.SetTag(Name, data);             // for the client (UI)
+
+            int index = 0;
+            for (int i = 0; i < use.EffectCount.Count; i++)
+            {
+                CardBasicEffect effect = use.EffectCount[i];
+                if (effect.To == daqiao)
+                {
+                    index++;
+                    if (index == info.Times)
+                    {
+                        daqiao.SetTag(Name, i);
+                        break;
+                    }
+                }
+            }
+
             WrappedCard c = room.AskForUseCard(daqiao, "@@liuli", prompt, -1, HandlingMethod.MethodDiscard, true, info.SkillPosition);
+
             room.RemoveTag(Name);
+            daqiao.RemoveTag(Name);
+
             use.From.SetFlags("-LiuliSlashSource");
             foreach (Player p in use.To)
                 p.SetFlags("-LiuliSlashTarget");
@@ -5992,19 +6000,49 @@ namespace SanguoshaServer.Package
         {
             CardUseStruct use = (CardUseStruct)data;
             List<Player> players = room.GetOtherPlayers(daqiao);
-            foreach (Player p in players) {
+            Player target = null;
+            foreach (Player p in players)
+            {
                 if (p.HasFlag("LiuliTarget"))
                 {
                     p.SetFlags("-LiuliTarget");
-                    use.To.Remove(daqiao);
-                    room.SlashSettlementFinished(daqiao, use.Card);
-                    use.To.Add(p);
-                    room.SortByActionOrder(ref use);
-                    data = use;
-                    room.RoomThread.Trigger(TriggerEvent.TargetConfirming, room, p, ref data);
-                    return false;
+                    target = p;
+                    break;
                 }
             }
+
+
+            if (use.To.Contains(target) && use.To.IndexOf(target) > use.To.IndexOf(daqiao))
+            {
+                use.To.Insert(use.To.IndexOf(target), target);
+                use.EffectCount.Insert(use.To.IndexOf(target), new CardBasicEffect(target, 0, 1, 0));
+
+                int index = 0, count = use.EffectCount.Count;
+                for (index = 0; index < count; index++)
+                {
+                    if (use.EffectCount[index].To == daqiao && !use.EffectCount[index].Triggered)
+                        break;
+                }
+                use.To.RemoveAt(index);
+                use.EffectCount.RemoveAt(index);
+            }
+            else
+            {
+                int index = 0, count = use.EffectCount.Count;
+                for (index = 0; index < count; index++)
+                {
+                    if (use.EffectCount[index].To == daqiao && !use.EffectCount[index].Triggered)
+                        break;
+                }
+                use.To.RemoveAt(index);
+                use.EffectCount.RemoveAt(index);
+
+                use.To.Add(target);
+                use.EffectCount.Add(new CardBasicEffect(target, 0, 1, 0));
+                room.SortByActionOrder(ref use);
+            }
+            room.SlashSettlementFinished(daqiao, use.Card);
+            data = use;
 
             return false;
         }
@@ -6530,10 +6568,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Hp <= 0)
-            {
+            if (data is DyingStruct dying && dying.Who == player && base.Triggerable(player, room) && player.Hp <= 0)
                 return new TriggerStruct(Name, player);
-            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -6590,7 +6627,8 @@ namespace SanguoshaServer.Package
             {
                 RecoverStruct recover = new RecoverStruct
                 {
-                    Recover = 1 - player.Hp
+                    Recover = 1 - player.Hp,
+                    Who = player,
                 };
                 room.Recover(player, recover, true);
             }

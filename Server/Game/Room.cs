@@ -308,7 +308,7 @@ namespace SanguoshaServer.Game
             if (m_drawPile.Count == 0)
                 SwapPile();
         }
-        private void SwapPile()
+        public void SwapPile()
         {
             if (m_discardPile.Count == 0)
             {
@@ -504,8 +504,10 @@ namespace SanguoshaServer.Game
             SetEmotion(player, "cancel");
             Thread.Sleep(400);
 
-            use.To.Remove(player);
-
+            int index = use.To.IndexOf(player);
+            use.To.RemoveAt(index);
+            if (use.EffectCount != null)
+                use.EffectCount.RemoveAt(index);
             if (use.Card != null)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
@@ -536,7 +538,8 @@ namespace SanguoshaServer.Game
                 Card = card,
                 From = from,
                 To = to,
-                Multiple = multiple
+                Multiple = multiple,
+                BasicEffect = Engine.GetFunctionCard(card.Name).FillCardBasicEffct(this, to)
             };
 
             return CardEffect(effect);
@@ -1471,7 +1474,6 @@ namespace SanguoshaServer.Game
             if (available.Count == 0) return;
 
             RemoveGeneral(player, false);
-            HandleUsedGeneral("-" + player.ActualGeneral2);
             Thread.Sleep(1000);
 
             Shuffle.shuffle(ref available);
@@ -1974,40 +1976,28 @@ namespace SanguoshaServer.Game
         public void SortByActionOrder(ref CardUseStruct use)
         {
             if (use.To.Count <= 1) return;
-
-            List<Player> olds = new List<Player>(use.To);
+            
             List<Player> news = new List<Player>(use.To);
-            List<EffctCount> counts = new List<EffctCount>();
+            List<CardBasicEffect> counts = new List<CardBasicEffect>();
             SortByActionOrder(ref news);
             use.To = news;
 
-            if (use.EffectCount != null && use.EffectCount.Count > 0)
+            if (use.EffectCount != null)
             {
-                List<int> done = new List<int>();
-                for (int i = 0; i < olds.Count; i++)
+                foreach (Player p in news)
                 {
-                    Player p1 = olds[i];
-                    for (int y = 0; y < news.Count; y++)
+                    int count = use.EffectCount.Count;
+                    for (int i = 0; i < count; i++)
                     {
-                        Player p2 = news[y];
-                        if (p1 == p2 && !done.Contains(y))
+                        if (use.EffectCount[i].To == p)
                         {
-                            done.Add(y);
-                            foreach (EffctCount count in use.EffectCount)
-                            {
-                                if (count.Index == i)
-                                {
-                                    EffctCount copy = count;
-                                    copy.Index = y;
-                                    counts.Add(copy);
-                                }
-                            }
-                        }
-
-                        if (done.Contains(y))
+                            counts.Add(use.EffectCount[i]);
+                            use.EffectCount.RemoveAt(i);
                             break;
+                        }
                     }
                 }
+
                 use.EffectCount = counts;
             }
         }
@@ -2929,6 +2919,8 @@ namespace SanguoshaServer.Game
                 SetCardMapping(card_id, null, Place.DrawPile);
 
             DoBroadcastNotify(CommandType.S_COMMAND_UPDATE_PILE, new List<string> { m_drawPile.Count.ToString() });
+
+            SetTag("SwapPile", 0);
         }
 
         public void PreparePlayers()
@@ -5947,13 +5939,13 @@ namespace SanguoshaServer.Game
                         {
                             if (RoomLogic.GetHeadActivedSkills(this, skill_owner, true, true).Contains(real_skill))
                             {
-                                TriggerStruct skill_copy = skill.Copy();
+                                TriggerStruct skill_copy = skill;
                                 skill_copy.SkillPosition = "head";
                                 all_skills.Add(skill_copy);
                             }
                             if (RoomLogic.GetDeputyActivedSkills(this, skill_owner, true, true).Contains(real_skill))
                             {
-                                TriggerStruct skill_copy = skill.Copy();
+                                TriggerStruct skill_copy = skill;
                                 skill_copy.SkillPosition = "deputy";
                                 all_skills.Add(skill_copy);
                             }
@@ -5966,7 +5958,7 @@ namespace SanguoshaServer.Game
                         {
                             if (RoomLogic.GetHeadActivedSkills(this, skill_owner, true, false, ignore_preshow).Contains(real_skill))
                             {
-                                TriggerStruct skill_copy = skill.Copy();
+                                TriggerStruct skill_copy = skill;
                                 skill_copy.SkillPosition = "head";
                                 all_skills.Add(skill_copy);
                             }
@@ -6012,11 +6004,11 @@ namespace SanguoshaServer.Game
                         if (skill1.Equals(skill3) && skill1.Targets.Count > 0 && skill3.Targets.Count > 0 &&
                             skill1.ResultTarget == skill3.ResultTarget && skill1.SkillPosition == skill3.SkillPosition)
                         {
-                            times = times + skill3.Times;
+                            times += skill3.Times;
                             if (skill3.Targets.Count > targets.Count) targets = skill3.Targets;
                         }
                     }
-                    TriggerStruct new_skill = skill1.Copy();
+                    TriggerStruct new_skill = skill1;
                     new_skill.Targets = targets;
                     new_skill.Times = times;
                     all_skills.Add(new_skill);
@@ -7214,7 +7206,7 @@ namespace SanguoshaServer.Game
             NullTimes = 0;
             HegNull = false;
             HegNullEffected = false;
-            bool result = AskForNullification(effect.Card, effect.From, effect.To, true);
+            bool result = AskForNullification(effect, true);
             if (HegNullEffected && fcard.IsNDTrick())
             {
                 foreach (Player p in m_players)
@@ -7231,23 +7223,11 @@ namespace SanguoshaServer.Game
             return result;
         }
 
-        public struct _NullificationAiHelper
+        public bool AskForNullification(CardEffectStruct effect, bool positive)
         {
-            public WrappedCard Trick { get; set; }
-            public Player From { get; set; }
-            public Player To { get; set; }
-        };
-        public bool AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
-        {
-            _NullificationAiHelper helper = new _NullificationAiHelper()
-            {
-                Trick = trick,
-                From = from,
-                To = to
-            };
-            return _AskForNullification(trick, from, to, positive, helper);
+            return _AskForNullification(effect.Card, effect.From, effect.To, positive, effect);
         }
-        public bool _AskForNullification(WrappedCard trick, Player from, Player to, bool positive, _NullificationAiHelper helper)
+        public bool _AskForNullification(WrappedCard trick, Player from, Player to, bool positive, CardEffectStruct helper)
         {
             //tryPause();
             Thread.Sleep(300);
@@ -7284,7 +7264,7 @@ namespace SanguoshaServer.Game
             foreach (Player player in validAiPlayers)
             {
                 TrustedAI ai = GetAI(player);
-                WrappedCard nulli = ai.AskForNullification(helper.Trick, helper.From, helper.To, positive);
+                WrappedCard nulli = ai.AskForNullification(helper, positive);
                 if (nulli != null)
                     ai_cards[player] = nulli;
             }

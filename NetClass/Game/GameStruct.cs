@@ -123,11 +123,11 @@ namespace CommonClass.Game
         public bool IsOwnerUse { set; get; }
         public bool AddHistory { set; get; }
         public bool IsHandcard { set; get; }
-        public List<string> NullifiedList { set; get; }
         public string Pattern { set; get; }
         public bool IsDummy { set; get; }
         public int Drank { set; get; }
-        public List<EffctCount> EffectCount { set; get; }
+        public int ExDamage { set; get; }
+        public List<CardBasicEffect> EffectCount { set; get; }
 
         public CardUseStruct(WrappedCard card)
         {
@@ -138,11 +138,11 @@ namespace CommonClass.Game
             IsOwnerUse = true;
             IsHandcard = false;
             AddHistory = true;
-            NullifiedList = new List<string>();
             Pattern = string.Empty;
             IsDummy = false;
             Drank = 0;
-            EffectCount = new List<EffctCount>();
+            EffectCount = null;
+            ExDamage = 0;
         }
         public CardUseStruct(WrappedCard card, Player from, List<Player> to, bool isOwnerUse = true)
         {
@@ -153,11 +153,11 @@ namespace CommonClass.Game
             IsOwnerUse = isOwnerUse;
             IsHandcard = false;
             AddHistory = true;
-            NullifiedList = new List<string>();
             Pattern = string.Empty;
             IsDummy = false;
             Drank = 0;
-            EffectCount = new List<EffctCount>();
+            EffectCount = null;
+            ExDamage = 0;
         }
         public CardUseStruct(WrappedCard card, Player from, Player target, bool isOwnerUse = true)
         {
@@ -168,11 +168,11 @@ namespace CommonClass.Game
             IsOwnerUse = isOwnerUse;
             IsHandcard = false;
             AddHistory = true;
-            NullifiedList = new List<string>();
             Pattern = string.Empty;
             IsDummy = false;
             Drank = 0;
-            EffectCount = new List<EffctCount>();
+            EffectCount = null;
+            ExDamage = 0;
         }
         public bool IsValid(string pattern)
         {
@@ -187,19 +187,22 @@ namespace CommonClass.Game
         //};
     }
 
-    public struct EffctCount
+    public class CardBasicEffect
     {
-        public EffctCount(Player from, Player to, int count)
+        public CardBasicEffect(Player to, int count, int count2, int count3)
         {
-            From = from;
             To = to;
-            Count = count;
-            Index = -1;
+            Effect1 = count;
+            Effect2 = count2;
+            Effect3 = count3;
+            Nullified = false;
         }
-        public Player From { set; get; }
         public Player To { set; get; }
-        public int Count { set; get; }
-        public int Index { set; get; }
+        public int Effect1 { set; get; }
+        public int Effect2 { set; get; }
+        public int Effect3 { set; get; }
+        public bool Nullified { set; get; }
+        public bool Triggered { set; get; }
     }
 
     public struct CardEffectStruct
@@ -210,9 +213,9 @@ namespace CommonClass.Game
 
         public bool Multiple { set; get; } // helper to judge whether the card has multiple targets
                                            // does not make sense if the card inherits SkillCard
-        public bool Nullified { set; get; }
         public int Drank { set; get; }
-        public List<EffctCount> EffectCount { set; get; }
+        public int ExDamage { set; get; }
+        public CardBasicEffect BasicEffect { set; get; }
         public List<Player> StackPlayers { set; get; }
     }
 
@@ -221,10 +224,10 @@ namespace CommonClass.Game
         public int Jink_num { set; get; }
         public WrappedCard Slash { set; get; }
         public WrappedCard Jink { set; get; }
-
         public Player From { set; get; }
         public Player To { set; get; }
         public int Drank { set; get; }
+        public int ExDamage { set; get; }
         public DamageStruct.DamageNature Nature { set; get; }
         public bool Nullified { set; get; }
     };
@@ -894,20 +897,6 @@ namespace CommonClass.Game
         {
             return (!string.IsNullOrEmpty(SkillName) ? SkillName.GetHashCode() : 10) * (!string.IsNullOrEmpty(Invoker) ? Invoker.GetHashCode() : 11)
                 * (!string.IsNullOrEmpty(SkillOwner) ? SkillOwner.GetHashCode() : 12);
-        }
-        public TriggerStruct Copy()
-        {
-            TriggerStruct new_one = new TriggerStruct(SkillName)
-            {
-                Invoker = this.Invoker,
-                SkillOwner = this.SkillOwner,
-                Targets = this.Targets,
-                SkillPosition = this.SkillPosition,
-                Times = this.Times,
-                ResultTarget = this.ResultTarget
-
-            };
-            return new_one;
         }
 
         public string SkillName { set; get; }

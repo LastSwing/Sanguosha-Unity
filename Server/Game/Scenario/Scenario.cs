@@ -6,6 +6,7 @@ using SanguoshaServer.Game;
 using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using static CommonClass.Game.DamageStruct;
 using static CommonClass.Game.Player;
@@ -385,6 +386,11 @@ namespace SanguoshaServer.Scenario
                 use_list.Add(card_use);
                 room.SetTag("card_proceeing", use_list);
 
+                card_use.EffectCount = new List<CardBasicEffect>();
+                foreach (Player p in card_use.To)
+                    card_use.EffectCount.Add(fcard.FillCardBasicEffct(room, p));
+                data = card_use;
+
                 if (card_use.From != null)
                 {
                     thread.Trigger(TriggerEvent.TargetChoosing, room, card_use.From, ref data);
@@ -392,30 +398,45 @@ namespace SanguoshaServer.Scenario
                     targets = new_use.To;
                 }
 
+                card_use = (CardUseStruct)data;
                 if (card_use.From != null && targets.Count > 0)
                 {
-                    List<Player> targets_copy = new List<Player>(targets);
-                    foreach (Player to in targets_copy) {
-                        if (targets.Contains(to))
+                    foreach (CardBasicEffect effect in card_use.EffectCount)
+                        effect.Triggered = false;
+
+                    while (card_use.EffectCount.Count > 0)
+                    {
+                        bool check = true;
+                        int count = card_use.EffectCount.Count;
+                        for (int i = 0; i < count; i++)
                         {
-                            thread.Trigger(TriggerEvent.TargetConfirming, room, to, ref data);
-                            CardUseStruct new_use = (CardUseStruct)data;
-                            targets = new_use.To;
-                            if (targets.Count == 0) break;
+                            CardBasicEffect effect = card_use.EffectCount[i];
+                            if (!effect.Triggered)
+                            {
+                                check = false;
+                                thread.Trigger(TriggerEvent.TargetConfirming, room, effect.To, ref data);
+                                effect.Triggered = true;
+                                break;
+                            }
                         }
+
+                        if (check)
+                            break;
+
+                        card_use = (CardUseStruct)data;
                     }
                 }
 
                 card_use = (CardUseStruct)data;
+                
                 if (card_use.From != null && card_use.To.Count > 0)
                 {
                     thread.Trigger(TriggerEvent.TargetChosen, room, card_use.From, ref data);
                     foreach (Player p in card_use.To)
                         thread.Trigger(TriggerEvent.TargetConfirmed, room, p, ref data);
                 }
+
                 card_use = (CardUseStruct)data;
-                if (card_use.NullifiedList != null)
-                    room.SetTag("CardUseNullifiedList", card_use.NullifiedList);
                 fcard.Use(room, card_use);
             }
         }
@@ -761,7 +782,7 @@ namespace SanguoshaServer.Scenario
                         if (data is CardEffectStruct effect)
                         {
                             FunctionCard fcard = Engine.GetFunctionCard(effect.Card.Name);
-                            if (!(fcard is Slash) && effect.Nullified)
+                            if (!(fcard is Slash) && effect.BasicEffect.Nullified)
                             {
                                 LogMessage log = new LogMessage
                                 {
@@ -851,7 +872,7 @@ namespace SanguoshaServer.Scenario
                     {
                         SlashEffectStruct effect = (SlashEffectStruct)data;
                         if (effect.Drank > 0) effect.To.SetMark("SlashIsDrank", effect.Drank);
-                        room.Damage(new DamageStruct(effect.Slash, effect.From, effect.To, 1, effect.Nature));
+                        room.Damage(new DamageStruct(effect.Slash, effect.From, effect.To, 1 + effect.ExDamage, effect.Nature));
 
                         break;
                     }

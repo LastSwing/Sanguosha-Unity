@@ -879,8 +879,10 @@ namespace SanguoshaServer.AI
 
             return base.AskForPlayersChosen(targets, reason, max_num, min_num);
         }
-        public override WrappedCard AskForNullification(WrappedCard trick, Player from, Player to, bool positive)
+        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive)
         {
+            Player from = effect.From, to = effect.To;
+            WrappedCard trick = effect.Card;
             Choice[HegNullification.ClassName] = null;
             if (!to.Alive) return null;
 
@@ -950,7 +952,7 @@ namespace SanguoshaServer.AI
             UseCard use = Engine.GetCardUsage(trick.Name);
             if (use != null)
             {
-                UseCard.NulliResult result = use.OnNullification(this, from, to, trick, positive, keep);
+                UseCard.NulliResult result = use.OnNullification(this, effect, positive, keep);
                 if (result.Null)
                 {
                     if (result.Heg)

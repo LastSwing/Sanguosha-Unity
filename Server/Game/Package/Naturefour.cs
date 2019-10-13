@@ -25,7 +25,7 @@ namespace SanguoshaServer.Package
                 new HuangtianVS(),
 
                 new LiegongJX(),
-                new LiegongRecord(),
+                //new LiegongRecord(),
                 new LiegongTar(),
                 new KuangguJX(),
                 new Qimou(),
@@ -63,7 +63,7 @@ namespace SanguoshaServer.Package
             related_skills = new Dictionary<string, List<string>>
             {
                 { "xueyi", new List<string>{ "#xueyi-max" } },
-                { "liegong_jx", new List<string>{ "#liegong-damage", "#liegong-tar" } },
+                //{ "liegong_jx", new List<string>{ "#liegong-damage", "#liegong-tar" } },
                 { "qimou", new List<string>{ "#qimou-tar", "#qimou-distance" } },
                 { "duanliang_jx", new List<string>{ "#jxduanliang-target" } },
                 { "buqu_jx", new List<string>{ "#buqu_jx-clear", "#buqu-max" } },
@@ -392,7 +392,11 @@ namespace SanguoshaServer.Package
             }
 
             if (death.Damage.From.Alive)
-                room.SetPlayerMark(death.Damage.From, "@duanchang", 1);
+            {
+                target.DuanChang = "head";
+                room.BroadcastProperty(target, "DuanChang");
+                room.SetPlayerMark(target, "@duanchang", 1);
+            }
 
             return false;
         }
@@ -791,7 +795,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Play && data is CardUseStruct use && use.Card != null)
+            if (data is CardUseStruct use && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash)
@@ -820,7 +824,7 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player player, TriggerStruct info)
         {
             List<string> choices = new List<string>();
-            if (target.HandcardNum >= player.Hp || target.HandcardNum <= RoomLogic.GetAttackRange(room, player))
+            if (target.HandcardNum <= player.HandcardNum)
                 choices.Add("nojink");
             if (target.Hp >= player.Hp)
                 choices.Add("damage");
@@ -839,33 +843,49 @@ namespace SanguoshaServer.Package
                         Type = "#NoJink",
                         From = target.Name
                     };
-                    room.SendLog(log); bool done = false;
-                    int index = use.To.IndexOf(target);
+                    room.SendLog(log);
+
+                    int index = 0;
                     for (int i = 0; i < use.EffectCount.Count; i++)
                     {
-                        EffctCount effect = use.EffectCount[i];
-                        if (effect.Index == index)
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
                         {
-                            effect.Count = 0;
-                            done = true;
-                            use.EffectCount[i] = effect;
+                            index++;
+                            if (index == info.Times)
+                            {
+                                effect.Effect2 = 0;
+                                data = use;
+                                break;
+                            }
                         }
-                    }
-                    if (!done)
-                    {
-                        EffctCount effect = new EffctCount(player, target, 0)
-                        {
-                            Index = index
-                        };
-                        use.EffectCount.Add(effect);
                     }
                 }
                 else if (choice == "damage")
                 {
-                    string tag = string.Format("liegong_{0}", RoomLogic.CardToString(room, use.Card));
-                    List<string> targets = player.ContainsTag(tag) ? (List<string>)player.GetTag(tag) : new List<string>();
-                    targets.Add(target.Name);
-                    player.SetTag(tag, targets);
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#Liegong_add",
+                        From = target.Name,
+                        To = new List<string> { target.Name }
+                    };
+                    room.SendLog(log);
+
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
+                        {
+                            index++;
+                            if (index == info.Times)
+                            {
+                                effect.Effect1++;
+                                data = use;
+                                break;
+                            }
+                        }
+                    }
                 }
                 else
                     break;
@@ -880,7 +900,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
+    /*
     public class LiegongRecord : TriggerSkill
     {
         public LiegongRecord() : base("#liegong-damage")
@@ -926,7 +946,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
+    */
     public class LiegongTar : TargetModSkill
     {
         public LiegongTar() : base("#liegong-tar")
@@ -1317,7 +1337,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Hp <= 0)
+            if (data is DyingStruct dying && dying.Who == player && base.Triggerable(player, room) && player.Hp <= 0)
             {
                 return new TriggerStruct(Name, player);
             }
@@ -1377,7 +1397,8 @@ namespace SanguoshaServer.Package
             {
                 RecoverStruct recover = new RecoverStruct
                 {
-                    Recover = 1 - player.Hp
+                    Recover = 1 - player.Hp,
+                    Who = player
                 };
                 room.Recover(player, recover, true);
             }
@@ -1612,7 +1633,7 @@ namespace SanguoshaServer.Package
     {
         public Zhiba() : base("zhiba")
         {
-            events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.Pindian };
+            events = new List<TriggerEvent> { TriggerEvent.GameStart };
             lord_skill = true;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -1622,9 +1643,7 @@ namespace SanguoshaServer.Package
                 foreach (Player p in room.GetAlivePlayers())
                 {
                     if (p.GetRoleEnum() != PlayerRole.Lord && p.Kingdom == "wu")
-                    {
                         room.HandleAcquireDetachSkills(p, "zhibavs", true);
-                    }
                 }
             }
         }

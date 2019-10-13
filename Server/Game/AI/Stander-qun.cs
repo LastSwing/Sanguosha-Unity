@@ -739,7 +739,7 @@ namespace SanguoshaServer.AI
                 Room room = ai.Room;
                 List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
                 CardUseStruct use = list[list.Count - 1];
-                int damage_count = 1 + 1 + use.Drank;
+                int damage_count = 1 + use.Drank + use.ExDamage;
 
                 if (target.GetCards("he").Count == 1 && !player.HasWeapon(QinggangSword.ClassName)
                     && target.GetArmor() && RoomLogic.CanDiscard(room, player, target, target.Armor.Key))
@@ -770,7 +770,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
             CardUseStruct use = list[list.Count - 1];
-            int damage_count = 1 + 1 + use.Drank;
+            int damage_count = 1 + use.Drank + use.ExDamage;
 
             if ((WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, use.Card)) && to.HasArmor(RenwangShield.ClassName) && RoomLogic.CanDiscard(room, from, to, to.Armor.Key))
                 || (use.Card.Name != Slash.ClassName && to.HasArmor(PeaceSpell.ClassName))

@@ -1647,7 +1647,7 @@ namespace SanguoshaServer.AI
                         {
                             if (!ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
                             {
-                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank + use.ExDamage);
                                 if (use.Card.Name == FireSlash.ClassName)
                                     damage.Nature = DamageStruct.DamageNature.Fire;
                                 else if (damage.Card.Name == ThunderSlash.ClassName)
@@ -1669,7 +1669,7 @@ namespace SanguoshaServer.AI
                         {
                             if (ai.IsFriend(p) && !ai.IsCancelTarget(use.Card, p, use.From) && ai.IsCardEffect(use.Card, p, use.From))
                             {
-                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank);
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.Drank + use.ExDamage);
                                 if (use.Card.Name == FireSlash.ClassName)
                                     damage.Nature = DamageStruct.DamageNature.Fire;
                                 else if (damage.Card.Name == ThunderSlash.ClassName)

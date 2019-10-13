@@ -223,10 +223,12 @@ namespace SanguoshaServer.AI
                 if (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Duel.ClassName || use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName)
                 {
                     bool avoid = false;
+                    int index = (int)player.GetTag(Name);
+                    if (use.EffectCount[index].Nullified) return false;
+
                     if (use.Card.Name.Contains(Slash.ClassName))
                     {
-                        int index = use.To.IndexOf(player);
-                        if ((use.EffectCount == null || use.EffectCount.Count <= index || use.EffectCount[index].Count == 1) && ai.GetKnownCardsNums(Jink.ClassName, "he", player) > 0)
+                        if (use.EffectCount[index].Effect2 == 1 && ai.GetKnownCardsNums(Jink.ClassName, "he", player) > 0)
                             avoid = true;
                     }
                     else if (use.Card.Name == ArcheryAttack.ClassName && ai.GetKnownCardsNums(Jink.ClassName, "he", player) > 0)
@@ -238,7 +240,7 @@ namespace SanguoshaServer.AI
 
                     if (!avoid)
                     {
-                        DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank);
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank + use.ExDamage + use.EffectCount[index].Effect1);
                         if (use.Card.Name == FireSlash.ClassName)
                             damage.Nature = DamageStruct.DamageNature.Fire;
                         else if (damage.Card.Name == ThunderSlash.ClassName)

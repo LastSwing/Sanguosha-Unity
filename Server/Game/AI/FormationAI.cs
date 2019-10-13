@@ -666,7 +666,7 @@ namespace SanguoshaServer.AI
                 }
                 else if (use.Card.Name.Contains(Slash.ClassName))
                 {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1 + use.Drank);
+                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1 + use.Drank + use.ExDamage);
                     if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
                     else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
                     double value = ai.GetDamageScore(damage).Score;

@@ -883,7 +883,27 @@ namespace SanguoshaServer.AI
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
                     if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
                     {
-                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1);
+                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + use.ExDamage);
+                        if (slash.Name.Contains("Fire"))
+                            damage.Nature = DamageStruct.DamageNature.Fire;
+                        else if (slash.Name.Contains("Thunder"))
+                            damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                        if (ai.GetDamageScore(damage).Score > 0)
+                        {
+                            use.Card = liuli;
+                            use.To.Add(p);
+                            return use;
+                        }
+                    }
+                }
+
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
+                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                    {
+                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + use.ExDamage);
                         if (slash.Name.Contains("Fire"))
                             damage.Nature = DamageStruct.DamageNature.Fire;
                         else if (slash.Name.Contains("Thunder"))
@@ -909,7 +929,7 @@ namespace SanguoshaServer.AI
                     }
                     else if (!ai.NotSlashJiaozhu(p))
                     {
-                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1);
+                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
                             damage.Nature = DamageStruct.DamageNature.Fire;
                         else if (slash.Name.Contains("Thunder"))
