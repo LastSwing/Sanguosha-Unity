@@ -261,10 +261,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
             {
-                if (base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
-                    return new TriggerStruct(Name, player);
+                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
+                return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
                 && move.From_places.Contains(Player.Place.PlaceEquip) && move.From.HasFlag("peacespell_throwing"))
@@ -274,7 +274,16 @@ namespace SanguoshaServer.Package
                     if (move.From_places[i] != Player.Place.PlaceEquip) continue;
                     WrappedCard card = Engine.GetRealCard(move.Card_ids[i]);
                     if (card.Name == Name)
+                    {
+                        Player source = room.FindPlayer(move.Reason.PlayerId);
+                        if (source != null && move.From.ArmorNullifiedList.ContainsKey(source.Name))
+                        {
+                            move.From.SetFlags("-peacespell_throwing");
+                            return new TriggerStruct();
+                        }
+
                         return new TriggerStruct(Name, move.From);
+                    }
                 }
             }
 

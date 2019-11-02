@@ -387,7 +387,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && player.GetMark("@gd_liang") > 0)
+            if (ai.HasSkill(Name, player) && player.GetMark("@gd_liang") > 0 && !isUse)
                 if (card.Name == Jink.ClassName) return 2;
 
             return 0;
@@ -817,7 +817,7 @@ namespace SanguoshaServer.AI
 
                 foreach (Player p in ai.FriendNoSelf)
                 {
-                    if (!p.IsKongcheng() && (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) || RoomLogic.PlayerContainsTrick(room, p, SupplyShortage.ClassName))
+                    if (RoomLogic.CanBePindianBy(room, p, player) && (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) || RoomLogic.PlayerContainsTrick(room, p, SupplyShortage.ClassName))
                         && number > GetPindianCard(ai, p))
                     {
                         return new List<Player> { p };
@@ -826,7 +826,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in ai.FriendNoSelf)
             {
-                if (!p.IsKongcheng() && p.HasArmor(SilverLion.ClassName) && number > GetPindianCard(ai, p))
+                if (RoomLogic.CanBePindianBy(room, p, player) && p.HasArmor(SilverLion.ClassName) && number > GetPindianCard(ai, p))
                 {
                     return new List<Player> { p };
                 }
@@ -836,7 +836,7 @@ namespace SanguoshaServer.AI
             ai.SortByDefense(ref enemies, false);
             foreach (Player enemy in enemies)
             {
-                if (enemy.HandcardNum > 1 && number > GetPindianCard(ai, enemy) && (!enemy.IsWounded() || !enemy.HasArmor(SilverLion.ClassName)))
+                if (RoomLogic.CanBePindianBy(room, enemy, player) && enemy.HandcardNum > 1 && number > GetPindianCard(ai, enemy) && (!enemy.IsWounded() || !enemy.HasArmor(SilverLion.ClassName)))
                 {
                     return new List<Player> { enemy };
                 }
@@ -846,7 +846,7 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player enemy in enemies)
                 {
-                    if (!enemy.IsKongcheng() && number > GetPindianCard(ai, enemy) && (!enemy.IsWounded() || !enemy.HasArmor(SilverLion.ClassName)))
+                    if (RoomLogic.CanBePindianBy(room, enemy, player) && number > GetPindianCard(ai, enemy) && (!enemy.IsWounded() || !enemy.HasArmor(SilverLion.ClassName)))
                     {
                         return new List<Player> { enemy };
                     }

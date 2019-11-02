@@ -229,7 +229,7 @@ namespace SanguoshaServer.Scenario
                         TrustedAI ai = room.GetAI(player);
                         if (ai != null && ai is StupidAI)
                         {
-                            generalName = GeneralSelector.GetGeneral(options[player], player.GetRoleEnum());
+                            generalName = GeneralSelector.GetGeneral(room, options[player], player.GetRoleEnum());
                         }
                         else
                             generalName = options[player][0];
@@ -289,19 +289,25 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in players)
             {
                 string answer = string.Empty;
-                List<string> clientReply = room.GetInteractivity(player).ClientReply;
-                if (clientReply != null && clientReply.Count > 0)
-                    answer = clientReply[0];
-
-                TrustedAI ai = room.GetAI(player);
-                if (ai != null && ai is StupidAI)
+                Interactivity interactivity = room.GetInteractivity(player);
+                if (interactivity != null)
                 {
-                    foreach (Player p in room.GetAllPlayers())
+                    List<string> clientReply = interactivity.ClientReply;
+                    if (clientReply != null && clientReply.Count > 0)
+                        answer = clientReply[0];
+                }
+                else
+                {
+                    TrustedAI ai = room.GetAI(player);
+                    if (ai != null && ai is StupidAI)
                     {
-                        if (p.GetRoleEnum() == Player.PlayerRole.Lord)
+                        foreach (Player p in room.GetAllPlayers())
                         {
-                            answer = p.Kingdom;
-                            break;
+                            if (p.GetRoleEnum() == PlayerRole.Lord)
+                            {
+                                answer = p.Kingdom;
+                                break;
+                            }
                         }
                     }
                 }
@@ -354,7 +360,7 @@ namespace SanguoshaServer.Scenario
             {
                 Client client = room.Clients[i];
                 if (client.UserID < 0) continue;
-                List<string> reserved_generals = client.GeneralReserved;
+                List<string> reserved_generals = new List<string>(client.GeneralReserved);
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
 
                 foreach (string general in reserved_generals)
@@ -697,18 +703,33 @@ namespace SanguoshaServer.Scenario
 
     public class GeneralSelector
     {
-        public static string GetGeneral(List<string> choices, PlayerRole role)
+        public static string GetGeneral(Room room, List<string> choices, PlayerRole role)
         {
             Debug.Assert(choices.Count > 0);
 
             if (choices.Count == 1) return choices[0];
+            Player lord = null;
+            foreach (Player p in room.Players)
+            {
+                if (p.GetRoleEnum() == PlayerRole.Lord)
+                {
+                    lord = p;
+                    break;
+                }
+            }
 
             Dictionary<string, double> points = new Dictionary<string, double>();
             foreach (string general in choices)
             {
-                double basic = Engine.GetGeneralValue(general, "Classic");
-                basic += Engine.GetRoleTendency(general, role) / 10;
-                points.Add(general, basic);
+                if (general.EndsWith("_god") || general == "zuoci")                                                     //神将和左慈不该由AI用
+                    points.Add(general, 0);
+                else
+                {
+                    double basic = Engine.GetGeneralValue(general, "Classic");
+                    basic += Engine.GetRoleTendency(general, role) / 10;
+                    basic += AdjustRolePoints(room, lord, general, role);
+                    points.Add(general, basic);
+                }
             }
 
             choices.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
@@ -721,6 +742,50 @@ namespace SanguoshaServer.Scenario
             }
 
             return choices[0];
+        }
+
+        public static double AdjustRolePoints(Room room, Player lord, string general_name, PlayerRole role)
+        {
+            double value = 0;
+            General general = Engine.GetGeneral(general_name, "Classic");
+            if (role == PlayerRole.Loyalist)
+            {
+                General lord_general = Engine.GetGeneral(lord.General1, "Classic");
+                if (lord_general.IsLord() && lord_general.Kingdom == general.Kingdom)                           //正规主公，忠臣应尽量选国籍相同的武将
+                {
+                    value += 1;
+                    if (lord.General1 == "yuanshu") value += 0.5;                                               //袁术主公还有额外0.5加成
+                    if (lord.General1 == "xizhicai" && general_name == "jvshou")                                //主公戏字才，忠臣巨兽佳
+                        value += 4;
+                }
+                if (lord.IsFemale() && general_name == "xiahoushi") value -= 0.5;                                //主公女性，夏侯氏不宜作忠臣
+            }
+            else if (role == PlayerRole.Rebel)
+            {
+                General lord_general = Engine.GetGeneral(lord.General1, "Classic");
+                if (general_name == "diaochan" && lord.IsFemale())                                              //主公女性，貂蝉不宜做反贼
+                    value -= 1.5;
+
+                if (lord.General1 == "xizhicai" && general_name == "jvshou")                                    //主公戏字才，反贼巨兽极不利
+                    value -= 4;
+
+                if (lord.IsFemale() && general_name == "xushi")                                                 //主公女性，徐氏不利
+                    value -= 0.7;
+            }
+            else if (role == PlayerRole.Renegade)
+            {
+                General lord_general = Engine.GetGeneral(lord.General1, "Classic");
+                if (lord.General1 == "xizhicai" && general_name == "jvshou")                                    //主公戏字才，内奸巨兽极不利
+                    value -= 4;
+
+                if (lord.IsFemale() && general_name == "xushi")                                                 //主公女性，徐氏不利
+                    value -= 0.7;
+            }
+
+            if (role != PlayerRole.Lord && lord.General1 == "jvshou" && general_name == "xizhicai")
+                value += 2;
+
+            return value;
         }
     }
 }

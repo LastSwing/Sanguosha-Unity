@@ -295,7 +295,8 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {
-                    number = pindian.To_number;
+                    int index = pindian.Tos.IndexOf(player);
+                    number = pindian.To_numbers[index];
                     if (ai.IsFriend(pindian.From) && number > 1)
                         return true;
                     else if (ai.IsEnemy(pindian.From) && number < 13)
@@ -318,7 +319,8 @@ namespace SanguoshaServer.AI
                 }
                 else
                 {
-                    number = pindian.To_number;
+                    int index = pindian.Tos.IndexOf(player);
+                    number = pindian.To_numbers[index];
                     if (ai.IsFriend(pindian.From) && number > 1)
                         return "jian3";
                     else if (ai.IsEnemy(pindian.From) && number < 13)

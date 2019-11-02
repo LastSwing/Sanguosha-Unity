@@ -22,12 +22,13 @@ namespace SanguoshaServer.Package
                 new HalberdTrigger(),
                 new BreastPlateSkill(),
                 new IronArmorSkill(),
+                new IronArmorProhibit(),
                 new WoodenOxSkill(),
                 new WoodenOxTriggerSkill(),
                 new JadeSealSkill(),
                 new LureTigerSkill(),
                 new LureTigerProhibit(),
-                new ThreatenEmperorSkill()
+                new ThreatenEmperorSkill(),
             };
             cards = new List<FunctionCard>
             {
@@ -286,9 +287,13 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            DamageStruct damage = (DamageStruct)data;
-            if (base.Triggerable(player, room) && damage.Damage >= player.Hp && player.GetArmor())
+            if (data is DamageStruct damage && base.Triggerable(player, room) && damage.Damage >= player.Hp && player.GetArmor())
+            {
+                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
+
                 return new TriggerStruct(Name, player);
+            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -332,13 +337,15 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (!base.Triggerable(player, room)) return new TriggerStruct();
-            CardUseStruct use = (CardUseStruct)data;
-            if (use.Card == null) return new TriggerStruct();
-            if (!use.To.Contains(player) || player.GetMark("Equips_of_Others_nullified_to_You") > 0) return new TriggerStruct();
-            FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-            if (fcard is FireAttack || fcard is FireSlash || fcard is BurningCamps)
-                return new TriggerStruct(Name, player);
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && use.To.Contains(player) && player.GetMark("Equips_of_Others_nullified_to_You") == 0)
+            {
+                if (use.From != null && use.From.Alive && player.ArmorNullifiedList.ContainsKey(use.From.Name)) return new TriggerStruct();
+
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is FireAttack || fcard is FireSlash || fcard is BurningCamps)
+                    return new TriggerStruct(Name, player);
+            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -362,6 +369,32 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class IronArmorProhibit : ProhibitSkill
+    {
+        public IronArmorProhibit() : base("#IronArmor-pro")
+        {
+        }
+
+        public override bool IsProhibited(Room room, Player from, Player to, ProhibitType type)
+        {
+            if (type == ProhibitType.Chain && RoomLogic.HasArmorEffect(room, to, IronArmor.ClassName))
+            {
+                if (from != null && from.Alive && to.ArmorNullifiedList.ContainsKey(from.Name)) return false;
+
+                List<string> big_kingdoms = RoomLogic.GetBigKingdoms(room);
+                if (big_kingdoms.Count > 0)
+                {
+                    string kingdom = (to.HasShownOneGeneral() ? (to.GetRoleEnum() == PlayerRole.Careerist ? to.Name : to.Kingdom) : string.Empty);
+                    if (!big_kingdoms.Contains(kingdom))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public class WoodenOx : Treasure
     {
         public static string ClassName = "WoodenOx";
@@ -881,8 +914,7 @@ namespace SanguoshaServer.Package
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             bool big = RoomLogic.GetBigKingdoms(room).Count > 0;
-            if (!big || targets.Count > 0 || RoomLogic.IsCardLimited(room, Self, card, HandlingMethod.MethodUse)
-                || Engine.IsProhibited(room, Self, to_select, card, targets) != null)
+            if (!big || targets.Count > 0 || RoomLogic.IsCardLimited(room, Self, card, HandlingMethod.MethodUse) || Engine.IsProhibited(room, Self, to_select, card, targets) != null)
                 return false;
 
             return true;
@@ -910,7 +942,8 @@ namespace SanguoshaServer.Package
                 {
                     bool big = (use.Pattern == "big");
                     List<Player> targets = new List<Player>(), prohibites = new List<Player>();
-                    foreach (Player p in room.GetAlivePlayers()) {
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
                         string kingdom = (p.HasShownOneGeneral() ? (p.GetRoleEnum() == Player.PlayerRole.Careerist ? p.Name : p.Kingdom) : string.Empty);
                         if (big_kingdoms.Contains(kingdom) == big)
                         {
@@ -1450,12 +1483,10 @@ namespace SanguoshaServer.Package
         {
             if (room.AskForCard(effect.To, Name, "EquipCard", "@edict-equip") != null)
                 return;
-            List<string> choices = new List<string>();
-            if (!effect.To.HasShownAllGenerals()
-                && ((!effect.To.General1Showed && effect.To.DisableShowList(true).Count == 0)
-                || (!string.IsNullOrEmpty(effect.To.General2) && !effect.To.General2Showed && effect.To.DisableShowList(false).Count == 0)))
+            List<string> choices = new List<string> { "losehp" };
+            if (!effect.To.HasShownAllGenerals() && ((!effect.To.General1Showed && effect.To.CanShowGeneral("h"))
+                || (!string.IsNullOrEmpty(effect.To.General2) && !!effect.To.General2Showed && effect.To.CanShowGeneral("d"))))
                 choices.Add("show");
-            choices.Add("losehp");
             string choice = room.AskForChoice(effect.To, Name, string.Join("+", choices));
             if (choice == "show")
             {

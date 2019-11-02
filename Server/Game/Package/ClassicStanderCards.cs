@@ -57,7 +57,7 @@ namespace SanguoshaServer.Package
                 player.SetFlags("-slashTargetFix");
                 player.SetFlags("-slashTargetFixToOne");
                 effect.To.SetFlags("-SlashAssignee");
-                if (base.Triggerable(player, room))
+                if (player.HasWeapon(Name))
                     room.SetCardFlag(player.Weapon.Key, "-using");
             }
 
@@ -68,9 +68,10 @@ namespace SanguoshaServer.Package
     public class BladeTag : TargetModSkill
     {
         public BladeTag() : base("#blade-target-mod", false) {}
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseStruct.CardUseReason reason, string pattern)
         {
-            if (from.HasWeapon("ClassicBlade") && room.GetCard(from.Weapon.Key).HasFlag("using"))
+            if (from.HasWeapon("ClassicBlade") && reason == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE
+                && (room.GetRoomState().GetCurrentResponseSkill() == "ClassicBlade" || pattern == "Slash:ClassicBlade"))
                 return true;
 
             return false;

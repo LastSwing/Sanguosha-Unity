@@ -42,6 +42,7 @@ namespace SanguoshaServer.Game
         private static Dictionary<string, List<General>> convert_pairs = new Dictionary<string, List<General>>();
         private static Dictionary<string, SkillEvent> ai_skill_event = new Dictionary<string, SkillEvent>();
         private static Dictionary<string, UseCard> ai_card_event = new Dictionary<string, UseCard>();
+        private static List<string> huashen_baned = new List<string>();
 
         private static List<ProhibitSkill> prohibit_skills = new List<ProhibitSkill>();
         private static List<FixCardSkill> fixcard_skills = new List<FixCardSkill>();
@@ -325,6 +326,14 @@ namespace SanguoshaServer.Game
                     Title title = (Title)Activator.CreateInstance(t, pa);
                     titles.Add(title);
                 }
+            }
+
+            //左慈化身禁表
+            sql = "select * from huashen_ban_list";
+            DataTable ban_table = DB.GetData(sql, false);
+            foreach (DataRow row in ban_table.Rows)
+            {
+                huashen_baned.Add(row["general"].ToString());
             }
         }
 
@@ -855,6 +864,18 @@ namespace SanguoshaServer.Game
 
             return null;
         }
+
+        public static Skill IsProhibited(Room room, Player from, Player to, ProhibitSkill.ProhibitType type)
+        {
+            foreach (ProhibitSkill skill in prohibit_skills)
+            {
+                if (skill.IsProhibited(room, from, to, type))
+                    return skill;
+            }
+
+            return null;
+        }
+
         public static Skill Invalid(Room room, Player player, string skill)
         {
             foreach (InvalidSkill sk in invalid_skills)
@@ -916,10 +937,12 @@ namespace SanguoshaServer.Game
         {
             if (type == TargetModSkill.ModType.DistanceLimit)
             {
+                CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+                string pattern = room.GetRoomState().GetCurrentCardUsePattern(from);
                 foreach (TargetModSkill skill in targetmod_skills)
                 {
                     CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card) && skill.GetDistanceLimit(room, from, to, card)) return true;
+                    if (p.Match(from, room, card) && skill.GetDistanceLimit(room, from, to, card, reason, pattern)) return true;
                 }
             }
             else if (type == TargetModSkill.ModType.SpecificAssignee)
@@ -1190,7 +1213,7 @@ namespace SanguoshaServer.Game
                 && show_frame.Select("id = " + profile.Frame).Length > 0
                 && show_bg.Select("id = " + profile.Bg).Length > 0;
         }
-
+        public static List<string> GetHuashenBanList() => huashen_baned;
         public static List<Title> GetTitleCollector() => titles;
 
         #region AI数据

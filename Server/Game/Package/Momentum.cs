@@ -791,7 +791,7 @@ namespace SanguoshaServer.Package
 
                 List<Player> sunces = RoomLogic.FindPlayersBySkillName(room, Name);
                 foreach (Player sunce in sunces)
-                    if (pindian.From == sunce || pindian.To == sunce)
+                    if (pindian.From == sunce || pindian.Tos.Contains(sunce))
                         skill_list.Add(new TriggerStruct(Name, sunce));
 
             }
@@ -829,9 +829,10 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                pindian.To_number = choice == "jia3" ? Math.Min(pindian.To_number + 3, 13) : Math.Max(pindian.To_number - 3, 1);
+                int i = pindian.Tos.IndexOf(sunce);
+                pindian.To_numbers[i] = choice == "jia3" ? Math.Min(pindian.To_numbers[i] + 3, 13) : Math.Max(pindian.To_numbers[i] - 3, 1);
 
-                log.Arg = pindian.To_number.ToString();
+                log.Arg = pindian.To_numbers[i].ToString();
             }
             data = pindian;
             room.SendLog(log);

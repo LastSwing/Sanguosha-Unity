@@ -822,7 +822,7 @@ namespace SanguoshaServer.Package
             for (int i = 0; i < acquired.Count; i++)
                 unkonwns.Add("-1");
 
-            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", acquired), string.Format("null+{0}", zuoci.Name), new List<Player> { zuoci });
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", acquired), string.Format("null+{0}+spirit", zuoci.Name), new List<Player> { zuoci });
             room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", unkonwns), string.Format("null+{0}", zuoci.Name), others);
             Thread.Sleep(1500);
             room.SetPlayerStringMark(zuoci, "spirit", huashens.Count.ToString(), room.GetClient(zuoci));
@@ -854,7 +854,7 @@ namespace SanguoshaServer.Package
             };
             room.SendLog(log);
 
-            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", remove), string.Format("{0}+null", zuoci.Name));
+            room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", remove), string.Format("{0}+null+spirit", zuoci.Name));
             Thread.Sleep(1500);
             if (huashens.Count == 0)
                 room.RemovePlayerStringMark(zuoci, "spirit");
@@ -911,7 +911,7 @@ namespace SanguoshaServer.Package
             List<string> huashens = zuoci.ContainsTag("spirit") ? (List<string>)zuoci.GetTag("spirit") : new List<string>();
             Yigui.RemoveHuashen(room, zuoci, huashens);
         }
-    };
+    }
 
     public class YiguiCard : SkillCard
     {

@@ -711,6 +711,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
+            if (card.Id <= 0) return 0;
             if (player.GetMark(Name) == 1)
                 return WrappedCard.IsBlack(RoomLogic.GetCardSuit(ai.Room, card)) ? 1 : 0;
             if (player.GetMark(Name) == 2)
@@ -785,9 +786,10 @@ namespace SanguoshaServer.AI
             if (to.HandcardNum == 1 && RoomLogic.CanDiscard(room, from, to, "h"))
             {
                 bool discard_hand = true;
+                int id = to.GetCards("h")[0];
                 if (ai.GetKnownCards(to).Count == 1)
                 {
-                    if (ai.GetUseValue(to.HandCards[0], to, Player.Place.PlaceHand) < 5 && ai.GetKeepValue(to.HandCards[0], to, Player.Place.PlaceHand) < 5)
+                    if (ai.GetUseValue(id, to, Player.Place.PlaceHand) < 5 && ai.GetKeepValue(id, to, Player.Place.PlaceHand) < 5)
                         discard_hand = false;
                 }
 
@@ -999,6 +1001,8 @@ namespace SanguoshaServer.AI
         }
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
+            if (card.Id <= 0) return 0;
+
             if (ai.HasSkill(Name, player) && card.Name == EightDiagram.ClassName)
             {
                 return 4;
@@ -1439,7 +1443,7 @@ namespace SanguoshaServer.AI
                         List<Player> targets = new List<Player>();
                         foreach (Player p in room.GetOtherPlayers(player))
                         {
-                            if (RoomLogic.IsFriendWith(room, score.Players[0], p) && !p.IsKongcheng())
+                            if (RoomLogic.IsFriendWith(room, score.Players[0], p) && RoomLogic.CanBePindianBy(room, p, player))
                                 targets.Add(p);
                         }
 

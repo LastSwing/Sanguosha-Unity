@@ -201,7 +201,8 @@ namespace SanguoshaServer.Game
                     Skill = card.Skill,
                     ShowSkill = card.ShowSkill,
                     SkillPosition = card.SkillPosition,
-                    UserString = card.UserString
+                    UserString = card.UserString,
+                    Cancelable = card.Cancelable
                 };
                 new_card.AddSubCards(card.SubCards);
 
@@ -376,6 +377,8 @@ namespace SanguoshaServer.Game
             }
 
             if (Engine.Invalid(room, player, skill_name) != null) return false;
+            if (player.ContainsTag("huashen_skill") && player.GetTag("huashen_skill") is string huashen && skill_name == huashen)
+                return PlayerHasSkill(room, player, "huashen", include_lose);
 
             if ((player.HeadSkills.ContainsKey(skill_name) && (player.General1Showed || (player.HeadSkills[skill_name] && player.CanShowGeneral("h"))))
                     || (player.DeputySkills.ContainsKey(skill_name) && (player.General2Showed || (player.DeputySkills[skill_name] && player.CanShowGeneral("d"))))
@@ -422,6 +425,9 @@ namespace SanguoshaServer.Game
         public static bool PlayerHasShownSkill(Room room, Player player, Skill skill)
         {
             if (skill == null) return false;
+
+            if (player.ContainsTag("huashen_skill") && player.GetTag("huashen_skill") is string huashen && skill.Name == huashen)
+                return Engine.Invalid(room, player, skill.Name) == null && PlayerHasShownSkill(room, player, Engine.GetSkill("huashen"));
 
             if (player.HeadAcquiredSkills.Contains(skill.Name) || player.DeputyAcquiredSkills.Contains(skill.Name))
                 return Engine.Invalid(room, player, skill.Name) == null;
@@ -621,7 +627,12 @@ namespace SanguoshaServer.Game
 
             if (skill != null)
             {
-                if (!string.IsNullOrEmpty(position))
+                if (player.ContainsTag("huashen_skill") && player.ContainsTag("huashen_general") && player.GetTag("huashen_skill") is string name && name == skill_name)
+                {
+                    result.General = player.GetTag("huashen_general").ToString();
+                    result.SkinId = 0;
+                }
+                else if (!string.IsNullOrEmpty(position))
                 {
                     result.General = position == "head" ? player.ActualGeneral1 : player.ActualGeneral2;
                     result.SkinId = position == "head" ? player.HeadSkinId : player.DeputySkinId;
@@ -1148,19 +1159,21 @@ namespace SanguoshaServer.Game
             }
             else
             {
-                if (HasArmorEffect(room, target, IronArmor.ClassName))
-                {
-                    List<string> big_kingdoms = GetBigKingdoms(room);
-                    if (big_kingdoms.Count > 0)
-                    {
-                        string kingdom = (target.HasShownOneGeneral() ? (target.GetRoleEnum() == Player.PlayerRole.Careerist ? target.Name : target.Kingdom) : string.Empty);
-                        if (!big_kingdoms.Contains(kingdom))
-                            return false;
-                    }
-                }
+                if (Engine.IsProhibited(room, _source, target, ProhibitSkill.ProhibitType.Chain) != null)
+                    return false;
+
                 return true;
             }
         }
+
+        public static bool CanBePindianBy(Room room, Player target, Player _source)
+        {
+            if (target.IsKongcheng() || Engine.IsProhibited(room, _source, target, ProhibitSkill.ProhibitType.Pindian) != null)
+                return false;
+
+            return true;
+        }
+
         public static bool HasShownArmorEffect(Room room, Player player)
         {
             if ((player.ContainsTag("Qinggang") && ((List<string>)player.GetTag("Qinggang")).Count > 0) || player.GetMark("Armor_Nullified") > 0

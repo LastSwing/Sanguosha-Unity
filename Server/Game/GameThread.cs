@@ -96,10 +96,10 @@ namespace SanguoshaServer.Game
         protected virtual void ActionNormal()//(GameRule* game_rule)
         {
             Player starter = room.Current;
-            bool new_round = false;
+            bool new_round = true;
             while (true)
             {
-                room.BeforeTurnStart(new_round);
+                room.BeforeRoundStart(new_round);
                 new_round = false;
 
                 object data = room.Round;

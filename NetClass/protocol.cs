@@ -268,6 +268,8 @@ namespace CommonClassLibrary
         S_GAME_EVENT_SHEFU,
         S_GAME_EVENT_SHOWDISTANCE,
         S_GAME_EVENT_SKILL_TURN,
+        S_GAME_EVENT_EQUIP_ABOLISH,
+        S_GAME_EVENT_HUASHEN,
     };
 
     public enum MoveCardType
@@ -300,6 +302,7 @@ namespace CommonClassLibrary
         S_ANIMATE_HUASHEN,
         S_ANIMATE_BATTLEARRAY,
         S_ANIMATE_REMOVE,
+        S_ANIMATE_ABUSE,
     };
 
     public enum Game3v3ChooseOrderCommand

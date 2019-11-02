@@ -888,6 +888,35 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
+            DamageStruct damage = new DamageStruct(effect.Card, from, to, 1, DamageStruct.DamageNature.Thunder);
+
+            ScoreStruct score = ai.GetDamageScore(damage);
+            if (positive)
+            {
+                if (score.Score < -4 && ai.IsFriend(to))
+                {
+                    double value = 0;
+                    List<int> ids = to.GetEquips();
+                    foreach (int id in ids)
+                        value += ai.GetKeepValue(id, to);
+
+                    if (value > Math.Abs(score.Score) && ai.IsWeak(to))
+                        result.Null = true;
+                }
+            }
+            else
+            {
+                if (score.Score > 6 && ai.IsEnemy(to))
+                {
+                    double value = 0;
+                    List<int> ids = to.GetEquips();
+                    foreach (int id in ids)
+                        value += ai.GetKeepValue(id, to);
+
+                    if (value > 6 && !keep)
+                        result.Null = true;
+                }
+            }
 
             return result;
         }

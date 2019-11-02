@@ -608,6 +608,7 @@ namespace SanguoshaServer
             available_deputy_skills.Clear();
             available_equip_skills.Clear();
 
+            guanxing.Moves = new List<int>(ups);
             guanxing.Top = new List<int>(ups);
             guanxing.Bottom = new List<int>(downs);
             CheckMoveCards();
@@ -742,6 +743,9 @@ namespace SanguoshaServer
                     List<string> heads = player.GetHeadSkillList(true, true);
                     if (player.HasFlag("shuangxiong_head") && !heads.Contains("shuangxiong"))
                         heads.Add("shuangxiong");
+
+                    if (player.HasFlag("shuangxiong_jx_head") && !heads.Contains("shuangxiong_jx"))
+                        heads.Add("shuangxiong_jx");
                     foreach (string skill in heads)
                     {
                         ViewAsSkill vs = ViewAsSkill.ParseViewAsSkill(skill);
@@ -757,6 +761,8 @@ namespace SanguoshaServer
                     List<string> deputys = player.GetDeputySkillList(true, true);
                     if (player.HasFlag("shuangxiong_deputy") && !deputys.Contains("shuangxiong"))
                         deputys.Add("shuangxiong");
+                    if (player.HasFlag("shuangxiong_jx_deputy") && !deputys.Contains("shuangxiong_jx"))
+                        deputys.Add("shuangxiong_jx");
                     foreach (string skill in deputys)
                     {
                         ViewAsSkill vs = ViewAsSkill.ParseViewAsSkill(skill);
@@ -1180,7 +1186,7 @@ namespace SanguoshaServer
                     pattern = Engine.GetPattern(pattern).GetPatternString();
                     if ((method == HandlingMethod.MethodResponse || method == HandlingMethod.MethodUse) && pattern.Contains("hand"))
                         pattern = pattern.Replace("hand", string.Join(",", player.GetHandPileList()));
-                    ExpPattern p = (ExpPattern)Engine.GetPattern(pattern);
+                    ExpPattern p = new ExpPattern(pattern);
                     if (!p.Match(player, room, card))
                     {
                         ok_enable = false;
@@ -1209,7 +1215,7 @@ namespace SanguoshaServer
                 return;
             }
             FunctionCard fcard = Engine.GetFunctionCard(viewas_card.Name);
-            if (!skill_invoke && fcard?.TargetFixed(viewas_card) == true && pending_skill != null && !m_do_request
+            if (!skill_invoke && fcard?.TargetFixed(viewas_card) == true && pending_skill != null && fcard.AutoUse && !m_do_request
                     && (!selected_cards.ContainsKey(skill_owner) || selected_cards[skill_owner].Count == 0) && viewas_card.SubCards.Count == 0)
             {
                 selected_targets.Clear();
@@ -1543,6 +1549,9 @@ namespace SanguoshaServer
 
             if (type == RequestType.S_REQUEST_MOVECARDS && args.Count == 4)
             {
+                int down_max = max_num, up_max = Math.Max(guanxing.Moves.Count, max_num);
+                up_max = Math.Max(3, up_max);
+
                 List<int> ups = guanxing.Top, downs = guanxing.Bottom;
                 if (!int.TryParse(args[1], out int card) || !int.TryParse(args[2], out int from) || from == 0 || !int.TryParse(args[3], out int to) || to == 0)
                 {
@@ -1578,6 +1587,13 @@ namespace SanguoshaServer
                                 ups.Add(card);
                             else
                                 ups.Insert(to, card);
+
+                            if (ups.Count > up_max)
+                            {
+                                int card_id = ups[ups.Count - 1];
+                                ups.Remove(card_id);
+                                downs.Add(card_id);
+                            }
                         }
                         else
                         {
@@ -1586,6 +1602,13 @@ namespace SanguoshaServer
                                 downs.Add(card);
                             else
                                 downs.Insert(to, card);
+
+                            if (downs.Count > down_max)
+                            {
+                                int card_id = downs[downs.Count - 1];
+                                downs.Remove(card_id);
+                                ups.Add(card_id);
+                            }
                         }
 
                         CheckMoveCards();

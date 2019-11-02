@@ -55,6 +55,7 @@ namespace SanguoshaServer.AI
                 new KurouJCardAI(),
                 new JieyinJXCardAI(),
                 new GongxinCardAI(),
+                new YijiJCardAI(),
             };
         }
     }
@@ -423,6 +424,20 @@ namespace SanguoshaServer.AI
             }
 
             return score;
+        }
+    }
+
+    public class YijiJCardAI : UseCard
+    {
+        public YijiJCardAI() : base(YijiJCard.ClassName) { }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && ai.Self != player && data is CardUseStruct use)
+            {
+                foreach (Player p in use.To)
+                    if (ai.GetPlayerTendency(p) != "unknown")
+                        ai.UpdatePlayerRelation(player, p, true);
+            }
         }
     }
 
@@ -1691,7 +1706,7 @@ namespace SanguoshaServer.AI
 
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
-            return 1;
+            return 0.3;
         }
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
@@ -1720,32 +1735,9 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
-        {
-            if (ai.Room.GetCard(id).Suit == WrappedCard.CardSuit.Diamond && !player.HasUsed(GuoseCard.ClassName))
-            {
-                WrappedCard guose = new WrappedCard(GuoseCard.ClassName)
-                {
-                    Skill = Name
-                };
-                guose.AddSubCard(id);
-
-                WrappedCard indulgence = new WrappedCard(Indulgence.ClassName)
-                {
-                    Skill = Name
-                };
-                indulgence.AddSubCard(id);
-                indulgence = RoomLogic.ParseUseCard(ai.Room, indulgence);
-                indulgence.UserString = RoomLogic.CardToString(ai.Room, guose);
-                return indulgence;
-            }
-
-            return null;
-        }
-
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && card.Name != Indulgence.ClassName)
+            if (ai.HasSkill(Name, player) && card.Name != Indulgence.ClassName && card.GetEffectiveId() >= 0)
                 return RoomLogic.GetCardSuit(ai.Room, card) == WrappedCard.CardSuit.Diamond ? 0.6 : 0;
 
             return 0;
@@ -1755,59 +1747,49 @@ namespace SanguoshaServer.AI
         {
             if (player.HasUsed(GuoseCard.ClassName)) return null;
             Room room = ai.Room;
-            List<int> ids = player.GetCards("he");
-            ids.AddRange(player.GetHandPile());
+            List<int> ids = new List<int>();
+            foreach (int id in player.GetCards("he"))
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Diamond)
+                    ids.Add(id);
+
+            foreach (int id in player.GetHandPile())
+                if (room.GetCard(id).Suit == WrappedCard.CardSuit.Diamond)
+                    ids.Add(id);
 
             if (ids.Count > 0)
             {
-                ai.SortByKeepValue(ref ids, false);
-
+                List<double> values = ai.SortByKeepValue(ref ids, false);
                 WrappedCard guose = new WrappedCard(GuoseCard.ClassName)
                 {
                     Skill = Name
                 };
 
+                int sub = -1;
+                if (values[0] < 0)
+                    sub = ids[0];
+                else
+                {
+                    values = ai.SortByUseValue(ref ids, false);
+                    sub = ids[0];
+                }
+
                 foreach (Player p in ai.FriendNoSelf)
                 {
                     if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName))
                     {
-                        guose.AddSubCard(ids[0]);
+                        guose.AddSubCard(sub);
                         return new List<WrappedCard> { guose };
                     }
                 }
 
-                foreach (int id in ids)
+                if (Engine.GetCardUseValue(room.GetCard(sub).Name) < Engine.GetCardUseValue(Indulgence.ClassName))
                 {
-                    WrappedCard card = room.GetCard(id);
-                    if (card.Suit == WrappedCard.CardSuit.Diamond)
-                    {
-                        double keep = ai.GetKeepValue(id, player);
-                        if (keep < 0)
-                        {
-                            guose.AddSubCard(id);
-
-                            WrappedCard indulgence = new WrappedCard(Indulgence.ClassName);
-                            indulgence.AddSubCard(id);
-                            indulgence = RoomLogic.ParseUseCard(ai.Room, indulgence);
-                            indulgence.UserString = RoomLogic.CardToString(ai.Room, guose);
-                            return new List<WrappedCard> { indulgence };
-                        }
-
-                        List<WrappedCard> cards = ai.GetViewAsCards(player, id);
-                        double value = 0;
-                        WrappedCard _card = null;
-                        foreach (WrappedCard _c in cards)
-                        {
-                            double card_value = ai.GetUseValue(_c, player, room.GetCardPlace(id));
-                            if (card_value > value)
-                            {
-                                value = card_value;
-                                _card = _c;
-                            }
-                        }
-
-                        if (_card != null && _card.Name == Indulgence.ClassName && _card.Skill == Name) return new List<WrappedCard> { _card };
-                    }
+                    guose.AddSubCard(sub);
+                    WrappedCard indulgence = new WrappedCard(Indulgence.ClassName);
+                    indulgence.AddSubCard(sub);
+                    indulgence = RoomLogic.ParseUseCard(ai.Room, indulgence);
+                    indulgence.UserString = RoomLogic.CardToString(ai.Room, guose);
+                    return new List<WrappedCard> { indulgence };
                 }
             }
 
@@ -1953,7 +1935,7 @@ namespace SanguoshaServer.AI
             {
                 if (ai.IsFriend(to))
                 {
-                    if (fcard is Duel && ai.IsFriend(from)) return 0;
+                    if (fcard is Duel && ai.IsFriend(from) && !ai.HasSkill("wuyan", from)) return 0;
                     value = 1.5 * Math.Min(ai.GetFriends(to).Count, to.HandcardNum);
                 }
                 else if (ai.IsEnemy(to))
@@ -2047,6 +2029,11 @@ namespace SanguoshaServer.AI
             }
 
             return new List<WrappedCard>();
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            return "put";
         }
     }
 

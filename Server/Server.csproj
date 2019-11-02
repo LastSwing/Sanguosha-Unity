@@ -118,7 +118,9 @@
     <Compile Include="Client\Interactivity.cs" />
     <Compile Include="Client\Client.cs" />
     <Compile Include="Client\ClientDBOperation.cs" />
+    <Compile Include="Game\AI\AnniversaryAI.cs" />
     <Compile Include="Game\AI\ClassicSpecialAI.cs" />
+    <Compile Include="Game\AI\ClassicYingAI.cs" />
     <Compile Include="Game\AI\FamousGeneralAI.cs" />
     <Compile Include="Game\AI\HegemonySpecialAI.cs" />
     <Compile Include="Game\AI\NaturefourAI.cs" />
@@ -148,6 +150,7 @@
     <Compile Include="Game\Engine.cs" />
     <Compile Include="Game\ExpPattern.cs" />
     <Compile Include="Game\Extensions\Titles.cs" />
+    <Compile Include="Game\Package\Anniversary.cs" />
     <Compile Include="Game\Package\ClassicYing.cs" />
     <Compile Include="Game\Package\FamousGeneral.cs" />
     <Compile Include="Game\Package\ClassicStander.cs" />

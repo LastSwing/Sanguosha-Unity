@@ -18,6 +18,8 @@ namespace SanguoshaServer.Package
         protected string card_name;
         protected HandlingMethod handling_method;
         protected CardType type_id;
+        protected bool auto_use = true;     //默认当卡牌目标为target_fixed且子卡为空时，点击技能按钮就立刻使用。如护驾、酒诗等，以提高操作体验。
+                                            //极略（使用制衡或获得完杀）等需要用户手动确认时，须将该项设为false以避免自动使用。
 
         public enum CardType
         {
@@ -33,6 +35,7 @@ namespace SanguoshaServer.Package
         public bool WillThrow => will_throw;
         public bool HasPreact => has_preact;
         public bool Votes => votes;
+        public bool AutoUse => auto_use;
         public HandlingMethod Method => handling_method;
         public CardType TypeID => type_id;
         public FunctionCard(string name)
@@ -136,9 +139,8 @@ namespace SanguoshaServer.Package
                 log.SetTos(card_use.To);
 
 
-            List<int> used_cards = new List<int>();
+            List<int> used_cards = new List<int>(card_use.Card.SubCards);
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-            used_cards.AddRange(card_use.Card.SubCards);
 
             RoomThread thread = room.RoomThread;
             object data = card_use;
@@ -156,7 +158,8 @@ namespace SanguoshaServer.Package
                 if (card_use.To.Count == 1)
                     reason.TargetId = card_use.To[0].Name;
 
-                foreach (int id in used_cards) {
+                foreach (int id in used_cards)
+                {
                     CardsMoveStruct move = new CardsMoveStruct(id, null, Place.PlaceTable, reason);
                     moves.Add(move);
                 }
@@ -519,6 +522,7 @@ namespace SanguoshaServer.Package
             this.movable = movable;
             judge.Negative = true;
         }
+
         public override void OnNullified(Room room, Player target, WrappedCard card)
         {
             RoomThread thread = room.RoomThread;
@@ -570,8 +574,10 @@ namespace SanguoshaServer.Package
                     }
                     if (player.HasFlag(card_str + "_delay_trick_cancel")) continue;
 
-                    CardUseStruct use = new CardUseStruct(room.GetCard(card.GetEffectiveId()), null, player);
-                    use.EffectCount = new List<CardBasicEffect> { FillCardBasicEffct(room, player) };
+                    CardUseStruct use = new CardUseStruct(room.GetCard(card.GetEffectiveId()), null, player)
+                    {
+                        EffectCount = new List<CardBasicEffect> { FillCardBasicEffct(room, player) }
+                    };
                     object data = use;
                     thread.Trigger(TriggerEvent.TargetConfirming, room, player, ref data);
                     CardUseStruct new_use = (CardUseStruct)data;

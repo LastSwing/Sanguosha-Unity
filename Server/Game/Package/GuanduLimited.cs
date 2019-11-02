@@ -778,7 +778,7 @@ namespace SanguoshaServer.Package
                 List<Player> other_players = room.GetOtherPlayers(player);
                 foreach (Player p in other_players)
                 {
-                    if (!p.IsKongcheng())
+                    if (RoomLogic.CanBePindianBy(room, p, player))
                     {
                         can_invoke = true;
                         break;
@@ -787,10 +787,10 @@ namespace SanguoshaServer.Package
 
                 return can_invoke ? new TriggerStruct(Name, player) : new TriggerStruct();
             }
-            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd && pd.Reason == Name && pd.From == player && pd.To.Alive)
+            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd && pd.Reason == Name && pd.From == player && pd.Tos[0].Alive)
             {
                 int card_id = pd.From_card.Id;
-                if (room.GetCardPlace(card_id) == Player.Place.PlaceTable)
+                if (room.GetCardPlace(card_id) == Place.PlaceTable)
                     return new TriggerStruct(Name, player);
             }
             return new TriggerStruct();
@@ -802,7 +802,7 @@ namespace SanguoshaServer.Package
                 List<Player> targets = new List<Player>();
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
-                    if (!p.IsKongcheng())
+                    if (RoomLogic.CanBePindianBy(room, p, player))
                         targets.Add(p);
                 }
                 Player victim = room.AskForPlayerChosen(player, targets, Name, "@fenglue", true, true, info.SkillOwner);
@@ -816,8 +816,8 @@ namespace SanguoshaServer.Package
             }
             else if (data is PindianStruct pd)
             {
-                room.SetTag(Name, pd.To);
-                bool invoke = room.AskForSkillInvoke(player, Name, "@fenglue-give:" + pd.To.Name, info.SkillPosition);
+                room.SetTag(Name, pd.Tos[0]);
+                bool invoke = room.AskForSkillInvoke(player, Name, "@fenglue-give:" + pd.Tos[0].Name, info.SkillPosition);
                 room.RemoveTag(Name);
                 if (invoke)
                 {
@@ -833,9 +833,9 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.EventPhaseStart && room.GetTag("shuangren_pd") is PindianStruct pd)
             {
                 room.RemoveTag("shuangren_pd");
-                Player target = pd.To;
-                bool success = room.Pindian(ref pd);
-                if (success)
+                Player target = pd.Tos[0];
+                room.Pindian(ref pd);
+                if (pd.Success)
                 {
                     List<int> ids = new List<int>();
                     if (!target.IsKongcheng())
@@ -873,8 +873,8 @@ namespace SanguoshaServer.Package
             else if (data is PindianStruct pindian)
             {
                 int card_id = pindian.From_card.Id;
-                if (room.GetCardPlace(card_id) == Place.PlaceTable && pindian.To.Alive)
-                    room.ObtainCard(pindian.To, card_id);
+                if (room.GetCardPlace(card_id) == Place.PlaceTable && pindian.Tos[0].Alive)
+                    room.ObtainCard(pindian.Tos[0], card_id);
             }
 
             return false;

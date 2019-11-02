@@ -6,7 +6,6 @@ using SanguoshaServer.Scenario;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text.RegularExpressions;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
@@ -410,8 +409,8 @@ namespace SanguoshaServer.AI
                     break;
                 case 5:
                     roles.Add(PlayerRole.Loyalist, 1);
-                    roles.Add(PlayerRole.Rebel, 1);
-                    roles.Add(PlayerRole.Renegade, 2);
+                    roles.Add(PlayerRole.Rebel, 2);
+                    roles.Add(PlayerRole.Renegade, 1);
                     break;
                 case 6:
                     roles.Add(PlayerRole.Loyalist, 1);
@@ -1509,8 +1508,10 @@ namespace SanguoshaServer.AI
                 result_score.Score = -20;
                 return result_score;
             }
+
             if (from == null || !HasSkill("jueqing", from))
                 damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
+
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
 
@@ -1594,11 +1595,24 @@ namespace SanguoshaServer.AI
                             foreach (Player p in friends[self])
                                 if (GetPlayerTendency(p) == "loyalist") loyalist++;
 
-                            double rate = (roles[PlayerRole.Rebel] - rebel) / (roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist);
-                            if (rate > 0.5)
-                                value *= rate;
+                            int count = roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist;
+                            if (count > 0)
+                            {
+                                double rate = (roles[PlayerRole.Rebel] - rebel) / count;
+                                if (rate > 0.5)
+                                    value *= rate;
+                                else
+                                    value *= (rate - 1);
+                            }
                             else
-                                value *= (rate - 1);
+                            {                                               //出现分母为0的情况很可能是内奸
+                                room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
+                                if (Process.Contains("<"))
+                                {
+                                    value = value * -0.7;
+                                    if (deadly) value -= 5;
+                                }
+                            }
                         }
                     }
 
@@ -1665,11 +1679,24 @@ namespace SanguoshaServer.AI
                             foreach (Player p in friends[self])
                                 if (GetPlayerTendency(p) == "rebel") rebel++;
 
-                            double rate = (roles[PlayerRole.Loyalist] - loyalist) / (roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist);
-                            if (rate > 0.5)
-                                value *= rate;
+                            int count = roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist;
+                            if (count > 0)
+                            {
+                                double rate = (roles[PlayerRole.Loyalist] - loyalist) / count;
+                                if (rate > 0.5)
+                                    value *= rate;
+                                else
+                                    value *= (rate - 1);
+                            }
                             else
-                                value *= (rate - 1);
+                            {                                               //出现分母为0的情况很可能是内奸
+                                room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
+                                if (Process.Contains(">"))
+                                {
+                                    value = value * -0.7;
+                                    if (deadly) value -= 5;
+                                }
+                            }
                         }
                     }
 
@@ -2284,8 +2311,8 @@ namespace SanguoshaServer.AI
 
             if (self != dying)
             {
-                if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) ||
-                    (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
+                if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) || (HasSkill("fuli", dying) && dying.GetMark("@fuli") > 0)
+                    || (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
                 if (HasSkill("buqu|buqu_jx", dying) && dying.GetPile("buqu").Count <= 4 && room.GetFront(self, dying) == self)
                     return null;
 
@@ -2329,13 +2356,27 @@ namespace SanguoshaServer.AI
 
                 if (will_save)
                 {
-                    List<WrappedCard> peaches = GetCards(Peach.ClassName, self);
-                    foreach (WrappedCard card in peaches)
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (HasSkill("chunlao") && Analeptic.Instance.IsAvailable(room, dying, ana))                            //醇醪要在这里判断
                     {
-                        if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                        List<int> ids = self.GetPile("chun");
+                        if (ids.Count > 0)
                         {
-                            result = card;
-                            break;
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true };
+                            result.AddSubCard(ids[0]);
+                        }
+                    }
+
+                    if (result == null)
+                    {
+                        List<WrappedCard> peaches = GetCards(Peach.ClassName, self);
+                        foreach (WrappedCard card in peaches)
+                        {
+                            if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                            {
+                                result = card;
+                                break;
+                            }
                         }
                     }
                 }
@@ -2361,6 +2402,20 @@ namespace SanguoshaServer.AI
                         result = card;
                     }
                 }
+
+                if (result == null)
+                {
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (HasSkill("chunlao") && Analeptic.Instance.IsAvailable(room, dying, ana))                            //醇醪要在这里判断
+                    {
+                        List<int> ids = self.GetPile("chun");
+                        if (ids.Count > 0)
+                        {
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true };
+                            result.AddSubCard(ids[0]);
+                        }
+                    }
+                }
             }
 
             return result;
@@ -2372,7 +2427,7 @@ namespace SanguoshaServer.AI
             if (skill_name == "gamerule" && self.GetRoleEnum() == PlayerRole.Lord)
             {
                 List<string> choices = new List<string>(choice.Split('+'));
-                return GeneralSelector.GetGeneral(choices, self.GetRoleEnum());
+                return GeneralSelector.GetGeneral(room, choices, self.GetRoleEnum());
             }
             //神将选国籍
             if (skill_name == "Kingdom" && self.GetRoleEnum() == PlayerRole.Lord)
@@ -2546,6 +2601,7 @@ namespace SanguoshaServer.AI
             { "@tiaoxin-slash", "tiaoxin" },
             { "@luanwu-slash", "luanwu" },
             { "@kill_victim", BeltsheChao.ClassName },
+            { "@kangkai-use", "kangkai" },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)

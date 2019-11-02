@@ -808,7 +808,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && card.Name != Indulgence.ClassName)
+            if (card.Id >= 0 && ai.HasSkill(Name, player) && card.Name != Indulgence.ClassName)
                 return RoomLogic.GetCardSuit(ai.Room, card) == WrappedCard.CardSuit.Diamond ? 0.6 : 0;
 
             return 0;
@@ -1670,7 +1670,7 @@ namespace SanguoshaServer.AI
         {
             List<Player> enemies = ai.GetPrioEnemies();
             ai.SortByDefense(ref enemies, false);
-
+            Room room = ai.Room;
             WrappedCard max = ai.GetMaxCard(player, player.GetCards("h"), new List<string> { Peach.ClassName, Analeptic.ClassName, Slash.ClassName });
             int max_number = 0;
             if (max != null)
@@ -1682,7 +1682,7 @@ namespace SanguoshaServer.AI
                 List<Player> known = new List<Player>();
                 foreach (Player p in enemies)
                 {
-                    if (p.IsKongcheng() || ai.GetKnownCards(p).Count != p.HandcardNum) continue;
+                    if (!RoomLogic.CanBePindianBy(room, p, player) || ai.GetKnownCards(p).Count != p.HandcardNum) continue;
                     known.Add(p);
                     WrappedCard max_enemy = ai.GetMaxCard(p);
                     if (max_enemy != null)
@@ -1704,7 +1704,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in enemies)
                     {
-                        if (p.IsKongcheng() || known.Contains(p)) continue;
+                        if (!RoomLogic.CanBePindianBy(room, p, player) || known.Contains(p)) continue;
 
                         WrappedCard max_enemy = ai.GetMaxCard(p);
                         if (max_enemy != null)
@@ -1728,7 +1728,7 @@ namespace SanguoshaServer.AI
                     ai.SortByHandcards(ref friends);
                     foreach (Player p in friends)
                     {
-                        if (ai.IsWeak(p) || p.HandcardNum <= p.MaxHp) continue;
+                        if (!RoomLogic.CanBePindianBy(room, p, player) || ai.IsWeak(p) || p.HandcardNum <= p.MaxHp) continue;
 
                         use.Card = card;
                         use.To.Add(p);
@@ -1740,7 +1740,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in enemies)
                     {
-                        if (p.IsKongcheng() || known.Contains(p)) continue;
+                        if (!RoomLogic.CanBePindianBy(room, p, player) || known.Contains(p)) continue;
 
                         WrappedCard max_enemy = ai.GetMaxCard(p);
                         if (max_enemy != null)
@@ -1762,7 +1762,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in enemies)
                     {
-                        if (p.IsKongcheng()) continue;
+                        if (!RoomLogic.CanBePindianBy(room, p, player)) continue;
                         use.Card = card;
                         use.To.Add(p);
                         return;
@@ -2045,7 +2045,7 @@ namespace SanguoshaServer.AI
         }
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && !isUse && place == Player.Place.PlaceHand)
+            if (card.Id >= 0 && ai.HasSkill(Name, player) && !isUse && place == Player.Place.PlaceHand)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(ai.Room.GetCard(card.GetEffectiveId()).Name);
                 if (fcard is EquipCard)

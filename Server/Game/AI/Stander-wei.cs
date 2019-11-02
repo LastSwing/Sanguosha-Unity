@@ -1080,7 +1080,6 @@ namespace SanguoshaServer.AI
             else if (prompt.EndsWith("2"))
             {
                 if (!ai.WillShowForAttack()) return use;
-                ((SmartAI)ai).UpdatePlayers();
                 double value = 0;
                 List<WrappedCard> cards = ai.GetCards(Slash.ClassName, player, true);
                 List<ScoreStruct> scores = ai.CaculateSlashIncome(player, cards, null, false);
@@ -1661,7 +1660,7 @@ namespace SanguoshaServer.AI
                 {
                     if (ai.PlayersLevel[enemy] > 3)
                     {
-                        DamageStruct damage = new DamageStruct { From = player, To = enemy };
+                        DamageStruct damage = new DamageStruct("qiangxi", player, enemy);
                         if (RoomLogic.InMyAttackRange(room, player, enemy) && hand_weapon >= 0 && ai.GetDamageScore(damage).Score > 4)
                         {
                             card.AddSubCard(hand_weapon);
@@ -1687,7 +1686,7 @@ namespace SanguoshaServer.AI
                 {
                     if (ai.PlayersLevel[enemy] > 3)
                     {
-                        DamageStruct damage = new DamageStruct { From = player, To = enemy };
+                        DamageStruct damage = new DamageStruct("qiangxi", player, enemy);
                         if (RoomLogic.InMyAttackRange(room, player, enemy)
                             && ((ai.GetDamageScore(damage).Score > 4 && (!player.IsWounded() && peach || analeptic))
                             || (ai.GetDamageScore(damage).Score > 7 && (player.Hp > 1 || peach || analeptic))))
@@ -1823,7 +1822,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in room.GetOtherPlayers(player))
                     {
-                        if (p != target && p.Hp > player.Hp && !p.IsKongcheng()
+                        if (p != target && p.Hp > player.Hp && RoomLogic.CanBePindianBy(room, p, player)
                             && RoomLogic.InMyAttackRange(room, p, target) && ai.IsEnemy(p) && RoomLogic.IsFriendWith(room, p, target)
                             && !ai.HasSkill("zhiman|zhiman_jx", p))
                         {
@@ -1860,7 +1859,7 @@ namespace SanguoshaServer.AI
                         break;
                     foreach (Player p in room.GetOtherPlayers(player))
                     {
-                        if (p != target && p.Hp > player.Hp && !p.IsKongcheng()
+                        if (p != target && p.Hp > player.Hp && RoomLogic.CanBePindianBy(room, p, player)
                             && RoomLogic.InMyAttackRange(room, p, target) && ai.IsFriend(p))
                         {
                             int min = 0;
@@ -1920,7 +1919,7 @@ namespace SanguoshaServer.AI
                         ai.SortByHandcards(ref enemies, false);
                         foreach (Player target in enemies)
                         {
-                            if (target.Hp > player.Hp && !target.IsKongcheng())
+                            if (target.Hp > player.Hp && RoomLogic.CanBePindianBy(room, target, player))
                             {
                                 if ((min_number_no_peach < 14 && min_number_no_peach < 7)
                                     || (min_number < 14 && min_number < 5)
@@ -2161,7 +2160,7 @@ namespace SanguoshaServer.AI
                 if (p != player && !p.FaceUp)
                     return new List<Player> { p };
 
-            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou|jushou_jx", room.Current))
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou", room.Current))
             {
                 List<string> kingdoms = new List<string>();
                 foreach (Player p in room.Players)
@@ -2174,18 +2173,30 @@ namespace SanguoshaServer.AI
                 if (kingdoms.Count > 2)
                     return new List<Player> { room.Current };
             }
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx", room.Current))
+            {
+                return new List<Player> { room.Current };
+            }
 
             Dictionary<Player, double> strenth = new Dictionary<Player, double>();
             List<Player> enemis = ai.GetEnemies(player);
             if (ai is SmartAI smart)
             {
                 foreach (Player p in enemis)
-                    strenth.Add(p, smart.EvaluatePlayerStrength(p));
+                {
+                    double value = smart.EvaluatePlayerStrength(p);
+                    if (room.Current == p) value -= 1.5;
+                    strenth.Add(p, value);
+                }
             }
             else if (ai is StupidAI stupid)
             {
                 foreach (Player p in enemis)
-                    strenth.Add(p, stupid.EvaluatePlayerStrength(p));
+                {
+                    double value = stupid.EvaluatePlayerStrength(p);
+                    if (room.Current == p) value -= 1.5;
+                    strenth.Add(p, value);
+                }
             }
 
             enemis.Sort((x, y) => { return strenth[x] > strenth[y] ? -1 : 1; });

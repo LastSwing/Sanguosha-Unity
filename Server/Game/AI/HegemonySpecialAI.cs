@@ -189,7 +189,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && place == Player.Place.PlaceHand && !isUse && card.Suit == WrappedCard.CardSuit.Spade)
+            if (ai.HasSkill(Name, player) && card.Id >= 0 && place == Player.Place.PlaceHand && !isUse && card.Suit == WrappedCard.CardSuit.Spade)
                 return 1;
 
             return 0;

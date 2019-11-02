@@ -958,13 +958,13 @@ namespace SanguoshaServer.AI
                     foreach (int id in ids)
                     {
                         double value = GetKeepValue(id, player);     // todo:
-                        if (IsFriend(from) && method == HandlingMethod.MethodGet)
+                        if (IsFriend(from) && method == HandlingMethod.MethodGet && (GetEnemies(self).Count > 0 || IsSituationClear()))
                         {
                             if (FindSameEquipCards(room.GetCard(id), false, false).Count == 0)
                             {
                                 double use_value = GetUseValue(id, from);
                                 if (use_value > 0)
-                                    value -= use_value / 3;             //拿友方的价值大减
+                                    value -= use_value / 5;             //拿友方的价值大减
                             }
                         }
                         if (value < 0)
@@ -980,7 +980,7 @@ namespace SanguoshaServer.AI
                     double adjust = 0;                                               //if not move only once,
                     if (!onebyone)
                     {                                                //must ajust for xiaoji/xuanlue  **for now
-                        if (HasSkill("xiaoji", player)) adjust += 6;
+                        if (HasSkill("xiaoji|xuanfeng", player)) adjust += 6;
                         if (HasSkill("xuanlue", player)) adjust += 3;
                     }
                     for (int i = 0; i < Math.Min(values.Count, times - result.Count); i++)
@@ -1142,7 +1142,7 @@ namespace SanguoshaServer.AI
                 double adjust = 0;                                               //if not move only once,
                 if (!onebyone)
                 {                                                //must ajust for xiaoji/xuanlue  **for now
-                    if (HasSkill("xiaoji", player)) adjust += 6;
+                    if (HasSkill("xiaoji|xuanfeng", player)) adjust += 6;
                     if (HasSkill("xuanlue", player)) adjust += 3;
                 }
                 if ((HasSkill("lianying", player) && (Reason == Dismantlement.ClassName || Reason == Snatch.ClassName || times - result.Count >= player.HandcardNum))
@@ -1568,6 +1568,13 @@ namespace SanguoshaServer.AI
 
             Player to = damage.To;
             Player from = damage.From;
+
+            if (step <= DamageStruct.DamageStep.Caused && damage.Card != null && from != null && HasSkill("wuyan", from))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
+                if (fcard is TrickCard) return 0;
+            }
+
             foreach (SkillEvent e in skill_events.Values)
                 e.DamageEffect(this, ref damage, step);
 
@@ -1590,8 +1597,17 @@ namespace SanguoshaServer.AI
                     damage.Damage++;
             }
 
-            if (damage.Steped < DamageStruct.DamageStep.Done && step >= DamageStruct.DamageStep.Done)
+            if (damage.Steped < DamageStruct.DamageStep.Done && step <= DamageStruct.DamageStep.Done)
             {
+                if (damage.Card != null && HasSkill("wuyan", to))
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
+                    if (fcard is TrickCard) return 0;
+                }
+
+                if (damage.Nature == DamageStruct.DamageNature.Fire && damage.To.GetMark("@gale") > 0) damage.Damage++;
+                if (damage.Nature != DamageStruct.DamageNature.Thunder && damage.To.GetMark("@fog") > 0) return 0;
+
                 if (from != null && HasSkill("mingshi", to) && !from.HasShownAllGenerals())
                 {
                     if (!damage.From.HasShownOneGeneral())
@@ -2838,7 +2854,7 @@ namespace SanguoshaServer.AI
                 {
                     int count = from.HandcardNum;
                     foreach (int id in card.SubCards)
-                        if (from.HandCards.Contains(id)) count--;
+                        if (from.GetCards("h").Contains(id)) count--;
 
                     if (count >= to.HandcardNum) force_hit = 1;
                 }
@@ -4038,12 +4054,15 @@ namespace SanguoshaServer.AI
                 if (!RoomLogic.IsCardLimited(room, dying, card, HandlingMethod.MethodUse) && RoomLogic.IsProhibited(room, dying, dying, card) == null)
                     count++;
 
+            WrappedCard ana = new WrappedCard(Analeptic.ClassName);
             foreach (Player p in GetFriends(dying))
             {
                 List<WrappedCard> peach = GetCards(Peach.ClassName, p);
                 foreach (WrappedCard card in peach)
                     if (!RoomLogic.IsCardLimited(room, p, card, HandlingMethod.MethodUse) && RoomLogic.IsProhibited(room, p, dying, card) == null)
                         count++;
+                if (HasSkill("chunlao", p) && !RoomLogic.IsCardLimited(room, dying, ana, HandlingMethod.MethodUse) && RoomLogic.IsProhibited(room, dying, dying, ana) == null)
+                    count += p.GetPile("chun").Count;
             }
             return count >= peaches;
         }
@@ -4093,7 +4112,8 @@ namespace SanguoshaServer.AI
         {
             foreach (string skill in room.Skills)
             {
-                if (RoomLogic.PlayerHasSkill(room, self, skill) || (skill == "shuangxiong" && (self.HasFlag("shuangxiong_head") || self.HasFlag("shuangxiong_deputy"))))
+                if (RoomLogic.PlayerHasSkill(room, self, skill) || (skill == "shuangxiong" && (self.HasFlag("shuangxiong_head") || self.HasFlag("shuangxiong_deputy")))
+                    || (skill == "shuangxiong_jx" && (self.HasFlag("shuangxiong_jx_head") || self.HasFlag("shuangxiong_jx_deputy"))))
                 {
                     SkillEvent e = Engine.GetSkillEvent(skill);
                     if (e != null)
@@ -5234,11 +5254,9 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill))
+            if (sames.Count > 1 && (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill)))
             {
                 use_same = true;
-                sames = FindSameEquipCards(card, true);
-                sames.Add(card);
             }
 
             if (!use_same)

@@ -580,9 +580,11 @@ namespace SanguoshaServer.Package
 
         public override bool Invalid(Room room, Player player, string skill)
         {
+            Skill s = Engine.GetMainSkill(skill);
+            if (s == null || s.Attached_lord_skill || player.Hp != 1) return false;
+            if (player.HasEquip(skill)) return false;
             if (player.GetMark("stopfighting") > 0)
             {
-                Skill s = Engine.GetMainSkill(skill);
                 return s != null && s.SkillFrequency != Frequency.Compulsory;
             }
 
@@ -995,7 +997,7 @@ namespace SanguoshaServer.Package
             return false;
         }
 
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
             if (to != null && !to.HasShownOneGeneral() && from.HasFlag("zhengpi_" + to.Name))
                 return true;
@@ -2622,8 +2624,7 @@ namespace SanguoshaServer.Package
             if (card != null && card.SubCards.Count == 2)
             {
                 List<int> ids = new List<int>(card.SubCards);
-                room.ThrowCard(ref ids, player, player, Name);
-                room.NotifySkillInvoked(player, Name);
+                room.ThrowCard(ref ids, player, null, Name);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }
@@ -3473,7 +3474,7 @@ namespace SanguoshaServer.Package
         {
             pattern = SupplyShortage.ClassName;
         }
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card)
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
             if (RoomLogic.PlayerHasSkill(room, from, "duanliang_cc") && !from.HasFlag("duanliang_cc"))
                 return true;

@@ -431,9 +431,14 @@ namespace SanguoshaServer.Scenario
                 
                 if (card_use.From != null && card_use.To.Count > 0)
                 {
-                    thread.Trigger(TriggerEvent.TargetChosen, room, card_use.From, ref data);
-                    foreach (Player p in card_use.To)
-                        thread.Trigger(TriggerEvent.TargetConfirmed, room, p, ref data);
+                    thread.Trigger(TriggerEvent.TargetChosen, room, card_use.From, ref data);                        
+                    for (int i = 0; i < card_use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = card_use.EffectCount[i];
+                        effect.Triggered = false;
+                        thread.Trigger(TriggerEvent.TargetConfirmed, room, effect.To, ref data);
+                        effect.Triggered = true;
+                    }
                 }
 
                 card_use = (CardUseStruct)data;
@@ -661,27 +666,6 @@ namespace SanguoshaServer.Scenario
                     }
                 case TriggerEvent.ConfirmDamage:
                     {
-                        damage = (DamageStruct)data;
-                        if (damage.Card != null && damage.To.GetMark("SlashIsDrank") > 0)
-                        {
-                            LogMessage log = new LogMessage
-                            {
-                                Type = "#AnalepticBuff",
-                                From = damage.From.Name,
-                                To = new List<string> { damage.To.Name },
-                                Arg = damage.Damage.ToString()
-                            };
-
-                            damage.Damage += damage.To.GetMark("SlashIsDrank");
-                            damage.To.SetMark("SlashIsDrank", 0);
-
-                            log.Arg2 = damage.Damage.ToString();
-
-                            room.SendLog(log);
-
-                            data = damage;
-                        }
-
                         break;
                     }
                 case TriggerEvent.DamageDone:
@@ -871,9 +855,24 @@ namespace SanguoshaServer.Scenario
                 case TriggerEvent.SlashHit:
                     {
                         SlashEffectStruct effect = (SlashEffectStruct)data;
-                        if (effect.Drank > 0) effect.To.SetMark("SlashIsDrank", effect.Drank);
-                        room.Damage(new DamageStruct(effect.Slash, effect.From, effect.To, 1 + effect.ExDamage, effect.Nature));
+                        if (effect.Drank > 0)
+                        {
+                            LogMessage log = new LogMessage
+                            {
+                                Type = "#AnalepticBuff",
+                                From = effect.From.Name,
+                                To = new List<string> { effect.To.Name },
+                                Arg = (1 + effect.ExDamage).ToString(),
+                                Arg2 = (1 + effect.ExDamage + effect.Drank).ToString()
+                            };
 
+                            room.SendLog(log);
+                        }
+                        DamageStruct slash_damage = new DamageStruct(effect.Slash, effect.From, effect.To, 1 + effect.ExDamage + effect.Drank, effect.Nature)
+                        {
+                            Drank = effect.Drank > 0
+                        };
+                        room.Damage(slash_damage);
                         break;
                     }
                 case TriggerEvent.BeforeGameOverJudge:

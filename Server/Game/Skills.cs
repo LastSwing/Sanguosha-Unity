@@ -15,6 +15,7 @@ namespace SanguoshaServer.Game
         NonTrigger,
 
         GameStart,
+        RoundStart,
         TurnStart,
         EventPhaseStart,
         EventPhaseProceeding,
@@ -88,7 +89,7 @@ namespace SanguoshaServer.Game
         PreCardUsed,
         CardUsedAnnounced,   //Fan lihuo change slash
         CardTargetAnnounced,     //Halberd duanbing extra target
-        CardUsed,               //#61
+        CardUsed,
         TargetChoosing, //distinguish "choose target" and "confirm target"
         TargetConfirming,
         TargetChosen,
@@ -837,13 +838,19 @@ namespace SanguoshaServer.Game
         }
     }
 
-    public abstract class ProhibitSkill : Skill
+    public class ProhibitSkill : Skill
     {
+        public enum ProhibitType
+        {
+            Chain,
+            Pindian,
+        }
         public ProhibitSkill(string name) : base(name)
         {
         }
 
-        public abstract bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null);
+        public virtual bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null) => false;
+        public virtual bool IsProhibited(Room room, Player from, Player to, ProhibitType type) => false;
     }
     public abstract class FixCardSkill : Skill
     {
@@ -921,7 +928,7 @@ namespace SanguoshaServer.Game
         public virtual string Pattern => pattern;
         public virtual int GetResidueNum(Room room, Player from, WrappedCard card) => 0;
         public virtual int GetExtraTargetNum(Room room, Player from, WrappedCard card) => 0;
-        public virtual bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card) => false;
+        public virtual bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern) => false;
         public virtual bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card) => false;
         public virtual bool IgnoreCount(Room room, Player from, WrappedCard card) => false;
         public virtual bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card,
@@ -936,6 +943,7 @@ namespace SanguoshaServer.Game
     {
         public InvalidSkill(string name) : base(name)
         {
+            frequency = Frequency.Compulsory;
         }
 
         public abstract bool Invalid(Room room, Player player, string skill);

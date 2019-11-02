@@ -59,6 +59,7 @@ namespace SanguoshaServer.AI
                 new PioneerCardAI(),
                 new CompanionCardAI(),
                 new MegatamaCardAI(),
+                new HegNullificationAI(),
             };
 
             events = new List<SkillEvent>
@@ -319,6 +320,7 @@ namespace SanguoshaServer.AI
                     else
                         value += score.Score * Math.Min(1, need - 1);
                 }
+                if (ai.MaySave(player) && player.FaceUp) value += 1.5;
                 if (available > rest && ai.GetOverflow(player) > 0 || !ai.IsSituationClear()) value += 2;
 
                 if (value >= score.Score) use.Card = result;
@@ -564,6 +566,13 @@ namespace SanguoshaServer.AI
                 if (player.GetPile("wooden_ox").Contains(id))
                     wooden = true;
             }
+
+            if (hand && ai.HasSkill("zhiheng_jx") && !player.HasUsed(ZhihengJCard.ClassName))
+            {
+                use.Card = card;
+                return;
+            }
+
 
             //进入鏖战前将桃吃完
             if (room.AliveCount() <= room.Players.Count / 2 && room.Setting.GameMode == "Hegemony" && !RoomLogic.IsVirtualCard(room, card))
@@ -1250,9 +1259,7 @@ namespace SanguoshaServer.AI
                         use = true;
                     else if (keep)
                         return result;
-                    else if (to.HasTreasure(JadeSeal.ClassName))
-                        use = true;
-                    else if (to.HasTreasure(WoodenOx.ClassName))
+                    else if (to.HasTreasure(JadeSeal.ClassName) || to.HasTreasure(WoodenOx.ClassName) || to.HasTreasure(ClassicWoodenOx.ClassName))
                         use = true;
                     else if (to.HasArmor(PeaceSpell.ClassName) && !RoomLogic.PlayerHasSkill(room, to, "wendao"))
                         use = true;
@@ -1260,7 +1267,7 @@ namespace SanguoshaServer.AI
                         use = true;
                     else if (ai.GetEnemies(ai.Self).Count == 1)
                         use = true;
-                    else if (!ai.IsFriend(from) && ai.Self == to && num > 0)
+                    else if (!ai.IsFriend(from) && ai.Self == to && num > 0 && !to.GetWeapon() && !to.GetDefensiveHorse() && !ai.HasSkill("qianxun_jx", to))
                         use = true;
 
                     if (use)
@@ -1470,7 +1477,28 @@ namespace SanguoshaServer.AI
                     if (ai.GetDamageScore(_damage).Score < ai.GetDamageScore(damage).Score + 2)
                         return use;
                 }
-                
+
+                bool shuangxiong = false;
+                if (effect.Card.Skill == "shuangxiong_jx")
+                {
+                    if (player != effect.From)
+                    {
+                        shuangxiong = true;
+                    }
+                    else if (player.Hp > 1 && damage.Damage == 1 && player.ContainsTag(RoomLogic.CardToString(room, effect.Card))
+                        && player.GetTag(RoomLogic.CardToString(room, effect.Card)) is List<int> ids && ids.Count > 0)
+                    {
+                        int num = 0;
+                        foreach (int id in ids)
+                        {
+                            if (room.GetCardPlace(id) == Player.Place.DiscardPile)
+                                num++;
+                        }
+
+                        if (num >= 2) return use;                                               //若决斗为界双雄，且对方已经打出至少2张牌，则选择受伤获得这些牌
+                    }
+                }
+
                 List<WrappedCard> slashes = ai.GetCards(Slash.ClassName, player);
                 List<WrappedCard> delete = new List<WrappedCard>(slashes);
                 foreach (WrappedCard slash in delete)
@@ -1487,7 +1515,25 @@ namespace SanguoshaServer.AI
 
                 int count = int.Parse(strs[3]);
                 if (slashes.Count >= count)
-                    use.Card = slashes[0];
+                {
+                    if (shuangxiong)
+                    {
+                        bool red = IsRed(effect.Card.Suit);                                     //若决斗为界双雄，在体力健康时不应用与决斗颜色相同的杀进行反抗
+                        foreach (WrappedCard slash in slashes)
+                        {
+                            if (slash.SubCards.Count == 0 || (slash.SubCards.Count == 1 && IsRed(slash.Suit) != red))
+                            {
+                                use.Card = slash;
+                                break;
+                            }
+                        }
+
+                        if (use.Card == null && (player.Hp == 1 || effect.From.Hp == 1))       //若没有合适的杀且自身或对方1血时，则坚决反抗              
+                            use.Card = slashes[0];
+                    }
+                    else
+                        use.Card = slashes[0];
+                }
             }
 
             return use;
@@ -2881,6 +2927,10 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
+            Room room = ai.Room;
+            foreach (Player p in room.GetOtherPlayers(player))
+                if (ai.HasSkill("zhennan", p) && !ai.IsFriend(p)) return;
+
             if (ai.GetAoeValue(card))
                 use.Card = card;
         }
@@ -3397,7 +3447,9 @@ namespace SanguoshaServer.AI
 
             if (!no_use)
             {
-                if (friends == 0 && enemies > 1)
+                if (ai.HasSkill("limu"))
+                    shouldUse = true;
+                else if (friends == 0 && enemies > 1)
                 {
                     shouldUse = true;
                 }
@@ -3408,6 +3460,13 @@ namespace SanguoshaServer.AI
                 if (shouldUse)
                     use.Card = card;
             }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            if (ai.HasSkill("limu", player)) return 9;
+
+            return 0;
         }
     }
 
@@ -3832,8 +3891,8 @@ namespace SanguoshaServer.AI
                 return true;
 
             Room room = ai.Room;
-            List<string> strs = (List<string>)data;
-            string prompt = strs[1];
+            CardAskStruct asked = (CardAskStruct)data;
+            string prompt = asked.Prompt;
             if (prompt.StartsWith("slash-jink") || prompt.StartsWith("@multi-jink") || prompt.StartsWith("archery-attack-jink"))
             {
                 List<CardUseStruct> uses = (List<CardUseStruct>)room.GetTag("card_proceeing");
@@ -3847,12 +3906,14 @@ namespace SanguoshaServer.AI
                 if (ai.GetDamageScore(damage).Score > 0)
                     return false;
             }
-            else if (strs[2] == "hujia")
+            else if (asked.Reason == "hujia")
             {
                 string caocao_name = prompt.Split(':')[1];
                 Player caocao = room.FindPlayer(caocao_name);
                 if (caocao != null && ai.IsFriend(caocao))
                     return true;
+
+                return false;
             }
 
             return true;
@@ -4097,7 +4158,7 @@ namespace SanguoshaServer.AI
             double value = 0;
             if (ai.HasSkill("gangzhi", player)) return 10;
 
-            if (ai.HasSkill("liangying", player))
+            if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx", player))
                 value -= 10;
 
             if (ai.HasSkill("bazhen", player))
@@ -4156,12 +4217,12 @@ namespace SanguoshaServer.AI
             double value = 0;
             if (player.GetLostHp() > 0)
             {
-                if (!use && place == Player.Place.PlaceEquip)
+                if (!use && place == Player.Place.PlaceEquip && !ai.HasSkill("dingpan", player))
                    return -8;
                 if (use && place != Player.Place.PlaceEquip)
                     value += 3;
             }
-            if (ai.HasSkill("kurou|duanliang|xiongsuan", player))
+            if (ai.HasSkill("kurou|duanliang|xiongsuan|dingpan|kurou_jx", player))
                 value += 1.2;
 
             if (player.Chained) value += 0.5;

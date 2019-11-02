@@ -563,7 +563,7 @@ namespace SanguoshaServer
                 }
                 foreach (string card in setting.CardPackage)
                 {
-                    if (!mode.GeneralPackage.Contains(card))
+                    if (!mode.CardPackage.Contains(card))
                     {
                         setting.CardPackage = mode.CardPackage;
                         break;

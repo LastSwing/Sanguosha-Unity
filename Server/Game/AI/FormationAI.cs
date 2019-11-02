@@ -232,7 +232,7 @@ namespace SanguoshaServer.AI
                     return -2;
             }
 
-            if (!isUse && ai.IsCard(card.GetEffectiveId(), Slash.ClassName, player))
+            if (!isUse && card.GetEffectiveId() >= 0 && ai.IsCard(card.GetEffectiveId(), Slash.ClassName, player))
             {
                 Player jiangwei = ai.FindPlayerBySkill(Name);
                 if (jiangwei != null && !ai.IsFriend(jiangwei, player) && RoomLogic.CanSlash(ai.Room, player, jiangwei))
