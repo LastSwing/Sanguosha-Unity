@@ -35,6 +35,7 @@ namespace CommonClass.Game
             TransferReason = string.Empty;
             Prevented = false;
             Steped = DamageStep.None;
+            Drank = false;
         }
 
         public DamageStruct(WrappedCard card, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal) {
@@ -50,6 +51,7 @@ namespace CommonClass.Game
             TransferReason = string.Empty;
             Prevented = false;
             Steped = DamageStep.None;
+            Drank = false;
         }
 
         public DamageStruct(string reason, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal)
@@ -66,6 +68,7 @@ namespace CommonClass.Game
             TransferReason = string.Empty;
             Prevented = false;
             Steped = DamageStep.None;
+            Drank = false;
         }
 
         public Player From { get; set; }
@@ -93,6 +96,7 @@ namespace CommonClass.Game
         public string TransferReason { get; set; }
         public bool Prevented { get; set; }
         public DamageStep Steped { get; set; }
+        public bool Drank { set; get; }
     }
 
     public struct RoomSetting
@@ -232,6 +236,14 @@ namespace CommonClass.Game
         public bool Nullified { set; get; }
     };
 
+    public struct CardAskStruct
+    {
+        public object Data { set; get; }
+        public string Pattern { set; get; }
+        public string Prompt { set; get; }
+        public string Reason { set; get; }
+    }
+
     public struct LogMessage
     {
         public LogMessage(string type)
@@ -344,6 +356,7 @@ namespace CommonClass.Game
             S_REASON_TRANSFER = 0x09,
             S_REASON_PUT = 0x0A,
             S_REASON_ANNOUNCE = 0x0B,       //virtual skill card use
+            S_REASON_ABOLISH = 0x0C,        //abolish an equip
         //subcategory of use
             S_REASON_LETUSE = 0x11,           // use a card when self is not current
 
@@ -624,25 +637,19 @@ namespace CommonClass.Game
             Success = false;
             From = null;
             Tos = new List<Player>();
-            To = null;
             From_card = null;
-            To_card = null;
             To_cards = new List<WrappedCard>();
             From_number = 0;
-            To_number = 0;
             To_numbers = new List<int>();
         }
         public bool Success { set; get; }
         public Player From { set; get; }
         public List<Player> Tos { set; get; }
-        public Player To { set; get; }
         public WrappedCard From_card { set; get; }
         public List<WrappedCard> To_cards { set; get; }
-        public WrappedCard To_card { set; get; }
         public int From_number { set; get; }
-        public int To_number { set; get; }
         public List<int> To_numbers { set; get; }
-        public String Reason { set; get; }
+        public string Reason { set; get; }
     };
 
     public struct JudgeStruct
@@ -713,6 +720,7 @@ namespace CommonClass.Game
             Retrial = false;
             Handcard = true;
             Reason = string.Empty;
+            Data = null;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, Player who)
@@ -724,6 +732,7 @@ namespace CommonClass.Game
             Retrial = false;
             Handcard = true;
             Reason = string.Empty;
+            Data = null;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, bool isUse)
@@ -735,6 +744,7 @@ namespace CommonClass.Game
             Retrial = false;
             Handcard = true;
             Reason = string.Empty;
+            Data = null;
         }
 
         public CardResponseStruct(Player from, WrappedCard card, Player who, bool isUse)
@@ -746,6 +756,7 @@ namespace CommonClass.Game
             Retrial = false;
             Handcard = true;
             Reason = string.Empty;
+            Data = null;
         }
 
         public Player From { set; get; }
@@ -755,6 +766,7 @@ namespace CommonClass.Game
         public bool Handcard { set; get; }
         public string Reason { set; get; }
         public bool Retrial { set; get; }
+        public object Data { set; get; }
     };
 
     public struct PromoteStruct
@@ -951,5 +963,18 @@ namespace CommonClass.Game
         public bool Started { set; get; }
         public int CurrentPlayers { set; get; }
         public int MaxPlayres { set; get; }
+    }
+
+    public struct PindianInfo
+    {
+        public enum PindianType
+        {
+            Pindian,
+            Show,
+        }
+
+        public Player From { set; get; }
+        public string Reason { set; get; }
+        public WrappedCard Card { set; get; }
     }
 }

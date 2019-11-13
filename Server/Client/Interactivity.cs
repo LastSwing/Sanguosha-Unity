@@ -446,7 +446,7 @@ namespace SanguoshaServer
             return room.DoRequest(player, ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(GetPacket2Client(true, prompt)) }, true);
         }
 
-        public void PindianRequest(Room room, Player player, Player from)
+        public void PindianRequest(Room room, Player player, Player from, PindianInfo.PindianType type)
         {
             this.room = room;
             requestor = player;
@@ -482,7 +482,7 @@ namespace SanguoshaServer
             guhuo_cards.Clear();
             selected_guhuo = null;
 
-            ex_information = new List<string> { from.Name };
+            ex_information = new List<string> { from.Name, type.ToString() };
 
             CommandArgs = new List<string> { JsonUntity.Object2Json(GetPacket2Client(true)) };
         }
@@ -955,7 +955,8 @@ namespace SanguoshaServer
             {
                 if (!string.IsNullOrEmpty(pending_skill.GetExpandPile()))
                 {
-                    foreach (string pile_name in pending_skill.GetExpandPile().Split(',')) {
+                    foreach (string pile_name in pending_skill.GetExpandPile().Split(','))
+                    {
                         string new_name = pile_name;
                         List<int> pile = new List<int>();
                         if (new_name.StartsWith("%"))

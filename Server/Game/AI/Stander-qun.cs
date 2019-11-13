@@ -995,6 +995,13 @@ namespace SanguoshaServer.AI
                             else if (suit == WrappedCard.CardSuit.Spade)
                                 ai.UpdatePlayerRelation(player, judge.Who, false);
                         }
+                        else if (judge.Reason == "wuhun")
+                        {
+                            if (judge.Card.Name != Peach.ClassName && judge.Card.Name != GodSalvation.ClassName && (card.Name == Peach.ClassName || card.Name == GodSalvation.ClassName))
+                                ai.UpdatePlayerRelation(player, judge.Who, true);
+                            else if (card.Name != Peach.ClassName && card.Name != GodSalvation.ClassName)
+                                ai.UpdatePlayerRelation(player, judge.Who, false);
+                        }
                     }
                 }
             }
@@ -1253,7 +1260,9 @@ namespace SanguoshaServer.AI
                         ai.UpdatePlayerIntention(player, role, 100);
                     }
 
-                    if (ai.GetPlayerTendency(damage.To) == "unknown" && ai.Self != damage.To)
+                    if (ai is SmartAI && ai.GetPlayerTendency(damage.To) == "unknown" && ai.Self != damage.To)
+                        ai.UpdatePlayerRelation(player, damage.To, true);
+                    else if (ai is StupidAI && ai.GetPlayerTendency(damage.To) != "unknown" && ai.Self != damage.To)
                         ai.UpdatePlayerRelation(player, damage.To, true);
                 }
             }

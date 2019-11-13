@@ -86,7 +86,8 @@ namespace CommonClass.Game
         public bool Chained { set; get; } = false;
         public bool Removed { set; get; } = false;
         public List<int> JudgingArea { set; get; } = new List<int>();
-        public List<string> DisableShow { set; get; } = new List<string>();
+        public Dictionary<bool, List<string>> DisableShow { set; get; } = new Dictionary<bool, List<string>>();
+        public Dictionary<string, string> ArmorNullifiedList { set; get; } = new Dictionary<string, string>();
         public bool ScenarioRoleShown { set; get; } = false;
         public int HandcardNum { get { return HandCards.Count(); } }
         public List<int> HandCards { set; get; } = new List<int>();
@@ -190,63 +191,55 @@ namespace CommonClass.Game
             return PlayerGender == Gender.Female;
         }
 
+        public void SetAmorNullified2(Player sourcer, string reason)
+        {
+            ArmorNullifiedList[sourcer.Name] = reason;
+        }
+
+        public void RemoveArmorNullified(Player sourcer)
+        {
+            ArmorNullifiedList.Remove(sourcer.Name);
+        }
+
         public void SetDisableShow(string flags, string reason)
         {
-            if (Flags.Contains("h"))
+            if (flags.Contains("h"))
             {
-                if (DisableShowList(true).Contains(reason))
-                    return;
+                if (DisableShow.ContainsKey(true) && !DisableShow[true].Contains(reason))
+                    DisableShow[true].Add(reason);
+                else if (!DisableShow.ContainsKey(true))
+                    DisableShow[true] = new List<string> { reason };
             }
             if (flags.Contains('d'))
             {
-                if (DisableShowList(false).Contains(reason))
-                    return;
+                if (DisableShow.ContainsKey(false) && !DisableShow[false].Contains(reason))
+                    DisableShow[false].Add(reason);
+                else if (!DisableShow.ContainsKey(false))
+                    DisableShow[false] = new List<string> { reason };
             }
-
-            string dis_str = flags + ',' + reason;
-            DisableShow.Add(dis_str);
-            //通知UI更新
         }
         public void RemoveDisableShow(string reason)
         {
-            List<string> remove_list = new List<string>();
-            foreach (string dis_str in DisableShow)
-            {
-                string dis_reason = dis_str.Split(',')[1];
-                if (dis_reason == reason)
-                    remove_list.Add(dis_str);
-            }
-
-            if (remove_list.Count() == 0) return;
-            DisableShow.RemoveAll(t => remove_list.Contains(t));
+            if (DisableShow.ContainsKey(true))
+                DisableShow[true].RemoveAll(t => t == reason);
+            if (DisableShow.ContainsKey(false))
+                DisableShow[false].RemoveAll(t => t == reason);
         }
 
         public List<string> DisableShowList(bool head)
         {
-            string head_flag = "h";
-            if (!head)
-                head_flag = "d";
+            if (DisableShow.ContainsKey(head))
+                return DisableShow[head];
 
-            List<string> r = new List<string>();
-            foreach (string dis_str in DisableShow)
-            {
-                string[] dis_list = dis_str.Split(',');
-                if (dis_list[0].Contains(head_flag))
-                    r.Add(dis_list[0]);
-            }
-
-            return r;
+            return new List<string>();
         }
 
         public bool CanShowGeneral(string flags)
         {
             bool head = true, deputy = true;
-            foreach (string dis_str in DisableShow)
-            {
-                string[] dis_list = dis_str.Split(',');
-                if (dis_list[0].Contains("h")) head = false;
-                if (dis_list[0].Contains("d")) deputy = false;
-            }
+            if (DisableShow.ContainsKey(true) && DisableShow[true].Count > 0) head = false;
+            if (DisableShow.ContainsKey(false) && DisableShow[false].Count > 0) deputy = false;
+
             if (string.IsNullOrEmpty(flags)) return head || deputy || HasShownOneGeneral();
             if (flags == "h") return head || General1Showed;
             if (flags == "d") return deputy || General2Showed;
@@ -404,6 +397,14 @@ namespace CommonClass.Game
             return false;
         }
 
+        public bool EquipIsBaned(int index)
+        {
+            if (equip_state.Keys.Contains(index))
+                return !equip_state[index];
+
+            return false;
+        }
+
         public bool HasWeapon(string weapon_name)
         {
             if (Weapon.Key == -1 || GetMark("Equips_Nullified_to_Yourself") > 0) return false;
@@ -445,7 +446,7 @@ namespace CommonClass.Game
                 value += add_num;
                 SetMark(mark, value);
             }
-            else
+            else if (add_num > 0)
                 Marks.Add(mark, add_num);
         }
 

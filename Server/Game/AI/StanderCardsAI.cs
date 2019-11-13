@@ -4,6 +4,7 @@ using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using static CommonClass.Game.Player;
 using static CommonClass.Game.WrappedCard;
 
 namespace SanguoshaServer.AI
@@ -1310,7 +1311,7 @@ namespace SanguoshaServer.AI
                     int card_id = int.Parse(strs[2]);
                     Player target = room.FindPlayer(strs[4]);
 
-                    if (room.GetCardPlace(card_id) == Player.Place.PlaceJudge)
+                    if (room.GetCardPlace(card_id) == Place.PlaceJudge)
                     {
                         if (room.GetCard(card_id).Name != Lightning.ClassName)
                             ai.UpdatePlayerRelation(player, target, true);
@@ -1323,13 +1324,42 @@ namespace SanguoshaServer.AI
                                 ai.UpdatePlayerRelation(player, target, true);
                         }
                     }
-                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceHand && !(ai.HasSkill("qianxun_jx", target) && target.HandcardNum > 1))
+                    else if (room.GetCardPlace(card_id) == Place.PlaceHand && !(ai.HasSkill("qianxun_jx", target) && target.HandcardNum > 1))
                     {
                         ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
                     }
-                    else if (room.GetCardPlace(card_id) == Player.Place.PlaceEquip)
+                    else if (room.GetCardPlace(card_id) == Place.PlaceEquip)
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Player.Place.PlaceEquip) > 0 ? false : true);
+                        bool friendly = ai.GetKeepValue(card_id, target, Place.PlaceEquip) < 0;
+
+                        if (ai is StupidAI)
+                        {
+                            if (target != ai.Self || ai.Self.GetRoleEnum() == PlayerRole.Lord)
+                            {
+                                if (target.GetRoleEnum() == PlayerRole.Lord)
+                                {
+                                    ai.UpdatePlayerIntention(player, friendly ? "loyalist" : "rebel", friendly ? 80 : 40);
+                                }
+                                else if (ai.GetPlayerTendency(target) == "loyalist" && player.GetRoleEnum() != PlayerRole.Lord)
+                                {
+                                    ai.UpdatePlayerIntention(player, friendly ? "loyalist" : "rebel", friendly ? 80 : 40);
+                                }
+                                else if (ai.GetPlayerTendency(target) == "rebel" && player.GetRoleEnum() != PlayerRole.Lord)
+                                {
+                                    ai.UpdatePlayerIntention(player, friendly ? "rebel" : "loyalist", friendly ? 80 : 40);
+                                }
+                            }
+                            else if (ai.Self == target && ai.GetPlayerTendency(ai.Self) == "rebel")
+                            {
+                                ai.UpdatePlayerIntention(player, "loyalist", friendly ? 60 : 30);
+                            }
+                            else if (ai.Self == target && ai.GetPlayerTendency(ai.Self) == "loyalist")
+                            {
+                                ai.UpdatePlayerIntention(player, "rebel", friendly ? 60 : 30);
+                            }
+                        }
+                        else
+                            ai.UpdatePlayerRelation(player, target, friendly);
                     }
                 }
             }
@@ -1348,61 +1378,122 @@ namespace SanguoshaServer.AI
             List<Player> enemies = ai.Exclude(ai.GetEnemies(player), duel);
             List<Player> friends = ai.Exclude(ai.FriendNoSelf, duel);
             int n1 = ai.GetKnownCardsNums(Slash.ClassName, "he", player);
+            Room room = ai.Room;
+
+            bool benxi = false;
+            if (ai.HasSkill("benxi"))
+            {
+                bool check = true;
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    int distance = RoomLogic.DistanceTo(room, player, p, duel, true);
+                    if (distance != 1)
+                    {
+                        check = false;
+                        break;
+                    }
+                }
+
+                if (check)
+                    benxi = true;
+            }
 
             if (ai.HasSkill("wushuang")) n1*= 2;
-
             Dictionary<Player, double> scores = new Dictionary<Player, double>();
             foreach (Player p in friends)
             {
-                scores[p] = ai.GetDamageScore(new DamageStruct(duel, player, p)).Score;
-                foreach (string skill in ai.GetKnownSkills(p))
+                bool fuyin = false;
+                if (ai.HasSkill("fuyin", p) && p.GetMark("fuyin") == 0)
                 {
-                    SkillEvent skill_e = Engine.GetSkillEvent(skill);
-                    if (skill_e != null)
-                        scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
+                    int count = player.HandcardNum;
+                    foreach (int id in duel.SubCards)
+                        if (room.GetCardPlace(id) == Place.PlaceHand)
+                            count--;
+
+                    if (count > p.HandcardNum)
+                    {
+                        scores[p] = 0;
+                        fuyin = true;
+                    }
+                }
+                if (!fuyin)
+                {
+                    scores[p] = ai.GetDamageScore(new DamageStruct(duel, player, p)).Score;
+                    foreach (string skill in ai.GetKnownSkills(p))
+                    {
+                        SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                        if (skill_e != null)
+                            scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
+                    }
                 }
             }
             foreach (Player p in enemies)
             {
-                bool no_red = p.GetMark("@qianxi_red") > 0;
-                bool no_black = p.GetMark("@qianxi_black") > 0;
-                double n2 = ai.GetKnownCardsNums(Slash.ClassName, "he", p, player);
-                if (!ai.IsLackCard(p, Slash.ClassName))
+                bool fuyin = false;
+                if (ai.HasSkill("fuyin", p) && p.GetMark("fuyin") == 0)
                 {
-                    int rate = 4;
-                    if (ai.GetKnownCards(p).Count != p.HandcardNum)
-                    {
-                        rate = 5;
-                        if (ai.HasSkill("longdan", p))
-                        {
-                            rate -= 2;
-                            if (no_black || no_red)
-                                rate += 1;
-                        }
-                        if (ai.HasSkill("wusheng", p) && !no_red)
-                            rate -= 2;
-                        int count = p.HandcardNum - ai.GetKnownCards(p).Count;
-                        count += p.GetHandPile(true).Count - ai.GetKnownHandPileCards(p).Count;
-                        if (no_red)
-                        {
-                            rate += 1;
-                        }
-                        if (no_black)
-                            rate += 2;
-                        n2 += ((double)count / rate);
-                    }
-                    if (ai.HasSkill("wushuang", p)) n2 *= 2;
-                }
-                if (n2 > n1)
-                    scores[p] = ai.GetDamageScore(new DamageStruct(duel, p, player)).Score;
-                else
-                    scores[p] = ai.GetDamageScore(new DamageStruct(duel, player, p)).Score - (n2 - 1) * 0.4;
+                    int count = player.HandcardNum;
+                    foreach (int id in duel.SubCards)
+                        if (room.GetCardPlace(id) == Place.PlaceHand)
+                            count--;
 
-                foreach (string skill in ai.GetKnownSkills(p))
+                    if (count > p.HandcardNum)
+                    {
+                        scores[p] = 1;
+                        fuyin = true;
+                    }
+                }
+
+                if (!fuyin)
                 {
-                    SkillEvent skill_e = Engine.GetSkillEvent(skill);
-                    if (skill_e != null)
-                        scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
+                    bool no_red = p.GetMark("@qianxi_red") > 0;
+                    bool no_black = p.GetMark("@qianxi_black") > 0;
+                    double n2 = ai.GetKnownCardsNums(Slash.ClassName, "he", p, player);
+
+                    bool fuqi = false;
+                    if (ai.HasSkill("fuqi", player) && RoomLogic.DistanceTo(room, player, p) == 1)
+                        fuqi = true;
+
+                    if (!fuqi && !benxi && !ai.IsLackCard(p, Slash.ClassName))
+                    {
+                        int rate = 4;
+                        if (ai.GetKnownCards(p).Count != p.HandcardNum)
+                        {
+                            rate = 5;
+                            if (ai.HasSkill("longdan", p))
+                            {
+                                rate -= 2;
+                                if (no_black || no_red)
+                                    rate += 1;
+                            }
+                            if (ai.HasSkill("wusheng", p) && !no_red)
+                                rate -= 2;
+                            int count = p.HandcardNum - ai.GetKnownCards(p).Count;
+                            count += p.GetHandPile(true).Count - ai.GetKnownHandPileCards(p).Count;
+                            if (no_red)
+                            {
+                                rate += 1;
+                            }
+                            if (no_black)
+                                rate += 2;
+                            n2 += ((double)count / rate);
+                        }
+                        if (ai.HasSkill("wushuang", p)) n2 *= 2;
+                    }
+
+                    if (benxi || fuqi)
+                        scores[p] = ai.GetDamageScore(new DamageStruct(duel, player, p)).Score;
+                    else if (n2 > n1)
+                        scores[p] = ai.GetDamageScore(new DamageStruct(duel, p, player)).Score;
+                    else
+                        scores[p] = ai.GetDamageScore(new DamageStruct(duel, player, p)).Score - (n2 - 1) * 0.4;
+
+                    foreach (string skill in ai.GetKnownSkills(p))
+                    {
+                        SkillEvent skill_e = Engine.GetSkillEvent(skill);
+                        if (skill_e != null)
+                            scores[p] += skill_e.TargetValueAdjust(ai, duel, player, new List<Player> { p }, p);
+                    }
                 }
             }
             List<Player> targets = new List<Player>(friends);
@@ -1411,7 +1502,7 @@ namespace SanguoshaServer.AI
             bool hand = false;
             foreach (int id in duel.SubCards)
             {
-                if (ai.Room.GetCardPlace(id) == Player.Place.PlaceHand && ai.Room.GetCardOwner(id) == player)
+                if (ai.Room.GetCardPlace(id) == Place.PlaceHand && ai.Room.GetCardOwner(id) == player)
                     hand = true;
             }
             if (targets.Count > 0)
@@ -3416,7 +3507,7 @@ namespace SanguoshaServer.AI
                     Damage = ai.DamageEffect(damage, DamageStruct.DamageStep.Done),
                     Steped = DamageStruct.DamageStep.Done
                 };
-                bool effect = _damage.Damage == 0 || ai.IsCancelTarget(card, player, player) || !ai.IsCardEffect(card, player, player);
+                bool effect = _damage.Damage == 0 || !ai.IsCardEffect(card, player, player);
                 if (effect)
                 {
                     if (ai.IsFriend(p))
@@ -3994,10 +4085,10 @@ namespace SanguoshaServer.AI
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = 0;
-            if (ai.HasSkill("bazhen", player))
+            if (ai.HasSkill("bazhen|linglong", player))
                 value -= 2;
 
-            if (place == Player.Place.PlaceEquip)
+            if (place == Place.PlaceEquip)
                 value += 4;
 
             return value;
@@ -4161,7 +4252,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx", player))
                 value -= 10;
 
-            if (ai.HasSkill("bazhen", player))
+            if (ai.HasSkill("bazhen|linglong", player))
                 value -= 5;
 
                 
@@ -4217,9 +4308,9 @@ namespace SanguoshaServer.AI
             double value = 0;
             if (player.GetLostHp() > 0)
             {
-                if (!use && place == Player.Place.PlaceEquip && !ai.HasSkill("dingpan", player))
+                if (!use && place == Place.PlaceEquip && !ai.HasSkill("dingpan", player) && (player != ai.Self || !player.ArmorNullifiedList.ContainsKey(ai.Self.Name)))
                    return -8;
-                if (use && place != Player.Place.PlaceEquip)
+                if (use && place != Place.PlaceEquip)
                     value += 3;
             }
             if (ai.HasSkill("kurou|duanliang|xiongsuan|dingpan|kurou_jx", player))

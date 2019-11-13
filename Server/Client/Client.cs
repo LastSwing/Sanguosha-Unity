@@ -420,7 +420,7 @@ namespace SanguoshaServer
             catch (Exception e)
             {
                 LogHelper.WriteLog(null, e);
-                hall.Debug(string.Format("error at update profile {0} {1} {1}", e.Message, e.Source, e.HelpLink));
+                hall.Debug(string.Format("error at update profile {0} {1} {2}", e.Message, e.Source, e.HelpLink));
             }
         }
         private void UpDateProfileAvatar(Profile profile)

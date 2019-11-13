@@ -44,10 +44,12 @@ namespace SanguoshaServer.Game
         FinishRetrial,
         FinishJudge,
 
+        PindianCard,
         PindianVerifying,
         Pindian,
 
         TurnedOver,
+        ChainStateCanceling,
         ChainStateChanged,
         RemoveStateChanged,
 
@@ -615,6 +617,7 @@ namespace SanguoshaServer.Game
         protected List<string> viewhas_treasure = new List<string>();
         public ViewHasSkill(string name) : base(name)
         {
+            frequency = Frequency.Compulsory;
         }
 
         public abstract bool ViewHas(Room room, Player player, string skill_name);
@@ -922,6 +925,7 @@ namespace SanguoshaServer.Game
             ExtraTarget,
             SpecificAssignee,
             History,
+            SpecificTarget,
         };
 
         public bool SkillRelated { get; protected set; }
@@ -933,6 +937,7 @@ namespace SanguoshaServer.Game
         public virtual bool IgnoreCount(Room room, Player from, WrappedCard card) => false;
         public virtual bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card,
                                   List<Player> previous_targets, List<Player> targets = null) => false;
+        public virtual bool CheckSpecificTarget(Room room, Player from, Player to, WrappedCard card) => false;
         public virtual void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
             index = -1;

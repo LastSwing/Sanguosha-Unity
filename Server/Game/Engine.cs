@@ -953,6 +953,14 @@ namespace SanguoshaServer.Game
                     if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card)) return true;
                 }
             }
+            else if (type == TargetModSkill.ModType.SpecificTarget)
+            {
+                foreach (TargetModSkill skill in targetmod_skills)
+                {
+                    CardPattern p = GetPattern(skill.Pattern);
+                    if (p.Match(from, room, card) && skill.CheckSpecificTarget(room, from, to, card)) return true;
+                }
+            }
             else if (type == TargetModSkill.ModType.History)
             {
                 foreach (TargetModSkill skill in targetmod_skills)

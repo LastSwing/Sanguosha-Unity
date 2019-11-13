@@ -643,67 +643,91 @@ namespace SanguoshaServer.AI
             };
             qianhuan.AddSubCard(sub);
 
-            if (room.ContainsTag("qianhuan_data") && room.GetTag("qianhuan_data") is CardUseStruct use)
+            if (room.ContainsTag("qianhuan_data"))
             {
-                if (ai.IsCancelTarget(use.Card, use.To[0], use.From) || !ai.IsCardEffect(use.Card, use.To[0], use.From)) return result;
+                if (room.GetTag("qianhuan_data") is CardUseStruct use)
+                {
+                    player.SetFlags("target_confirming");
+                    if (ai.IsCancelTarget(use.Card, use.To[0], use.From) || !ai.IsCardEffect(use.Card, use.To[0], use.From))
+                    {
+                        player.SetFlags("-target_confirming");
+                        return result;
+                    }
 
-                if (use.Card.Name == SupplyShortage.ClassName || use.Card.Name == Indulgence.ClassName || use.Card.Name == Snatch.ClassName)
-                {
-                    if (use.From != null && ai.IsEnemy(use.From))
+                    if (use.Card.Name == SupplyShortage.ClassName || use.Card.Name == Indulgence.ClassName || use.Card.Name == Snatch.ClassName)
                     {
-                        result.Card = qianhuan;
-                        return result;
+                        if (use.From != null && ai.IsEnemy(use.From))
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
+                    }
+                    else if (use.Card.Name == BurningCamps.ClassName)
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1, DamageStruct.DamageNature.Fire);
+                        if (player.GetPile("sorcery").Count >= 3 && ai.GetDamageScore(damage).Score < 0 || ai.GetDamageScore(damage).Score < -5)
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
+                    }
+                    else if (use.Card.Name.Contains(Slash.ClassName))
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1 + use.Drank + use.ExDamage);
+                        if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
+                        else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
+                        double value = ai.GetDamageScore(damage).Score;
+                        if (value < -5 || (ai.IsWeak(use.To[0]) && value < 0) || (value < 0 && player.GetPile("sorcery").Count >= 3))
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
+                    }
+                    else if (use.Card.Name == ArcheryAttack.ClassName)
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0]);
+                        double value = ai.GetDamageScore(damage).Score;
+                        if ((value < -5 || (ai.IsWeak(use.To[0]) && value < 0)) && player != use.To[0] ? ai.IsLackCard(use.To[0], Jink.ClassName) : ai.GetKnownCardsNums(Jink.ClassName, "he", use.To[0]) == 0)
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
+                    }
+                    else if (use.Card.Name == SavageAssault.ClassName)
+                    {
+                        Player menghuo = ai.FindPlayerBySkill("huoshou");
+                        DamageStruct damage = new DamageStruct(use.Card, menghuo ?? use.From, use.To[0]);
+                        double value = ai.GetDamageScore(damage).Score;
+                        if ((value < -5 || (ai.IsWeak(use.To[0]) && value < 0)) && (player != use.To[0] ? ai.IsLackCard(use.To[0], Slash.ClassName)
+                            : ai.GetKnownCardsNums(Slash.ClassName, "he", use.To[0]) == 0 || RoomLogic.IsHandCardLimited(room, use.To[0], HandlingMethod.MethodResponse)))
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
+                    }
+                    else if (use.Card.Name == Duel.ClassName)
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0]);
+                        double value = ai.GetDamageScore(damage).Score;
+                        if (value < -5 || ((ai.IsWeak(use.To[0]) || player.GetPile("sorcery").Count >= 3) && value < 0))
+                        {
+                            player.SetFlags("-target_confirming");
+                            result.Card = qianhuan;
+                            return result;
+                        }
                     }
                 }
-                else if (use.Card.Name == BurningCamps.ClassName)
+                else if (data is CardsMoveOneTimeStruct move)
                 {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1, DamageStruct.DamageNature.Fire);
-                    if (player.GetPile("sorcery").Count >= 3 && ai.GetDamageScore(damage).Score < 0 || ai.GetDamageScore(damage).Score < -5)
+                    WrappedCard card = RoomLogic.ParseCard(room, move.Reason.CardString);
+                    if (card.Name == SupplyShortage.ClassName || card.Name == Indulgence.ClassName)
                     {
-                        result.Card = qianhuan;
-                        return result;
-                    }
-                }
-                else if (use.Card.Name.Contains(Slash.ClassName))
-                {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0], 1 + use.Drank + use.ExDamage);
-                    if (use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
-                    else if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
-                    double value = ai.GetDamageScore(damage).Score;
-                    if (value < -5 || (ai.IsWeak(use.To[0]) && value < 0) || (value < 0 && player.GetPile("sorcery").Count >= 3))
-                    {
-                        result.Card = qianhuan;
-                        return result;
-                    }
-                }
-                else if (use.Card.Name == ArcheryAttack.ClassName)
-                {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0]);
-                    double value = ai.GetDamageScore(damage).Score;
-                    if ((value < -5 || (ai.IsWeak(use.To[0]) && value < 0)) && player != use.To[0] ? ai.IsLackCard(use.To[0], Jink.ClassName) : ai.GetKnownCardsNums(Jink.ClassName, "he", use.To[0]) == 0)
-                    {
-                        result.Card = qianhuan;
-                        return result;
-                    }
-                }
-                else if (use.Card.Name == SavageAssault.ClassName)
-                {
-                    Player menghuo = ai.FindPlayerBySkill("huoshou");
-                    DamageStruct damage = new DamageStruct(use.Card, menghuo ?? use.From, use.To[0]);
-                    double value = ai.GetDamageScore(damage).Score;
-                    if ((value < -5 || (ai.IsWeak(use.To[0]) && value < 0)) && (player != use.To[0] ? ai.IsLackCard(use.To[0], Slash.ClassName)
-                        : ai.GetKnownCardsNums(Slash.ClassName, "he", use.To[0]) == 0 || RoomLogic.IsHandCardLimited(room, use.To[0], HandlingMethod.MethodResponse)))
-                    {
-                        result.Card = qianhuan;
-                        return result;
-                    }
-                }
-                else if (use.Card.Name == Duel.ClassName)
-                {
-                    DamageStruct damage = new DamageStruct(use.Card, use.From, use.To[0]);
-                    double value = ai.GetDamageScore(damage).Score;
-                    if (value < -5 || ((ai.IsWeak(use.To[0]) || player.GetPile("sorcery").Count >= 3) && value < 0))
-                    {
+                        player.SetFlags("-target_confirming");
                         result.Card = qianhuan;
                         return result;
                     }

@@ -59,8 +59,7 @@ namespace SanguoshaServer.Package
 
         public virtual bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
-            //激将专用的flag
-            if (target_fixed || (targets.Count == 0 && Self.HasFlag("TargetFixed")))
+            if (target_fixed)
                 return true;
             else
                 return targets.Count() != 0;
@@ -572,8 +571,8 @@ namespace SanguoshaServer.Package
                         }
                         continue;
                     }
-                    if (player.HasFlag(card_str + "_delay_trick_cancel")) continue;
-
+                    //if (player.HasFlag(card_str + "_delay_trick_cancel")) continue;
+                    /*
                     CardUseStruct use = new CardUseStruct(room.GetCard(card.GetEffectiveId()), null, player)
                     {
                         EffectCount = new List<CardBasicEffect> { FillCardBasicEffct(room, player) }
@@ -590,7 +589,7 @@ namespace SanguoshaServer.Package
 
                     thread.Trigger(TriggerEvent.TargetChosen, room, null, ref data);
                     thread.Trigger(TriggerEvent.TargetConfirmed, room, player, ref data);
-
+                    */
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, string.Empty)
                     {
                         CardString = RoomLogic.CardToString(room, card)
@@ -606,9 +605,9 @@ namespace SanguoshaServer.Package
                 OnNullified(room, p, card);
             else if (!move)
             {
-                foreach (Player player in room.GetAllPlayers())
-                    if (player.HasFlag(RoomLogic.CardToString(room, card) + "_delay_trick_cancel"))
-                        player.SetFlags(string.Format("-{0}{1}", card_str, "_delay_trick_cancel"));
+                //foreach (Player player in room.GetAllPlayers())
+                    //if (player.HasFlag(RoomLogic.CardToString(room, card) + "_delay_trick_cancel"))
+                        //player.SetFlags(string.Format("-{0}{1}", card_str, "_delay_trick_cancel"));
 
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, string.Empty);
                 room.MoveCardTo(card, null, Place.DiscardPile, reason, true);
@@ -651,15 +650,15 @@ namespace SanguoshaServer.Package
         {
             List<Player> targets = card_use.To;
             string str = RoomLogic.CardToString(room, card_use.Card);
-            List<string> nullified_list = room.ContainsTag("CardUseNullifiedList") ? (List<string>)room.GetTag("CardUseNullifiedList") : new List<string>();
-            bool all_nullified = nullified_list.Contains("_ALL_TARGETS");
-            if (all_nullified || targets.Count == 0 || RoomLogic.PlayerContainsTrick(room, targets[0], Name))
+            if (targets.Count == 0 || RoomLogic.PlayerContainsTrick(room, targets[0], Name))
             {
+                /*
                 if (movable)
                 {
                     OnNullified(room, card_use.From, card_use.Card);
                     if (room.GetCardOwner(card_use.Card.GetEffectiveId()) != card_use.From) return;
                 }
+                */
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, card_use.From.Name, null, card_use.Card.Skill, null)
                 {
                     CardString = str

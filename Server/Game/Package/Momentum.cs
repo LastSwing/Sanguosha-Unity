@@ -406,9 +406,10 @@ namespace SanguoshaServer.Package
 
                     LogMessage log = new LogMessage
                     {
-                        Type = "#Qianxi",
+                        Type = "#NoColor",
                         From = victim.Name,
-                        Arg = "no_suit_" + color
+                        Arg = "no_suit_" + color,
+                        Arg2 = Name
                     };
                     room.SendLog(log);
 
@@ -1362,6 +1363,14 @@ namespace SanguoshaServer.Package
             slash.AddSubCards(card.SubCards);
             slash = RoomLogic.ParseUseCard(room, slash);
             return fcard.TargetFilter(room, targets, to_select, Self, slash);
+        }
+
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            if (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
+                return targets.Count == 0;
+
+            return targets.Count > 0;
         }
 
         public override WrappedCard Validate(Room room, CardUseStruct use)

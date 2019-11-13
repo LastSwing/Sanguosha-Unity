@@ -812,6 +812,8 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
             skill_type = SkillType.Attack;
         }
+
+        public override bool CanPreShow() => true;
         public override bool Triggerable(Player target, Room room)
         {
             return target.Phase == PlayerPhase.Play && base.Triggerable(target, room);
@@ -1199,24 +1201,23 @@ namespace SanguoshaServer.Package
             {
                 LogMessage log = new LogMessage
                 {
-                    Type = "$CongjianBuff",
+                    Type = "#AddDamage",
                     From = player.Name,
                     To = new List<string> { damage.To.Name },
-                    Arg = damage.Damage.ToString(),
+                    Arg = Name,
                     Arg2 = (++damage.Damage).ToString()
                 };
                 room.SendLog(log);
 
                 data = damage;
-
             }
             else
             {
                 LogMessage log = new LogMessage
                 {
-                    Type = "$CongjianDamage",
+                    Type = "#AddDamaged",
                     From = player.Name,
-                    Arg = damage.Damage.ToString(),
+                    Arg = Name,
                     Arg2 = (++damage.Damage).ToString()
                 };
                 room.SendLog(log);
@@ -2483,8 +2484,16 @@ namespace SanguoshaServer.Package
             if (targets.Count == 0)
                 return true;
 
-            if (targets.Count == 1)
-                return (to_select.HasEquip() || targets[0].HasEquip()) && Math.Abs(to_select.GetEquips().Count - targets[0].GetEquips().Count) <= Self.GetLostHp();
+            if (targets.Count == 1 && (to_select.HasEquip() || targets[0].HasEquip()) && Math.Abs(to_select.GetEquips().Count - targets[0].GetEquips().Count) <= Self.GetLostHp())
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    if (targets[0].GetEquip(i) >= 0 && to_select.EquipIsBaned(i)) return false;
+                    if (to_select.GetEquip(i) >= 0 && targets[0].EquipIsBaned(i)) return false;
+                }
+
+                return true;
+            }
 
             return false;
         }

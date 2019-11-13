@@ -2004,6 +2004,11 @@ namespace SanguoshaServer.AI
         {
         }
 
+        public override string OnChoice(TrustedAI ai, Player player, string choices, object data)
+        {
+            return "show";
+        }
+
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardUseStruct use = new CardUseStruct();

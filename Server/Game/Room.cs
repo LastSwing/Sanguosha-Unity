@@ -1278,7 +1278,7 @@ namespace SanguoshaServer.Game
         }
 
 
-        List<int> MoveCardsAtomic(CardsMoveStruct cards_move, bool forceMoveVisible)
+        public List<int> MoveCardsAtomic(CardsMoveStruct cards_move, bool forceMoveVisible)
         {
             List<CardsMoveStruct> cards_moves = new List<CardsMoveStruct> { cards_move };
             return MoveCardsAtomic(cards_moves, forceMoveVisible);
@@ -5129,11 +5129,13 @@ namespace SanguoshaServer.Game
         {
             if (player.Chained == chained) return;
 
-            player.Chained = chained;
-            BroadcastProperty(player, "Chained");
-            if (trigger && player.Alive)
+            object data = chained;
+            if (!RoomThread.Trigger(TriggerEvent.ChainStateCanceling, this, player, ref data))
             {
-                RoomThread.Trigger(TriggerEvent.ChainStateChanged, this, player);
+                player.Chained = chained;
+                BroadcastProperty(player, "Chained");
+                if (trigger && player.Alive)
+                    RoomThread.Trigger(TriggerEvent.ChainStateChanged, this, player);
             }
         }
 
@@ -5652,8 +5654,7 @@ namespace SanguoshaServer.Game
                     provided = null;
                     has_provided = false;
                 }
-
-                player.SetFlags("TargetFixed");
+                
                 if (player.Alive && card == null)
                 {
                     NotifyMoveFocus(player, CommandType.S_COMMAND_RESPONSE_CARD);
@@ -6843,7 +6844,7 @@ namespace SanguoshaServer.Game
             player.ClearHistory();
             player.ClearHistory(Analeptic.ClassName);
             ThrowAllCards(player);
-            
+            player.ArmorNullifiedList.Clear();
             ThrowAllMarks(player);
             ClearPrivatePiles(player);
             RoomLogic.ClearPlayerCardLimitation(player, false);
@@ -7531,13 +7532,13 @@ namespace SanguoshaServer.Game
                     else
                     {
                         handcards = who.GetCards("h");
-                        Shuffle.shuffle<int>(ref handcards);
+                        Shuffle.shuffle(ref handcards);
                     }
 
                     List<string> disable_list = new List<string>();
                     foreach (int id in disabled_ids_copy)
                     {
-                        if (GetCardPlace(id) != Place.PlaceHand)
+                        if (GetCardPlace(id) != Place.PlaceHand || handcard_visible)
                             disable_list.Add(id.ToString());
                         else
                             disable_list.Add("*" + handcards.IndexOf(id).ToString());
@@ -8665,19 +8666,19 @@ namespace SanguoshaServer.Game
             return to_exchange;
         }
 
-        public PindianStruct PindianSelect(Player from, Player target, string reason, WrappedCard card1 = null)
+        public PindianStruct PindianSelect(Player from, Player target, string reason, WrappedCard card1 = null, PindianInfo.PindianType type = PindianInfo.PindianType.Pindian)
         {
             if (from == target) return new PindianStruct();
-            PindianStruct pd = PindianSelect(from, new List<Player> { target }, reason, card1);
+            PindianStruct pd = PindianSelect(from, new List<Player> { target }, reason, card1, type);
             return pd;
         }
 
-        public PindianStruct PindianSelect(Player from, List<Player> targets, string reason, WrappedCard card1 = null)
+        public PindianStruct PindianSelect(Player from, List<Player> targets, string reason, WrappedCard card1 = null, PindianInfo.PindianType type = PindianInfo.PindianType.Pindian)
         {
             if (targets.Contains(from)) return new PindianStruct();
             LogMessage log = new LogMessage
             {
-                Type = "#Pindian",
+                Type = type == PindianInfo.PindianType.Pindian ? "#Pindian" : "#Show",
                 From = from.Name,
                 To = new List<string>()
             };
@@ -8687,7 +8688,7 @@ namespace SanguoshaServer.Game
 
             Thread.Sleep(300);
 
-            List<WrappedCard> cards = AskForPindianRace(from, targets, reason, card1);
+            List<WrappedCard> cards = AskForPindianRace(from, targets, reason, card1, type);
             card1 = cards[0];
             List<int> ids = new List<int>();
             foreach (WrappedCard card in cards)
@@ -8708,55 +8709,58 @@ namespace SanguoshaServer.Game
                 Reason = reason
             };
 
-            List<CardsMoveStruct> pd_move = new List<CardsMoveStruct>();
-            CardsMoveStruct move1 = new CardsMoveStruct
+            if (type == PindianInfo.PindianType.Pindian)
             {
-                Card_ids = new List<int> { pindian.From_card.Id },
-                From = pindian.From.Name,
-                To = null,
-                To_place = Place.PlaceTable
-            };
-            CardMoveReason reason1 = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, pindian.From.Name, null, pindian.Reason, null);
-            move1.Reason = reason1;
-            pd_move.Add(move1);
-
-            for (int i = 0; i < targets.Count; i++)
-            {
-                CardsMoveStruct move2 = new CardsMoveStruct
+                List<CardsMoveStruct> pd_move = new List<CardsMoveStruct>();
+                CardsMoveStruct move1 = new CardsMoveStruct
                 {
-                    Card_ids = new List<int> { cards[i].Id },
-                    From = targets[i].Name,
+                    Card_ids = new List<int> { pindian.From_card.Id },
+                    From = pindian.From.Name,
                     To = null,
                     To_place = Place.PlaceTable
                 };
-                CardMoveReason reason2 = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, targets[i].Name);
-                move2.Reason = reason2;
-                pd_move.Add(move2);
-            }
+                CardMoveReason reason1 = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, pindian.From.Name, null, pindian.Reason, null);
+                move1.Reason = reason1;
+                pd_move.Add(move1);
+
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    CardsMoveStruct move2 = new CardsMoveStruct
+                    {
+                        Card_ids = new List<int> { cards[i].Id },
+                        From = targets[i].Name,
+                        To = null,
+                        To_place = Place.PlaceTable
+                    };
+                    CardMoveReason reason2 = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, targets[i].Name);
+                    move2.Reason = reason2;
+                    pd_move.Add(move2);
+                }
 
 
-            LogMessage log2 = new LogMessage
-            {
-                Type = "$PindianResult",
-                From = pindian.From.Name,
-                Card_str = pindian.From_card.Id.ToString()
-            };
-            SendLog(log2);
-
-            for (int i = 0; i < targets.Count; i++)
-            {
-                log2.Type = "$PindianResult";
-                log2.From = pindian.Tos[i].Name;
-                log2.Card_str = pindian.To_cards[i].Id.ToString();
+                LogMessage log2 = new LogMessage
+                {
+                    Type = "$PindianResult",
+                    From = pindian.From.Name,
+                    Card_str = pindian.From_card.Id.ToString()
+                };
                 SendLog(log2);
-            }
 
-            MoveCardsAtomic(pd_move, true);
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    log2.Type = "$PindianResult";
+                    log2.From = pindian.Tos[i].Name;
+                    log2.Card_str = pindian.To_cards[i].Id.ToString();
+                    SendLog(log2);
+                }
+
+                MoveCardsAtomic(pd_move, true);
+            }
 
             return pindian;
         }
 
-        public void Pindian(ref PindianStruct pd, int index = 0)
+        public void Pindian(ref PindianStruct pd, int index = 0, PindianInfo.PindianType type = PindianInfo.PindianType.Pindian)
         {
             if (index == 0)
             {
@@ -8775,27 +8779,31 @@ namespace SanguoshaServer.Game
                     DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                     Thread.Sleep(400);
                 }
-                object data = pd;
-                RoomThread.Trigger(TriggerEvent.PindianVerifying, this, pd.From, ref data);
-                pd = (PindianStruct)data;
 
-                Thread.Sleep(2000);
-
-                if (old_number != pd.From_number)
+                if (type == PindianInfo.PindianType.Pindian)
                 {
-                    List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_ALTER_PINDIAN.ToString(), pd.From.Name, pd.From_number.ToString(), pd.From_card.Id.ToString() };
-                    DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
-                    Thread.Sleep(500);
-                }
+                    object data = pd;
+                    RoomThread.Trigger(TriggerEvent.PindianVerifying, this, pd.From, ref data);
+                    pd = (PindianStruct)data;
 
-                for (int i = 0; i < pd.Tos.Count; i++)
-                {
-                    Player target = pd.Tos[i];
-                    if (old_to[i] != pd.To_numbers[i])
+                    Thread.Sleep(2000);
+
+                    if (old_number != pd.From_number)
                     {
-                        List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_ALTER_PINDIAN.ToString(), target.Name, pd.To_numbers[i].ToString(), pd.To_cards[i].Id.ToString() };
+                        List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_ALTER_PINDIAN.ToString(), pd.From.Name, pd.From_number.ToString(), pd.From_card.Id.ToString() };
                         DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                         Thread.Sleep(500);
+                    }
+
+                    for (int i = 0; i < pd.Tos.Count; i++)
+                    {
+                        Player target = pd.Tos[i];
+                        if (old_to[i] != pd.To_numbers[i])
+                        {
+                            List<string> arg = new List<string> { GameEventType.S_GAME_EVENT_ALTER_PINDIAN.ToString(), target.Name, pd.To_numbers[i].ToString(), pd.To_cards[i].Id.ToString() };
+                            DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
+                            Thread.Sleep(500);
+                        }
                     }
                 }
             }
@@ -8803,60 +8811,71 @@ namespace SanguoshaServer.Game
             pd.Success = pd.From_number > pd.To_numbers[index];
             Player to = pd.Tos[index];
 
-            int pindian_type = pd.Success ? 1 : pd.From_number == pd.To_numbers[index] ? 2 : 3;
+            int pindian_type = type == PindianInfo.PindianType.Show ? 0 : pd.Success ? 1 : pd.From_number == pd.To_numbers[index] ? 2 : 3;
             List<string> _arg = new List<string> { GuanxingStep.S_GUANXING_FINISH.ToString(), pindian_type.ToString(), (index + 1).ToString() };
             DoBroadcastNotify(CommandType.S_COMMAND_PINDIAN, _arg);
 
             Thread.Sleep(2000);
 
-            object decisionData = string.Format("pindian:{0}:{1}:{2}:{3}:{4}", pd.Reason, pd.From.Name, pd.From_card.Id, to.Name,
+            if (type == PindianInfo.PindianType.Pindian)
+            {
+                object decisionData = string.Format("pindian:{0}:{1}:{2}:{3}:{4}", pd.Reason, pd.From.Name, pd.From_card.Id, to.Name,
                 pd.To_cards[index].Id);
-            RoomThread.Trigger(TriggerEvent.ChoiceMade, this, pd.From, ref decisionData);
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, pd.From, ref decisionData);
 
-            LogMessage log = new LogMessage
-            {
-                Type = pd.Success ? "#PindianSuccess" : "#PindianFailure",
-                From = pd.From.Name,
-                To = new List<string> { to.Name }
-            };
-            SendLog(log);
-
-            object _data = pd;
-            RoomThread.Trigger(TriggerEvent.Pindian, this, pd.From, ref _data);
-
-            List<CardsMoveStruct> pd_move = new List<CardsMoveStruct>();
-            if (GetCardPlace(pd.From_card.Id) == Place.PlaceTable && index == pd.Tos.Count - 1)
-            {
-                CardsMoveStruct move1 = new CardsMoveStruct
+                LogMessage log = new LogMessage
                 {
-                    Card_ids = new List<int> { pd.From_card.Id },
+                    Type = pd.Success ? "#PindianSuccess" : "#PindianFailure",
                     From = pd.From.Name,
-                    To = null,
-                    To_place = Place.DiscardPile,
-                    Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, pd.From.Name, pd.Reason, null)
+                    To = new List<string> { to.Name }
                 };
-                pd_move.Add(move1);
-            }
+                SendLog(log);
 
-            if (GetCardPlace(pd.To_cards[index].GetEffectiveId()) == Place.PlaceTable)
-            {
-                CardsMoveStruct move2 = new CardsMoveStruct
+                object _data = pd;
+                RoomThread.Trigger(TriggerEvent.Pindian, this, pd.From, ref _data);
+
+                List<CardsMoveStruct> pd_move = new List<CardsMoveStruct>();
+                if (GetCardPlace(pd.From_card.Id) == Place.PlaceTable && index == pd.Tos.Count - 1)
                 {
-                    Card_ids = new List<int> { pd.To_cards[index].Id },
-                    From = to.Name,
-                    To = null,
-                    To_place = Place.DiscardPile,
-                    Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, to.Name)
-                };
+                    CardsMoveStruct move1 = new CardsMoveStruct
+                    {
+                        Card_ids = new List<int> { pd.From_card.Id },
+                        From = pd.From.Name,
+                        To = null,
+                        To_place = Place.DiscardPile,
+                        Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, pd.From.Name, pd.Reason, null)
+                    };
+                    pd_move.Add(move1);
+                }
 
-                pd_move.Add(move2);
+                if (GetCardPlace(pd.To_cards[index].GetEffectiveId()) == Place.PlaceTable)
+                {
+                    CardsMoveStruct move2 = new CardsMoveStruct
+                    {
+                        Card_ids = new List<int> { pd.To_cards[index].Id },
+                        From = to.Name,
+                        To = null,
+                        To_place = Place.DiscardPile,
+                        Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PINDIAN, to.Name)
+                    };
+
+                    pd_move.Add(move2);
+                }
+
+                if (pd_move.Count > 0)
+                    MoveCardsAtomic(pd_move, true);
             }
+            else
+            {
+                object decisionData = string.Format("showCards:{0}:{1}", pd.From_card.Id, "all");
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, pd.From, ref decisionData);
 
-            if (pd_move.Count > 0)
-                MoveCardsAtomic(pd_move, true);
+                decisionData = string.Format("showCards:{0}:{1}", pd.To_cards[index].Id, "all");
+                RoomThread.Trigger(TriggerEvent.ChoiceMade, this, pd.Tos[index], ref decisionData);
+            }
         }
 
-        private List<WrappedCard> AskForPindianRace(Player from, List<Player> to, string reason, WrappedCard card)
+        private List<WrappedCard> AskForPindianRace(Player from, List<Player> to, string reason, WrappedCard card, PindianInfo.PindianType type)
         {
             List<WrappedCard> result = new List<WrappedCard>();
             List<int> to_cards = new List<int>();
@@ -8870,6 +8889,31 @@ namespace SanguoshaServer.Game
                 names.Add(p.Name);
                 if (!p.Alive || p.IsKongcheng())
                     return result;
+            }
+
+            if (type == PindianInfo.PindianType.Pindian)
+            {
+                PindianInfo info = new PindianInfo
+                {
+                    From = from,
+                    Reason = reason,
+                    Card = card
+                };
+                object data = info;
+                RoomThread.Trigger(TriggerEvent.PindianCard, this, from, ref data);
+                info = (PindianInfo)data;
+                if (info.Card != null)
+                    card = info.Card;
+
+                for (int index = 0; index < to.Count; index++)
+                {
+                    info.Card = null;
+                    data = info;
+                    RoomThread.Trigger(TriggerEvent.PindianCard, this, to[index], ref data);
+                    info = (PindianInfo)data;
+                    if (info.Card != null)
+                        to_cards[index] = info.Card.GetEffectiveId();
+                }
             }
 
             Thread.Sleep(500);
@@ -8903,6 +8947,7 @@ namespace SanguoshaServer.Game
             bool check = true;
             for (int index = 0; index < to.Count; index++)
             {
+                if (to_cards[index] >= 0) continue; 
                 if (to[index].HandcardNum == 1)
                     to_cards[index] = to[index].HandCards[0];
                 else
@@ -8958,7 +9003,7 @@ namespace SanguoshaServer.Game
                 {
                     if (!responsers.Contains(GetInteractivity(p)))
                     {
-                        GetInteractivity(p).PindianRequest(this, p, from);
+                        GetInteractivity(p).PindianRequest(this, p, from, type);
                         responsers.Add(GetInteractivity(p));
                         response_players.Add(p);
                     }

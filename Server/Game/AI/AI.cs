@@ -26,6 +26,7 @@ namespace SanguoshaServer.AI
         public Dictionary<string, string> Choice { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, Player> Target { get; set; } = new Dictionary<string, Player>();
         public Dictionary<string, double> Number { get; set; } = new Dictionary<string, double>();
+        public Dictionary<string, int> CardCounts { get; set; } = new Dictionary<string, int>();
 
         public Dictionary<Player, double> PlayersLevel { get; set; } = new Dictionary<Player, double>();
         public string Process { get; protected set; } = string.Empty;
@@ -2809,8 +2810,31 @@ namespace SanguoshaServer.AI
                 pre_noncom_invalid[to] = pre_noncom_invalid[to] + "h";
 
             if (IsCancelTarget(card, to, from)) return new ScoreStruct();
-
             ScoreStruct result_score = new ScoreStruct();
+            if (from != null && HasSkill("fuyin", to) && to.GetMark("fuyin") == 0)
+            {
+                int hand = from.HandcardNum;
+                foreach (int id in card.SubCards)
+                    if (room.GetCardPlace(id) == Place.PlaceHand && room.GetCardOwner(id) == from)
+                        hand--;
+                if (pre_drink != null)
+                {
+                    foreach (int id in pre_drink.SubCards)
+                        if (room.GetCardPlace(id) == Place.PlaceHand && room.GetCardOwner(id) == from)
+                            hand--;
+                }
+
+                if (hand > to.HandcardNum)
+                {
+                    if (IsFriend(from, to))
+                        result_score.Score = -1;
+                    else
+                        result_score.Score = 1;
+
+                    return result_score;
+                }
+            }
+
             double result = 0;
             if (from.HasWeapon(QinggangSword.ClassName))
                 pre_ignore_armor.Add(to);
@@ -2837,9 +2861,13 @@ namespace SanguoshaServer.AI
             //evaluate hit rate
             double jink = 0;
             double force_hit = 0;
+
+            if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, to) == 1)
+                force_hit = 1;
+
             bool no_red = to.GetMark("@qianxi_red") > 0;
             bool no_black = to.GetMark("@qianxi_black") > 0;
-            if (!IsFriend(to, from))
+            if (force_hit < 1 && !IsFriend(to, from))
             {
                 int jink_need = HasSkill("wushuang", from) ? 2 : 1;
                 if (HasSkill("tieqi|tieqi_fz|tieq_jx", from)) force_hit = 7 / 10;
@@ -2947,7 +2975,7 @@ namespace SanguoshaServer.AI
 
                 jink = dodge;
             }
-            else if (JiaozhuneedSlash(to))
+            else if (force_hit < 1 && JiaozhuneedSlash(to))
             {
                 int jink_need = RoomLogic.PlayerHasShownSkill(room, from, "wushuang") ? 2 : 1;
                 if (HasArmorEffect(to, EightDiagram.ClassName))
@@ -3059,6 +3087,24 @@ namespace SanguoshaServer.AI
             if (IsCancelTarget(card, to, from)) return new ScoreStruct();
 
             ScoreStruct result_score = new ScoreStruct();
+            if (from != null && HasSkill("fuyin", to) && to.GetMark("fuyin") == 0)
+            {
+                int hand = from.HandcardNum;
+                foreach (int id in card.SubCards)
+                    if (room.GetCardPlace(id) == Place.PlaceHand && room.GetCardOwner(id) == from)
+                        hand--;
+
+                if (hand > to.HandcardNum)
+                {
+                    if (IsFriend(to))
+                        result_score.Score = -1;
+                    else
+                        result_score.Score = 1;
+
+                    return result_score;
+                }
+            }
+
             double result = 0;
             if (from.HasWeapon(QinggangSword.ClassName))
                 pre_ignore_armor.Add(to);
@@ -3085,9 +3131,13 @@ namespace SanguoshaServer.AI
             //evaluate hit rate
             double jink = 0;
             double force_hit = 0;
+
+            if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, to) == 1)
+                force_hit = 1;
+
             bool no_red = to.GetMark("@qianxi_red") > 0;
             bool no_black = to.GetMark("@qianxi_black") > 0;
-            if (!IsFriend(to, from))
+            if (force_hit < 1 && !IsFriend(to, from))
             {
                 int jink_need = HasSkill("wushuang", from) ? 2 : 1;
                 if (HasSkill("tieqi|tieqi_fz|tieqi_jx", from)) force_hit = 7 / 10;
@@ -3189,7 +3239,7 @@ namespace SanguoshaServer.AI
 
                 jink = dodge;
             }
-            else if (JiaozhuneedSlash(to))
+            else if (force_hit < 1 && JiaozhuneedSlash(to))
             {
                 int jink_need = RoomLogic.PlayerHasShownSkill(room, from, "wushuang") ? 2 : 1;
                 if (HasArmorEffect(to, EightDiagram.ClassName))
@@ -3298,7 +3348,10 @@ namespace SanguoshaServer.AI
             if (ev != null && !ev.IsCardEffect(this, card, from, to)) return false;
 
             bool armor_ignore = false;
-            if (from != null && card.Name.Contains(Slash.ClassName))
+            if (from != null && from.Alive && to.ArmorNullifiedList.ContainsKey(from.Name))
+                armor_ignore = true;
+
+            if (!armor_ignore && from != null && card.Name.Contains(Slash.ClassName))
             {
                 if (from.HasWeapon(QinggangSword.ClassName))
                     armor_ignore = true;
@@ -3310,13 +3363,56 @@ namespace SanguoshaServer.AI
                 }
             }
 
+            if (!armor_ignore && from != null && HasSkill("benxi", from))
+            {
+                if (from.HasFlag("benxi_choose"))
+                {
+                    string card_str = RoomLogic.CardToString(room, card);
+                    string str = string.Format("{0}_{1}", "benxi", card_str);
+                    if (from.ContainsTag(str) && from.GetTag(str) is List<int> cards && cards.Contains(1))
+                        armor_ignore = true;
+                }
+                else
+                {
+                    if (!IsFriend(from, to))
+                    {
+                        bool check = true;
+                        foreach (Player p in room.GetOtherPlayers(from))
+                        {
+                            int distance = RoomLogic.DistanceTo(room, from, p, card, true);
+                            if (distance != 1)
+                            {
+                                check = false;
+                                break;
+                            }
+                        }
+
+                        if (check)
+                            armor_ignore = true;
+                    }
+                }
+            }
+
+            if (!armor_ignore && card.Name.Contains(Slash.ClassName) && !IsFriend(from, to) && HasSkill("moukui|pojun", from) && to.GetArmor())
+            {
+                List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
+                    (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();
+
+                if (self.HasFlag("target_confirming") || use_list.Count == 0 || use_list[use_list.Count - 1].Card != card || use_list[use_list.Count - 1].From != from)
+                    armor_ignore = true;
+            }
+
             if (!armor_ignore && card.Name.Contains(Slash.ClassName) && HasArmorEffect(to, RenwangShield.ClassName) && WrappedCard.IsBlack(card.Suit))
             {
                 if (!HasSkill("jianchu", from) || !to.HasArmor(RenwangShield.ClassName) || IsFriend(from, to))
                     return false;
             }
-            if (HasArmorEffect(to, Vine.ClassName) && (card.Name == SavageAssault.ClassName || card.Name == ArcheryAttack.ClassName || (card.Name == Slash.ClassName && !armor_ignore)))
-                return false;
+            if (!armor_ignore && HasArmorEffect(to, Vine.ClassName) &&
+                (card.Name == SavageAssault.ClassName || card.Name == ArcheryAttack.ClassName || (card.Name == Slash.ClassName && !armor_ignore)))
+            {
+                if (card.Name != Slash.ClassName || !HasSkill("jianchu", from) || !to.HasArmor(RenwangShield.ClassName) || IsFriend(from, to))
+                    return false;
+            }
 
             return true;
         }
@@ -3649,6 +3745,7 @@ namespace SanguoshaServer.AI
             Player current = null;
             foreach (Player p in all)
             {
+                if (dest_place == Place.PlaceHand && HasSkill("zhishu", p) && p.Phase == PlayerPhase.NotActive) continue; 
                 if (players.Contains(p) && !WillSkipPlayPhase(p))
                 {
                     current = p;
@@ -3687,8 +3784,11 @@ namespace SanguoshaServer.AI
             }
 
             foreach (Player p in players)
+            {
+                if (dest_place == Place.PlaceHand && HasSkill("zhishu", p) && p.Phase == PlayerPhase.NotActive) continue;
                 if (IsWeak(p) && !MaySave(p))
                     weaks.Add(p);
+            }
 
             if (weaks.Count > 0)
             {
@@ -3719,8 +3819,11 @@ namespace SanguoshaServer.AI
             }
 
             foreach (Player p in players)
+            {
+                if (dest_place == Place.PlaceHand && HasSkill("zhishu", p) && p.Phase == PlayerPhase.NotActive) continue;
                 if (p.Phase == PlayerPhase.Play || !WillSkipPlayPhase(p))
                     acts.Add(p);
+            }
             room.SortByActionOrder(ref acts);
 
             target = null;
@@ -3889,6 +3992,11 @@ namespace SanguoshaServer.AI
             {
                 if (!IsFriend(p) && GetPlayerTendency(p) != self.Kingdom)
                     enemies++;
+
+                bool fuqi = false;
+                if (HasSkill("fuqi") && RoomLogic.DistanceTo(room, self, p) == 1)
+                    fuqi = true;
+
                 if (IsFriend(p))
                 {
                     int p_count = 0;
@@ -3899,11 +4007,12 @@ namespace SanguoshaServer.AI
                                 p_count++;
                     }
 
-                    foreach (WrappedCard c in GetCards(Nullification.ClassName, p, true))
-                        if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodUse))
-                            null_num ++;
+                    if (!fuqi)
+                        foreach (WrappedCard c in GetCards(Nullification.ClassName, p, true))
+                            if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodUse))
+                                null_num++;
                 }
-                else
+                else if (!fuqi)
                     null_num -= GetKnownCardsNums(Nullification.ClassName, "he", p, self);
             }
             foreach (int id in card.SubCards)
@@ -3926,6 +4035,11 @@ namespace SanguoshaServer.AI
             {
                 DamageStruct damage = new DamageStruct(card, attacker, p);
                 ScoreStruct score = GetDamageScore(damage);
+
+                bool fuqi = false;
+                if (HasSkill("fuqi") && RoomLogic.DistanceTo(room, self, p) == 1)
+                    fuqi = true;
+
                 foreach (string skill in GetKnownSkills(p))
                 {
                     SkillEvent e = Engine.GetSkillEvent(skill);
@@ -3933,7 +4047,7 @@ namespace SanguoshaServer.AI
                         score.Score += e.TargetValueAdjust(this, card, self, targets, p);
                 }
 
-                if (pattern == Jink.ClassName)
+                if (!fuqi && pattern == Jink.ClassName)
                 {
                     if (NotSlashJiaozhu(p))
                     {
@@ -3987,19 +4101,24 @@ namespace SanguoshaServer.AI
 
                     if (basic_rate < 1)
                     {
-                        int count = 0;
-                        foreach (WrappedCard c in GetCards(pattern, p, true))
-                            if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodResponse))
-                                count++;
-
-                        if (count > 0)
-                            hit_rate = 0;
+                        if (fuqi)
+                            hit_rate = 1;
                         else
                         {
-                            count = p.HandcardNum + p.GetHandPile().Count - GetKnownHandPileCards(p).Count;
-                            if (RoomLogic.IsHandCardLimited(room, p, HandlingMethod.MethodResponse)) count -= p.HandcardNum;
+                            int count = 0;
+                            foreach (WrappedCard c in GetCards(pattern, p, true))
+                                if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodResponse))
+                                    count++;
 
-                            hit_rate = Math.Max(0, 1 - count / rate);
+                            if (count > 0)
+                                hit_rate = 0;
+                            else
+                            {
+                                count = p.HandcardNum + p.GetHandPile().Count - GetKnownHandPileCards(p).Count;
+                                if (RoomLogic.IsHandCardLimited(room, p, HandlingMethod.MethodResponse)) count -= p.HandcardNum;
+
+                                hit_rate = Math.Max(0, 1 - count / rate);
+                            }
                         }
 
                         double _good = 0, _bad = 0;
@@ -4106,6 +4225,17 @@ namespace SanguoshaServer.AI
         private readonly List<string> kingdoms = new List<string> { "wei", "shu", "wu", "qun" };
         public virtual void Event(TriggerEvent triggerEvent, Player player, object data)
         {
+            if (triggerEvent == TriggerEvent.GameStart && player == self)
+            {
+                foreach (int id in room.RoomCards)
+                {
+                    WrappedCard card = Engine.GetRealCard(id);
+                    if (!CardCounts.ContainsKey(card.Name))
+                        CardCounts[card.Name] = 1;
+                    else
+                        CardCounts[card.Name]++;
+                }
+            }
         }
 
         public void FilterSkillCard(ref List<WrappedCard> cards)
@@ -4842,20 +4972,295 @@ namespace SanguoshaServer.AI
                     next = room.GetNextAlive(next, 1, false);
                 }
 
+                List<int> lest = new List<int>(cards);
+                lest.RemoveAll(t => best.Contains(t));
+
+                bool skip = false;
+                if (HasSkill("luoshen|luoshen_jx", next))
+                {
+                    skip = true;
+                    if (next.GetPile("incantation").Count == 0)
+                    {
+                        if (IsFriend(next))
+                        {
+                            foreach (int id in lest)
+                                if (WrappedCard.IsBlack(room.GetCard(id).Suit))
+                                    judge_for_next.Add(id);
+                        }
+                        else
+                        {
+                            foreach (int id in lest)
+                            {
+                                if (WrappedCard.IsRed(room.GetCard(id).Suit))
+                                {
+                                    judge_for_next.Add(id);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!skip)
+                {
+                    List<WrappedCard> next_judge = new List<WrappedCard>();
+                    for (int i = next.JudgingArea.Count - 1; i >= 0; i--)
+                    {
+                        WrappedCard card = room.GetCard(next.JudgingArea[i]);
+                        next_judge.Add(card);
+                    }
+                    if (lightning != null && next == room.GetNextAlive(self, 1, false))
+                        next_judge.Insert(0, lightning);
+
+                    if (next_judge.Count > 0 && next.GetPile("incantation").Count > 0) //被张宝咒缚
+                        next_judge.RemoveAt(0);
+
+                    //清除判不到的延时锦囊
+                    int judge_count = next_judge.Count;
+                    for (int i = judge_count; i > lest.Count; i--)
+                    {
+                        next_judge.RemoveAt(i - 1);
+                    }
+
+                    if (next_judge.Count > 0)
+                    {
+                        if (IsFriend(next))
+                        {
+                            List<int> for_light = null, for_indu = null, for_supply = null;
+                            foreach (WrappedCard judge in next_judge)
+                            {
+                                if (judge.Name == Lightning.ClassName)
+                                {
+                                    DamageStruct damage = new DamageStruct(judge, null, next, 3, DamageStruct.DamageNature.Thunder);
+                                    if (GetDamageScore(damage).Score < 0)
+                                    {
+                                        for_light = new List<int>();
+                                    }
+                                }
+                                else if (judge.Name == Indulgence.ClassName)
+                                    for_indu = new List<int>();
+                                else
+                                    for_supply = new List<int>();
+                            }
+
+                            foreach (int id in lest)
+                            {
+                                WrappedCard card = room.GetCard(id);
+                                int number = card.Number;
+                                WrappedCard.CardSuit suit = card.Suit;
+                                if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                                    suit = WrappedCard.CardSuit.Heart;
+
+                                if (for_light != null)
+                                {
+                                    if (number == 1 || number > 9 || suit != WrappedCard.CardSuit.Spade)
+                                        for_light.Add(id);
+                                }
+                                else if (for_supply != null && suit == WrappedCard.CardSuit.Club)
+                                    for_supply.Add(id);
+                                else if (for_indu != null && suit == WrappedCard.CardSuit.Heart)
+                                    for_indu.Add(id);
+                            }
+
+                            foreach (WrappedCard judge in next_judge)
+                            {
+                                if (judge.Name == Lightning.ClassName)
+                                {
+                                    if (for_light == null || for_light.Count == 0)
+                                        break;
+                                    else
+                                    {
+                                        int id = -1;
+                                        foreach (int i in for_light)
+                                        {
+                                            if (judge_for_next.Contains(i))
+                                                continue;
+
+                                            if ((for_indu == null || !for_indu.Contains(i)) && (for_supply == null || !for_supply.Contains(i)))
+                                            {
+                                                id = i;
+                                                break;
+                                            }
+                                            else if (for_indu != null && for_indu.Contains(i) && for_indu.Count > 1)
+                                            {
+                                                id = i;
+                                                break;
+                                            }
+                                            else if (for_supply != null && for_supply.Contains(i) && for_supply.Count > 1)
+                                            {
+                                                id = i;
+                                                break;
+                                            }
+                                        }
+                                        if (id >= 0)
+                                            judge_for_next.Add(id);
+                                    }
+                                }
+                                else if (judge.Name == Indulgence.ClassName)
+                                {
+                                    if (for_indu.Count == 0)
+                                        break;
+                                    else
+                                    {
+                                        judge_for_next.Add(for_indu[0]);
+                                    }
+                                }
+                                else
+                                {
+                                    if (for_supply.Count == 0)
+                                        break;
+                                    else
+                                    {
+                                        judge_for_next.Add(for_supply[0]);
+                                    }
+                                }
+                            }
+
+                            if (next_judge[0].Name == Lightning.ClassName && judge_for_next.Count == 1)
+                                option = true;
+                        }
+                        else if (IsEnemy(next))
+                        {
+                            //仅为敌人判断闪电
+                            List<int> for_light = null;
+                            foreach (WrappedCard judge in next_judge)
+                            {
+                                if (judge.Name == Lightning.ClassName)
+                                {
+                                    DamageStruct damage = new DamageStruct(judge, null, next, 3, DamageStruct.DamageNature.Thunder);
+                                    if (GetDamageScore(damage).Score > 4)
+                                    {
+                                        for_light = new List<int>();
+                                        foreach (int id in lest)
+                                        {
+                                            WrappedCard card = room.GetCard(id);
+                                            int number = card.Number;
+                                            WrappedCard.CardSuit suit = card.Suit;
+                                            if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                                                suit = WrappedCard.CardSuit.Heart;
+
+                                            if (number > 1 && number <= 9 && suit == WrappedCard.CardSuit.Spade)
+                                                for_light.Add(id);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (for_light != null && for_light.Count > 0)
+                            {
+                                for (int i = 0; i < next_judge.Count; i++)
+                                {
+                                    WrappedCard judge = next_judge[i];
+                                    if (judge.Name == Lightning.ClassName)
+                                    {
+                                        judge_for_next.Add(for_light[0]);
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        if (next_judge[i + 1].Name == Lightning.ClassName && for_light.Count > 1)
+                                        {
+                                            judge_for_next.Add(for_light[0]);
+                                            for_light.RemoveAt(0);
+                                        }
+                                        else
+                                        {
+                                            foreach (int id in lest)
+                                            {
+                                                if (!for_light.Contains(id))
+                                                {
+                                                    judge_for_next.Add(id);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            up.AddRange(judge_remove);
+            if (judge_for_next.Count > 0 && !option)
+            {
+                up.AddRange(best);
+                up.AddRange(judge_for_next);
+                cards.RemoveAll(t => up.Contains(t));
+                move.Top = up;
+                move.Bottom = new List<int>(cards);
+                return move;
+            }
+
+            foreach (int id in best)
+            {
+                double _value = GetUseValue(id, self, Place.PlaceHand);
+                WrappedCard card = room.GetCard(id);
+                //room.OutPut(string.Format("观星判断{0}的价值是{1}", card.Name, _value));
+                if (_value > 4)
+                {
+                    up.Add(id);
+                }
+                else
+                    break;
+            }
+            cards.RemoveAll(t => up.Contains(t));
+            move.Top = up;
+            move.Bottom = new List<int>(cards);
+            return move;
+        }
+
+        public AskForMoveCardsStruct GuanxingForNext(List<int> cards)
+        {
+            List<int> judge_for_next = new List<int>();
+            Player next = room.GetNextAlive(self, 1, false);
+            int count = 1;
+            while (!next.FaceUp && count < room.AliveCount())
+            {
+                count++;
+                next = room.GetNextAlive(next, 1, false);
+            }
+
+            List<int> lest = new List<int>(cards);
+
+            bool skip = false;
+            if (HasSkill("luoshen|luoshen_jx", next))
+            {
+                skip = true;
+                if (next.GetPile("incantation").Count == 0)
+                {
+                    if (IsFriend(next))
+                    {
+                        foreach (int id in lest)
+                            if (WrappedCard.IsBlack(room.GetCard(id).Suit))
+                                judge_for_next.Add(id);
+                    }
+                    else
+                    {
+                        foreach (int id in lest)
+                        {
+                            if (WrappedCard.IsRed(room.GetCard(id).Suit))
+                            {
+                                judge_for_next.Add(id);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!skip)
+            {
                 List<WrappedCard> next_judge = new List<WrappedCard>();
                 for (int i = next.JudgingArea.Count - 1; i >= 0; i--)
                 {
                     WrappedCard card = room.GetCard(next.JudgingArea[i]);
                     next_judge.Add(card);
                 }
-                if (lightning != null && next == room.GetNextAlive(self, 1, false))
-                    next_judge.Insert(0, lightning);
-                
+
                 if (next_judge.Count > 0 && next.GetPile("incantation").Count > 0) //被张宝咒缚
                     next_judge.RemoveAt(0);
-
-                List<int> lest = new List<int>(cards);
-                lest.RemoveAll(t => best.Contains(t));
 
                 //清除判不到的延时锦囊
                 int judge_count = next_judge.Count;
@@ -4909,7 +5314,10 @@ namespace SanguoshaServer.AI
                             if (judge.Name == Lightning.ClassName)
                             {
                                 if (for_light == null || for_light.Count == 0)
+                                {
+                                    skip = true;
                                     break;
+                                }
                                 else
                                 {
                                     int id = -1;
@@ -4941,7 +5349,10 @@ namespace SanguoshaServer.AI
                             else if (judge.Name == Indulgence.ClassName)
                             {
                                 if (for_indu.Count == 0)
+                                {
+                                    skip = true;
                                     break;
+                                }
                                 else
                                 {
                                     judge_for_next.Add(for_indu[0]);
@@ -4950,16 +5361,16 @@ namespace SanguoshaServer.AI
                             else
                             {
                                 if (for_supply.Count == 0)
+                                {
+                                    skip = true;
                                     break;
+                                }
                                 else
                                 {
                                     judge_for_next.Add(for_supply[0]);
                                 }
                             }
                         }
-
-                        if (next_judge[0].Name == Lightning.ClassName && judge_for_next.Count == 1)
-                            option = true;
                     }
                     else if (IsEnemy(next))
                     {
@@ -4981,8 +5392,8 @@ namespace SanguoshaServer.AI
                                         if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
                                             suit = WrappedCard.CardSuit.Heart;
 
-                                            if (number > 1 && number <= 9 && suit == WrappedCard.CardSuit.Spade)
-                                                for_light.Add(id);
+                                        if (number > 1 && number <= 9 && suit == WrappedCard.CardSuit.Spade)
+                                            for_light.Add(id);
                                     }
                                 }
                             }
@@ -4990,7 +5401,7 @@ namespace SanguoshaServer.AI
 
                         if (for_light != null && for_light.Count > 0)
                         {
-                            for (int i = 0; i < next_judge.Count;i++)
+                            for (int i = 0; i < next_judge.Count; i++)
                             {
                                 WrappedCard judge = next_judge[i];
                                 if (judge.Name == Lightning.ClassName)
@@ -5023,33 +5434,75 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            up.AddRange(judge_remove);
-            if (judge_for_next.Count > 0 && !option)
+            AskForMoveCardsStruct result = new AskForMoveCardsStruct
             {
-                up.AddRange(best);
-                up.AddRange(judge_for_next);
-                cards.RemoveAll(t => up.Contains(t));
-                move.Top = up;
-                move.Bottom = new List<int>(cards);
-                return move;
-            }
+                Success = true
+            };
+            if (judge_for_next.Count > 0)
+            {
+                result.Top = judge_for_next;
+                lest.RemoveAll(t => judge_for_next.Contains(t));
 
-            foreach (int id in best)
-            {
-                double _value = GetUseValue(id, self, Place.PlaceHand);
-                WrappedCard card = room.GetCard(id);
-                //room.OutPut(string.Format("观星判断{0}的价值是{1}", card.Name, _value));
-                if (_value > 4)
+                if (skip)
                 {
-                    up.Add(id);
+                    result.Bottom = lest;
+                }
+                else if (cards.Count > judge_for_next.Count)
+                {
+                    if (IsFriend(next))
+                    {
+                        foreach (int id in lest)
+                            if (GetUseValue(id, next, Place.PlaceHand) >= 6)
+                                result.Top.Add(id);
+
+                        lest.RemoveAll(t => result.Top.Contains(t));
+                        result.Bottom = lest;
+                    }
+                    else
+                    {
+                        foreach (int id in lest)
+                            if (GetUseValue(id, next, Place.PlaceHand) < 3)
+                                result.Top.Add(id);
+
+                        lest.RemoveAll(t => result.Top.Contains(t));
+                        result.Bottom = lest;
+                    }
+                }
+            }
+            else
+            {
+                if (skip)
+                {
+                    result.Top = new List<int>();
+                    result.Bottom = new List<int>(cards);
                 }
                 else
-                    break;
+                {
+                    result.Top = new List<int>();
+                    if (IsFriend(next))
+                    {
+                        foreach (int id in cards)
+                            if (GetUseValue(id, next, Place.PlaceHand) >= 6)
+                                result.Top.Add(id);
+
+                        lest.RemoveAll(t => result.Top.Contains(t));
+                        result.Bottom = lest;
+                    }
+                    else
+                    {
+                        foreach (int id in cards)
+                            if (GetUseValue(id, next, Place.PlaceHand) < 3)
+                                result.Top.Add(id);
+
+                        lest.RemoveAll(t => result.Top.Contains(t));
+                        result.Bottom = lest;
+                    }
+                }
             }
-            cards.RemoveAll(t => up.Contains(t));
-            move.Top = up;
-            move.Bottom = new List<int>(cards);
-            return move;
+
+            Debug.Assert(result.Top.Count + result.Bottom.Count == cards.Count);
+
+            return result;
         }
 
         public virtual bool CardAskNullifilter(DamageStruct damage)
@@ -5243,6 +5696,17 @@ namespace SanguoshaServer.AI
             
             if (HasSkill("lirang") && FriendNoSelf.Count > 0)
                 guzheng = true;
+            if (HasSkill("weidi_jx"))
+            {
+                foreach (Player p in FriendNoSelf)
+                {
+                    if (p.Kingdom == "qun")
+                    {
+                        guzheng = true;
+                        break;
+                    }
+                }
+            }
 
             bool lv_fan = false;
             foreach (Player p in room.GetAlivePlayers())
@@ -5255,9 +5719,7 @@ namespace SanguoshaServer.AI
             }
 
             if (sames.Count > 1 && (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill)))
-            {
                 use_same = true;
-            }
 
             if (!use_same)
             {
@@ -5278,7 +5740,7 @@ namespace SanguoshaServer.AI
                         return;
                 }
 
-                if (HasSkill("bazhen") && !WillShowForDefence())
+                if (Engine.GetFunctionCard(sames[0].Name) is Armor && HasSkill("bazhen") && !WillShowForDefence())
                     value += 2;
 
                 if (value > 0)

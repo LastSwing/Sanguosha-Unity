@@ -956,7 +956,7 @@ namespace SanguoshaServer.Package
     {
         public Qianhuan() : base("qianhuan")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TargetConfirming };
+            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TargetConfirming, TriggerEvent.CardsMoveOneTime };
             view_as_skill = new QianhuanVS();
             skill_type = SkillType.Wizzard;
         }
@@ -984,6 +984,21 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To != null && move.To_place == Place.PlaceDelayedTrick
+                && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_TRANSFER)
+            {
+                WrappedCard card = RoomLogic.ParseCard(room, move.Reason.CardString);
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (fcard is DelayedTrick && room.GetCardPlace(move.Card_ids[0]) == Place.PlaceDelayedTrick)
+                {
+                    foreach (Player yuji in yujis)
+                    {
+                        if (yuji.GetPile("sorcery").Count > 0 && RoomLogic.WillBeFriendWith(room, yuji, move.To, Name))
+                            skill_list.Add(new TriggerStruct(Name, yuji));
+                    }
+                }
+            }
+
             return skill_list;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player yuji, TriggerStruct info)
@@ -994,7 +1009,7 @@ namespace SanguoshaServer.Package
 
             if (triggerEvent == TriggerEvent.Damaged)
             {
-                List<string> patterns = new List<string> { "spade" , "heart" , "club", "diamond" };
+                List<string> patterns = new List<string> { "spade", "heart", "club", "diamond" };
                 foreach (int id in yuji.GetPile("sorcery"))
                     patterns.Remove(WrappedCard.GetSuitString(room.GetCard(id).Suit));
                 List<int> ints = room.AskForExchange(yuji, Name, 1, 0, "@qianhuan", string.Empty, ".|" + string.Join(",", patterns), info.SkillPosition);
@@ -1004,13 +1019,25 @@ namespace SanguoshaServer.Package
                     invoke = true;
                 }
             }
-            else if (data is CardUseStruct use)
+            else if (triggerEvent == TriggerEvent.TargetConfirming && data is CardUseStruct use)
             {
                 List<string> prompt_list = new List<string> { "@qianhuan-cancel", string.Empty, use.To[0].Name, use.Card.Name };
                 string prompt = string.Join(":", prompt_list);
                 if (room.AskForUseCard(yuji, "@@qianhuan", prompt, -1, HandlingMethod.MethodNone, true, info.SkillPosition) != null)
                 {
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, yuji.Name, use.To[0].Name);
+                    invoke = true;
+                }
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.PlaceDelayedTrick
+                && room.GetCardPlace(move.Card_ids[0]) == Place.PlaceDelayedTrick)
+            {
+                WrappedCard card = RoomLogic.ParseCard(room, move.Reason.CardString);
+                List<string> prompt_list = new List<string> { "@qianhuan-cancel", string.Empty, move.To.Name, card.Name };
+                string prompt = string.Join(":", prompt_list);
+                if (room.AskForUseCard(yuji, "@@qianhuan", prompt, -1, HandlingMethod.MethodNone, true, info.SkillPosition) != null)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, yuji.Name, move.To.Name);
                     invoke = true;
                 }
             }
@@ -1030,8 +1057,19 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.TargetConfirming && data is CardUseStruct use)
             {
                 room.CancelTarget(ref use, use.To[0]); // Room::cancelTarget(use, player);
-                room.SetPlayerFlag(ask_who, Name);
                 data = use;
+                return true;
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && room.GetCardPlace(move.Card_ids[0]) == Place.PlaceDelayedTrick)
+            {
+                room.SetEmotion(ask_who, "cancel");
+                System.Threading.Thread.Sleep(400);
+
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, string.Empty);
+                reason.CardString = move.Reason.CardString;
+
+                CardsMoveStruct move2 = new CardsMoveStruct(move.Card_ids, null, Place.DiscardPile, reason);
+                room.MoveCardsAtomic(move2, true);
             }
 
             return false;

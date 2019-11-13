@@ -19,10 +19,15 @@ namespace SanguoshaServer.AI
                 new ShicaiJXAI(),
                 new TusheAI(),
                 new LimuAI(),
+
+                new ZuilunAI(),
+
                 new LiangyinAI(),
                 new KongshengAI(),
                 new JueyanAI(),
                 new HuairouAI(),
+
+
             };
 
             use_cards = new List<UseCard>
@@ -159,6 +164,118 @@ namespace SanguoshaServer.AI
             return 6;
         }
     }
+
+    public class ZuilunAI : SkillEvent
+    {
+        public ZuilunAI() : base("zuilun")
+        {
+            key = new List<string> { "playerChosen" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2], true);
+
+                    if (ai.GetPlayerTendency(target) != "unknown" && (!ai.HasSkill("zhaxiang", target) || target.Hp <= 1))
+                        ai.UpdatePlayerRelation(player, target, false);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player zhuge, object data)
+        {
+            Room room = ai.Room;
+            int count = 0;
+            if (zhuge.HasFlag("zuilun_damage")) count++;
+            if (!zhuge.HasFlag("zuilun_discard")) count++;
+            int hand = 1000;
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.HandcardNum < hand) hand = p.HandcardNum;
+            if (zhuge.HandcardNum == hand) count++;
+
+            if (count > 0) return true;
+            if (zhuge.Hp > 2)
+            {
+                foreach (Player p in room.GetOtherPlayers(zhuge))
+                {
+                    if (ai.IsFriend(p) && ai.HasSkill("zhaxiang", p) && p.Hp > 1) return true;
+                    if (ai.IsEnemy(p) && p.Hp == 1 && !ai.HasSkill("buqu|buqu_jx", p)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        public override AskForMoveCardsStruct OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max)
+        {
+            AskForMoveCardsStruct move = ai.GuanxingForNext(new List<int>(ups));
+            if (move.Bottom.Count == min)
+            {
+                return move;
+            }
+            else if (move.Top.Count > 0)
+            {
+                if (move.Bottom.Count < min)
+                {
+                    while (move.Bottom.Count < min)
+                    {
+                        int id = move.Top[move.Top.Count - 1];
+                        move.Top.Remove(id);
+                        move.Bottom.Add(id);
+                    }
+                }
+                else
+                {
+                    List<int> down = move.Bottom;
+                    ai.SortByKeepValue(ref down, false);
+                    while (move.Bottom.Count > min)
+                    {
+                        int id = down[0];
+                        down.Remove(id);
+                        move.Bottom.Remove(id);
+                        move.Top.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                move.Top.Clear();
+                move.Bottom.Clear();
+                ai.SortByKeepValue(ref ups);
+                for (int i = 0; i < ups.Count; i++)
+                {
+                    if (i < min)
+                        move.Bottom.Add(ups[i]);
+                    else
+                        move.Top.Add(ups[i]);
+                }
+            }
+
+            Debug.Assert(move.Bottom.Count == min);
+            return move;
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> enemies = ai.GetEnemies(player);
+            if (enemies.Count > 0)
+            {
+                ai.SortByDefense(ref enemies);
+                foreach (Player p in enemies)
+                    if (p.Hp == 1) return new List<Player> { p };
+
+                foreach (Player p in enemies)
+                    if (!ai.HasSkill("zhaxiang", p)) return new List<Player> { p };
+            }
+
+            return new List<Player> { targets[0] };
+        }
+    }
+
 
     public class LiangyinAI : SkillEvent
     {

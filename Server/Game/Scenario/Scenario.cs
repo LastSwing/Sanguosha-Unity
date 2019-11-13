@@ -1016,7 +1016,7 @@ namespace SanguoshaServer.Scenario
                                 else
                                 {
                                     WrappedCard card = room.GetCard(move.Card_ids[0]);
-                                    if (card.Name == Edict.ClassName && !card.HasFlag("edict_order_normal_use"))
+                                    if (card.Name == Edict.ClassName && !card.HasFlag("edict_normal_use"))
                                         should_find_io = true; // use card isn't IO
                                 }
                             }

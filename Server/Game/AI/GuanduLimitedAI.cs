@@ -1683,6 +1683,11 @@ namespace SanguoshaServer.AI
 
                         return new List<int>();
                     }
+                    else if (use.Card.Name == Peach.ClassName)
+                    {
+                        foreach (Player p in use.To)
+                            if (ai.IsFriend(p)) return new List<int>();
+                    }
 
                     return new List<int> { id };
                 }
@@ -1704,7 +1709,37 @@ namespace SanguoshaServer.AI
         {
             return true;
         }
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> all, int min, int max, bool option)
+        {
+            Room room = ai.Room;
+            if (room.GetTag(Name) is DamageStruct damage)
+            {
+                double value = 0;
+                DamageStruct _damage = new DamageStruct(Name, player, damage.From);
+                ScoreStruct score = ai.GetDamageScore(_damage);
 
+                List<int> ids = new List<int>(), discount = new List<int>();
+                foreach (int id in player.GetCards("h"))
+                    if (RoomLogic.CanDiscard(room, player, player, id))
+                        ids.Add(id);
+
+                ai.SortByKeepValue(ref ids, false);
+                for (int i = 0; i <= damage.From.HandcardNum; i++)
+                {
+                    value += ai.GetKeepValue(ids[i], player);
+                    discount.Add(ids[i]);
+                }
+                if (value > 0) value /= 2;
+
+                if (value < score.Score)
+                {
+                    return discount;
+                }
+            }
+
+            return new List<int>();
+        }
+        /*
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
@@ -1738,7 +1773,7 @@ namespace SanguoshaServer.AI
 
             return use;
         }
-
+        */
         public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
         {
             ScoreStruct score = new ScoreStruct

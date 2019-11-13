@@ -1506,20 +1506,24 @@ namespace SanguoshaServer.AI
 
             if (skill_name == "GameRule:TriggerOrder" || trigger_skill)
             {
-                if (choice.Contains("qianxi")) return "qianxi";
-                if (choice.Contains("duanbing")) return "duanbing";
-                if (choice.Contains("jieming")) return "jieming";
-                if (choice.Contains("fankui") && choice.Contains("ganglie")) return "fankui";
-                if (choice.Contains("fangzhu") && data is DamageStruct damage)
+                List<string> choices = new List<string>(choice.Split('+'));
+                if (choices.Contains("weimu")) return "weimu";
+                if (choices.Contains("qianxun")) return "qianxun";
+                if (choices.Contains("kongcheng")) return "kongcheng";
+                if (choices.Contains("qianxi")) return "qianxi";
+                if (choices.Contains("duanbing")) return "duanbing";
+                if (choices.Contains("jieming")) return "jieming";
+                if (choices.Contains("fankui") && choice.Contains("ganglie")) return "fankui";
+                if (choices.Contains("fangzhu") && data is DamageStruct damage)
                 {
                     Player from = damage.From;
-                    if (choice.Contains("wangxi"))
+                    if (choices.Contains("wangxi"))
                     {
                         if (from != null && from.IsNude())
                             return "wangxi";
                     }
 
-                    if (choice.Contains("fankui"))
+                    if (choices.Contains("fankui"))
                     {
                         if (from != null && from == Self && HasArmorEffect(Self, SilverLion.ClassName))
                         {
@@ -1540,10 +1544,10 @@ namespace SanguoshaServer.AI
                     return "fangzhu";
                 }
 
-                if (choice.Contains("wangxi") && choice.Contains("ganglie")) return "ganglie";
-                if (choice.Contains("jiangxiong")) return "jianxiong";
+                if (choices.Contains("wangxi") && choice.Contains("ganglie")) return "ganglie";
+                if (choices.Contains("jiangxiong")) return "jianxiong";
 
-                if (choice.Contains("qianxi") && choice.Contains("guanxing"))
+                if (choices.Contains("qianxi") && choice.Contains("guanxing"))
                 {
                     if (self.JudgingArea.Count > 0 && room.AliveCount() <= 4)
                     {
@@ -1552,23 +1556,22 @@ namespace SanguoshaServer.AI
                     return "guanxing";
                 }
 
-                if (choice.Contains("tiandu") && data is JudgeStruct judge)
+                if (choices.Contains("tiandu") && data is JudgeStruct judge)
                 {
                     int id = judge.Card.Id;
                     if (IsCard(id, Peach.ClassName, self) || IsCard(id, Analeptic.ClassName, Self))
                         return "tiandu";
                 }
-                if (choice.Contains("yiji")) return "yiji";
-                if (choice.Contains("hunshang")) return "hunshang";
-                if (choice.Contains("yinghun_sunjian")) return "yinghun_sunjian";
-                if (choice.Contains("yinghun_sunce")) return "yinghun_sunce";
-                if (choice.Contains("yingzi_zhouyu")) return "yingzi_zhouyu";
-                if (choice.Contains("yingzi_sunce")) return "yingzi_sunce";
-                if (choice.Contains("yingziextra")) return "yingziextra";
-                if (choice.Contains("jieyue")) return "jieyue";
-                if (choice.Contains("tianxiang")) return "tianxiang";
-                string[] skillnames = choice.Split('+');
-                return skillnames[0];
+                if (choices.Contains("yiji")) return "yiji";
+                if (choices.Contains("hunshang")) return "hunshang";
+                if (choices.Contains("yinghun_sunjian")) return "yinghun_sunjian";
+                if (choices.Contains("yinghun_sunce")) return "yinghun_sunce";
+                if (choices.Contains("yingzi_zhouyu")) return "yingzi_zhouyu";
+                if (choices.Contains("yingzi_sunce")) return "yingzi_sunce";
+                if (choices.Contains("yingziextra")) return "yingziextra";
+                if (choices.Contains("jieyue")) return "jieyue";
+                if (choices.Contains("tianxiang")) return "tianxiang";
+                return choices[0];
             }
 
             if (skill_name == HegNullification.ClassName)

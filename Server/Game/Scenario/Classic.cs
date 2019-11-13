@@ -554,10 +554,11 @@ namespace SanguoshaServer.Scenario
                     room.NotifyPlayerPreshow(player);
                 }
 
-                int max_hp = Engine.GetGeneral(general1_name, room.Setting.GameMode).DoubleMaxHp
+                General g = Engine.GetGeneral(general1_name, room.Setting.GameMode);
+                int max_hp = g.DoubleMaxHp
                     + (room.Players.Count > 4 && player.GetRoleEnum() == PlayerRole.Lord ? 1 : 0);
                 player.MaxHp = max_hp;
-                player.Hp = player.MaxHp;
+                player.Hp = Math.Max(1, player.MaxHp + g.Head_max_hp_adjusted_value);
 
                 room.BroadcastProperty(player, "MaxHp");
                 room.BroadcastProperty(player, "Hp");
@@ -721,7 +722,7 @@ namespace SanguoshaServer.Scenario
             Dictionary<string, double> points = new Dictionary<string, double>();
             foreach (string general in choices)
             {
-                if (general.EndsWith("_god") || general == "zuoci")                                                     //神将和左慈不该由AI用
+                if (general.EndsWith("_god") || general == "zuoci" || general == "yuji")                                                     //神将和左慈不该由AI用
                     points.Add(general, 0);
                 else
                 {

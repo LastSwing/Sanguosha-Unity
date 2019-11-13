@@ -192,7 +192,7 @@ namespace SanguoshaServer.Package
                         To = p
                     };
                     WrappedCard card = room.AskForCard(p, "jijiang", Slash.ClassName, string.Format("@jijiang-target:{0}:{1}", player.Name, string.Join("+", targets)),
-                        effect, HandlingMethod.MethodUse);
+                        effect, HandlingMethod.MethodResponse);
                     if (card != null)
                     {
                         Thread.Sleep(500);
@@ -418,7 +418,7 @@ namespace SanguoshaServer.Package
             Skill s = Engine.GetSkill(skill);
             if (s == null || s.Attached_lord_skill) return false;
             if (player.HasEquip(skill)) return false;
-            if (player.GetMark("@yijue") > 0 && s.SkillFrequency != Frequency.Compulsory)
+            if (player.GetMark("@yijue") > 0 && s.SkillFrequency != Frequency.Compulsory && s.SkillFrequency != Frequency.Wake)
                 return true;
 
             return false;
@@ -854,7 +854,7 @@ namespace SanguoshaServer.Package
         {
             if (player.HasEquip(skill)) return false;
             Skill s = Engine.GetSkill(skill);
-            return s != null && !s.Attached_lord_skill && s.SkillFrequency != Frequency.Compulsory && player.GetMark("tieqi_jx") > 0;
+            return s != null && !s.Attached_lord_skill && s.SkillFrequency != Frequency.Compulsory && s.SkillFrequency != Frequency.Wake && player.GetMark("tieqi_jx") > 0;
         }
     }
 
@@ -1213,7 +1213,7 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, Player player)
         {
-            return new WrappedCard("HujiaCard") { Skill = Name };
+            return new WrappedCard(HujiaCard.ClassName) { Skill = Name };
         }
     }
 
@@ -1670,10 +1670,10 @@ namespace SanguoshaServer.Package
             DamageStruct damage = (DamageStruct)data;
             LogMessage log = new LogMessage
             {
-                Type = "#LuoyiBuff",
+                Type = "#AddDamage",
                 From = player.Name,
                 To = new List<string> { damage.To.Name },
-                Arg = damage.Damage.ToString(),
+                Arg = Name,
                 Arg2 = (++damage.Damage).ToString()
             };
             room.SendLog(log);

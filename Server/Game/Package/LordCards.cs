@@ -298,20 +298,14 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
             {
-                LogMessage l = new LogMessage
+                LogMessage log = new LogMessage
                 {
-                    Type = "#PeaceSpellNatureDamage",
-                    From = damage.To.Name,
-                    Arg = damage.Damage.ToString()
+                    Type = "#damaged-prevent",
+                    From = player.Name,
+                    Arg = Name
                 };
-                switch (damage.Nature)
-                {
-                    case DamageStruct.DamageNature.Normal: l.Arg2 = "normal_nature"; break;
-                    case DamageStruct.DamageNature.Fire: l.Arg2 = "fire_nature"; break;
-                    case DamageStruct.DamageNature.Thunder: l.Arg2 = "thunder_nature"; break;
-                }
+                room.SendLog(log);
 
-                room.SendLog(l);
                 room.SetEmotion(damage.To, "peacespell");
                 return true;
             }

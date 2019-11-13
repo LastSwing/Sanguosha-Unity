@@ -134,7 +134,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if ((from != null && (from == self || self.IsSameCamp(from))) || (to != null && (to == self || self.IsSameCamp(to)) && move.To_place != Player.Place.PlaceSpecial))
+                if ((from != null && (from == self || self.IsSameCamp(from))) || (to != null && (to == self || self.IsSameCamp(to)) && move.To_place != Place.PlaceSpecial))
                     open = true;
 
                 if (!open && to != null && !string.IsNullOrEmpty(move.To_pile_name) && !move.To_pile_name.StartsWith("#") && move.To != null)
@@ -155,7 +155,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (to != null && move.To_place == Player.Place.PlaceHand)
+                if (to != null && move.To_place == Place.PlaceHand)
                 {
                     foreach (int id in move.Card_ids)
                     {
@@ -181,7 +181,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (to != null && move.To_place == Player.Place.PlaceSpecial && move.To_pile_name == "wooden_ox")
+                if (to != null && move.To_place == Place.PlaceSpecial && move.To_pile_name == "wooden_ox")
                 {
                     foreach (int id in move.Card_ids)
                     {
@@ -190,14 +190,31 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (from != null && move.From_places.Contains(Player.Place.PlaceHand))
+                if (from != null && move.From_places.Contains(Place.PlaceHand))
                 {
                     foreach (int id in move.Card_ids)
                     {
-                        if (room.GetCard(id).HasFlag("visible") || pile_open || move.To_place == Player.Place.PlaceEquip
-                                || move.To_place == Player.Place.PlaceDelayedTrick || move.To_place == Player.Place.DiscardPile
-                                || move.To_place == Player.Place.PlaceTable)
+                        if (room.GetCard(id).HasFlag("visible") || pile_open || move.To_place == Place.PlaceEquip
+                                || move.To_place == Place.PlaceDelayedTrick || move.To_place == Place.DiscardPile
+                                || move.To_place == Place.PlaceTable)
                         {
+                            //蛊惑的真假判断
+                            if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_ANNOUNCE && !open
+                                && private_handcards[from].Count > move.From.HandcardNum)
+                            {
+                                WrappedCard guhuo = RoomLogic.ParseCard(room, move.Reason.CardString);
+                                bool doubt = true;
+                                foreach (int hand in private_handcards[from])
+                                {
+                                    if (room.GetCard(hand).Name == guhuo.Name)
+                                    {
+                                        doubt = false;
+                                        break;
+                                    }
+                                }
+                                if (doubt) self.SetFlags("guhuo_doubt");
+                            }
+
                             public_handcards[from].RemoveAll(t => t == id);
                             private_handcards[from].RemoveAll(t => t == id);
                         }
@@ -212,23 +229,45 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (from != null && move.From_places.Contains(Player.Place.PlaceSpecial) && move.From_pile_names.Contains("wooden_ox"))
+                if (from != null && move.From_places.Contains(Place.PlaceSpecial) && move.From_pile_names.Contains("wooden_ox"))
                 {
-                    foreach (int id in move.Card_ids)
+                    //蛊惑的真假判断
+                    if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_ANNOUNCE && !open
+                        && wooden_cards[move.From].Count > move.From.GetPile("wooden_ox").Count)
                     {
-                        int index = move.Card_ids.IndexOf(id);
-                        if (open && move.From_pile_names[index] == "wooden_ox" && move.From_places[index] == Player.Place.PlaceSpecial)
-                            wooden_cards[move.From].RemoveAll(t => t == id);
+                        WrappedCard guhuo = RoomLogic.ParseCard(room, move.Reason.CardString);
+                        bool doubt = true;
+                        foreach (int hand in wooden_cards[move.From])
+                        {
+                            if (room.GetCard(hand).Name == guhuo.Name)
+                            {
+                                doubt = false;
+                                break;
+                            }
+                        }
+                        if (doubt) self.SetFlags("guhuo_doubt");
                     }
+                    else if (open || move.To_place == Place.PlaceEquip || move.To_place == Place.PlaceDelayedTrick || move.To_place == Place.DiscardPile
+                                || move.To_place == Place.PlaceTable)
+                    {
+                        foreach (int id in move.Card_ids)
+                        {
+                            int index = move.Card_ids.IndexOf(id);
+                            if (move.From_pile_names[index] == "wooden_ox" && move.From_places[index] == Place.PlaceSpecial)
+                                wooden_cards[move.From].RemoveAll(t => t == id);
+                        }
+                    }
+                    else
+                        wooden_cards[move.From].Clear();
                 }
 
                 foreach (int id in move.Card_ids)
                 {
                     int index = move.Card_ids.IndexOf(id);
                     WrappedCard card = room.GetCard(id);
-                    if (move.From_places[index] == Player.Place.DrawPile)
+                    if (move.From_places[index] == Place.DrawPile)
                     {
-                        if (move.To != null && move.To_place == Player.Place.PlaceHand && card.HasFlag("visible2" + self.Name))
+                        if (move.To != null && move.To_place == Place.PlaceHand && card.HasFlag("visible2" + self.Name))
                             private_handcards[move.To].Add(id);
 
                         if (guanxing.Key != null && guanxing.Value.Contains(id))
@@ -464,6 +503,8 @@ namespace SanguoshaServer.AI
 
         private void FilterEvent(TriggerEvent triggerEvent, Player player, object data)
         {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && self.HasFlag("guhuo_doubt"))
+                self.SetFlags("-guhuo_doubt");
         }
 
         //评估玩家强度
@@ -1938,6 +1979,20 @@ namespace SanguoshaServer.AI
                     return;
                 else if (values[0].Score > 0 && values[0].Card.SubCards.Count == 0)
                     will_slash = true;
+
+                if (!will_slash && values[0].Score >= 0 && player.ContainsTag("sidi") && player.GetTag("sidi") is List<string> caozhens)     //被司敌，要用杀，否则会被杀
+                {
+                    WrappedCard sd = new WrappedCard(Slash.ClassName);
+                    foreach (string name in caozhens)
+                    {
+                        Player target = room.FindPlayer(name);
+                        if (target != null && RoomLogic.IsProhibited(room, target, player, sd) != null && IsCardEffect(sd, player, target))
+                        {
+                            will_slash = true;
+                            break;
+                        }
+                    }
+                }
 
                 //todo: adjust ai personality
                 if (!will_slash && GetOverflow(player) > 0)

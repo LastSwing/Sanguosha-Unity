@@ -1297,14 +1297,16 @@ namespace SanguoshaServer.Package
             player.SetTag(Name, info.SkillPosition);
             DamageStruct damage = (DamageStruct)data;
             Player to = damage.To;
+
             LogMessage log = new LogMessage
             {
-                Type = "#Zhiman",
+                Type = "#damage-prevent",
                 From = player.Name,
-                Arg = Name,
-                To = new List<string> { to.Name }
+                To = new List<string> { to.Name },
+                Arg = Name
             };
             room.SendLog(log);
+
             to.SetMark(Name, 1);
             to.SetTag("zhiman_from", player.Name);
             return true;

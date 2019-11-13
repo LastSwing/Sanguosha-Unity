@@ -477,9 +477,9 @@ namespace SanguoshaServer.Package
             DamageStruct damage = (DamageStruct)data;
             LogMessage log = new LogMessage
             {
-                Type = "#yuanyu",
+                Type = "#ReduceDamage",
                 From = player.Name,
-                Arg = damage.Damage.ToString(),
+                Arg = Name,
                 Arg2 = (--damage.Damage).ToString()
             };
             room.SendLog(log);

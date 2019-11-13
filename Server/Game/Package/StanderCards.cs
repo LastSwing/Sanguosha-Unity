@@ -399,10 +399,24 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            //激将专用的flag
-            if (Self.HasFlag("TargetFixed")) return false;
-
             int slash_targets = 1 + (card.ExtraTarget ? Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card) : 0);
+
+            Player specific_target = null;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p == Self) continue;
+                if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.SpecificTarget, Self, p, card))
+                {
+                    specific_target = p;
+                    break;
+                }
+            }
+
+            if (specific_target != null)
+            {
+                if ((targets.Count == 0 && to_select != specific_target) || (targets.Count > 0 && !targets.Contains(specific_target)))
+                    return false;  
+            }
 
             bool has_specific_assignee = false;
             foreach (Player p in room.GetAlivePlayers())
@@ -478,13 +492,15 @@ namespace SanguoshaServer.Package
         }
         static bool IsSpecificAssignee(Room room, Player player, Player from, WrappedCard slash)
         {
-            if (from.HasFlag("slashTargetFix") && player.HasFlag("SlashAssignee")) return true;
+            if (from.HasFlag("slashTargetFix") && player.HasFlag("SlashAssignee"))
+                return true;
             else if (from.Phase == PlayerPhase.Play && room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_PLAY
                 && !IsAvailable(room, from, slash, false))
             {
                 if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.SpecificAssignee, from, player, slash))
                     return true;
             }
+
             return false;
         }
     }
@@ -1483,7 +1499,8 @@ namespace SanguoshaServer.Package
     public class Snatch : SingleTargetTrick
     {
         public static string ClassName = "Snatch";
-        public Snatch() : base(ClassName) { }
+        public static FunctionCard Instance = null;
+        public Snatch() : base(ClassName) { Instance = this; }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             int total_num = 1 + Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card);
@@ -2577,9 +2594,9 @@ namespace SanguoshaServer.Package
                 Thread.Sleep(400);
                 LogMessage log = new LogMessage
                 {
-                    Type = "#VineDamage",
+                    Type = "#AddDamaged",
                     From = player.Name,
-                    Arg = damage.Damage.ToString(),
+                    Arg = Name,
                     Arg2 = (++damage.Damage).ToString()
                 };
                 room.SendLog(log);

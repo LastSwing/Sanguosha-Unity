@@ -401,7 +401,7 @@ namespace SanguoshaServer.AI
 
                 if (use)
                 {
-                    int id = LijianAI.FindLijianCard(ai, player);
+                    int id = KurouJXAI.FindKurouCard(ai, player);
                     if (id >= 0)
                     {
                         WrappedCard kurou = new WrappedCard("KurouCard") { Skill = Name, ShowSkill = Name };
@@ -873,17 +873,21 @@ namespace SanguoshaServer.AI
             WrappedCard liuli = new WrappedCard("LiuliCard") { Skill = Name, Mute = true };
             int result = LijianAI.FindLijianCard(ai, player);
             Room room = ai.Room;
-            if (result >= 0 && room.GetTag(Name) is CardUseStruct _use)
+            CardUseStruct _use = (CardUseStruct)room.GetTag(Name);
+            Player from = _use.From;
+            WrappedCard slash = _use.Card;
+
+            player.SetFlags("target_confirming");
+
+            if (result >= 0)
             {
-                Player from = _use.From;
-                WrappedCard slash = _use.Card;
                 liuli.AddSubCard(result);
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
                     if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
                     {
-                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + use.ExDamage);
+                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
                             damage.Nature = DamageStruct.DamageNature.Fire;
                         else if (slash.Name.Contains("Thunder"))
@@ -891,6 +895,7 @@ namespace SanguoshaServer.AI
 
                         if (ai.GetDamageScore(damage).Score > 0)
                         {
+                            player.SetFlags("-target_confirming");
                             use.Card = liuli;
                             use.To.Add(p);
                             return use;
@@ -903,7 +908,7 @@ namespace SanguoshaServer.AI
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
                     if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
                     {
-                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + use.ExDamage);
+                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
                             damage.Nature = DamageStruct.DamageNature.Fire;
                         else if (slash.Name.Contains("Thunder"))
@@ -911,6 +916,7 @@ namespace SanguoshaServer.AI
 
                         if (ai.GetDamageScore(damage).Score > 0)
                         {
+                            player.SetFlags("-target_confirming");
                             use.Card = liuli;
                             use.To.Add(p);
                             return use;
@@ -923,6 +929,7 @@ namespace SanguoshaServer.AI
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli)) continue;
                     if (ai.IsCancelTarget(slash, p, from) || !ai.IsCardEffect(slash, p, from))
                     {
+                        player.SetFlags("-target_confirming");
                         use.Card = liuli;
                         use.To.Add(p);
                         return use;
@@ -937,6 +944,7 @@ namespace SanguoshaServer.AI
 
                         if (ai.GetDamageScore(damage).Score > 0)
                         {
+                            player.SetFlags("-target_confirming");
                             use.Card = liuli;
                             use.To.Add(p);
                             return use;
@@ -944,7 +952,100 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
+            else
+            {
+                if (ai.IsCardEffect(slash, player, from))
+                {
+                    DamageStruct _damage = new DamageStruct(slash, from, player, _use.Drank + 1 + _use.ExDamage);
+                    if (ai.GetDamageScore(_damage).Score < -4)
+                    {
+                        List<int> ids = new List<int>();
+                        foreach (int id in player.GetCards("he"))
+                            if (RoomLogic.CanDiscard(room, player, player, id)) ids.Add(id);
 
+                        if (ids.Count > 0)
+                        {
+                            List<double> values = ai.SortByKeepValue(ref ids, false);
+                            foreach (int id in ids)
+                            {
+                                liuli.AddSubCard(id);
+                                foreach (Player p in room.GetOtherPlayers(player))
+                                {
+                                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
+                                    if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                                    {
+                                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
+                                        if (slash.Name.Contains("Fire"))
+                                            damage.Nature = DamageStruct.DamageNature.Fire;
+                                        else if (slash.Name.Contains("Thunder"))
+                                            damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                                        if (ai.GetDamageScore(damage).Score > 0)
+                                        {
+                                            player.SetFlags("-target_confirming");
+                                            use.Card = liuli;
+                                            use.To.Add(p);
+                                            return use;
+                                        }
+                                    }
+                                }
+
+                                foreach (Player p in room.GetOtherPlayers(player))
+                                {
+                                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
+                                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                                    {
+                                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
+                                        if (slash.Name.Contains("Fire"))
+                                            damage.Nature = DamageStruct.DamageNature.Fire;
+                                        else if (slash.Name.Contains("Thunder"))
+                                            damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                                        if (ai.GetDamageScore(damage).Score > 0)
+                                        {
+                                            player.SetFlags("-target_confirming");
+                                            use.Card = liuli;
+                                            use.To.Add(p);
+                                            return use;
+                                        }
+                                    }
+                                }
+
+                                foreach (Player p in room.GetOtherPlayers(player))
+                                {
+                                    if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli)) continue;
+                                    if (ai.IsCancelTarget(slash, p, from) || !ai.IsCardEffect(slash, p, from))
+                                    {
+                                        player.SetFlags("-target_confirming");
+                                        use.Card = liuli;
+                                        use.To.Add(p);
+                                        return use;
+                                    }
+                                    else if (!ai.NotSlashJiaozhu(p))
+                                    {
+                                        DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
+                                        if (slash.Name.Contains("Fire"))
+                                            damage.Nature = DamageStruct.DamageNature.Fire;
+                                        else if (slash.Name.Contains("Thunder"))
+                                            damage.Nature = DamageStruct.DamageNature.Thunder;
+
+                                        if (ai.GetDamageScore(damage).Score > 0)
+                                        {
+                                            player.SetFlags("-target_confirming");
+                                            use.Card = liuli;
+                                            use.To.Add(p);
+                                            return use;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (use.To.Count == 0) use.Card = null;
+            player.SetFlags("-target_confirming");
             return use;
         }
     }

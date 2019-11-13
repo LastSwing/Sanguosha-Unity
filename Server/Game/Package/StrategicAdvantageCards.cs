@@ -303,23 +303,17 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, player.Name, Name, null);
-            room.MoveCardTo(room.GetCard(player.Armor.Key), null, Player.Place.DiscardPile, reason, true);
             DamageStruct damage = (DamageStruct)data;
+            room.MoveCardTo(room.GetCard(player.Armor.Key), null, Place.DiscardPile, reason, true);
+
             LogMessage log = new LogMessage
             {
-                Type = "#Breastplate",
+                Type = "#damaged-prevent",
                 From = player.Name,
-                Arg = damage.Damage.ToString()
+                Arg = Name
             };
-            if (damage.From != null)
-                log.To = new List<string> { damage.From.Name };
-            if (damage.Nature == DamageStruct.DamageNature.Normal)
-                log.Arg2 = "normal_nature";
-            else if (damage.Nature == DamageStruct.DamageNature.Fire)
-                log.Arg2 = "fire_nature";
-            else if (damage.Nature == DamageStruct.DamageNature.Thunder)
-                log.Arg2 = "thunder_nature";
             room.SendLog(log);
+
             return true;
         }
     }

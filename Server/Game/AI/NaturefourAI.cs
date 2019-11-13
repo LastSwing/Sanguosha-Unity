@@ -14,6 +14,9 @@ namespace SanguoshaServer.AI
             {
                 new LeijiJXAI(),
                 new ShuangxiongJXAI(),
+                new GuhuoAI(),
+                new JiuchiAI(),
+                new BaonueAI(),
 
                 new LiegongJXAI(),
                 new KuangguJXAI(),
@@ -530,7 +533,7 @@ namespace SanguoshaServer.AI
                         ai.SortByDefense(ref enemies, false);
                         foreach (Player p in enemies)
                         {
-                            DamageStruct _damage = new DamageStruct("tianxiang_jx", damage.From, p, 1);
+                            DamageStruct _damage = new DamageStruct(Name, damage.From, p, 1);
                             if (ai.GetDamageScore(_damage).Score > 6 && !ai.CanResist(p, _damage.Damage))
                             {
                                 use.Card = tianxiangCard;
@@ -710,6 +713,157 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class GuhuoAI : SkillEvent
+    {
+        public GuhuoAI() : base("guhuo")
+        {
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            if (data is Player yuji && ai.IsEnemy(yuji))
+            {
+                if (player.HasFlag("guhuo_doubt")) return "doubt";
+                string card_name = yuji.GetTag(Name).ToString();
+                int count = 0;
+                Room room = ai.Room;
+                foreach (int id in room.DiscardPile)
+                    if (room.GetCard(id).Name == card_name)
+                        count++;
+
+                List<int> ids = player.GetCards("h");
+                ids.AddRange(player.GetHandPile());
+                foreach (int id in ids)
+                    if (Engine.GetRealCard(id).Name == card_name)
+                        count++;
+
+                if (ai.CardCounts[card_name] == count)
+                    return "doubt";
+            }
+
+            return "cancel";
+        }
+    }
+
+    public class JiuchiAI : SkillEvent
+    {
+        public JiuchiAI() : base("jiuchi")
+        { }
+
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
+        {
+            if (card != null && card.Name == Analeptic.ClassName && ai.HasSkill(Name, to))
+                return 1;
+
+            return 0;
+        }
+
+        public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
+        {
+            if ((ai.Room.GetCard(id).Suit) == WrappedCard.CardSuit.Spade)
+            {
+                WrappedCard dismantlement = new WrappedCard(Analeptic.ClassName)
+                {
+                    Skill = Name,
+                    ShowSkill = Name
+                };
+                dismantlement.AddSubCard(id);
+                dismantlement = RoomLogic.ParseUseCard(ai.Room, dismantlement);
+                return dismantlement;
+            }
+
+            return null;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && !RoomLogic.IsVirtualCard(ai.Room, card) && place != Player.Place.PlaceEquip)
+                return RoomLogic.GetCardSuit(ai.Room, card) == WrappedCard.CardSuit.Spade ? 0.5 : 0;
+
+            return 0;
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!ai.WillShowForAttack()) return null;
+            Room room = ai.Room;
+            List<int> ids = player.GetCards("h");
+            ids.AddRange(player.GetHandPile());
+            ai.SortByKeepValue(ref ids, false);
+            foreach (int id in ids)
+            {
+                WrappedCard card = room.GetCard(id);
+                if (WrappedCard.IsBlack(card.Suit))
+                {
+                    double keep = ai.GetKeepValue(id, player);
+                    if (keep < 0)
+                    {
+                        WrappedCard dismantlement = new WrappedCard(Analeptic.ClassName)
+                        {
+                            Skill = Name,
+                            ShowSkill = Name
+                        };
+                        dismantlement.AddSubCard(card);
+                        dismantlement = RoomLogic.ParseUseCard(room, dismantlement);
+                        return new List<WrappedCard> { dismantlement };
+                    }
+
+                    List<WrappedCard> cards = ai.GetViewAsCards(player, id);
+                    double value = 0;
+                    WrappedCard _card = null;
+                    foreach (WrappedCard _c in cards)
+                    {
+                        double card_value = ai.GetUseValue(_c, player, room.GetCardPlace(id));
+                        if (card_value > value)
+                        {
+                            value = card_value;
+                            _card = _c;
+                        }
+                    }
+
+                    if (_card != null && _card.Name == Analeptic.ClassName && _card.Skill == Name) return new List<WrappedCard> { _card };
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public class BaonueAI : SkillEvent
+    {
+        public BaonueAI() : base("baonue")
+        {
+            key = new List<string> { "skillInvoke" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && player != ai.Self)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = RoomLogic.FindPlayerBySkillName(room, Name);
+                    bool friendly = strs[2] == "yes";
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, friendly);
+                }
+            }
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            Player dz = RoomLogic.FindPlayerBySkillName(room, Name);
+            if (ai.IsFriend(dz))
+                return true;
+            if (player.GetRoleEnum() == Player.PlayerRole.Renegade && !ai.IsEnemy(dz) && dz.Hp == 1)
+                return true;
+
+            return false;
+        }
+    }
 
     public class QiangxiJXAI : SkillEvent
     {
@@ -830,7 +984,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill(Name, damage.To) && damage.Damage <= damage.To.Hp)
             {
                 double value = 0;
-                if (!damage.To.FaceUp) value += 4;
+                if (!damage.To.FaceUp && damage.Damage == 1) value += 4;
                 Room room = ai.Room;
                 foreach (Player p in room.GetOtherPlayers(damage.To))
                 {
@@ -845,8 +999,8 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
-
-                if (value > 0 && (damage.Damage > 1 || damage.Damage >= damage.To.Hp))
+                if (damage.Damage > 1) value *= (0.6 * (damage.Damage - 1)) + 1;
+                if (value > 0 && damage.Damage >= damage.To.Hp)
                     value /= 2;
 
                 if (!ai.IsFriend(damage.To))
