@@ -66,7 +66,7 @@ namespace SanguoshaServer.AI
     {
         public ClassicWoodenAI() : base(ClassicWoodenOx.ClassName)
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:ClassicWoodenOx" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -290,7 +290,7 @@ namespace SanguoshaServer.AI
                 return new List<WrappedCard> { card };
             }
 
-            if (player.HandcardNum == 1 && ai.HasSkill("kongcheng"))
+            if (player.HandcardNum == 1 && ai.HasSkill("kongcheng|kongcheng_jx"))
             {
                 WrappedCard card = new WrappedCard(ClassicWoodenOxCard.ClassName)
                 {

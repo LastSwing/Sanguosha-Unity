@@ -622,6 +622,14 @@ namespace SanguoshaServer.Package
             Player huanghou = room.FindPlayer(info.SkillOwner);
             room.SendCompulsoryTriggerLog(huanghou, Name, true);
             ask_who.SetFlags("jianyue_keep");
+
+            if (ask_who != huanghou && ask_who.IsWounded() && ask_who.HandcardNum > ask_who.Hp)
+            {
+                ResultStruct result = huanghou.Result;
+                result.Assist += 1;
+                ask_who.Result = result;
+            }
+
             return false;
         }
     }
@@ -771,7 +779,7 @@ namespace SanguoshaServer.Package
         public Yigui() : base("yigui")
         {
             view_as_skill = new YiguiVS();
-            events = new List<TriggerEvent> { TriggerEvent.GeneralShown, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.GeneralShown };
             skill_type = SkillType.Wizzard;
         }
 
@@ -886,12 +894,6 @@ namespace SanguoshaServer.Package
                 room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
 
                 Acquiregenerals(room, player, 2);
-            }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-            {
-                foreach (Player p in room.GetAlivePlayers())
-                    foreach (FunctionCard card in room.AvailableFunctionCards)
-                        p.SetFlags("-yigui_" + card.Name);
             }
         }
 
@@ -1152,7 +1154,13 @@ namespace SanguoshaServer.Package
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (base.Triggerable(player, room))
+            
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAllPlayers(true))
+                    p.SetMark(Name, 0);
+            }
+            else if (triggerEvent != TriggerEvent.EventPhaseChanging)
             {
                 WrappedCard card = null;
                 if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use)
@@ -1163,7 +1171,7 @@ namespace SanguoshaServer.Package
                 {
                     FunctionCard fcard = Engine.GetFunctionCard(card?.Name);
                     if (fcard.TypeID != CardType.TypeSkill)
-                        room.SetPlayerMark(player, "jili", player.GetMark("jili") + 1);
+                        player.AddMark(Name);
                 }
             }
         }
@@ -1186,11 +1194,7 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-            {
-                foreach (Player p in room.GetAllPlayers(true))
-                    p.SetMark("jili", 0);
-            }
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -1345,6 +1349,14 @@ namespace SanguoshaServer.Package
             if (RoomLogic.CanGetCard(room, player, to, "ej"))
             {
                 int card_id = room.AskForCardChosen(player, to, "ej", "zhiman", false, HandlingMethod.MethodGet);
+
+                if (to.JudgingArea.Contains(card_id))
+                {
+                    ResultStruct result = player.Result;
+                    result.Assist++;
+                    player.Result = result;
+                }
+
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, player.Name);
                 room.ObtainCard(player, room.GetCard(card_id), reason);
             }
@@ -1767,11 +1779,21 @@ namespace SanguoshaServer.Package
                     Player second = room.AskForPlayerChosen(player, targets, "diaodu", "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
                     player.RemoveTag("diaodu");
                     if (second != null)
+                    {
+                        ResultStruct result = card_use.From.Result;
+                        result.Assist += card_use.Card.SubCards.Count;
+                        card_use.From.Result = result;
+
                         room.ObtainCard(second, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, second.Name, "diaodu", string.Empty));
+                    }
                 }
             }
             else if (card_use.Card.SubCards.Count == 1)
             {
+                ResultStruct result = card_use.From.Result;
+                result.Assist += 1;
+                card_use.From.Result = result;
+
                 List<int> ids = new List<int>(card_use.Card.SubCards);
                 room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "diaodu", string.Empty));
             }
@@ -2120,6 +2142,10 @@ namespace SanguoshaServer.Package
                 player.SetMark(Name, 1);
                 player.SetTag(Name, answers);
                 room.HandleAcquireDetachSkills(player, answers);
+
+                ResultStruct result = sunquan.Result;
+                result.Assist++;
+                sunquan.Result = result;
             }
 
             if (num >= 5 && answers.Count > 0)
@@ -2131,6 +2157,10 @@ namespace SanguoshaServer.Package
                     answers.Add(answer);
                     player.SetTag(Name, answers);
                     room.HandleAcquireDetachSkills(player, answer);
+
+                    ResultStruct result = sunquan.Result;
+                    result.Assist++;
+                    sunquan.Result = result;
                 }
             }
 

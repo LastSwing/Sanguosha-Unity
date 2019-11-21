@@ -22,7 +22,6 @@ namespace SanguoshaServer.Package
                 new HengjiangFail(),
                 new HengjiangMaxCards(),
                 new Qianxi(),
-                new QianxiClear(),
                 new Mashu("madai"),
                 new Guixiu(),
                 new Cunsi(),
@@ -57,7 +56,6 @@ namespace SanguoshaServer.Package
             };
             related_skills = new Dictionary<string, List<string>> {
                 { "hengjiang", new List<string>{"#hengjiang-draw", "#hengjiang-fail"} },
-                { "qianxi", new List<string>{ "#qianxi-clear"} },
                 {  "hunshang", new List<string>{ "#hunshang"} },
                 { "hongfa", new List<string>{ "#hongfa-clear" } }
             };
@@ -342,11 +340,33 @@ namespace SanguoshaServer.Package
         public Qianxi() : base("qianxi")
         {
 
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging, TriggerEvent.Death };
             frequency = Frequency.Frequent;
             skill_type = SkillType.Attack;
         }
         public override bool CanPreShow() => false;
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if ((triggerEvent == TriggerEvent.EventPhaseChanging || triggerEvent == TriggerEvent.Death) && player.ContainsTag(Name) && player.GetTag(Name) is string color)
+            {
+                bool clear = triggerEvent == TriggerEvent.Death;
+                if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+                    clear = true;
+
+                if (clear)
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (p.HasFlag("QianxiTarget"))
+                        {
+                            RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Format(".|{0}|.|hand$0", color));
+                            room.SetPlayerMark(p, "@qianxi_" + color, 0);
+                        }
+                    }
+                }
+            }
+        }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Start)
@@ -421,39 +441,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-    public class QianxiClear : TriggerSkill
-    {
-        public QianxiClear() : base("#qianxi-clear")
-        {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.Death };
-            frequency = Frequency.Compulsory;
-        }
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (player.ContainsTag("qianxi") && player.GetTag("qianxi") is string color)
-            {
-                bool clear = triggerEvent == TriggerEvent.Death;
-                if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
-                    clear = true;
 
-                if (clear)
-                {
-                    foreach (Player p in room.GetOtherPlayers(player))
-                    {
-                        if (p.HasFlag("QianxiTarget"))
-                        {
-                            RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Format(".|{0}|.|hand$0", color));
-                            room.SetPlayerMark(p, "@qianxi_" + color, 0);
-                        }
-                    }
-                }
-            }
-        }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
-        {
-            return new TriggerStruct();
-        }
-    }
     public class Guixiu : TriggerSkill
     {
         public Guixiu() : base("guixiu")
@@ -576,6 +564,14 @@ namespace SanguoshaServer.Package
             room.RemoveGeneral(card_use.From, head);
 
             Player target = card_use.To[0];
+
+            if (card_use.From != target)
+            {
+                ResultStruct result = card_use.From.Result;
+                result.Assist += 2;
+                card_use.From.Result = result;
+            }
+
             room.AcquireSkill(target, "yongjue");
             target.SetTag("yongjue_position", skin_id);
             room.SetPlayerMark(target, "@yongjue", 1);
@@ -703,6 +699,13 @@ namespace SanguoshaServer.Package
                 player.SetFlags("-" + Name);
                 if (room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
                 {
+                    if (player != owner)
+                    {
+                        ResultStruct result = owner.Result;
+                        result.Assist++;
+                        owner.Result = result;
+                    }
+
                     LogMessage log = new LogMessage
                     {
                         Type = "#InvokeOthersSkill",

@@ -879,7 +879,7 @@ namespace SanguoshaServer.AI
     {
         public LeijiAI() : base("leiji")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:leiji" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -935,7 +935,7 @@ namespace SanguoshaServer.AI
     {
         public GuidaoAI() : base("guidao")
         {
-            key = new List<string> { "cardResponded" };
+            key = new List<string> { "cardResponded%guidao" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -1243,7 +1243,7 @@ namespace SanguoshaServer.AI
     {
         public BeigeAI() : base("beige")
         {
-            key = new List<string> { "cardDiscard" };
+            key = new List<string> { "cardDiscard:beige" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

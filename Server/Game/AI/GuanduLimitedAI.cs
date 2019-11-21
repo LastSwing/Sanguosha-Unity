@@ -1255,6 +1255,12 @@ namespace SanguoshaServer.AI
         }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
+            if (player.GetMark("@rob") > 0)
+            {
+                Player gn = RoomLogic.FindPlayerBySkillName(ai.Room, "jieying_gn");
+                if (gn != null && !ai.IsFriend(gn)) return false;
+            }
+
             return true;
         }
 
@@ -1824,7 +1830,7 @@ namespace SanguoshaServer.AI
     {
         public JiemingJXAI() : base("jieming_jx")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:jieming_jx" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

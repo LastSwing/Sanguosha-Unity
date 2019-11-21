@@ -1067,7 +1067,7 @@ namespace SanguoshaServer.Package
                         if (p.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(p, card))
                             tos.Add(p);
                     }
-                    else if (RoomLogic.IsProhibited(room, null, p, card) == null && !RoomLogic.PlayerContainsTrick(room, p, card.Name))
+                    else if (RoomLogic.IsProhibited(room, null, p, card) == null && !RoomLogic.PlayerContainsTrick(room, p, card.Name) && p.JudgingAreaAvailable)
                             tos.Add(p);
                 }
 
@@ -1076,6 +1076,13 @@ namespace SanguoshaServer.Package
                 Player to = room.AskForPlayerChosen(card_use.From, tos, "qiaobian", "@qiaobian-to:::" + card.Name, false, false, position);
                 if (to != null)
                 {
+                    if ((place == Place.PlaceDelayedTrick && from != card_use.From) || (place == Place.PlaceEquip && to != card_use.From))
+                    {
+                        ResultStruct result = card_use.From.Result;
+                        result.Assist++;
+                        card_use.From.Result = result;
+                    }
+
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, from.Name, to.Name);
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, card_use.From.Name, "qiaobian", null)
                     {
@@ -1750,6 +1757,11 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player target = card_use.To[0];
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
+
             target.SetFlags("rende_" + card_use.From.Name);
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "rende", null);
             room.ObtainCard(target, card_use.Card, reason, false);
@@ -1846,10 +1858,9 @@ namespace SanguoshaServer.Package
                 if (fcard is Slash && RoomLogic.IsVirtualCard(room, use.Card) && use.Card.SubCards.Count == 0 && use.Card.Skill == Name)
                     player.AddHistory(Slash.ClassName);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                if (change.To == PlayerPhase.NotActive)
-                    player.SetMark(Name, 0);
+                player.SetMark(Name, 0);
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -1945,10 +1956,9 @@ namespace SanguoshaServer.Package
                 if (fcard is Slash)
                     player.AddMark(Name);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                if (change.To == PlayerPhase.NotActive)
-                    player.SetMark(Name, 0);
+                player.SetMark(Name, 0);
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -3301,6 +3311,10 @@ namespace SanguoshaServer.Package
         {
             Player player = effect.To;
 
+            ResultStruct result = effect.From.Result;           //放权辅助+3
+            result.Assist += 3;
+            effect.From.Result = result;
+
             LogMessage log = new LogMessage
             {
                 Type = "#Fangquan",
@@ -4615,16 +4629,17 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            room.SendCompulsoryTriggerLog(player, Name);
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
             return info;
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.NotifySkillInvoked(player, Name);
-
             DeathStruct death = (DeathStruct)data;
             Player target = death.Damage.From;
             string choice = "head_general";
+
+            room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
 
             List<string> choices = new List<string>();
             if (!target.General1.Contains("sujiang"))
@@ -4803,6 +4818,10 @@ namespace SanguoshaServer.Package
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             card_use.From.SetTag("lirang_target", card_use.To[0].Name);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
         }
     }
     public class LirangViewAsSkill : ViewAsSkill
@@ -5674,7 +5693,7 @@ namespace SanguoshaServer.Package
                             if (p.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(p, card))
                                 tos.Add(p);
                         }
-                        else if (RoomLogic.IsProhibited(room, null, p, card) == null && !RoomLogic.PlayerContainsTrick(room, p, card.Name))
+                        else if (RoomLogic.IsProhibited(room, null, p, card) == null && !RoomLogic.PlayerContainsTrick(room, p, card.Name) && p.JudgingAreaAvailable)
                                 tos.Add(p);
                     }
 
@@ -5684,6 +5703,13 @@ namespace SanguoshaServer.Package
                     room.RemoveTag("MouduanTarget");
                     if (to != null)
                     {
+                        if ((place == Place.PlaceDelayedTrick && target1 != player) || (place == Place.PlaceEquip && to != player))
+                        {
+                            ResultStruct result = player.Result;
+                            result.Assist++;
+                            player.Result = result;
+                        }
+
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, target1.Name, to.Name);
                         CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, player.Name, Name, null)
                         {
@@ -5821,7 +5847,7 @@ namespace SanguoshaServer.Package
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, source.Name, target.Name, "fanjian", null);
             room.MoveCardTo(card, target, Place.PlaceHand, reason, false);
             List<string> choices = new List<string> { "show" };
-            List<string> promopts = new List<string> { "fanjian", string.Format("@fanjian-show:::{0}", WrappedCard.GetSuitString(card.Suit)) };
+            List<string> promopts = new List<string> { "fanjian", string.Format("@fanjian-show:::{0}", WrappedCard.GetSuitIcon(card.Suit)) };
             if (target.Hp > 0)
                 choices.Add("losehp");
 
@@ -6885,6 +6911,10 @@ namespace SanguoshaServer.Package
                 for (int i = 0; i < n; i++)
                     to_give.Add(hands[i]);
 
+                ResultStruct result = lusu.Result;
+                result.Assist += to_give.Count;
+                lusu.Result = result;
+
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, lusu.Name, lusu.Name, "haoshi", null);
                 CardsMoveStruct move = new CardsMoveStruct(to_give, beggar, Place.PlaceHand, reason);
                 List<CardsMoveStruct> moves = new List<CardsMoveStruct> { move };
@@ -6927,6 +6957,10 @@ namespace SanguoshaServer.Package
 
             int n1 = a.HandcardNum;
             int n2 = b.HandcardNum;
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += Math.Abs(n1 - n2);
+            card_use.From.Result = result;
 
             CardsMoveStruct move1 = new CardsMoveStruct(a.GetCards("h"), b, Place.PlaceHand,
                 new CardMoveReason(CardMoveReason.MoveReason.S_REASON_SWAP, a.Name, b.Name, "dimeng", null));
@@ -6994,6 +7028,10 @@ namespace SanguoshaServer.Package
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
+            ResultStruct result = card_use.From.Result;
+            result.Assist++;
+            card_use.From.Result = result;
+
             room.MoveCardTo(card_use.Card, card_use.From, card_use.To[0], Place.PlaceEquip,
                 new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PUT, card_use.From.Name, "zhijian", null));
 
@@ -7094,6 +7132,10 @@ namespace SanguoshaServer.Package
                 List<int> result = room.NotifyChooseCards(erzhang, cards, Name, 1, 0, "@guzheng:" + player.Name, null, info.SkillPosition);
                 if (result.Count > 0)
                 {
+                    ResultStruct assit = erzhang.Result;
+                    assit.Assist++;
+                    erzhang.Result = assit;
+
                     room.BroadcastSkillInvoke(Name, erzhang, info.SkillPosition);
                     room.NotifySkillInvoked(erzhang, Name);
                     int to_back = result[0];
@@ -7223,30 +7265,9 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Fenxun : TriggerSkill
+    public class Fenxun : OneCardViewAsSkill
     {
         public Fenxun() : base("fenxun")
-        {
-            view_as_skill = new FenxunVS();
-            events.Add(TriggerEvent.EventPhaseChanging);
-        }
-
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-                foreach (Player p in room.GetAlivePlayers())
-                    if (p.HasFlag("FenxunTarget")) p.SetFlags("-FenxunTarget");
-        }
-
-        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            return new List<TriggerStruct>();
-        }
-    }
-
-    public class FenxunVS : OneCardViewAsSkill
-    {
-        public FenxunVS() : base("fenxun")
         {
             filter_pattern = "..!";
         }

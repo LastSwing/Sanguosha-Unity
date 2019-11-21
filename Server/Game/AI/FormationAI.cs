@@ -207,7 +207,7 @@ namespace SanguoshaServer.AI
     {
         public TiaoxinAI() : base("tiaoxin")
         {
-            key = new List<string> { "cardUsed" };
+            key = new List<string> { "cardUsed:Slash:@tiaoxin-slash" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -387,7 +387,7 @@ namespace SanguoshaServer.AI
 
     public class ShangyiAI : SkillEvent
     {
-        public ShangyiAI() : base("shangyi") { key = new List<string> { "skillChoice" }; }
+        public ShangyiAI() : base("shangyi") { key = new List<string> { "skillChoice:shangyi" }; }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

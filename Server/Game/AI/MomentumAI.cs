@@ -555,7 +555,7 @@ namespace SanguoshaServer.AI
     {
         public WuxinAI() : base("wuxin")
         {
-            key = new List<string> { "guanxingchose" };
+            key = new List<string> { "wuxinchose" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)

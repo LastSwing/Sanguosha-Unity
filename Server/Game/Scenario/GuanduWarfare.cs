@@ -384,7 +384,6 @@ namespace SanguoshaServer.Scenario
                         room.SetPlayerMark(player, skill.LimitMark, 1);
                 }
             }
-            room.SetTag("FirstRound", true);
             foreach (Player p in room.Players)
                 room.DrawCards(p, 4, "gamerule");
 

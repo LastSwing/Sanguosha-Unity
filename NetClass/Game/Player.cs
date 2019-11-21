@@ -58,7 +58,8 @@ namespace CommonClass.Game
         public bool Dual { set; get; } = true;
         public Gender PlayerGender { set; get; }
         public int Hp { set; get; }
-        public int MaxHp {
+        public int MaxHp
+        {
             get => _maxHp;
             set {
                 _maxHp = value;
@@ -66,6 +67,7 @@ namespace CommonClass.Game
                     Hp = _maxHp;
             }
         }
+        public Dictionary<string, bool> TurnSkillState { set; get; } = new Dictionary<string, bool>();
         public string Kingdom { set; get; }
         public string Role { set; get; } = string.Empty;
         public bool RoleShown { set; get; } = false;
@@ -86,6 +88,7 @@ namespace CommonClass.Game
         public bool Chained { set; get; } = false;
         public bool Removed { set; get; } = false;
         public List<int> JudgingArea { set; get; } = new List<int>();
+        public bool JudgingAreaAvailable { set; get; } = true;
         public Dictionary<bool, List<string>> DisableShow { set; get; } = new Dictionary<bool, List<string>>();
         public Dictionary<string, string> ArmorNullifiedList { set; get; } = new Dictionary<string, string>();
         public bool ScenarioRoleShown { set; get; } = false;
@@ -146,6 +149,8 @@ namespace CommonClass.Game
                 if (!other.HasEquip(skill))
                     DeputyAcquiredSkills.Add(skill);
             StringMarks = other.StringMarks;
+            TurnSkillState = other.TurnSkillState;
+            JudgingAreaAvailable = other.JudgingAreaAvailable;
         }
 
         //绝对不能给Player类设置class类的tag
@@ -199,6 +204,11 @@ namespace CommonClass.Game
         public void RemoveArmorNullified(Player sourcer)
         {
             ArmorNullifiedList.Remove(sourcer.Name);
+        }
+
+        public bool ArmorIsNullifiedBy(Player sourcer)
+        {
+            return sourcer != null && sourcer.Alive && ArmorNullifiedList.ContainsKey(sourcer.Name);
         }
 
         public void SetDisableShow(string flags, string reason)

@@ -397,8 +397,23 @@ namespace SanguoshaServer.Package
                         room.SendLog(log);
                         if (RoomLogic.PlayerHasShownSkill(room, player, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, player);
                             room.NotifySkillInvoked(player, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, player, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
+                        }
+                        else
+                        {
+                            int audio = -1;
+                            string skill_name = skill.Name;
+                            string genral = string.Empty;
+                            int skin_id = 0;
+                            skill.GetEffectIndex(room, null, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
                         }
                     }
                     else
@@ -478,8 +493,23 @@ namespace SanguoshaServer.Package
                         room.SendLog(log);
                         if (RoomLogic.PlayerHasShownSkill(room, player, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, player);
                             room.NotifySkillInvoked(player, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, player, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
+                        }
+                        else
+                        {
+                            int audio = -1;
+                            string skill_name = skill.Name;
+                            string genral = string.Empty;
+                            int skin_id = 0;
+                            skill.GetEffectIndex(room, null, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
                         }
                     }
                     else
@@ -521,6 +551,11 @@ namespace SanguoshaServer.Package
             this.movable = movable;
             judge.Negative = true;
         }
+        
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return !RoomLogic.PlayerContainsTrick(room, to_select, Name) && base.TargetFilter(room, targets, to_select, Self, card) && to_select.JudgingAreaAvailable;
+        }
 
         public override void OnNullified(Room room, Player target, WrappedCard card)
         {
@@ -549,7 +584,7 @@ namespace SanguoshaServer.Package
 
                 foreach (Player player in players)
                 {
-                    if (RoomLogic.PlayerContainsTrick(room, player, Name))
+                    if (RoomLogic.PlayerContainsTrick(room, player, Name) || !player.JudgingAreaAvailable)
                         continue;
 
                     Skill skill = RoomLogic.IsProhibited(room, null, player, card);
@@ -566,8 +601,15 @@ namespace SanguoshaServer.Package
                         room.SendLog(log);
                         if (RoomLogic.PlayerHasShownSkill(room, player, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, player);
                             room.NotifySkillInvoked(player, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, player, card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                         }
                         continue;
                     }

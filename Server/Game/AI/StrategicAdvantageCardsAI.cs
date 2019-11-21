@@ -117,7 +117,7 @@ namespace SanguoshaServer.AI
                 }
 
                 List<int> cards = new List<int>();
-                bool oneJink = ai.HasSkill("kongcheng");
+                bool oneJink = ai.HasSkill("kongcheng|kongcheng_jx");
                 foreach (int id in ids)
                 {
                     if (!ai.IsCard(id, Peach.ClassName, player) || friend.Count > 0)
@@ -473,7 +473,7 @@ namespace SanguoshaServer.AI
     {
         public WoodenAI() : base(WoodenOx.ClassName)
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:WoodenOx" };
         }
         
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)

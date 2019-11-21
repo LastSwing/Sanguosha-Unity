@@ -263,7 +263,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
             {
-                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
+                if (player.ArmorIsNullifiedBy(damage.From)) return new TriggerStruct();
                 return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
@@ -276,7 +276,7 @@ namespace SanguoshaServer.Package
                     if (card.Name == Name)
                     {
                         Player source = room.FindPlayer(move.Reason.PlayerId);
-                        if (source != null && move.From.ArmorNullifiedList.ContainsKey(source.Name))
+                        if (move.From.ArmorIsNullifiedBy(source))
                         {
                             move.From.SetFlags("-peacespell_throwing");
                             return new TriggerStruct();

@@ -126,7 +126,6 @@ namespace SanguoshaServer.Game
             Compulsory,
             Limited,
             Wake,
-            Turn
         };
 
         public enum SkillType
@@ -148,9 +147,9 @@ namespace SanguoshaServer.Game
         protected bool attached_lord_skill;
         protected bool lord_skill;
         protected SkillType skill_type;
+        protected bool turn = false;
 
         public string Name => name;
-
         public Frequency SkillFrequency => frequency;
         public string LimitMark => limit_mark;
         public string Relate_to_place => relate_to_place;
@@ -158,6 +157,7 @@ namespace SanguoshaServer.Game
         public SkillType Skill_type => skill_type;
         public bool LordSkill => lord_skill;
         public bool Visible => !name.StartsWith("#");
+        public bool Turn => turn;
         public virtual void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
             index = -1;
@@ -854,6 +854,10 @@ namespace SanguoshaServer.Game
 
         public virtual bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null) => false;
         public virtual bool IsProhibited(Room room, Player from, Player to, ProhibitType type) => false;
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = -2;
+        }
     }
     public abstract class FixCardSkill : Skill
     {

@@ -224,6 +224,10 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             card_use.From.SetTag("ziliang", card_use.Card.SubCards[0]);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
         }
     }
     public class ZiliangVS : OneCardViewAsSkill
@@ -317,6 +321,10 @@ namespace SanguoshaServer.Package
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
+            ResultStruct result = effect.From.Result;
+            result.Assist += 2;
+            effect.From.Result = result;
+
             WrappedCard ecard = room.GetCard(effect.Card.SubCards[0]);
 
             effect.From.SetTag("huyuan_target", effect.To.Name);
@@ -1025,6 +1033,13 @@ namespace SanguoshaServer.Package
                 string prompt = string.Join(":", prompt_list);
                 if (room.AskForUseCard(yuji, "@@qianhuan", prompt, -1, HandlingMethod.MethodNone, true, info.SkillPosition) != null)
                 {
+                    if (yuji != use.To[0])
+                    {
+                        ResultStruct result = yuji.Result;
+                        result.Assist++;
+                        yuji.Result = result;
+                    }
+
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, yuji.Name, use.To[0].Name);
                     invoke = true;
                 }
@@ -1065,8 +1080,10 @@ namespace SanguoshaServer.Package
                 room.SetEmotion(ask_who, "cancel");
                 System.Threading.Thread.Sleep(400);
 
-                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, string.Empty);
-                reason.CardString = move.Reason.CardString;
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_NATURAL_ENTER, string.Empty)
+                {
+                    CardString = move.Reason.CardString
+                };
 
                 CardsMoveStruct move2 = new CardsMoveStruct(move.Card_ids, null, Place.DiscardPile, reason);
                 room.MoveCardsAtomic(move2, true);

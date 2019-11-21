@@ -240,15 +240,22 @@ namespace SanguoshaServer.Package
                         LogMessage log = new LogMessage
                         {
                             Type = "#SkillAvoid",
-                            From = player.Name,
+                            From = p.Name,
                             Arg = skill.Name,
                             Arg2 = Name
                         };
                         room.SendLog(log);
-                        if (RoomLogic.PlayerHasShownSkill(room, player, skill))
+                        if (RoomLogic.PlayerHasShownSkill(room, p, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, player);
-                            room.NotifySkillInvoked(player, skill.Name);
+                            room.NotifySkillInvoked(p, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, p, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, p, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                         }
                     }
                     else

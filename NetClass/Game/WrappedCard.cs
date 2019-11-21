@@ -255,6 +255,18 @@ namespace CommonClass.Game
             }
         }
 
+        public static string GetSuitIcon(CardSuit suit)
+        {
+            switch (suit)
+            {
+                case CardSuit.Spade: return "♠";
+                case CardSuit.Heart: return "♥";
+                case CardSuit.Club: return "♣";
+                case CardSuit.Diamond: return "♦";
+                default: return string.Empty;
+            }
+        }
+
         public static string GetSuitChar(CardSuit suit)
         {
             switch (suit)

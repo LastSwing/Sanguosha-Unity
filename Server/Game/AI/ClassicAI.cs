@@ -84,15 +84,35 @@ namespace SanguoshaServer.AI
                             player_intention[p]["loyalist"] += 5;
                     }
 
+                    if (lord.General1 == "liubei" && p.General1 == "xizhicai") player_intention[p]["loyalist"] += 10;
+
                     General general = Engine.GetGeneral(p.General1, room.Setting.GameMode);
                     if (general.Kingdom == "god" && p.Kingdom != lord.Kingdom)
-                    {
-                        player_intention[p]["rebel"] += 20;                 //神将国籍与主公不同偏反
-                    }
+                        player_intention[p]["rebel"] += 20;                         //神将国籍与主公不同偏反
                 }
-                
-                if (HasSkill(MasochismSkill, lord) && HasSkill("tieqi_jx", p) && RoomLogic.DistanceTo(room, p, lord) == 1 && room.Players.Count > 4)
-                    player_intention[p]["rebel"] += 20;                     //近位克制卖血的马超偏反
+
+                if (lord.General1 == "xizhicai" && (p.General1 == "jvshou" || p.General1 == "caorui")) player_intention[p]["loyalist"] += 30;
+                if (lord.IsFemale())
+                {
+                    if (p.General1 == "diaochan" || p.General1 == "diaochan_sp") player_intention[p]["loyalist"] += 20;
+                    if (p.General1 == "xiahoushi") player_intention[p]["rebel"] += 20;
+                    if (p.General1 == "xushi") player_intention[p]["rebel"] -= 10;
+                }
+                if (HasSkill(MasochismSkill, lord) && HasSkill("tieqi_jx", p) && RoomLogic.DistanceTo(room, p, lord) == 1 && room.Players.Count > 5)
+                    player_intention[p]["rebel"] += 20;                                             //近位克制卖血的马超偏反
+
+                if (lord.General1 == "wutugu" && (p.General1 == "guanyinping" || p.General1 == "wolong"
+                    || p.General1 == "zhouyu_god" || p.General1 == "liubei_god"))                   //关银屏卧龙神周瑜神刘备对兀突骨偏反
+                    player_intention[p]["rebel"] += 20;
+
+                if (lord.General1 == "maliang" && (p.General1 == "lusu" || p.General1 == "diaochan_sp" || p.General1 == "wangji"))  //专克马良的偏反
+                    player_intention[p]["rebel"] += 25;
+                if (lord.General1 == "maliang" && (p.General1 == "caorui" || p.General1 == "liubei"))                                //不配合马良的偏反
+                    player_intention[p]["rebel"] += 15;
+                if ((lord.General1 == "liubei" || lord.General1 == "lusu" || lord.General1 == "caorui") && p.General1 == "maliang") player_intention[p]["rebel"] += 20;
+
+                if (p.General1 == "quyi" && RoomLogic.DistanceTo(room, p, lord) == 1)
+                    player_intention[p]["rebel"] += 10;                                             //近位麹义偏反
             }
         }
 
@@ -298,16 +318,22 @@ namespace SanguoshaServer.AI
 
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
-                List<string> choices = new List<string>(str.Split(':'));
                 foreach (SkillEvent e in skill_events.Values)
-                    if (e.Key.Contains(choices[0]))
-                        e.OnEvent(this, triggerEvent, player, data);
+                {
+                    foreach (string key in e.Key)
+                        if (str.StartsWith(key))
+                            e.OnEvent(this, triggerEvent, player, data);
+                }
 
                 foreach (UseCard e in Engine.GetCardUsages())
-                    if (e.Key.Contains(choices[0]))
-                        e.OnEvent(this, triggerEvent, player, data);
+                {
+                    foreach (string key in e.Key)
+                        if (str.StartsWith(key))
+                            e.OnEvent(this, triggerEvent, player, data);
+                }
 
-                if (choices[0] == "viewCards")
+                List<string> choices = new List<string>(str.Split(':'));
+                if (str.StartsWith("viewCards"))
                 {
                     List<int> ids= player.GetCards("h");
                     if (choices[choices.Count - 1] == "all")
@@ -318,6 +344,7 @@ namespace SanguoshaServer.AI
                     else if (choices[choices.Count - 1] == self.Name)
                         private_handcards[player] = ids;
                 }
+
                 else if (choices[0] == "showCards")
                 {
                     List<int> ids = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
@@ -503,14 +530,44 @@ namespace SanguoshaServer.AI
 
         private void FilterEvent(TriggerEvent triggerEvent, Player player, object data)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && self.HasFlag("guhuo_doubt"))
-                self.SetFlags("-guhuo_doubt");
         }
 
         //评估玩家强度
         public double EvaluatePlayerStrength(Player who)
         {
             double point = Engine.GetGeneralValue(who.General1, "Classic");
+
+            Player lord = null;
+            foreach (Player p in room.Players)
+            {
+                if (p.GetRoleEnum() == PlayerRole.Lord)
+                {
+                    lord = p;
+                    break;
+                }
+            }
+
+            PlayerRole role = PlayerRole.Unknown;
+            if (who != lord)
+            {
+                string str = GetPlayerTendency(who);
+                switch (str)
+                {
+                    case "rebel":
+                        role = PlayerRole.Rebel;
+                        break;
+                    case "loyalist":
+                        role = PlayerRole.Loyalist;
+                        break;
+                    case "renegade":
+                        role = PlayerRole.Renegade;
+                        break;
+                }
+            }
+            else
+                role = PlayerRole.Lord;
+
+            point += GeneralSelector.AdjustRolePoints(room, lord, who.General1, role, who);
             List<string> skills = GetKnownSkills(who, true, self, true);
             foreach (string skill in skills)
             {
@@ -807,24 +864,38 @@ namespace SanguoshaServer.AI
 #if DEBUG
             if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
             {
-                room.Speak(room.GetClient(Self),
-                    string.Format("player {0}{1}, role {2} lord: {3} rebel: {4}, {5}",
-                    self.SceenName, self.General1, self.Role, roles_points[PlayerRole.Lord], roles_points[PlayerRole.Rebel], Process));
+                bool all_bot = true;
+                foreach (Client client in room.Clients)
+                {
+                    if (client.UserID > 0)
+                    {
+                        all_bot = false;
+                        break;
+                    }
+                }
 
-                foreach (Player p in loyalists)
-                    room.Speak(room.GetClient(Self), string.Format("{0} {1} is loyalist", p.SceenName, p.General1));
+                if (!all_bot)
+                {
+                    room.Speak(room.GetClient(Self),
+                        string.Format("player {0}{1}, role {2} lord: {3} rebel: {4}, {5}",
+                        self.SceenName, self.General1, self.Role, roles_points[PlayerRole.Lord], roles_points[PlayerRole.Rebel], Process));
 
-                foreach (Player p in loyalists_n)
-                    room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe loyalist", p.SceenName, p.General1));
+                    foreach (Player p in loyalists)
+                        room.Speak(room.GetClient(Self), string.Format("{0} {1} is loyalist", p.SceenName, p.General1));
 
-                foreach (Player p in rebels)
-                    room.Speak(room.GetClient(Self), string.Format("{0} {1} is rebel", p.SceenName, p.General1));
+                    foreach (Player p in loyalists_n)
+                        room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe loyalist", p.SceenName, p.General1));
 
-                foreach (Player p in rebels_n)
-                    room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe rebel", p.SceenName, p.General1));
+                    foreach (Player p in rebels)
+                        room.Speak(room.GetClient(Self), string.Format("{0} {1} is rebel", p.SceenName, p.General1));
+
+                    foreach (Player p in rebels_n)
+                        room.Speak(room.GetClient(Self), string.Format("{0} {1} maybe rebel", p.SceenName, p.General1));
+
+                    Debug.Assert(true);
+                }
             }
 
-            Debug.Assert(true);
 #endif
             //根据场上形势识别敌我
             friends.Clear();
@@ -1261,15 +1332,28 @@ namespace SanguoshaServer.AI
 #if DEBUG
             if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
             {
-                foreach (Player p in friends[Self])
-                    room.Speak(room.GetClient(Self),
-                        string.Format("{0} {1} is friend", p.SceenName, p.General1));
+                bool all_bot = true;
+                foreach (Client client in room.Clients)
+                {
+                    if (client.UserID > 0)
+                    {
+                        all_bot = false;
+                        break;
+                    }
+                }
 
-                foreach (Player p in enemies[Self])
-                    room.Speak(room.GetClient(Self),
-                        string.Format("{0} {1} is enemy", p.SceenName, p.General1));
+                if (!all_bot)
+                {
+                    foreach (Player p in friends[Self])
+                        room.Speak(room.GetClient(Self),
+                            string.Format("{0} {1} is friend", p.SceenName, p.General1));
 
-                Debug.Assert(true);
+                    foreach (Player p in enemies[Self])
+                        room.Speak(room.GetClient(Self),
+                            string.Format("{0} {1} is enemy", p.SceenName, p.General1));
+
+                    Debug.Assert(true);
+                }
             }
 #endif
         }
@@ -1556,7 +1640,133 @@ namespace SanguoshaServer.AI
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
 
-            List<ScoreStruct> scores = new List<ScoreStruct>();
+            if (damage.To.GetMark("@tangerine") > 0)            //橘防止伤害时
+            {
+                double value = 3;
+                //根据身份矫正分数
+                if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Loyalist)
+                {
+                    if (IsFriend(to))
+                        value = -value;
+                    else if (IsEnemy(to))
+                    {
+                        if (PlayersLevel[to] < 2) value -= 0.5;
+                    }
+                    else
+                    {
+                        if (GetPlayerTendency(to) == "renegade")
+                        {
+                            if (Process.Contains("<"))
+                                value = value * -0.7;
+                        }
+                        else
+                        {
+                            int loyalist = 0, rebel = 0;
+                            foreach (Player p in enemies[self])
+                                if (GetPlayerTendency(p) == "rebel") rebel++;
+                            foreach (Player p in friends[self])
+                                if (GetPlayerTendency(p) == "loyalist") loyalist++;
+
+                            int count = roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist;
+                            if (count > 0)
+                            {
+                                double rate = (roles[PlayerRole.Rebel] - rebel) / count;
+                                if (rate > 0.5)
+                                    value *= rate;
+                                else
+                                    value *= (rate - 1);
+                            }
+                            else
+                            {                                               //出现分母为0的情况很可能是内奸
+                                room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
+                                if (Process.Contains("<"))
+                                {
+                                    value = value * -0.7;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (self.GetRoleEnum() == PlayerRole.Rebel)
+                {
+                    if (IsEnemy(to))
+                    {
+                        value += 1;
+                    }
+                    else if (IsFriend(to))
+                    {
+                        value = -value;
+                    }
+                    else
+                    {
+                        if (GetPlayerTendency(to) == "renegade")
+                        {
+                            if (Process.Contains(">"))
+                                value = value * -0.7;
+                        }
+                        else
+                        {
+                            int loyalist = 0, rebel = 0;
+                            foreach (Player p in enemies[self])
+                                if (GetPlayerTendency(p) == "loyalist") loyalist++;
+                            foreach (Player p in friends[self])
+                                if (GetPlayerTendency(p) == "rebel") rebel++;
+
+                            int count = roles[PlayerRole.Rebel] - rebel + roles[PlayerRole.Loyalist] - loyalist;
+                            if (count > 0)
+                            {
+                                double rate = (roles[PlayerRole.Loyalist] - loyalist) / count;
+                                if (rate > 0.5)
+                                    value *= rate;
+                                else
+                                    value *= (rate - 1);
+                            }
+                            else
+                            {                                               //出现分母为0的情况很可能是内奸
+                                room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
+                                if (Process.Contains(">"))
+                                {
+                                    value = value * -0.7;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    //内奸
+                    if (IsEnemy(to))
+                    {
+                        value += 1;
+                    }
+                    else if (IsFriend(to))
+                    {
+                        value = -value;
+                    }
+                    else
+                    {
+                        if (to.GetRoleEnum() == PlayerRole.Lord)
+                        {
+                            if (to.Hp >= 4)
+                                value = 0.5;
+                            else if (to.Hp > 2)
+                                value = 0;
+                            else if (to.Hp <= 2)
+                                value = -1;
+                        }
+                        else if ((GetPlayerTendency(to) == "rebel" && Process.Contains(">")) || (GetPlayerTendency(to) == "loyalist" && Process.Contains("<")))      //根据场面局势调整分数
+                        {
+                            value = -1;
+                        }
+                        else
+                            value = 2;
+                    }
+                }
+
+                result_score.Score = value;
+            }
+
+            List <ScoreStruct> scores = new List<ScoreStruct>();
             bool deadly = false;
             if (damage.Damage > 0 && !to.Removed)
             {
@@ -1949,7 +2159,11 @@ namespace SanguoshaServer.AI
             if (values.Count > 0 && values[0].Score > 0)
             {
                 bool will_slash = false;
-                if (values[0].Score >= 10)
+
+                Player gn = RoomLogic.FindPlayerBySkillName(room, "jieying_gn");
+                if (player.GetMark("@rob") > 0 && !HasSkill("jieying_gn") && gn != null && !IsFriend(gn))
+                    will_slash = true;
+                else if (values[0].Score >= 10)
                 {
                     will_slash = true;
                 }
@@ -2482,7 +2696,7 @@ namespace SanguoshaServer.AI
             if (skill_name == "gamerule" && self.GetRoleEnum() == PlayerRole.Lord)
             {
                 List<string> choices = new List<string>(choice.Split('+'));
-                return GeneralSelector.GetGeneral(room, choices, self.GetRoleEnum());
+                return GeneralSelector.GetGeneral(room, choices, self.GetRoleEnum(), self);
             }
             //神将选国籍
             if (skill_name == "Kingdom" && self.GetRoleEnum() == PlayerRole.Lord)
@@ -2852,7 +3066,7 @@ namespace SanguoshaServer.AI
             if (null_card == null) return null;
 
             FunctionCard fcard = Engine.GetFunctionCard(trick.Name);
-            if (HasSkill("kongcheng") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
+            if (HasSkill("kongcheng|kongcheng_jx") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
             {
                 //bool heg = (int)room.GetTag("NullifyingTimes") == 0 && null_card.Name == HegNullification.ClassName || (bool)room.GetTag("HegNullificationValid");
                 if (positive && IsFriend(to) && IsEnemy(from))

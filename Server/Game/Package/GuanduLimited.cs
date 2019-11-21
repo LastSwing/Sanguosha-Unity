@@ -115,7 +115,7 @@ namespace SanguoshaServer.Package
                 if (move.Card_ids.Contains(id))
                     move.From.SetMark(Name, 0);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == Player.PlayerPhase.Play)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
             {
                 player.SetFlags("-shicai");
                 player.Piles[Name] = new List<int>();
@@ -436,6 +436,10 @@ namespace SanguoshaServer.Package
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             room.SetTag("shushou_target", card_use.To[0]);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
         }
     }
     public class Shushou : TriggerSkill
@@ -723,6 +727,10 @@ namespace SanguoshaServer.Package
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
+
             Player target = card_use.To[0];
             CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "yuanlue", string.Empty);
             List<int> ids = new List<int>(card_use.Card.SubCards);
@@ -914,6 +922,10 @@ namespace SanguoshaServer.Package
             List<Player> _targets = room.ContainsTag(key) ? (List<Player>)room.GetTag(key) : new List<Player>();
             _targets.Add(player);
             room.SetTag(key, _targets);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist++;
+            card_use.From.Result = result;
         }
     }
 
@@ -964,7 +976,7 @@ namespace SanguoshaServer.Package
                     room.RemoveTag("moushi_targets");
                 }
             }
-            else if (triggerEvent == TriggerEvent.Damage && player.Phase == Player.PlayerPhase.Play && data is DamageStruct damage)
+            else if (triggerEvent == TriggerEvent.Damage && player.Phase == PlayerPhase.Play && data is DamageStruct damage)
             {
                 List<Player> damages = room.ContainsTag("moushi_targets") ? (List<Player>)room.GetTag("moushi_targets") : new List<Player>();
                 if (!damages.Contains(damage.To))
@@ -1008,6 +1020,10 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            ResultStruct result = ask_who.Result;
+            result.Assist++;
+            ask_who.Result = result;
+
             room.SendCompulsoryTriggerLog(ask_who, "moushi", true);
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, "moushi", info.SkillPosition);
             room.BroadcastSkillInvoke("moushi", "male", 2, gsk.General, gsk.SkinId);
@@ -1176,6 +1192,10 @@ namespace SanguoshaServer.Package
                 room.RemoveTag("choulue_source");
                 if (ids.Count > 0)
                 {
+                    ResultStruct result = target.Result;
+                    result.Assist++;
+                    target.Result = result;
+
                     room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
                     if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
                     {

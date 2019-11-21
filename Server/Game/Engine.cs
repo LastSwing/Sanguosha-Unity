@@ -1009,6 +1009,14 @@ namespace SanguoshaServer.Game
 
             return 4;
         }
+        public static bool IsAISelectable(string general, string mode)
+        {
+            DataRow[] rows = ai_values.Tables["general_value"].Select(string.Format("general = '{0}' and mode = '{1}'", general, mode));
+            if (rows.Length > 0)
+                return bool.Parse(rows[0]["ai_select"].ToString());
+
+            return false;
+        }
 
         static readonly Dictionary<PlayerRole, string> role_map = new Dictionary<PlayerRole, string>
         {

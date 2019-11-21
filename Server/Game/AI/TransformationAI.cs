@@ -416,11 +416,6 @@ namespace SanguoshaServer.AI
                 ScoreStruct get = ai.FindCards2Discard(player, damage.To, string.Empty, "ej", HandlingMethod.MethodGet);
                 ScoreStruct score = ai.GetDamageScore(damage);
 
-                //if (get.Score < score.Score)
-                //{
-                //    Debug.Assert(ai.IsEnemy(damage.To));
-                //}
-
                 return get.Score >= score.Score;
             }
 

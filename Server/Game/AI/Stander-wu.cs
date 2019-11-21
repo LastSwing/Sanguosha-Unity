@@ -1949,7 +1949,7 @@ namespace SanguoshaServer.AI
         { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (ai.WillShowForAttack() && ai.FriendNoSelf.Count > 0 && !player.HasUsed("DimengCard") && !player.IsNude())
+            if (ai.WillShowForAttack() && ai.FriendNoSelf.Count > 0 && !player.HasUsed("DimengCard"))
                 return new List<WrappedCard> { new WrappedCard("DimengCard") { Skill = Name, ShowSkill = Name } };
 
             return null;
@@ -1993,8 +1993,9 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player friend in ai.FriendNoSelf)
                 {
+                    if (ai.HasSkill("zishu", friend)) continue;
                     int count = enemy.HandcardNum - friend.HandcardNum;
-                    if (count > 0)
+                    if (count >= 0)
                     {
                         double good = count * 2;
                         if (ai.HasSkill("lianying", enemy))
@@ -2002,6 +2003,7 @@ namespace SanguoshaServer.AI
 
                         if (ai.HasSkill("lianying", friend))
                             good += 1.5 * Math.Min(friend.HandcardNum, ai.GetFriends(player).Count);
+                        if (ai.HasSkill("zishu", enemy)) good += 1.5 * friend.HandcardNum;
 
                         List<int> ids = new List<int>();
                         foreach (int id in player.GetCards("he"))

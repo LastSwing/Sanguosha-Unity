@@ -410,6 +410,7 @@ namespace SanguoshaServer.AI
                 }
 
                 Player shenpei = ai.FindPlayerBySkill("beizhan");
+                Player gn = RoomLogic.FindPlayerBySkillName(ai.Room, "jieying_gn");
 
                 if (ai.HasSkill("kongcheng") && ai.NeedKongcheng(player))
                 {
@@ -440,6 +441,12 @@ namespace SanguoshaServer.AI
                             use.To.Add(target);
                         }
                     }
+                }
+                else if (player.GetMark("@rob") > 0 && gn != null && !ai.IsFriend(gn))
+                {
+                    card.AddSubCards(ids);
+                    use.Card = card;
+                    use.To.Add(target);
                 }
                 else if (ai.GetOverflow(player) > 0)
                 {
@@ -1550,7 +1557,7 @@ namespace SanguoshaServer.AI
     {
         public ShushenAI() : base("shushen")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:shushen" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

@@ -1212,10 +1212,6 @@ namespace SanguoshaServer.Package
             judge.PlayAnimation = true;
             judge.Reason = ClassName;
         }
-        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
-        {
-            return !RoomLogic.PlayerContainsTrick(room, to_select, Name) && base.TargetFilter(room, targets, to_select, Self, card);
-        }
         public override void TakeEffect(Room room, Player target, WrappedCard card)
         {
             target.ClearHistory();
@@ -1238,7 +1234,7 @@ namespace SanguoshaServer.Package
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (RoomLogic.PlayerContainsTrick(room, to_select, Name) || !base.TargetFilter(room, targets, to_select, Self, card))
+            if (!base.TargetFilter(room, targets, to_select, Self, card))
                 return false;
 
             bool correct_target = (!card.DistanceLimited || Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, Self, to_select, card));
@@ -1336,7 +1332,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
-            return RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card) && !RoomLogic.PlayerContainsTrick(room, player, Name);
+            return RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card) && !RoomLogic.PlayerContainsTrick(room, player, Name) && player.JudgingAreaAvailable;
         }
 
         public override void TakeEffect(Room room, Player target, WrappedCard card)
@@ -1694,9 +1690,11 @@ namespace SanguoshaServer.Package
             int id = room.AskForCardShow(effect.To, effect.From, Name, effect);
             room.ShowCard(effect.To, id, Name);
 
-            string suit_str = WrappedCard.GetSuitString(RoomLogic.GetCardSuit(room, room.GetCard(id)));
+            WrappedCard.CardSuit suit = RoomLogic.GetCardSuit(room, room.GetCard(id));
+            string suit_str = WrappedCard.GetSuitString(suit);
             string pattern = string.Format(".{0}", suit_str.Substring(0, 1).ToUpper());
-            string prompt = string.Format("@fire-attack:{0}::{1}", effect.To.Name, suit_str);
+            string prompt = string.Format("@fire-attack:{0}::<color={2}>{1}</color>", effect.To.Name,
+                WrappedCard.GetSuitIcon(RoomLogic.GetCardSuit(room, room.GetCard(id))), WrappedCard.IsBlack(suit) ? "black" : "red");
             if (effect.From.Alive)
             {
                 WrappedCard card_to_throw = room.AskForCard(effect.From, Name, pattern, prompt, effect);
@@ -1765,8 +1763,15 @@ namespace SanguoshaServer.Package
                         room.SendLog(log);
                         if (RoomLogic.PlayerHasShownSkill(room, p, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, p);
                             room.NotifySkillInvoked(p, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, p, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, p, use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                         }
                     }
                     else
@@ -2222,10 +2227,9 @@ namespace SanguoshaServer.Package
         {
             if (base.Triggerable(player, room) && data is CardAskStruct asked)
             {
-                if (asked.Data is CardEffectStruct effect && effect.Card != null && effect.From != null && effect.From.Alive)
-                    if (player.ArmorNullifiedList.ContainsKey(effect.From.Name)) return new TriggerStruct();
-                else if (asked.Data is SlashEffectStruct slash && slash.From != null && slash.From.Alive)
-                    if (player.ArmorNullifiedList.ContainsKey(slash.From.Name)) return new TriggerStruct();
+                if ((asked.Data is CardEffectStruct effect && effect.Card != null && player.ArmorIsNullifiedBy(effect.From))
+                    || (asked.Data is SlashEffectStruct slash && player.ArmorIsNullifiedBy(slash.From)))
+                    return new TriggerStruct();
 
                 string pattern = asked.Pattern;
                 WrappedCard jink = new WrappedCard(Jink.ClassName);
@@ -2332,12 +2336,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is SlashEffectStruct effect)
-            {
-                if (effect.From != null && effect.From.Alive && player.ArmorNullifiedList.ContainsKey(effect.From.Name)) return new TriggerStruct();
-
-                if (WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, effect.Slash))) return new TriggerStruct(Name, player);
-            }
+            if (base.Triggerable(player, room) && data is SlashEffectStruct effect && !player.ArmorIsNullifiedBy(effect.From)
+                && WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, effect.Slash)))
+                return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
@@ -2530,23 +2531,20 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (!base.Triggerable(player, room)) return new TriggerStruct();
-            if (triggerEvent == TriggerEvent.SlashEffected && data is SlashEffectStruct effect)
+            if (triggerEvent == TriggerEvent.SlashEffected && data is SlashEffectStruct effect && !player.ArmorIsNullifiedBy(effect.From) && effect.Slash.Name == Slash.ClassName)
             {
-                if (effect.From != null && effect.From.Alive && player.ArmorNullifiedList.ContainsKey(effect.From.Name)) return new TriggerStruct();
-                if (effect.Nature == DamageStruct.DamageNature.Normal)
+                //if (effect.Nature == DamageStruct.DamageNature.Normal)
+                return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.CardEffected && data is CardEffectStruct card_effect && !player.ArmorIsNullifiedBy(card_effect.From)
+                && (card_effect.Card.Name == SavageAssault.ClassName || card_effect.Card.Name == ArcheryAttack.ClassName))
+            {
                     return new TriggerStruct(Name, player);
             }
-            else if (triggerEvent == TriggerEvent.CardEffected && data is CardEffectStruct card_effect)
+            else if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && !player.ArmorIsNullifiedBy(damage.From)
+                && damage.Nature == DamageStruct.DamageNature.Fire)
             {
-                if (card_effect.From != null && card_effect.From.Alive && player.ArmorNullifiedList.ContainsKey(card_effect.From.Name)) return new TriggerStruct();
-                if (card_effect.Card.Name == SavageAssault.ClassName || card_effect.Card.Name == ArcheryAttack.ClassName)
-                    return new TriggerStruct(Name, player);
-            }
-            else if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
-            {
-                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
-                if (damage.Nature == DamageStruct.DamageNature.Fire)
-                    return new TriggerStruct(Name, player);
+                return new TriggerStruct(Name, player);
             }
             return new TriggerStruct();
         }
@@ -2625,12 +2623,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && !player.ArmorIsNullifiedBy(damage.From)
+                && base.Triggerable(player, room) && damage.Damage > 1)
             {
-                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
-
-                if (base.Triggerable(player, room) && damage.Damage > 1)
-                    return new TriggerStruct(Name, player);
+                return new TriggerStruct(Name, player);
             }
             else if (data is CardsMoveOneTimeStruct move && move.From != null && move.From_places.Contains(Place.PlaceEquip) && move.From.HasFlag("SilverLionRecover"))
             {
@@ -2641,7 +2637,7 @@ namespace SanguoshaServer.Package
                     if (card.Name == Name)
                     {
                         Player source = room.FindPlayer(move.Reason.PlayerId);
-                        if (!move.From.IsWounded() || (source != null && move.From.ArmorNullifiedList.ContainsKey(source.Name)))
+                        if (!move.From.IsWounded() || move.From.ArmorIsNullifiedBy(source))
                         {
                             move.From.SetFlags("-SilverLionRecover");
                             return new TriggerStruct();

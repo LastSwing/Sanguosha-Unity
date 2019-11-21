@@ -23,7 +23,7 @@ namespace SanguoshaServer.Game
             game_rule = rule;
         }
 
-        private void AddTriggerSkill(TriggerSkill skill)
+        public void AddTriggerSkill(TriggerSkill skill)
         {
             if (skill == null || skillSet.Contains(skill.Name))
                 return;
@@ -31,7 +31,8 @@ namespace SanguoshaServer.Game
             skillSet.Add(skill.Name);
 
             List<TriggerEvent> events = skill.TriggerEvents;
-            foreach (TriggerEvent triggerEvent in events) {
+            foreach (TriggerEvent triggerEvent in events)
+            {
                 List <TriggerSkill> table = skill_table.ContainsKey(triggerEvent) ? skill_table[triggerEvent] : new List<TriggerSkill>();
                 table.Add(skill);
                 table.Sort((x, y) => CompareByPriority(triggerEvent, x, y));
@@ -150,7 +151,7 @@ namespace SanguoshaServer.Game
 
             List<TriggerSkill> triggered = new List<TriggerSkill>();
             List<TriggerSkill> skills = skill_table.ContainsKey(triggerEvent) ? skill_table[triggerEvent] : new List<TriggerSkill>();
-            skills.Sort((x, y) => CompareByPriority(triggerEvent, x, y));
+            //skills.Sort((x, y) => CompareByPriority(triggerEvent, x, y));
             do
             {
                 trigger_who.Clear();

@@ -36,6 +36,7 @@ namespace CommonClass.Game
             Prevented = false;
             Steped = DamageStep.None;
             Drank = false;
+            Marks = new List<string>();
         }
 
         public DamageStruct(WrappedCard card, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal) {
@@ -52,6 +53,7 @@ namespace CommonClass.Game
             Prevented = false;
             Steped = DamageStep.None;
             Drank = false;
+            Marks = new List<string>();
         }
 
         public DamageStruct(string reason, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal)
@@ -69,6 +71,7 @@ namespace CommonClass.Game
             Prevented = false;
             Steped = DamageStep.None;
             Drank = false;
+            Marks = new List<string>();
         }
 
         public Player From { get; set; }
@@ -97,6 +100,7 @@ namespace CommonClass.Game
         public bool Prevented { get; set; }
         public DamageStep Steped { get; set; }
         public bool Drank { set; get; }
+        public List<string> Marks { set; get; }
     }
 
     public struct RoomSetting

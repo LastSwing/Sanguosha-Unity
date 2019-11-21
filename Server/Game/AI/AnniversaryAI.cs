@@ -28,7 +28,7 @@ namespace SanguoshaServer.AI
 
     public class GuolunAI : SkillEvent
     {
-        public GuolunAI() : base("guolun") { key = new List<string> { "cardExchange" }; }
+        public GuolunAI() : base("guolun") { key = new List<string> { "cardExchange:guolun" }; }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

@@ -287,10 +287,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is DamageStruct damage && base.Triggerable(player, room) && damage.Damage >= player.Hp && player.GetArmor())
+            if (data is DamageStruct damage && base.Triggerable(player, room) && damage.Damage >= player.Hp && player.GetArmor()
+                && !player.ArmorIsNullifiedBy(damage.From))
             {
-                if (damage.From != null && damage.From.Alive && player.ArmorNullifiedList.ContainsKey(damage.From.Name)) return new TriggerStruct();
-
                 return new TriggerStruct(Name, player);
             }
 
@@ -331,10 +330,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && use.To.Contains(player) && player.GetMark("Equips_of_Others_nullified_to_You") == 0)
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && use.To.Contains(player)
+                && player.GetMark("Equips_of_Others_nullified_to_You") == 0 && !player.ArmorIsNullifiedBy(use.From))
             {
-                if (use.From != null && use.From.Alive && player.ArmorNullifiedList.ContainsKey(use.From.Name)) return new TriggerStruct();
-
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is FireAttack || fcard is FireSlash || fcard is BurningCamps)
                     return new TriggerStruct(Name, player);
@@ -372,10 +370,8 @@ namespace SanguoshaServer.Package
 
         public override bool IsProhibited(Room room, Player from, Player to, ProhibitType type)
         {
-            if (type == ProhibitType.Chain && RoomLogic.HasArmorEffect(room, to, IronArmor.ClassName))
+            if (type == ProhibitType.Chain && RoomLogic.HasArmorEffect(room, to, IronArmor.ClassName) && !to.ArmorIsNullifiedBy(from))
             {
-                if (from != null && from.Alive && to.ArmorNullifiedList.ContainsKey(from.Name)) return false;
-
                 List<string> big_kingdoms = RoomLogic.GetBigKingdoms(room);
                 if (big_kingdoms.Count > 0)
                 {
@@ -716,8 +712,15 @@ namespace SanguoshaServer.Package
                     room.SendLog(log);
                     if (RoomLogic.PlayerHasShownSkill(room, player, skill))
                     {
-                        room.BroadcastSkillInvoke(skill.Name, player);
                         room.NotifySkillInvoked(player, skill.Name);
+                        GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, skill.Name);
+                        string genral = gsk.General;
+                        int skin_id = gsk.SkinId;
+                        string skill_name = skill.Name;
+                        int audio = -1;
+                        skill.GetEffectIndex(room, player, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                        if (audio >= -1)
+                            room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                     }
                 }
                 else
@@ -972,8 +975,15 @@ namespace SanguoshaServer.Package
                                 room.SendLog(log);
                                 if (RoomLogic.PlayerHasShownSkill(room, player, skill))
                                 {
-                                    room.BroadcastSkillInvoke(skill.Name, player);
                                     room.NotifySkillInvoked(player, skill.Name);
+                                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, skill.Name);
+                                    string genral = gsk.General;
+                                    int skin_id = gsk.SkinId;
+                                    string skill_name = skill.Name;
+                                    int audio = -1;
+                                    skill.GetEffectIndex(room, player, use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                                    if (audio >= -1)
+                                        room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                                 }
                             }
                         }
@@ -1035,8 +1045,15 @@ namespace SanguoshaServer.Package
                         room.SendLog(_log);
                         if (RoomLogic.PlayerHasShownSkill(room, p, skill))
                         {
-                            room.BroadcastSkillInvoke(skill.Name, p);
                             room.NotifySkillInvoked(p, skill.Name);
+                            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, p, skill.Name);
+                            string genral = gsk.General;
+                            int skin_id = gsk.SkinId;
+                            string skill_name = skill.Name;
+                            int audio = -1;
+                            skill.GetEffectIndex(room, p, card, ref audio, ref skill_name, ref genral, ref skin_id);
+                            if (audio >= -1)
+                                room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                         }
                     }
                     else
@@ -1456,8 +1473,15 @@ namespace SanguoshaServer.Package
                     room.SendLog(log);
                     if (RoomLogic.PlayerHasShownSkill(room, p, skill))
                     {
-                        room.BroadcastSkillInvoke(skill.Name, p);
                         room.NotifySkillInvoked(p, skill.Name);
+                        GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, p, skill.Name);
+                        string genral = gsk.General;
+                        int skin_id = gsk.SkinId;
+                        string skill_name = skill.Name;
+                        int audio = -1;
+                        skill.GetEffectIndex(room, p, card_use.Card, ref audio, ref skill_name, ref genral, ref skin_id);
+                        if (audio >= -1)
+                            room.BroadcastSkillInvoke(skill_name, "male", audio, genral, skin_id);
                     }
                 }
                 else

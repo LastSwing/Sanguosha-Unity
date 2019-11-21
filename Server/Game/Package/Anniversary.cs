@@ -1,4 +1,5 @@
 ﻿using CommonClass.Game;
+using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,9 @@ namespace SanguoshaServer.Package
                 new Guolun(),
                 new Songsang(),
                 new Zhanji(),
+
+                new Jiedao(),
+                new JiedaoDis(),
             };
 
             skill_cards = new List<FunctionCard>
@@ -26,6 +30,7 @@ namespace SanguoshaServer.Package
 
             related_skills = new Dictionary<string, List<string>>
             {
+                { "jiedao", new List<string>{ "#jiedao" } },
             };
         }
     }
@@ -182,4 +187,116 @@ namespace SanguoshaServer.Package
         }
     }
 
+
+    public class Jiedao : TriggerSkill
+    {
+        public Jiedao() : base("jiedao")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.EventPhaseChanging };
+            skill_type = SkillType.Attack;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.DamageCaused)
+                player.AddMark(Name);
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark(Name) > 0) p.SetMark(Name, 0);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.DamageCaused && base.Triggerable(player, room) && player.IsWounded() && player.GetMark(Name) == 1)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage && room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage)
+            {
+                List<string> choices = new List<string>();
+                for (int i = 1; i <= player.GetLostHp(); i++)
+                    choices.Add(i.ToString());
+
+                string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@jiedao:" + damage.To.Name }, data);
+                int count = int.Parse(choice);
+                string mark = string.Format("{0}:{1}", Name, choice);
+                if (damage.Marks == null)
+                    damage.Marks = new List<string> { mark };
+                else
+                    damage.Marks.Add(mark);
+
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, damage.To.Name);
+                LogMessage log = new LogMessage
+                {
+                    Type = "#AddDamage",
+                    From = player.Name,
+                    To = new List<string> { damage.To.Name },
+                    Arg = Name,
+                    Arg2 = (damage.Damage += count).ToString()
+                };
+                room.SendLog(log);
+
+                data = damage;
+            }
+            return false;
+        }
+    }
+
+    public class JiedaoDis : TriggerSkill
+    {
+        public JiedaoDis() : base("#jiedao")
+        {
+            events.Add(TriggerEvent.DamageComplete);
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is DamageStruct damage && player.Alive && !damage.Prevented  && damage.From != null && damage.From.Alive && damage.Marks != null && !damage.From.IsNude())
+            {
+                foreach (string str in damage.Marks)
+                {
+                    if (str.StartsWith("jiedao"))
+                        return new TriggerStruct(Name, damage.From);
+                }
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage)
+            {
+                int count = 0;
+                foreach (string str in damage.Marks)
+                {
+                    if (str.StartsWith("jiedao"))
+                    {
+                        string[] strs = str.Split(':');
+                        count = int.Parse(strs[1]);
+                        break;
+                    }
+                }
+
+                room.AskForDiscard(ask_who, "jiedao", count, count, false, true, "@jiedao-discard:::" + count.ToString(), false, info.SkillPosition);
+            }
+
+            return false;
+        }
+    }
 }

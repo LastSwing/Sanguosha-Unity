@@ -180,12 +180,18 @@ namespace SanguoshaServer.AI
             {
                 List<string> choices = new List<string>(str.Split(':'));
                 foreach (SkillEvent e in skill_events.Values)
-                    if (e.Key.Contains(choices[0]))
-                        e.OnEvent(this, triggerEvent, player, data);
+                {
+                    foreach (string key in e.Key)
+                        if (str.StartsWith(key))
+                            e.OnEvent(this, triggerEvent, player, data);
+                }
 
                 foreach (UseCard e in Engine.GetCardUsages())
-                    if (e.Key.Contains(choices[0]))
-                        e.OnEvent(this, triggerEvent, player, data);
+                {
+                    foreach (string key in e.Key)
+                        if (str.StartsWith(key))
+                            e.OnEvent(this, triggerEvent, player, data);
+                }
 
                 if (choices[0] == "viewCards")
                 {

@@ -123,6 +123,7 @@
     <Compile Include="Game\AI\ClassicYingAI.cs" />
     <Compile Include="Game\AI\FamousGeneralAI.cs" />
     <Compile Include="Game\AI\HegemonySpecialAI.cs" />
+    <Compile Include="Game\AI\MythAI.cs" />
     <Compile Include="Game\AI\NaturefourAI.cs" />
     <Compile Include="Game\Extensions\AchieveCollector.cs" />
     <Compile Include="Game\AI\AI.cs" />
@@ -163,6 +164,7 @@
     <Compile Include="Game\Package\Formation.cs" />
     <Compile Include="Game\Package\GuanduCards.cs" />
     <Compile Include="Game\Package\GuanduLimited.cs" />
+    <Compile Include="Game\Package\Myth.cs" />
     <Compile Include="Game\Package\Naturefour.cs" />
     <Compile Include="Game\Package\HegemonySpecial.cs" />
     <Compile Include="Game\Package\LordCards.cs" />

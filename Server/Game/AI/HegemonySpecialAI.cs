@@ -78,7 +78,7 @@ namespace SanguoshaServer.AI
     {
         public ShuliangAI() : base("shuliang")
         {
-            key = new List<string> { "cardExchange" };
+            key = new List<string> { "cardExchange:shuliang" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {

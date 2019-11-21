@@ -21,6 +21,7 @@ namespace SanguoshaServer.AI
                 new GuicaiJXAI(),
                 new FankuiJXAI(),
                 new GanglieJXAI(),
+                new QingjianAI(),
                 new LuoyiJXAI(),
 
                 new JijiangAI(),
@@ -137,7 +138,7 @@ namespace SanguoshaServer.AI
     {
         public HujiaAI() : base("hujia")
         {
-            key = new List<string> { "cardResponded", "skillInvoke" };
+            key = new List<string> { "cardResponded%hujia", "skillInvoke:EightDiagram" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -238,7 +239,7 @@ namespace SanguoshaServer.AI
                     damage.From = effect.From;
                     damage.To = effect.To;
                     damage.Card = effect.Card;
-                    damage.Damage = 1;
+                    damage.Damage = 1 + effect.ExDamage;
                     damage.Nature = DamageStruct.DamageNature.Normal;
                 }
 
@@ -258,7 +259,7 @@ namespace SanguoshaServer.AI
     {
         public TuxiJXAI() : base("tuxi_jx")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:tuxi_jx" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -291,7 +292,7 @@ namespace SanguoshaServer.AI
             List<Player> enemies = ai.GetEnemies(player);
             ai.SortByHandcards(ref enemies, false);
             Room room = ai.Room;
-            Player zhugeliang = ai.FindPlayerBySkill("kongcheng");
+            Player zhugeliang = ai.FindPlayerBySkill("kongcheng|kongcheng_jx");
 
             if (zhugeliang != null && ai.IsFriend(zhugeliang) && zhugeliang.HandcardNum == 1 && ai.GetEnemisBySeat(zhugeliang) > 0 && zhugeliang != player)
             {
@@ -373,7 +374,7 @@ namespace SanguoshaServer.AI
         {
             List<int> ids= player.GetCards("h");
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
-            KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids);
+            KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids, null, Player.Place.PlaceHand, Name);
             if (key.Key != null && key.Value >= 0 && ai.Room.Current == key.Key)
             {
                 WrappedCard wrapped = new WrappedCard(YijiJCard.ClassName) { Skill = Name };
@@ -455,7 +456,7 @@ namespace SanguoshaServer.AI
     {
         public FankuiJXAI() : base("fankui_jx")
         {
-            key = new List<string> { "cardChosen" };
+            key = new List<string> { "cardChosen:fankui_jx" };
         }
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
@@ -536,7 +537,7 @@ namespace SanguoshaServer.AI
     {
         public GuicaiJXAI() : base("guicai_jx")
         {
-            key = new List<string> { "cardResponded" };
+            key = new List<string> { "cardResponded%guicai_jx" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -889,6 +890,81 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class QingjianAI : SkillEvent
+    {
+        public QingjianAI() : base("qingjian")
+        {
+        }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            List<int> ids = player.GetCards("he");
+            Room room = ai.Room;
+            if (ids.Count == 0 || (room.Current != null && !ai.IsFriend(room.Current) && ai.GetOverflow(room.Current) > 0)) return use;
+            
+            Player target = null;
+            do
+            {
+                List<Player> players = null;
+                if (target != null)
+                    players = new List<Player> { target };
+
+                KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, players, Player.Place.PlaceHand, Name);
+                if (pair.Key != null && pair.Value > -1)
+                {
+                    ids.Remove(pair.Value);
+                    target = pair.Key;
+                    if (use.Card == null) use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                    use.Card.AddSubCard(pair.Value);
+                    if (use.To.Count == 0) use.To.Add(target);
+                }
+                else
+                    break;
+            }
+            while (ids.Count > 0);
+
+            if (ids.Count > 0)
+            {
+                List<double> values = ai.SortByKeepValue(ref ids, false);
+                if (values[0] < 0)
+                {
+                    if (target != null)
+                        use.Card.AddSubCard(ids[0]);
+                    else
+                    {
+                        List<Player> friends = ai.FriendNoSelf;
+                        if (friends.Count > 0)
+                        {
+                            room.SortByActionOrder(ref friends);
+                            use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                            use.Card.AddSubCard(ids[0]);
+                            use.To.Add(friends[0]);
+                        }
+                    }
+                }
+            }
+ 
+            return use;
+        }
+    }
+
+    public class QingjianCardAI : UseCard
+    {
+        public QingjianCardAI() : base(QingjianCard.ClassName)
+        {
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use && player != ai.Self)
+            {
+                Player target = use.To[0];
+                if (ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+            }
+        }
+    }
+
     public class LuoyiJXAI : SkillEvent
     {
         public LuoyiJXAI() : base("luoyi_jx")
@@ -945,7 +1021,7 @@ namespace SanguoshaServer.AI
     {
         public JijiangAI() : base("jijiang")
         {
-            key = new List<string> { "cardResponded" };
+            key = new List<string> { "cardResponded%jijiang" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -1187,7 +1263,7 @@ namespace SanguoshaServer.AI
                         damage.From = effect.From;
                         damage.To = effect.To;
                         damage.Card = effect.Card;
-                        damage.Damage = 1;
+                        damage.Damage = 1 + effect.ExDamage;
                         damage.Nature = DamageStruct.DamageNature.Normal;
                     }
 
@@ -1275,7 +1351,7 @@ namespace SanguoshaServer.AI
 
     public class YijueAI : SkillEvent
     {
-        public YijueAI() : base("yijue") { key = new List<string> { "skillInvoke" }; }
+        public YijueAI() : base("yijue") { key = new List<string> { "skillInvoke:yijue:yes" }; }
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
@@ -1532,7 +1608,7 @@ namespace SanguoshaServer.AI
     {
         public YajiaoAI() : base("yajiao")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:yajiao" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -1563,7 +1639,7 @@ namespace SanguoshaServer.AI
     {
         public GuanxingJXAI() : base("guanxing_jx")
         {
-            key = new List<string> { "guanxingchose" };
+            key = new List<string> { "guanxing_jxchose" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -1597,7 +1673,7 @@ namespace SanguoshaServer.AI
     {
         public TieqiJXAI() : base("tieqi_jx")
         {
-            key = new List<string> { "skillInvoke" };
+            key = new List<string> { "skillInvoke:tieqi_jx:yes" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -2110,7 +2186,7 @@ namespace SanguoshaServer.AI
     {
         public LianyingAI() : base("lianying")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:lianying" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -2295,7 +2371,7 @@ namespace SanguoshaServer.AI
 
     public class GongxinAI : SkillEvent
     {
-        public GongxinAI() : base("gongxin") { key = new List<string> { "gongxin" }; }
+        public GongxinAI() : base("gongxin") { key = new List<string> { "gongxin:gongxin" }; }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -2457,7 +2533,7 @@ namespace SanguoshaServer.AI
     {
         public FenweiAI() : base("fenwei")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:fenwei" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)

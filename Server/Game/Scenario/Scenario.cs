@@ -60,11 +60,14 @@ namespace SanguoshaServer.Scenario
                 foreach (string mark in player.Marks.Keys)
                     _player.SetMark(mark, player.GetMark(mark));
                 foreach (string mark in player.StringMarks.Keys)
-                    if (mark != "spirit")
+                    if (mark != "spirit" && mark != "huashen")
                         _player.SetMark(mark, player.GetMark(mark));
 
                 if (player.ContainsTag("spirit"))
                     _player.SetTag("spirit", player.GetTag("spirit"));
+
+                if (player.ContainsTag("huashen"))
+                    _player.SetTag("huashen", player.GetTag("huashen"));
 
                 _player.SetFlags("marshal");
             }
@@ -198,7 +201,6 @@ namespace SanguoshaServer.Scenario
                     }
                 }
             }
-            room.SetTag("FirstRound", true);
             foreach (Player p in room.Players)
                 room.DrawCards(p, 4, "gamerule");
 
@@ -304,7 +306,9 @@ namespace SanguoshaServer.Scenario
             if (change.To == PlayerPhase.NotActive)
             {
                 if (player.GetMark("TurnPlayed") == 0) player.SetMark("TurnPlayed", 1);
-                player.SetFlags(".");
+                foreach (Player p in room.GetAlivePlayers())
+                    p.SetFlags(".");
+
                 RoomLogic.ClearPlayerCardLimitation(player, true);
                 foreach (Player p in room.GetAllPlayers()) {
                     if (p.GetMark("drank") > 0)
@@ -695,7 +699,7 @@ namespace SanguoshaServer.Scenario
                             return false;
                         if (damage.Nature != DamageNature.Normal && player.Chained)
                         {
-                            room.ChainedRemoveOnDamageDone(player);
+                            room.ChainedRemoveOnDamageDone(player, damage);
                             //player.Chained = false;
                             //room.BroadcastProperty(player, "Chained");
                         }

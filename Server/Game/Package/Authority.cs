@@ -1299,17 +1299,14 @@ namespace SanguoshaServer.Package
         public Weidi() : base("weidi")
         {
             view_as_skill = new WeidiVS();
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.CardsMoveOneTime };
+            events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime };
             skill_type = SkillType.Attack;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardsMoveOneTime
-                && data is CardsMoveOneTimeStruct move && move.To != null && move.From_places.Contains(Place.DrawPile) && move.To_place == Place.PlaceHand)
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To != null
+                && move.From_places.Contains(Place.DrawPile) && move.To_place == Place.PlaceHand && !move.To.HasFlag("weidi_get") && move.To.Phase == PlayerPhase.NotActive)
                 move.To.SetFlags("weidi_get");
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-                foreach (Player p in room.GetAlivePlayers())
-                    p.SetFlags("-weidi_get");
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -1689,6 +1686,10 @@ namespace SanguoshaServer.Package
 
             if (skills.Count > 0)
             {
+                ResultStruct result = target.Result;
+                result.Assist++;
+                target.Result = result;
+
                 string choice = room.AskForChoice(card_use.From, "xuanhuo", string.Join("+", skills));
                 room.HandleAcquireDetachSkills(card_use.From, choice);
                 card_use.From.SetFlags("xuanhuo");
@@ -2427,6 +2428,13 @@ namespace SanguoshaServer.Package
             {
                 if (p.Alive)
                 {
+                    if (p != player)
+                    {
+                        ResultStruct result = card_use.From.Result;
+                        result.Assist++;
+                        card_use.From.Result = result;
+                    }
+
                     p.MaxHp++;
                     room.BroadcastProperty(p, "MaxHp");
 
@@ -2517,6 +2525,13 @@ namespace SanguoshaServer.Package
             Player first = card_use.To[0], second = card_use.To[1];
             List<int> equips1 = first.GetEquips(), equips2 = second.GetEquips();
 
+            if (!card_use.To.Contains(source) || (first != source && equips2.Count > equips2.Count) || (first == source && equips2.Count < equips2.Count))
+            {
+                ResultStruct result = card_use.From.Result;
+                result.Assist += Math.Abs(equips1.Count - equips2.Count);
+                card_use.From.Result = result;
+            }
+
             List<CardsMoveStruct> exchangeMove = new List<CardsMoveStruct>();
             CardsMoveStruct move1 = new CardsMoveStruct(equips1, second, Place.PlaceEquip,
                 new CardMoveReason(CardMoveReason.MoveReason.S_REASON_SWAP, first.Name, second.Name, "ganlu", string.Empty));
@@ -2532,15 +2547,8 @@ namespace SanguoshaServer.Package
     {
         public Buyi() : base("buyi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.QuitDying, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.QuitDying };
             skill_type = SkillType.Recover;
-        }
-
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-                foreach (Player p in room.GetAlivePlayers())
-                    p.SetFlags("-buyi");
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)

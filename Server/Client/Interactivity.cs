@@ -1282,7 +1282,7 @@ namespace SanguoshaServer
                             "liegong", JsonUntity.Object2Json(liegong_targets) });
                     }
 
-                    if (first_selection && selected_targets.Count == 0 && fcard is Slash && player.HasFlag("slashTargetFixToOne"))
+                    if (first_selection && selected_targets.Count == 0 && fcard is Slash && player.HasFlag("slashTargetFix"))
                     {
                         foreach (Player p in available_targets)
                         {

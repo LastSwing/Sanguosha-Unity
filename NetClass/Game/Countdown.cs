@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using CommonClassLibrary;
 
 namespace CommonClass.Game
 {
@@ -16,6 +12,7 @@ namespace CommonClass.Game
             S_COUNTDOWN_USE_ALL
         }
         public CountdownType Type { set; get; }
+        public CommandType Command { set; get; }
 
         public float Current;
         public float Max;
@@ -24,6 +21,7 @@ namespace CommonClass.Game
             Type = type;
             Current = current;
             Max = max;
+            Command = CommandType.S_COMMAND_UNKNOWN;
         }
         public bool hasTimedOut()
         {

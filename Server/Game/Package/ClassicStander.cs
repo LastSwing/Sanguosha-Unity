@@ -195,6 +195,10 @@ namespace SanguoshaServer.Package
                         effect, HandlingMethod.MethodResponse);
                     if (card != null)
                     {
+                        ResultStruct result = p.Result;
+                        result.Assist++;
+                        p.Result = result;
+
                         Thread.Sleep(500);
                         return card;
                     }
@@ -230,7 +234,15 @@ namespace SanguoshaServer.Package
                         To = p
                     };
                     WrappedCard slash = room.AskForCard(p, "jijiang", Slash.ClassName, "@jijiang:" + player.Name, effect, method);
-                    if (slash != null) return slash;
+                    if (slash != null)
+                    {
+                        ResultStruct result = p.Result;
+                        result.Assist++;
+                        p.Result = result;
+
+                        Thread.Sleep(500);
+                        return slash;
+                    }
                 }
             }
 
@@ -947,9 +959,9 @@ namespace SanguoshaServer.Package
     {
         public QicaiFix() : base("#qicai-fix") { }
 
-        public override bool IsCardFixed(Room room, Player from, Player to, string flags, FunctionCard.HandlingMethod method)
+        public override bool IsCardFixed(Room room, Player from, Player to, string flags, HandlingMethod method)
         {
-            if (to != null && from != null && from != to && (flags == "t" || flags == "d" || flags == "o")
+            if (to != null && from != null && from != to && (flags == "t" || flags == "a")
                 && method == HandlingMethod.MethodDiscard && RoomLogic.PlayerHasSkill(room, to, "qicai_jx"))
                 return true;
 
@@ -1254,6 +1266,10 @@ namespace SanguoshaServer.Package
                         room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE ? HandlingMethod.MethodResponse : HandlingMethod.MethodUse);
                     if (slash != null)
                     {
+                        ResultStruct result = p.Result;
+                        result.Assist++;
+                        p.Result = result;
+
                         Thread.Sleep(500);
                         return slash;
                     }
@@ -1400,6 +1416,7 @@ namespace SanguoshaServer.Package
         public Qingjian() : base("qingjian")
         {
             events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime, TriggerEvent.EventPhaseChanging };
+            view_as_skill = new QingjianVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -1411,9 +1428,6 @@ namespace SanguoshaServer.Package
                     player.SetMark(Name, 0);
                     room.RemovePlayerStringMark(player, Name);
                 }
-
-                foreach (Player p in room.GetAlivePlayers())
-                    player.SetFlags("-qingjian");
             }
         }
 
@@ -1431,17 +1445,7 @@ namespace SanguoshaServer.Package
         {
             if (data is CardsMoveOneTimeStruct move && move.Card_ids.Count > 0)
             {
-                foreach (int id in move.Card_ids)
-                {
-                    if (room.GetCardPlace(id) == Place.PlaceHand && room.GetCardOwner(id) == ask_who)
-                        room.SetCardFlag(id, Name);
-                }
-
                 WrappedCard card = room.AskForUseCard(ask_who, "@@qingjian", "@qingjian", -1, HandlingMethod.MethodUse, true, info.SkillPosition);
-                foreach (int id in move.Card_ids)
-                {
-                    room.SetCardFlag(id, "-qingjian");
-                }
                 if (card != null && room.ContainsTag(Name))
                     return info;
             }
@@ -1482,14 +1486,15 @@ namespace SanguoshaServer.Package
         public QingjianVS() : base("qingjian") { response_pattern = "@@qingjian"; }
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
-            return to_select.HasFlag(Name);
+            //return room.GetCardPlace(to_select.Id) == Place.PlaceHand;
+            return room.GetCardOwner(to_select.Id) == player;
         }
 
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
             if (cards.Count > 0)
             {
-                WrappedCard card = new WrappedCard("QingjianCard");
+                WrappedCard card = new WrappedCard(QingjianCard.ClassName);
                 card.AddSubCards(cards);
                 return card;
             }
@@ -1517,6 +1522,10 @@ namespace SanguoshaServer.Package
             room.ShowCards(card_use.From, new List<int>(card_use.Card.SubCards), "qingjian");
             room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, card_use.From.Name, card_use.To[0].Name);
             room.SetTag("qingjian", card_use);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
         }
     }
 
@@ -1772,6 +1781,11 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             Player target = card_use.To[0];
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
+
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, card_use.Card.SkillPosition);
             room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
             room.NotifySkillInvoked(player, "yiji_jx");
@@ -1942,6 +1956,10 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use && player.Kingdom == "wu" && use.To.Contains(player) && player.Hp > target.Hp && target.Alive && room.AskForSkillInvoke(player, Name, target))
             {
+                ResultStruct result = player.Result;
+                result.Assist++;
+                player.Result = result;
+
                 room.BroadcastSkillInvoke(Name, target);
                 room.CancelTarget(ref use, player);
                 return info;

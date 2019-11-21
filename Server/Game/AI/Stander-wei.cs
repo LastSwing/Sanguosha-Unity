@@ -120,7 +120,7 @@ namespace SanguoshaServer.AI
     {
         public FankuiAI() : base("fankui")
         {
-            key = new List<string> { "cardChosen" };
+            key = new List<string> { "cardChosen:fankui" };
         }
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
@@ -201,7 +201,7 @@ namespace SanguoshaServer.AI
     {
         public GuicaiAI() : base("guicai")
         {
-            key = new List<string> { "cardResponded" };
+            key = new List<string> { "cardResponded%guicai" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -644,7 +644,7 @@ namespace SanguoshaServer.AI
     {
         public TuxiAI() : base("tuxi")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:tuxi" };
         }
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
@@ -690,7 +690,7 @@ namespace SanguoshaServer.AI
             List<Player> enemies = ai.GetEnemies(player);
             ai.SortByHandcards(ref enemies, false);
             Room room = ai.Room;
-            Player zhugeliang = ai.FindPlayerBySkill("kongcheng");
+            Player zhugeliang = ai.FindPlayerBySkill("kongcheng|kongcheng_jx");
 
             if (zhugeliang != null && ai.IsFriend(zhugeliang) && zhugeliang.HandcardNum == 1 && ai.GetEnemisBySeat(zhugeliang) > 0 && zhugeliang != player)
             {
@@ -859,7 +859,7 @@ namespace SanguoshaServer.AI
 
         public override Player OnYiji(TrustedAI ai, Player player, List<int> ids, ref int id)
         {
-            KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids);
+            KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids, null, Player.Place.PlaceHand, Name);
             if (key.Key != null && key.Value >= 0 && ai.Room.Current == key.Key)
             {
                 id = key.Value;
@@ -1156,7 +1156,8 @@ namespace SanguoshaServer.AI
                     {
                         foreach (Player enemy in ai.GetEnemies(player))
                         {
-                            if (!RoomLogic.PlayerContainsTrick(room, enemy, card.Name) && !ai.IsCancelTarget(card, enemy, null))
+                            if (!RoomLogic.PlayerContainsTrick(room, enemy, card.Name) && !ai.IsCancelTarget(card, enemy, null)
+                                && RoomLogic.IsProhibited(room, null, enemy, card) == null && enemy.JudgingAreaAvailable)
                                 return new KeyValuePair<int, Player>(id, enemy);
                         }
                     }
@@ -1169,7 +1170,8 @@ namespace SanguoshaServer.AI
                     {
                         foreach (Player enemy in ai.GetEnemies(player))
                         {
-                            if (!RoomLogic.PlayerContainsTrick(room, enemy, card.Name) && !ai.IsCancelTarget(card, enemy, null))
+                            if (!RoomLogic.PlayerContainsTrick(room, enemy, card.Name) && !ai.IsCancelTarget(card, enemy, null)
+                                && RoomLogic.IsProhibited(room, null, enemy, card) == null && enemy.JudgingAreaAvailable)
                                 return new KeyValuePair<int, Player>(id, enemy);
                         }
                     }
@@ -1941,7 +1943,7 @@ namespace SanguoshaServer.AI
     {
         public JiemingAI() : base("jieming")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:jieming" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -2060,7 +2062,7 @@ namespace SanguoshaServer.AI
     {
         public FangzhuAI() : base("fangzhu")
         {
-            key = new List<string> { "playerChosen" };
+            key = new List<string> { "playerChosen:fangzhu" };
         }
         public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
         {
