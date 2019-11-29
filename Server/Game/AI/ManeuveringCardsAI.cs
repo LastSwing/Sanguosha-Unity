@@ -53,6 +53,9 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill(TrustedAI.LoseEquipSkill, player) && ai.GetFriends(player).Count > 1)
                 return 6;
 
+            if (player.GetMark("@luan") > 0 && ai.GetFriends(player).Count > 1)
+                return 6;
+
             return 2;
         }
 

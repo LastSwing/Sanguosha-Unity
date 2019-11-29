@@ -42,6 +42,7 @@ namespace SanguoshaServer.Game
         StartJudge,
         AskForRetrial,
         FinishRetrial,
+        JudgeResult,
         FinishJudge,
 
         PindianCard,
@@ -327,6 +328,7 @@ namespace SanguoshaServer.Game
             }
             return new TriggerStruct();
         }
+        /*
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct inf)
         {
             if (RoomLogic.PlayerHasSkill(room, player, skill_name) && player.Alive && data is InfoStruct info)
@@ -341,6 +343,7 @@ namespace SanguoshaServer.Game
             }
             return inf;
         }
+        */
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             if (!string.IsNullOrEmpty(pile_name))
@@ -560,36 +563,33 @@ namespace SanguoshaServer.Game
         public static List<string> GetGuhuoCards(Room room, string type)
         {
             List<string> all = new List<string>();
-            List<int> cards = room.RoomCards;
             if (type.Contains("b"))
             {
-                foreach (int id in cards) {
-                    FunctionCard card = Engine.GetFunctionCard(Engine.GetRealCard(id).Name);
-                    if (card is BasicCard && !all.Contains(card.Name))
+                foreach (FunctionCard fcard in room.AvailableFunctionCards)
+                {
+                    if (fcard is BasicCard && !all.Contains(fcard.Name))
                     {
-                        all.Add(card.Name);
+                        all.Add(fcard.Name);
                     }
                 }
             }
 
             if (type.Contains("t"))
             {
-                foreach (int id in cards)
+                foreach (FunctionCard fcard in room.AvailableFunctionCards)
                 {
-                    FunctionCard card = Engine.GetFunctionCard(Engine.GetRealCard(id).Name);
-                    if (card?.IsNDTrick() == true  && !all.Contains(card.Name))
+                    if (fcard.IsNDTrick() && !all.Contains(fcard.Name))
                     {
-                        all.Add(card.Name);
+                        all.Add(fcard.Name);
                     }
                 }
             }
 
             if (type.Contains("d"))
             {
-                foreach (int id in cards)
+                foreach (FunctionCard card in room.AvailableFunctionCards)
                 {
-                    FunctionCard card = Engine.GetFunctionCard(Engine.GetRealCard(id).Name);
-                    if (card?.IsNDTrick() == false && card is TrickCard && !all.Contains(card.Name))
+                    if (!card.IsNDTrick() && card is TrickCard && !all.Contains(card.Name))
                     {
                         all.Add(card.Name);
                     }
@@ -695,7 +695,7 @@ namespace SanguoshaServer.Game
             return card;
         }
         public abstract bool ViewFilter(Room room, WrappedCard to_select, Player player);
-        public abstract void ViewAs(Room room, ref WrappedCard card, Player player);
+        public abstract void ViewAs(Room room, ref RoomCard card, Player player);
     }
     public abstract class ZeroCardViewAsSkill : ViewAsSkill
     {

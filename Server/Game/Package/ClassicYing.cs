@@ -203,8 +203,8 @@ namespace SanguoshaServer.Package
             {
                 return new TriggerStruct(Name, death.Damage.From);
             }
-            else if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room) && player.GetMark(Name) == 1
-                && data is DamageStruct damage && damage.From != null && damage.From.Alive && damage.From != player)
+            else if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room) && player.GetMark(Name) == 1 && data is DamageStruct damage && damage.From != null
+                && damage.From.Alive && damage.From != player && !damage.From.IsKongcheng())
             {
                 return new TriggerStruct(Name, player);
             }
@@ -235,6 +235,7 @@ namespace SanguoshaServer.Package
             {
                 if (room.AskForSkillInvoke(player, Name, damage.From, info.SkillPosition))
                 {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, damage.From.Name);
                     GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
                     room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
                     return info;
@@ -256,11 +257,12 @@ namespace SanguoshaServer.Package
             }
             else if (data is DamageStruct damage)
             {
-                room.ShowAllCards(damage.From, player, Name);
-
+                if (!damage.From.IsKongcheng()) room.ShowAllCards(damage.From, player, Name);
                 if (!player.IsNude())
                 {
+                    damage.From.SetFlags(Name);
                     List<int> ids = room.AskForExchange(ask_who, Name, 1, 1, "@shenshi-give:" + damage.From.Name, string.Empty, "..", info.SkillPosition);
+                    damage.From.SetFlags("-shenshi");
                     if (ids.Count > 0)
                     {
                         Dictionary<int, string> names = damage.From.ContainsTag(Name) ? (Dictionary<int, string>)damage.From.GetTag(Name) : new Dictionary<int, string>();
@@ -295,13 +297,13 @@ namespace SanguoshaServer.Package
                 List<Player> targets = new List<Player>();
                 foreach (Player p in room.GetAlivePlayers())
                 {
-                    if (p.ContainsTag(Name) && p.GetTag(Name) is Dictionary<int, string> names)
+                    if (p.ContainsTag("shenshi") && p.GetTag("shenshi") is Dictionary<int, string> names)
                     {
                         foreach (int id in names.Keys)
                         {
                             if (room.GetCardOwner(id) == p && (room.GetCardPlace(id) == Place.PlaceHand || room.GetCardPlace(id) == Place.PlaceEquip))
                             {
-                                Player target = room.FindPlayer(name);
+                                Player target = room.FindPlayer(names[id]);
                                 if (target != null && !targets.Contains(target))
                                 {
                                     targets.Add(target);
@@ -352,7 +354,10 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && to_select != Self;
+            int count = 0;
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.HandcardNum > count) count = p.HandcardNum;
+            return targets.Count == 0 && to_select != Self && to_select.HandcardNum == count;
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -652,7 +657,7 @@ namespace SanguoshaServer.Package
                 return;
 
             int card_id = room.AskForCardChosen(player, target, "hej", "qingce", false, HandlingMethod.MethodDiscard);
-            room.ThrowCard(card_id, room.GetCardPlace(card_id) == Place.PlaceDelayedTrick ? null : target, player);
+            room.ThrowCard(card_id, room.GetCardPlace(card_id) == Place.PlaceDelayedTrick ? null : target, player != target ? player : null);
         }
     }
 
@@ -766,8 +771,8 @@ namespace SanguoshaServer.Package
 
                 room.ThrowCard(ref ids, player);
 
-                string mark = string.Empty;
-                List<WrappedCard.CardSuit> discards = new List<WrappedCard.CardSuit>();
+                string mark = player.StringMarks.ContainsKey("chenglue") ? player.StringMarks["chenglue"] : string.Empty;
+                List<WrappedCard.CardSuit> discards = player.ContainsTag("chenglue") ? (List<WrappedCard.CardSuit>)player.GetTag("chenglue") : new List<WrappedCard.CardSuit>();
                 foreach (int id in ids)
                 {
                     WrappedCard.CardSuit suit = room.GetCard(id).Suit;
@@ -1406,7 +1411,7 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use)
             {
-                room.SetTag(Name, use.To);
+                room.SetTag(Name, data);
                 room.AskForUseCard(player, "@@congjian_jx", "@congjian_jx:::" + use.Card.Name, -1, FunctionCard.HandlingMethod.MethodUse, true, info.SkillPosition);
                 room.RemoveTag(Name);
             }
@@ -1446,8 +1451,8 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (room.GetTag("congjian_jx") is List<Player> tos)
-                return targets.Count == 0 && Self != to_select && tos.Contains(to_select);
+            if (room.GetTag("congjian_jx") is CardUseStruct use)
+                return targets.Count == 0 && Self != to_select && use.To.Contains(to_select);
 
             return false;
         }
@@ -1857,7 +1862,7 @@ namespace SanguoshaServer.Package
     {
         public Wanglie() : base("wanglie")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardUsed };
+            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardUsed, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Attack;
         }
 
@@ -1869,6 +1874,8 @@ namespace SanguoshaServer.Package
                 if (fcard.TypeID != FunctionCard.CardType.TypeSkill)
                     player.SetFlags(Name);
             }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
+                player.SetFlags("-wanglie");
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -2708,6 +2715,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
             switch (triggerEvent)
             {
                 case TriggerEvent.EventPhaseProceeding when data is int count:
@@ -2720,6 +2728,7 @@ namespace SanguoshaServer.Package
                         }
 
                         room.SendCompulsoryTriggerLog(ask_who, Name);
+                        room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                         count++;
                         data = count;
@@ -2729,6 +2738,7 @@ namespace SanguoshaServer.Package
                 case TriggerEvent.DamageInflicted:
                     {
                         room.SendCompulsoryTriggerLog(ask_who, Name);
+                        room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                         room.RemovePlayerMark(player, "@tangerine");
 
@@ -2752,7 +2762,7 @@ namespace SanguoshaServer.Package
 
                 case TriggerEvent.GameStart:
                     room.SendCompulsoryTriggerLog(player, Name);
-                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
                     room.AddPlayerMark(player, "@tangerine", 3);
                     break;
             }

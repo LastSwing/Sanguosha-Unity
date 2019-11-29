@@ -177,6 +177,7 @@
     <Compile Include="Game\Package\StrategicAdvantageCards.cs" />
     <Compile Include="Game\Package\Transformation.cs" />
     <Compile Include="Game\Room.cs" />
+    <Compile Include="Game\RoomCard.cs" />
     <Compile Include="Game\RoomLogic.cs" />
     <Compile Include="Game\RoomMessage.cs" />
     <Compile Include="Game\Scenario\Classic.cs" />

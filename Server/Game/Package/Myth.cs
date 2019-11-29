@@ -94,20 +94,9 @@ namespace SanguoshaServer.Package
         {
             return to_select.Suit == WrappedCard.CardSuit.Heart && room.GetCardPlace(to_select.Id) == Place.PlaceHand;
         }
-        public override void ViewAs(Room room, ref WrappedCard card, Player player)
+        public override void ViewAs(Room room, ref RoomCard card, Player player)
         {
-            WrappedCard new_card = new WrappedCard(Slash.ClassName, card.Id, card.Suit, card.Number, card.CanRecast, card.Transferable)
-            {
-                CanRecast = card.CanRecast,
-                Skill = Name,
-                ShowSkill = card.ShowSkill,
-                UserString = card.UserString,
-                Flags = card.Flags,
-                Mute = card.Mute,
-            };
-
-            card.TakeOver(new_card);
-            card.Modified = true;
+            card.ChangeName(Slash.ClassName);
         }
     }
 
@@ -1370,7 +1359,7 @@ namespace SanguoshaServer.Package
 
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage)
             {
-                ask_who.AddMark("patience", damage.Damage);
+                room.AddPlayerMark(ask_who, "@patience", damage.Damage);
             }
             else if (data is CardsMoveOneTimeStruct move)
             {
@@ -1379,10 +1368,9 @@ namespace SanguoshaServer.Package
                     if (place == Place.PlaceHand)
                         count++;
 
-                ask_who.AddMark("patience", count);
+                room.AddPlayerMark(ask_who, "@patience", count);
             }
-
-            room.SetPlayerStringMark(ask_who, "patience", ask_who.GetMark("patience").ToString());
+            
 
             return false;
         }
@@ -1446,7 +1434,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.GetMark("patience") >= 4)
+            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.GetMark("@patience") >= 4)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -1484,16 +1472,16 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && player.GetMark("patience") > 0)
+            if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && player.GetMark("@patience") > 0)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard.IsNDTrick())
                     return new TriggerStruct(Name, player);
             }
-            else if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room) && player.GetMark("patience") > 0)
+            else if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room) && player.GetMark("@patience") > 0)
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.AskForRetrial && base.Triggerable(player, room)
-                && (!player.IsNude() || player.GetHandPile().Count > 0) && player.GetMark("patience") > 0)
+                && (!player.IsNude() || player.GetHandPile().Count > 0) && player.GetMark("@patience") > 0)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -1502,12 +1490,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardUsed && room.AskForSkillInvoke(player, Name, "@jilue-jizhi", info.SkillPosition))
             {
-                player.AddMark("patience", -1);
-                if (player.GetMark("patience") > 0)
-                    room.SetPlayerStringMark(ask_who, "patience", ask_who.GetMark("patience").ToString());
-                else
-                    room.RemovePlayerStringMark(player, "patience");
-
+                room.AddPlayerMark(player, "@patience", -1);
                 room.BroadcastSkillInvoke("jizhi", player, info.SkillPosition);
                 return info;
             }
@@ -1516,11 +1499,7 @@ namespace SanguoshaServer.Package
                 Player to = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@jilue-fangzhu", true, true, info.SkillPosition);
                 if (to != null)
                 {
-                    player.AddMark("patience", -1);
-                    if (player.GetMark("patience") > 0)
-                        room.SetPlayerStringMark(ask_who, "patience", ask_who.GetMark("patience").ToString());
-                    else
-                        room.RemovePlayerStringMark(player, "patience");
+                    room.AddPlayerMark(player, "@patience", -1);
 
                     room.BroadcastSkillInvoke("fangzhu", player, info.SkillPosition);
                     List<string> target_list = player.ContainsTag("fangzhu_target") ? (List<string>)player.GetTag("fangzhu_target") : new List<string>();
@@ -1539,12 +1518,7 @@ namespace SanguoshaServer.Package
                 room.RemoveTag(Name);
                 if (card != null)
                 {
-                    player.AddMark("patience", -1);
-                    if (player.GetMark("patience") > 0)
-                        room.SetPlayerStringMark(ask_who, "patience", ask_who.GetMark("patience").ToString());
-                    else
-                        room.RemovePlayerStringMark(player, "patience");
-
+                    room.AddPlayerMark(player, "@patience", -1);
                     room.BroadcastSkillInvoke("guicai", player, info.SkillPosition);
                     room.Retrial(card, player, ref judge, Name, false, info.SkillPosition);
                     data = judge;
@@ -1594,7 +1568,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            if (player.GetMark("patience") == 0) return false;
+            if (player.GetMark("@patience") == 0) return false;
             if (player.HasUsed(ZhihengJCard.ClassName) && RoomLogic.PlayerHasSkill(room, player, "wansha")) return false;
 
             return true;
@@ -1645,12 +1619,7 @@ namespace SanguoshaServer.Package
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
-            card_use.From.AddMark("patience", -1);
-
-            if (card_use.From.GetMark("patience") > 0)
-                room.SetPlayerStringMark(card_use.From, "patience", card_use.From.GetMark("patience").ToString());
-            else
-                room.RemovePlayerStringMark(card_use.From, "patience");
+            room.AddPlayerMark(card_use.From, "@patience", -1);
 
             if (card_use.Card.SubCards.Count == 0)
             {
@@ -1749,20 +1718,9 @@ namespace SanguoshaServer.Package
                 || (player.GetMark(Name) == 0 && Engine.GetFunctionCard(to_select.Name).TypeID == CardType.TypeTrick);
         }
 
-        public override void ViewAs(Room room, ref WrappedCard card, Player player)
+        public override void ViewAs(Room room, ref RoomCard card, Player player)
         {
-            WrappedCard new_card = new WrappedCard(player.GetMark(Name) > 0 ? FireSlash.ClassName : ThunderSlash.ClassName, card.Id, card.Suit, card.Number, card.CanRecast, card.Transferable)
-            {
-                CanRecast = card.CanRecast,
-                Skill = Name,
-                ShowSkill = card.ShowSkill,
-                UserString = card.UserString,
-                Flags = card.Flags,
-                Mute = card.Mute,
-            };
-
-            card.TakeOver(new_card);
-            card.Modified = true;
+            card.ChangeName(player.GetMark(Name) > 0 ? FireSlash.ClassName : ThunderSlash.ClassName);
         }
     }
 
@@ -1862,9 +1820,27 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Poxi : ZeroCardViewAsSkill
+    public class Poxi : TriggerSkill
     {
         public Poxi() : base("poxi")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging };
+            view_as_skill = new PoxiVS();
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (player.GetMark(Name) > 0 && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                player.SetMark(Name, 0);
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            return new TriggerStruct();
+        }
+    }
+
+    public class PoxiVS : ZeroCardViewAsSkill
+    {
+        public PoxiVS() : base("poxi")
         {
         }
 
@@ -1907,7 +1883,7 @@ namespace SanguoshaServer.Package
 
         public override int GetExtra(Room room, Player target)
         {
-            return target.HasFlag("poxi") ? -1 : 0;
+            return -target.GetMark("poxi");
         }
     }
 
@@ -1972,7 +1948,7 @@ namespace SanguoshaServer.Package
                             room.LoseMaxHp(player);
                             break;
                         case 1:
-                            player.SetFlags("poxi");
+                            player.AddMark("poxi");
                             player.SetFlags("Global_PlayPhaseTerminated");
                             break;
                         case 3:
@@ -2090,7 +2066,7 @@ namespace SanguoshaServer.Package
     {
         public JieyingDraw() : base("#jieying-draw")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseProceeding, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseProceeding, TriggerEvent.EventPhaseStart };
             frequency = Frequency.Compulsory;
         }
 
@@ -2099,7 +2075,7 @@ namespace SanguoshaServer.Package
             Player luji = RoomLogic.FindPlayerBySkillName(room, "jieying_gn");
             if (triggerEvent == TriggerEvent.EventPhaseProceeding && player.GetMark("@rob") > 0 && player.Phase == PlayerPhase.Draw && luji != null)
                 return new TriggerStruct(Name, luji);
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Alive && player.Phase == PlayerPhase.NotActive
                 && player.GetMark("@rob") > 0 && luji != null && player != luji)
                 return new TriggerStruct(Name, luji);
 
@@ -2114,7 +2090,7 @@ namespace SanguoshaServer.Package
                 count++;
                 data = count;
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging)
+            else if (triggerEvent == TriggerEvent.EventPhaseStart)
             {
                 room.SendCompulsoryTriggerLog(ask_who, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);

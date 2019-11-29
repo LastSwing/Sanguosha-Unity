@@ -160,7 +160,7 @@ namespace SanguoshaServer.Package
                considering the nasty design of the client and the convenience as well,
                I just move them here */
             WrappedCard card = use.Card;
-            if (RoomLogic.IsVirtualCard(room, card) && player.HasWeapon(card.Skill))
+            if (card.IsVirtualCard() && player.HasWeapon(card.Skill))
             {
                 room.SetEmotion(player, card.Skill.ToLower());
                 Thread.Sleep(200);
@@ -465,7 +465,6 @@ namespace SanguoshaServer.Package
         public static bool IsAvailable(Room room, Player player, WrappedCard slash = null, bool considerSpecificAssignee = true)
         {
             WrappedCard newslash = new WrappedCard(ClassName);
-            newslash.SetFlags("Global_SlashAvailabilityChecker");
             slash = slash ?? newslash;
             if (RoomLogic.IsCardLimited(room, player, slash, HandlingMethod.MethodUse)) return false;
 
@@ -579,7 +578,7 @@ namespace SanguoshaServer.Package
         {
             if (!base.IsAvailable(room, player, card)) return false;
             //鏖战模式特殊判断
-            if (room.BloodBattle && !RoomLogic.IsVirtualCard(room, card))
+            if (room.BloodBattle && !card.IsVirtualCard())
             {
                 WrappedCard slash = new WrappedCard(Slash.ClassName);
                 slash.AddSubCard(card);
@@ -1216,7 +1215,7 @@ namespace SanguoshaServer.Package
         {
             target.ClearHistory();
             room.SetEmotion(target, "indulgence");
-            Thread.Sleep(400);
+            Thread.Sleep(1500);
             room.SkipPhase(target, PlayerPhase.Play);
         }
     }
@@ -1697,7 +1696,7 @@ namespace SanguoshaServer.Package
                 WrappedCard.GetSuitIcon(RoomLogic.GetCardSuit(room, room.GetCard(id))), WrappedCard.IsBlack(suit) ? "black" : "red");
             if (effect.From.Alive)
             {
-                WrappedCard card_to_throw = room.AskForCard(effect.From, Name, pattern, prompt, effect);
+                WrappedCard card_to_throw = room.AskForCard(effect.From, Name, pattern, prompt, effect, HandlingMethod.MethodDiscard);
                 if (card_to_throw != null)
                 {
                     room.SetEmotion(effect.From, "fire_attack");
@@ -2398,24 +2397,24 @@ namespace SanguoshaServer.Package
             CardUseStruct use = (CardUseStruct)data;
             LogMessage log = new LogMessage
             {
-                Type = "$Fan",
+                Type = "$ChangeCard",
                 From = use.From.Name,
-                Arg = use.Card.Name
+                Arg = Name,
+                Arg2 = use.Card.Name
             };
 
-            WrappedCard fire = new WrappedCard(FireSlash.ClassName);
-            fire.AddSubCard(use.Card);
-            fire = RoomLogic.ParseUseCard(room, fire);
-            fire.Skill = use.Card.Skill;
-            fire.UserString = use.Card.UserString;
-            fire.Mute = true;
-            use.Card = fire;
+            if (!use.Card.IsVirtualCard())
+                room.GetCard(use.Card.GetEffectiveId()).ChangeName(FireSlash.ClassName);
+            else
+                use.Card.ChangeName(FireSlash.ClassName);
+
+            log.Card_str = RoomLogic.CardToString(room, use.Card);
+            room.SendLog(log);
+
             data = use;
             room.SetEmotion(player, "fan");
             Thread.Sleep(400);
 
-            log.Card_str = RoomLogic.CardToString(room, fire);
-            room.SendLog(log);
 
             return false;
         }

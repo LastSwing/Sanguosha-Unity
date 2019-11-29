@@ -127,7 +127,7 @@ namespace SanguoshaServer.AI
                 return 4;
             }
 
-            if (isUse && RoomLogic.IsVirtualCard(ai.Room, card))
+            if (isUse && card.IsVirtualCard())
             {
                 foreach (int id in card.SubCards)
                 {

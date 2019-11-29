@@ -43,18 +43,5 @@ namespace CommonClass.Game
         public int GlobalActivateID => m_global_activate_id;
         public void SetCurrentResponseSkill(string skill_name) => m_currentRespondSKill = skill_name;
         public string GetCurrentResponseSkill() => m_currentRespondSKill;
-
-        //Card *getCard(int cardId) const;
-
-        // Update a card in the room.
-        // @param cardId
-        //        Id of card to be updated.
-        // @param newCard
-        //        Card to be updated in the room.
-        // @return
-        //void resetCard(int cardId);
-        // Reset all cards, generals' states of the room instance
-        //void reset();
-
     }
 }

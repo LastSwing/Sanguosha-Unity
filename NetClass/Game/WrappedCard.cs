@@ -21,16 +21,16 @@ namespace CommonClass.Game
             Red, Black, Colorless
         };
 
-        public string Name { get; private set; }
-        public int Number { get; private set; } = 0;
-        public CardSuit Suit { get; private set; } = CardSuit.NoSuit;
+        public string Name { get; protected set; }
+        public int Number { get; protected set; } = 0;
+        public CardSuit Suit { get; protected set; } = CardSuit.NoSuit;
         public bool ExtraTarget
         {
             get => _extraTarget;
             set
             {
                 _extraTarget = value;
-                if (Id > -1)
+                if (Id > -1 && !_extraTarget)
                     Modified = true;
             }
         }
@@ -40,12 +40,12 @@ namespace CommonClass.Game
             set
             {
                 _distanceLimited = value;
-                if (Id > -1)
+                if (Id > -1 && !_distanceLimited)
                     Modified = true;
             }
         }
         public int Id { set; get; }
-        public List<int> SubCards { get; private set; } = new List<int>();
+        public List<int> SubCards { get; protected set; } = new List<int>();
         public string UserString { get; set; } = string.Empty;
         public string SkillPosition { get; set; } = string.Empty;
         public bool CanRecast { get; set; } = false;
@@ -129,8 +129,16 @@ namespace CommonClass.Game
             return Name.GetHashCode() * Id.GetHashCode() * Suit.GetHashCode() * Number.GetHashCode()
                 * SubCards.GetHashCode() * Skill.GetHashCode() * ShowSkill.GetHashCode() * UserString.GetHashCode();
         }
-
-
+        public virtual WrappedCard GetRealCard()
+        {
+            return this;
+        }
+        public virtual void ChangeName(string card_name)
+        {
+            Name = card_name;
+            Modified = true;
+        }
+        /*
         //当卡牌的功能改变时，如红颜或当作延时锦囊使用
         public void TakeOver(WrappedCard card)
         {
@@ -153,28 +161,9 @@ namespace CommonClass.Game
             ExtraTarget = card.ExtraTarget;
             Cancelable = card.Cancelable;
         }
-        /*
-        public void SetFlags(string flag)
-        {
-            string symbol_c = "-";
-            if (string.IsNullOrEmpty(flag))
-                return;
-            else if (flag == ".")
-                Flags = new ConcurrentBag<string>();
-            else if (flag.StartsWith(symbol_c))
-            {
-                string copy = flag.Substring(1);
-                Flags.TryTake(out copy);
-            }
-            else if (!Flags.Contains(flag))
-                Flags.Add(flag);
-        }
-        public void ClearFlags()
-        {
-            Flags = new ConcurrentBag<string>();
-        }
         */
-        public void SetFlags(string flag)
+
+        public virtual void SetFlags(string flag)
         {
             lock (Flags)
             {
@@ -192,7 +181,7 @@ namespace CommonClass.Game
                     Flags.Add(flag);
             }
         }
-        public void ClearFlags()
+        public virtual void ClearFlags()
         {
             lock (Flags)
             {
@@ -355,5 +344,9 @@ namespace CommonClass.Game
             Number = number;
         }
 
+        public bool IsVirtualCard()
+        {
+            return Id < 0;
+        }
     }
 }

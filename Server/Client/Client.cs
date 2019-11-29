@@ -7,7 +7,11 @@ using CommandType = CommonClassLibrary.CommandType;
 
 namespace SanguoshaServer
 {
-    //public class Client : IDisposable
+    public class ClientEventArgs : EventArgs
+    {
+        public int Id { set; get; }
+        public bool Bool { set; get; }
+    }
     public class Client
     {
         public enum GameStatus {
@@ -22,17 +26,11 @@ namespace SanguoshaServer
         public event DisconnectDelegate Disconnected;
         public event LeaveRoomDelegate LeaveRoom;
         public event GetReadyDelegate GetReady;
-
-        //public delegate void MessageDelegate(object sender, MessageEventArgs e);
-        //public delegate void LeaveHallDelegate(object sender, EventArgs e);
-        //public delegate void JoinHallDelegate(object sender, JoinHallEventArgs e);
-        //public delegate void LeaveDeskDelegate(object sender, LeaveDeskEventArgs
-        //public delegate void GameOverDelegate(object sender, GameOverEventArgs e);
-
+        
         public delegate void ConnectDelegate(object sender, EventArgs e);
         public delegate void DisconnectDelegate(object sender, EventArgs e);
-        public delegate void LeaveRoomDelegate(Client client, int room_id, bool kicked);
-        public delegate void GetReadyDelegate(Client client, bool ready);
+        public delegate void LeaveRoomDelegate(object sender, ClientEventArgs e);
+        public delegate void GetReadyDelegate(object sender, ClientEventArgs e);
 
         private GameHall hall;
         private Profile profile;
@@ -107,7 +105,7 @@ namespace SanguoshaServer
         {
             try
             {
-                byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeLogin));
+                byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeLogin));
                 if (Session != null && Session.Connected)
                     Session.Send(bytes, 0, bytes.Length);
             }
@@ -122,7 +120,7 @@ namespace SanguoshaServer
         {
             try
             {
-                byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeUserProfile));
+                byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeUserProfile));
                 if (Session != null && Session.Connected)
                 {
                     Session.Send(bytes, 0, bytes.Length);
@@ -139,7 +137,7 @@ namespace SanguoshaServer
         {
             try
             {
-                byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeSwitch));
+                byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeSwitch));
                 if (Session != null && Session.Connected)
                 {
                     Session.Send(bytes, 0, bytes.Length);
@@ -164,7 +162,7 @@ namespace SanguoshaServer
                         Protocol = Protocol.GameNotification,
                         Body = message_body
                     };
-                    byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
+                    byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
 
                     Session.Send(bytes, 0, bytes.Length);
                 }
@@ -187,7 +185,7 @@ namespace SanguoshaServer
                         Protocol = Protocol.GameRequest,
                         Body = message_body
                     };
-                    byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
+                    byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeGameControll));
                     Session.Send(bytes, 0, bytes.Length);
                 }
             }
@@ -202,7 +200,7 @@ namespace SanguoshaServer
         {
             try
             {
-                byte[] bytes = PacketTranslator.data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeMessage));
+                byte[] bytes = PacketTranslator.Data2byte(data, PacketTranslator.GetTypeString(TransferType.TypeMessage));
                 if (Session != null && Session.Connected)
                     Session.Send(bytes, 0, bytes.Length);
             }
@@ -487,12 +485,21 @@ namespace SanguoshaServer
             GameRoom = 0;
             ClientDBOperation.UpdateGameRoom(UserName, 0);
 
-            LeaveRoom?.Invoke(this, GameRoom, kicked);
+            ClientEventArgs args = new ClientEventArgs
+            {
+                Id = GameRoom,
+                Bool = kicked
+            };
+            LeaveRoom?.Invoke(this, args);
         }
 
         public void RequstReady(bool ready)
         {
-            GetReady?.Invoke(this, ready);
+            ClientEventArgs arg = new ClientEventArgs
+            {
+                Bool = ready
+            };
+            GetReady?.Invoke(this, arg);
         }
     }
 }

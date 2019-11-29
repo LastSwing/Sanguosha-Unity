@@ -69,6 +69,7 @@ namespace SanguoshaServer
         private List<Player> selected_targets = new List<Player>();
         private List<Player> extra_targets = new List<Player>();
         private AskForMoveCardsStruct guanxing = new AskForMoveCardsStruct();
+        private bool move_card_visible = false;
 
         //for choose player min & max, huashen box or other dialog
         private List<string> ex_information;
@@ -391,19 +392,19 @@ namespace SanguoshaServer
             return room.DoRequest(room.GetPlayers(ClientId)[0], ExpectedReplyCommand, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
 
-        public bool YijiRequest(Room room, Player player, List<int> ids, List<Player> targets, string prompt,
+        public bool YijiRequest(Room room, Player player, List<int> ids, string skill_name, List<Player> targets, string prompt,
                                int max_num, bool option, string expand_pile, string position)
         {
             this.room = room;
             m_do_request = true;
             requestor = player;
             ExpectedReplyCommand = CommandType.S_COMMAND_SKILL_YIJI;
-            hightlight_skill = null;
             skill_position = position;
 
             pending_skill = yiji_skill;
             yiji_skill.Initialize(ids, max_num, targets, expand_pile);
             skill_invoke = true;
+            hightlight_skill = skill_name;
 
             ex_information = new List<string> { max_num.ToString(), option.ToString() };
             cancel_able = option;
@@ -579,12 +580,12 @@ namespace SanguoshaServer
         }
 
         public bool GuanxingRequest(Room room, Player player, string reason,
-                                   List<int> ups, List<int> downs, int min_num, int max_num, bool can_refuse, bool write_step, string position)
+                                   List<int> ups, List<int> downs, int min_num, int max_num, bool can_refuse, bool write_step, bool visible, string position)
         {
             this.room = room;
             ExpectedReplyCommand = CommandType.S_COMMAND_SKILL_MOVECARDS;
             requestor = player;
-            
+            move_card_visible = visible;
             m_do_request = true;
             skill_position = position;
             pending_skill = null;
@@ -617,12 +618,12 @@ namespace SanguoshaServer
             m_do_request = false;
             return room.DoRequest(player, CommandType.S_COMMAND_SKILL_MOVECARDS, new List<string> { JsonUntity.Object2Json(arg) }, true);
         }
-        public bool SortCardRequest(Room room, Player player, string reason, List<int> cards, string position)
+        public bool SortCardRequest(Room room, Player player, string reason, List<int> cards, bool visible, string position)
         {
             this.room = room;
             ExpectedReplyCommand = CommandType.S_COMMAND_SKILL_SORTCARDS;
             requestor = player;
-
+            move_card_visible = visible;
             m_do_request = true;
             skill_position = position;
             pending_skill = null;
@@ -645,8 +646,8 @@ namespace SanguoshaServer
             available_equip_skills.Clear();
 
             guanxing.Moves = new List<int>(cards);
-            guanxing.Top.Clear();
-            guanxing.Bottom.Clear();
+            guanxing.Top = new List<int>();
+            guanxing.Bottom = new List<int>();
             guanxing.Success = false;
             ex_information = new List<string> { JsonUntity.Object2Json(cards) };
 
@@ -1512,7 +1513,7 @@ namespace SanguoshaServer
                         names.Add(p.Name);
                     packet.Add(JsonUntity.Object2Json(names));
                 }
-                else if (type == CommandType.S_COMMAND_SKILL_MOVECARDS)
+                else if (type == CommandType.S_COMMAND_SKILL_MOVECARDS || type == CommandType.S_COMMAND_SKILL_SORTCARDS)
                 {
                     packet.Add(JsonUntity.Object2Json(guanxing));
                 }
@@ -1614,8 +1615,11 @@ namespace SanguoshaServer
 
                         CheckMoveCards();
                         GetPacket2Client(false);
-                        List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), card.ToString(), args[1], args[2] };
-                        room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, room.GetClient(ClientId));
+                        if (move_card_visible)
+                        {
+                            List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), "-1", args[2], args[3] };
+                            room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, room.GetClient(ClientId));
+                        }
                     }
                     else
                     {
@@ -1653,23 +1657,32 @@ namespace SanguoshaServer
             if (type == RequestType.S_REQUEST_MOVECARDS && args.Count == 4)
             {
                 List<int> moves = guanxing.Moves, ups = guanxing.Top, downs = guanxing.Bottom;
-                if (int.TryParse(args[1], out int card) && moves.Contains(card) && int.TryParse(args[2], out int from) && from >= 0
-                    && int.TryParse(args[4], out int to) && to >= 0 && from != to && from < 3 && to < 3)
+                if (int.TryParse(args[1], out int card) && int.TryParse(args[2], out int from) && from >= 0 && int.TryParse(args[3], out int to) && to >= 0 && from != to && from < 3 && to < 3)
                 {
-                    if ((from == 0 && !ups.Contains(card) && !downs.Contains(card)) || (from == 1 && ups.Contains(card) && !downs.Contains(card))
-                        || (from == 2 && downs.Contains(card) && !ups.Contains(card)))
+                    int index = -1;
+                    if ((from == 0 && !ups.Contains(card) && !downs.Contains(card) && moves.Contains(card)) || (from == 1 && ups.Contains(card) && !downs.Contains(card) && !moves.Contains(card))
+                        || (from == 2 && downs.Contains(card) && !ups.Contains(card) && !moves.Contains(card)))
                     {
                         switch (from)
                         {
+                            case 0:
+                                index = moves.IndexOf(card);
+                                moves.Remove(card);
+                                break;
                             case 1:
+                                index = ups.IndexOf(card);
                                 ups.Remove(card);
                                 break;
                             case 2:
+                                index = downs.IndexOf(card);
                                 downs.Remove(card);
                                 break;
                         }
                         switch (to)
                         {
+                            case 0:
+                                moves.Add(card);
+                                break;
                             case 1:
                                 ups.Add(card);
                                 break;
@@ -1686,8 +1699,11 @@ namespace SanguoshaServer
 
                         ex_information = new List<string> { JsonUntity.Object2Json(ups), JsonUntity.Object2Json(downs) };
                         GetPacket2Client(false);
-                        List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), card.ToString(), args[1], args[2] };
-                        room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, room.GetClient(ClientId));
+                        if (move_card_visible)
+                        {
+                            List<string> arg = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), index.ToString(), args[2], args[3] };
+                            room.DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, arg, room.GetClient(ClientId));
+                        }
                     }
                     else
                         error = true;
@@ -1853,7 +1869,7 @@ namespace SanguoshaServer
         {
             if (selected_cards.ContainsKey(player))
             {
-                return selected_cards[player].Find(t => (!RoomLogic.IsVirtualCard(room, t) && t.Id == card.Id || t.Equals(card)));
+                return selected_cards[player].Find(t => (!t.IsVirtualCard() && t.Id == card.Id || t.Equals(card)));
             }
             return null;
         }
@@ -1872,7 +1888,7 @@ namespace SanguoshaServer
                 auto_target = bool.Parse(args[3]);
 
                 bool guhuo_check = false;
-                if (card != null && RoomLogic.IsVirtualCard(room, card) && pending_skill != null && guhuo_cards.Count > 0)
+                if (card != null && card.IsVirtualCard() && pending_skill != null && guhuo_cards.Count > 0)
                 {
                     foreach (WrappedCard guhuo in guhuo_cards)
                     {
@@ -2151,7 +2167,7 @@ namespace SanguoshaServer
                     selected = selected_cards[player];
                     result = pending_skill.ViewAs(room, new List<WrappedCard> { card }, player);
                 }
-                else if (!RoomLogic.IsVirtualCard(room, card))
+                else if (!card.IsVirtualCard())
                 {
                     if (pending_skill != null)
                     {

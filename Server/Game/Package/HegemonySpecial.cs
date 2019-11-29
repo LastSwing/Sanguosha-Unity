@@ -230,12 +230,30 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
-    public class Daoshu : ZeroCardViewAsSkill
+    public class Daoshu : TriggerSkill
     {
         public Daoshu() : base("daoshu")
         {
+            events.Add(TriggerEvent.EventPhaseChanging);
             skill_type = SkillType.Wizzard;
+            view_as_skill = new DaoshuVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
+                player.SetFlags("-daoshu");
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+    public class DaoshuVS : ZeroCardViewAsSkill
+    {
+        public DaoshuVS() : base("daoshu")
+        {
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
@@ -392,7 +410,7 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
-            if (cards.Count == 1 && RoomLogic.IsVirtualCard(room, cards[0]))
+            if (cards.Count == 1 && cards[0].IsVirtualCard())
             {
                 WrappedCard gs = new WrappedCard(GuishuCard.ClassName)
                 {

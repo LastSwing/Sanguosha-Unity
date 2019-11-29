@@ -39,8 +39,12 @@ namespace SanguoshaServer.Package
                 new GuanxingJX(),
                 new KongchengJX(),
                 new KongchengJXP(),
+                new Jijie(),
+                new Jiyuan(),
+
                 new BiyueJX(),
                 new Liyu(),
+
                 new JianxiongJX(),
                 new Hujia(),
                 new FankuiJX(),
@@ -54,6 +58,7 @@ namespace SanguoshaServer.Package
                 new YijiJX(),
                 new LuoshenJX(),
                 new LuoshenMax(),
+
                 new ZhihengJX(),
                 new Jiuyuan(),
                 new Fenwei(),
@@ -81,6 +86,7 @@ namespace SanguoshaServer.Package
                 new GongxinCard(),
                 new GuoseCard(),
                 new JieyinJCard(),
+                new JijieCard(),
             };
             
             related_skills = new Dictionary<string, List<string>>
@@ -976,7 +982,6 @@ namespace SanguoshaServer.Package
             frequency = Frequency.Frequent;
             skill_type = SkillType.Wizzard;
         }
-        public override bool CanPreShow() => false;
         public override bool Triggerable(Player target, Room room)
         {
             return base.Triggerable(target, room) && (target.Phase == PlayerPhase.Finish && target.HasFlag(Name) || target.Phase == PlayerPhase.Start);
@@ -1089,6 +1094,106 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class Jijie : ZeroCardViewAsSkill
+    {
+        public Jijie() : base("jijie")
+        {
+            skill_type = SkillType.Replenish;
+        }
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return !player.HasUsed(JijieCard.ClassName);
+        }
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            return new WrappedCard(JijieCard.ClassName) { Skill = Name };
+        }
+    }
+
+    public class JijieCard : SkillCard
+    {
+        public static string ClassName = "JijieCard";
+        public JijieCard() : base(ClassName)
+        {
+            target_fixed = true;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player guojia = card_use.From;
+            List<int> yiji_cards = new List<int> { room.DrawPile[room.DrawPile.Count - 1] };
+            room.RemoveFromDrawPile(yiji_cards);
+
+            guojia.PileChange("#jijie", yiji_cards);
+            if (!room.AskForYiji(guojia, yiji_cards, "jijie", true, false, true, -1, room.GetOtherPlayers(guojia), null, "@jijie", "#jijie", false, card_use.Card.SkillPosition))
+            {
+                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, guojia.Name, "jijie", string.Empty);
+                room.ObtainCard(guojia, ref yiji_cards, reason, false);
+            }
+            guojia.Piles["#jijie"].Clear();
+        }
+    }
+
+    public class Jiyuan : TriggerSkill
+    {
+        public Jiyuan() : base("jiyuan")
+        {
+            skill_type = SkillType.Replenish;
+            events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime, TriggerEvent.Dying };
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.Dying)
+            {
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                    triggers.Add(new TriggerStruct(Name, p));
+            }
+            else if (data is CardsMoveOneTimeStruct move && move.To != null && move.To_place == Place.PlaceHand && move.To.Alive
+                && (move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE || move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_GIVE)
+                && !string.IsNullOrEmpty(move.Reason.PlayerId))
+            {
+                Player yiji = room.FindPlayer(move.Reason.PlayerId);
+                if (base.Triggerable(yiji, room) && yiji != move.To)
+                    triggers.Add(new TriggerStruct(Name, yiji));
+            }
+
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = player;
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
+                target = move.To;
+
+            target.SetFlags(Name);
+            bool invoke = room.AskForSkillInvoke(ask_who, Name, target, info.SkillPosition);
+            target.SetFlags("-jiyuan");
+            if (invoke)
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, target.Name);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = player;
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
+                target = move.To;
+
+            room.DrawCards(target, new DrawCardStruct(1, ask_who, Name));
+
+            return false;
+        }
+    }
+
 
     public class BiyueJX : PhaseChangeSkill
     {
@@ -2206,7 +2311,7 @@ namespace SanguoshaServer.Package
                     ids.Add(id);
 
             target.SetFlags("gongxin_target");
-            int result = room.DoGongxin(player, target, ids, "gongxin", "@gongxin:" + target.Name, card_use.Card.SkillPosition);
+            int result = room.DoGongxin(player, target, target.GetCards("h"), ids, "gongxin", "@gongxin:" + target.Name, card_use.Card.SkillPosition);
             target.SetFlags("-gongxin_target");
 
             if (result != -1)

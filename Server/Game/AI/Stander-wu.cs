@@ -255,7 +255,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (ai.HasSkill(Name, player) && card.Name != Dismantlement.ClassName && !RoomLogic.IsVirtualCard(ai.Room, card))
+            if (ai.HasSkill(Name, player) && card.Name != Dismantlement.ClassName && !card.IsVirtualCard())
                 return WrappedCard.IsBlack(RoomLogic.GetCardSuit(ai.Room, card)) ? 0.5 : 0;
 
             return 0;
@@ -1333,7 +1333,7 @@ namespace SanguoshaServer.AI
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
             if (fcard is EquipCard)
                 return 3;
-            else if (RoomLogic.IsVirtualCard(ai.Room, card))
+            else if (card.IsVirtualCard())
             {
                 foreach (int id in card.SubCards)
                 {

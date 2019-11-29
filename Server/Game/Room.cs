@@ -58,7 +58,7 @@ namespace SanguoshaServer.Game
         private Dictionary<Player, TrustedAI> player_ai = new Dictionary<Player, TrustedAI>();
         private RoomState _m_roomState;
 
-        private Dictionary<int, WrappedCard> m_cards = new Dictionary<int, WrappedCard>();
+        private Dictionary<int, RoomCard> m_cards = new Dictionary<int, RoomCard>();
         private Dictionary<int, Player> owner_map = new Dictionary<int, Player>();
         private readonly Dictionary<int, Place> place_map = new Dictionary<int, Place>();
         private Dictionary<string, object> tag = new Dictionary<string, object>();
@@ -150,19 +150,19 @@ namespace SanguoshaServer.Game
         {
             return Clients.Count >= Setting.PlayerNum;
         }
-        public void DrawCards(Player player, int n, string reason)
+        public List<int> DrawCards(Player player, int n, string reason)
         {
             DrawCardStruct _reason = new DrawCardStruct(n, player, reason);
-            DrawCards(player, _reason);
+            return DrawCards(player, _reason);
         }
-        public void DrawCards(Player player, DrawCardStruct reason)
+        public List<int> DrawCards(Player player, DrawCardStruct reason)
         {
             List<Player> players = new List<Player> { player };
             List<DrawCardStruct> reasons = new List<DrawCardStruct> { reason };
-            DrawCards(players, reasons);
+            return DrawCards(players, reasons);
         }
 
-        public void DrawCards(List<Player> players, List<DrawCardStruct> reasons)
+        public List<int> DrawCards(List<Player> players, List<DrawCardStruct> reasons)
         {
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
             for (int i = 0; i < players.Count; i++)
@@ -173,8 +173,8 @@ namespace SanguoshaServer.Game
                 int n = reason.Draw;
                 if (n <= 0) continue;
 
-                if (reason.Who != null && player != reason.Who && RoomLogic.PlayerHasSkill(this, reason.Who, reason.Reason)
-                    && (RoomLogic.WillBeFriendWith(this, player, reason.Who) || RoomLogic.WillBeFriendWith(this, reason.Who, player, reason.Reason)))
+                if (reason.Who != null && player != reason.Who && (RoomLogic.WillBeFriendWith(this, player, reason.Who)
+                    || RoomLogic.WillBeFriendWith(this, reason.Who, player, reason.Reason)))
                 {
                     ResultStruct result = reason.Who.Result;
                     result.Assist += n;
@@ -191,7 +191,7 @@ namespace SanguoshaServer.Game
                     new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DRAW, reason.Who != null ? reason.Who.Name : string.Empty, player.Name, reason.Reason, string.Empty));
                 moves.Add(move);
             }
-            MoveCardsAtomic(moves, false);
+            return MoveCardsAtomic(moves, false);
         }
         public List<int> GetNCards(int n, bool update_pile_number = true)
         {
@@ -241,16 +241,6 @@ namespace SanguoshaServer.Game
                     m_drawPile.Remove(id);
                     m_drawPile.Insert(0, id);
                 }
-
-                //ListIterator<int> i(cards);
-                //i.toBack();
-                //while (i.hasPrevious())
-                //{
-                //    int id = i.previous();
-                //    setCardMapping(id, nullptr, Player::DrawPile);
-                //    m_drawPile->removeAll(id);
-                //    m_drawPile->prepend(id);
-                //}
             }
             object data = m_drawPile.Count;
             RoomThread.Trigger(TriggerEvent.DrawPileChanged, this, null, ref data);
@@ -328,7 +318,7 @@ namespace SanguoshaServer.Game
                 DoBroadcastNotify(CommandType.S_COMMAND_RESET_PILE, new List<string> { times.ToString() });
             }
 
-            Shuffle.shuffle<int>(ref m_discardPile);
+            Shuffle.shuffle(ref m_discardPile);
             foreach (int card_id in m_discardPile)
             {
                 ClearCardFlag(card_id);
@@ -432,7 +422,7 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_USE_VIRTUAL_CARD, arg);
         }
 
-        public WrappedCard GetCard(int id)
+        public RoomCard GetCard(int id)
         {
             if (m_cards.ContainsKey(id))
             {
@@ -792,23 +782,23 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_DISABLE_SHOW, arg);
         }
 
-        public void AddToPile(Player player, string pile_name, WrappedCard card, bool open = true, List<Player> open_players = null)
+        public List<int> AddToPile(Player player, string pile_name, WrappedCard card, bool open = true, List<Player> open_players = null)
         {
             List<int> card_ids = new List<int>(card.SubCards);
-            AddToPile(player, pile_name, card_ids, open, open_players);
+            return AddToPile(player, pile_name, card_ids, open, open_players);
         }
 
-        public void AddToPile(Player player, string pile_name, int card_id, bool open = true, List<Player> open_players = null)
+        public List<int> AddToPile(Player player, string pile_name, int card_id, bool open = true, List<Player> open_players = null)
         {
-            AddToPile(player, pile_name, new List<int> { card_id }, open, open_players);
+            return AddToPile(player, pile_name, new List<int> { card_id }, open, open_players);
         }
 
-        public void AddToPile(Player player, string pile_name, List<int> card_ids, bool open = true, List<Player> open_players = null)
+        public List<int> AddToPile(Player player, string pile_name, List<int> card_ids, bool open = true, List<Player> open_players = null)
         {
-            AddToPile(player, pile_name, card_ids, open, open_players, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_GAME, player.Name));
+            return AddToPile(player, pile_name, card_ids, open, open_players, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_GAME, player.Name));
         }
 
-        public void AddToPile(Player player, string pile_name, List<int> card_ids, bool open, List<Player> open_players, CardMoveReason reason)
+        public List<int> AddToPile(Player player, string pile_name, List<int> card_ids, bool open, List<Player> open_players, CardMoveReason reason)
         {
             open_players = open_players ?? new List<Player>();
 
@@ -836,14 +826,14 @@ namespace SanguoshaServer.Game
             {
                 To_pile_name = pile_name
             };
-            MoveCardsAtomic(move, open);
+            return MoveCardsAtomic(move, open);
         }
 
         public void SetCardFlag(WrappedCard card, string flag)
         {
             if (string.IsNullOrEmpty(flag)) return;
 
-            if (!RoomLogic.IsVirtualCard(this, card))
+            if (!card.IsVirtualCard())
             {
                 SetCardFlag(card.Id, flag);
             }
@@ -862,7 +852,7 @@ namespace SanguoshaServer.Game
         {
             card.ClearFlags();
 
-            if (!RoomLogic.IsVirtualCard(this, card))
+            if (!card.IsVirtualCard())
                 ClearCardFlag(card.Id);
         }
 
@@ -1438,20 +1428,18 @@ namespace SanguoshaServer.Game
         {
             for (int i = 0; i < move.Card_ids.Count; i++)
             {
-                WrappedCard card = GetCard(move.Card_ids[i]);
-                if (card.Modified && move.To_place == Place.DiscardPile)
-                {
+                RoomCard card = GetCard(move.Card_ids[i]);
+                if ((card.Modified || card.GetRealCard().Modified) && move.To_place == Place.DiscardPile)
                     ResetCard(move.Card_ids[i]);
-                    //BroadcastResetCard(getPlayers(), move.card_ids[i]);
-                }
             }
         }
 
         private void ResetCard(int id)
         {
-            m_cards[id].TakeOver(Engine.GetRealCard(id));
+            WrappedCard real = Engine.GetRealCard(id);
+            WrappedCard clone = Engine.CloneCard(real);
+            m_cards[id].TakeOver(clone);
             m_cards[id].Modified = false;
-            //m_cards[id] = Engine.CloneCard(Engine.GetRealCard(id));
         }
 
         public void UpdateCardsOnGet(CardsMoveStruct move)
@@ -1462,15 +1450,14 @@ namespace SanguoshaServer.Game
             {
                 for (int i = 0; i < move.Card_ids.Count; i++)
                 {
-                    WrappedCard card = GetCard(move.Card_ids[i]);
+                    RoomCard card = GetCard(move.Card_ids[i]);
                     WrappedCard engine_card = Engine.GetRealCard(move.Card_ids[i]);
                     if (card.Suit != engine_card.Suit || card.Number != engine_card.Number)
                     {
-                        WrappedCard trick = Engine.CloneCard(card);
+                        WrappedCard trick = card.GetRealCard();
                         trick.SetSuit(engine_card.Suit);
                         trick.SetNumber(engine_card.Number);
                         card.TakeOver(trick);
-                        //broadcastUpdateCard(getPlayers(), move.card_ids[i], card);
                     }
                 }
                 return;
@@ -1614,16 +1601,14 @@ namespace SanguoshaServer.Game
                     Player to = (cards_move.To != null ? FindPlayer(cards_move.To, true) : null);
                     Player p = GetPlayers(player.UserID)[0];
 
-                    foreach (Player p2 in GetAlivePlayers())
+                    if (cards_move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE)         //郭嘉遗迹、伊籍机捷
                     {
-                        if (p2.HasFlag("Global_GongxinOperator") && (p2 == p || p.IsSameCamp(p2)))
-                        {
+                        Player p2 = FindPlayer(cards_move.Reason.PlayerId, true);
+                        if (p2 != null && (p2 == p || p.IsSameCamp(p2)))
                             relevant = true;
-                            break;
-                        }
                     }
 
-                    if ((from != null && (from == p || p.IsSameCamp(from))) || (to != null && (to == p || p.IsSameCamp(to)) && cards_move.To_place != Place.PlaceSpecial))
+                    if (!relevant && (from != null && (from == p || p.IsSameCamp(from))) || (to != null && (to == p || p.IsSameCamp(to)) && cards_move.To_place != Place.PlaceSpecial))
                         relevant = true;
 
                     if (!relevant && to != null && !string.IsNullOrEmpty(cards_move.To_pile_name) && to != null)
@@ -2300,85 +2285,88 @@ namespace SanguoshaServer.Game
 
         #region 客户端离开房间
         private List<int> banned_clients = new List<int>();
-        private void OnClientLeave(Client client, int room_id, bool kicked)
+        private void OnClientLeave(object sender, ClientEventArgs args)
         {
-            lock (this)
+            if (sender is Client client)
             {
-                bool human_stay = false;
-                foreach (Client other in Clients)
+                lock (this)
                 {
-                    if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
+                    bool human_stay = false;
+                    foreach (Client other in Clients)
                     {
-                        human_stay = true;
-                        break;
-                    }
-                }
-
-                if (!GameStarted)
-                {
-                    if (!human_stay)
-                    {
-                        StopGame();
-                        return;
-                    }
-                    RomoveClientOnGamePlay(client);
-
-                    //通知room中的其他玩家
-                    RoomMessage.NotifyPlayerJoinorLeave(this, client, false);
-                    UpdateClientsInfo();
-                }
-                else
-                {
-                    if (!human_stay)
-                    {
-                        //游戏结束结算战绩
-                        StopGame();
-                        return;
-                    }
-
-                    //游戏继续
-                    //判断是否因角色死亡而离开
-                    bool check = true;
-                    foreach (Player p in GetPlayers(client.UserID))
-                    {
-                        if (p.Alive)
+                        if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                         {
-                            check = false;
+                            human_stay = true;
                             break;
                         }
                     }
 
-                    foreach (Player p in GetPlayers(client.UserID))
+                    if (!GameStarted)
                     {
-                        p.Status = check ? "leave" : "escape";
-                        BroadcastProperty(p, "Status");
-                    }
+                        if (!human_stay)
+                        {
+                            StopGame();
+                            return;
+                        }
+                        RomoveClientOnGamePlay(client);
 
-                    RomoveClientOnGamePlay(client);
-
-                    UpdateClientsInfo();
-                }
-
-                if (kicked)
-                {
-                    if (client.Status == Client.GameStatus.bot)
-                    {
-                        Hall.RemoveBot(client);
-                        client = null;
+                        //通知room中的其他玩家
+                        RoomMessage.NotifyPlayerJoinorLeave(this, client, false);
+                        UpdateClientsInfo();
                     }
                     else
                     {
-                        //通知客户端
-                        MyData data = new MyData
+                        if (!human_stay)
                         {
-                            Description = PacketDescription.Room2Cient,
-                            Protocol = Protocol.LeaveRoom,
-                        };
-                        client.SendSwitchReply(data);
+                            //游戏结束结算战绩
+                            StopGame();
+                            return;
+                        }
 
-                        //一分钟内禁止进入
-                        banned_clients.Add(client.UserID);
-                        WaitForClear(client.UserID);
+                        //游戏继续
+                        //判断是否因角色死亡而离开
+                        bool check = true;
+                        foreach (Player p in GetPlayers(client.UserID))
+                        {
+                            if (p.Alive)
+                            {
+                                check = false;
+                                break;
+                            }
+                        }
+
+                        foreach (Player p in GetPlayers(client.UserID))
+                        {
+                            p.Status = check ? "leave" : "escape";
+                            BroadcastProperty(p, "Status");
+                        }
+
+                        RomoveClientOnGamePlay(client);
+
+                        UpdateClientsInfo();
+                    }
+
+                    if (args.Bool)
+                    {
+                        if (client.Status == Client.GameStatus.bot)
+                        {
+                            Hall.RemoveBot(client);
+                            client = null;
+                        }
+                        else
+                        {
+                            //通知客户端
+                            MyData data = new MyData
+                            {
+                                Description = PacketDescription.Room2Cient,
+                                Protocol = Protocol.LeaveRoom,
+                            };
+                            client.SendSwitchReply(data);
+
+                            //一分钟内禁止进入
+                            banned_clients.Add(client.UserID);
+                            WaitForClear(client.UserID);
+                        }
                     }
                 }
             }
@@ -2502,13 +2490,16 @@ namespace SanguoshaServer.Game
         #endregion
 
         #region 客户端准备游戏的状态
-        private void OnClientReady(Client client, bool ready)
+        private void OnClientReady(object sender, ClientEventArgs ready)
         {
-            if (GameStarted || Host == client) return;
-            lock (this)
+            if (sender is Client client)
             {
-                client.Status = ready ? Client.GameStatus.ready : Client.GameStatus.normal;
-                UpdateClientsInfo();
+                if (GameStarted || Host == client) return;
+                lock (this)
+                {
+                    client.Status = ready.Bool ? Client.GameStatus.ready : Client.GameStatus.normal;
+                    UpdateClientsInfo();
+                }
             }
         }
         #endregion
@@ -2932,31 +2923,6 @@ namespace SanguoshaServer.Game
 
             //加载武将
             Generals = Engine.GetGenerals(Setting.GeneralPackage, Setting.GameMode, false);
-            /*
-            //加载本局游戏技能
-            foreach (string general in Engine.GetGenerals(Setting.GeneralPackage, Setting.GameMode))
-            {
-                foreach (string skill in Engine.GetGeneralSkills(general, Setting.GameMode))
-                {
-                    if (!Skills.Contains(skill))
-                        Skills.Add(skill);
-
-                    foreach (Skill _skill in Engine.GetRelatedSkills(skill))
-                        if (!Skills.Contains(_skill.Name))
-                            Skills.Add(_skill.Name);
-                }
-
-                foreach (string skill in Engine.GetGeneralRelatedSkills(general, Setting.GameMode))
-                {
-                    if (!Skills.Contains(skill))
-                        Skills.Add(skill);
-
-                    foreach (Skill _skill in Engine.GetRelatedSkills(skill))
-                        if (!Skills.Contains(_skill.Name))
-                            Skills.Add(_skill.Name);
-                }
-            }
-            */
             //游戏卡牌、玩家身份、座次由剧本函数生成
             Scenario.PrepareForStart(this, ref m_players, ref pile1, ref m_drawPile);
 
@@ -3006,7 +2972,11 @@ namespace SanguoshaServer.Game
         {
             //生成此room的专属卡牌
             foreach (int id in pile1)
-                m_cards.Add(id, Engine.CloneCard(Engine.GetRealCard(id)));
+            {
+                WrappedCard real = Engine.GetRealCard(id);
+                WrappedCard clone = Engine.CloneCard(real);
+                m_cards.Add(id, new RoomCard(clone));
+            }
 
             DoBroadcastNotify(CommandType.S_COMMAND_INIT_CARDS, new List<string> { JsonUntity.Object2Json(pile1) });
 
@@ -3347,8 +3317,8 @@ namespace SanguoshaServer.Game
             //通知客户端
             DoNotify(client, CommandType.S_COMMAND_ARRANGE_SEATS, players);
             //五谷丰登
-            if (ContainsTag("AmazingGraceOrigin") && GetTag("AmazingGraceOrigin") is List<int> amazing && amazing.Count > 0)
-                FillAG(AmazingGrace.ClassName, amazing, GetPlayers(client.UserID)[0]);
+            if (!string.IsNullOrEmpty(table_ag.Key) && table_ag.Value.Count > 0)
+                FillAG(table_ag.Key, table_ag.Value, GetPlayers(client.UserID)[0]);
             //鏖战通知
             if (BloodBattle)
                 DoNotify(client, CommandType.S_COMMAND_GAMEMODE_BLOODBATTLE, new List<string>());
@@ -4572,8 +4542,8 @@ namespace SanguoshaServer.Game
                 if (RoomThread.Trigger(TriggerEvent.AskForRetrial, this, player, ref data))
                     break;
             }
-
             RoomThread.Trigger(TriggerEvent.FinishRetrial, this, judge_star.Who, ref data);
+            RoomThread.Trigger(TriggerEvent.JudgeResult, this, judge_star.Who, ref data);
 
             SetTag("judge", (int)GetTag("judge") - 1);
             judge_list = (List<JudgeStruct>)GetTag("current_judge");
@@ -5046,8 +5016,8 @@ namespace SanguoshaServer.Game
                 for (int i = 0; i < ids.Count; i++)
                 {
                     int cardId = ids[i];
-                    WrappedCard card = GetCard(cardId);
-                    if (card.Modified)
+                    RoomCard card = GetCard(cardId);
+                    if (card.Modified || card.GetRealCard().Modified)
                     {
                         ResetCard(cardId);
                     }
@@ -5099,7 +5069,7 @@ namespace SanguoshaServer.Game
 
             for (int i = 0; i < ids.Count; i++)
             {
-                WrappedCard card = GetCard(ids[i]);
+                RoomCard card = GetCard(ids[i]);
                 foreach (FilterSkill skill in filterSkills)
                 {
                     if (skill.ViewFilter(this, card, player))
@@ -5505,7 +5475,7 @@ namespace SanguoshaServer.Game
                 ResultStruct new_result = damage.To.Result;
                 new_result.Damaged += damage.Damage;
                 damage.To.Result = new_result;
-                if (damage.From != null)
+                if (damage.From != null && !RoomLogic.WillBeFriendWith(this, damage.From, damage.To))
                 {
                     new_result = damage.From.Result;
                     new_result.Damage += damage.Damage;
@@ -5841,7 +5811,7 @@ namespace SanguoshaServer.Game
                 }
                 else if (method == HandlingMethod.MethodDiscard)
                 {
-                    CardMoveReason move_reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, player.Name);
+                    CardMoveReason move_reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, player.Name, reason, string.Empty);
                     move_result = MoveCardTo(card, player, null, Place.PlaceTable, move_reason, true);
                     move = true;
 
@@ -6230,47 +6200,24 @@ namespace SanguoshaServer.Game
             RoomThread.Trigger(TriggerEvent.TurnedOver, this, player);
         }
 
-        public bool ChangePhase(Player player, PlayerPhase from, PlayerPhase to)
+        public void EndPlay(Player player)
         {
+            PlayerPhase current_phase = player.Phase;
             player.Phase = PlayerPhase.PhaseNone;
 
             PhaseChangeStruct phase_change = new PhaseChangeStruct
             {
-                From = from,
-                To = to
+                From = current_phase,
+                To =  PlayerPhase.NotActive
             };
             object data = phase_change;
 
-            bool skip = RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
-            if (skip && to != PlayerPhase.NotActive)
-            {
-                player.Phase = from;
-                return true;
-            }
+            RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
 
-            player.Phase = to;
+            player.Phase =  PlayerPhase.NotActive;
             BroadcastProperty(player, "Phase");
 
-            if (player.Phases.Count > 0)
-                player.Phases.RemoveAt(0);
-
-            if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
-            {
-                if (player.Phase != PlayerPhase.NotActive)
-                {
-                    if (player.Phase == PlayerPhase.Draw)
-                    {
-                        object draw = 2;
-                        RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
-                    }
-                    else
-                        RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
-                }
-            }
-            if (player.Phase != PlayerPhase.NotActive)
-                RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
-
-            return false;
+            RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player);
         }
 
         public void Play(Player player, List<PlayerPhase> set_phases = null)
@@ -6282,7 +6229,8 @@ namespace SanguoshaServer.Game
             }
             else
                 set_phases = new List<PlayerPhase>
-                { PlayerPhase.RoundStart , PlayerPhase.Start , PlayerPhase.Judge , PlayerPhase.Draw , PlayerPhase.Play,
+                {
+                    PlayerPhase.RoundStart , PlayerPhase.Start , PlayerPhase.Judge , PlayerPhase.Draw , PlayerPhase.Play,
                     PlayerPhase.Discard ,PlayerPhase.Finish , PlayerPhase.NotActive
                 };
 
@@ -6297,56 +6245,90 @@ namespace SanguoshaServer.Game
                 player.PhasesState.Add(_phase);
             }
 
-            for (int i = 0; i < set_phases.Count; i++)
+            //每执行完一个回合就从头开始检查，因为游戏过程中可能会插入一个新的额外阶段
+            do
             {
-                if (!player.Alive)
+                if (!player.Alive)                                              //玩家死亡则直接结束
                 {
-                    ChangePhase(player, player.Phase, PlayerPhase.NotActive);
+                    EndPlay(player);
                     break;
                 }
 
-                player.PhasesIndex = i;
-                PhaseChangeStruct phase_change = new PhaseChangeStruct
+                bool proceed = false;
+                List<PlayerPhase> phases = new List<PlayerPhase>(player.Phases);
+                List<PhaseStruct> phases_state = new List<PhaseStruct>(player.PhasesState);
+                for (int i = 0; i < phases.Count; i++)
                 {
-                    From = player.Phase,
-                    To = set_phases[i]
-                };
+                    if (phases_state[i].Finished) continue;                       //若该阶段已经执行过则跳过
 
-                player.Phase = PlayerPhase.PhaseNone;
-                object data = phase_change;
-
-                bool skip = player.PhasesState[i].Finished || RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);
-                phase_change = (PhaseChangeStruct)data;
-
-                if ((skip || player.IsSkipped(phase_change.To)) && !RoomThread.Trigger(TriggerEvent.EventPhaseSkipping, this, player, ref data) && phase_change.To != PlayerPhase.NotActive)
-                    continue;
-
-                PhaseStruct phase = player.PhasesState[i];
-                phase.Phase = player.Phases[i] = phase_change.To;
-                player.PhasesState[i] = phase;
-
-                player.Phase = player.Phases[i];
-                BroadcastProperty(player, "Phase");
-                Thread.Sleep(200);
-
-                if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
-                {
-                    if (player.Phase != PlayerPhase.NotActive)
+                    proceed = true;
+                    player.PhasesIndex = i;
+                    PhaseChangeStruct phase_change = new PhaseChangeStruct
                     {
-                        if (player.Phase == PlayerPhase.Draw)
-                        {
-                            object draw = 2;
-                            RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
-                        }
-                        else
-                            RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
+                        From = player.Phase,
+                        To = phases[i]
+                    };
+
+                    player.Phase = PlayerPhase.PhaseNone;
+                    object data = phase_change;
+                    bool phase_proceed = true;
+                    if (phase_change.To == PlayerPhase.NotActive)
+                    {
+                        RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);                                                            //回合结束无论如何都不能跳过
                     }
-                }
-                if (player.Phase != PlayerPhase.NotActive)
-                    RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
-                else
+                    else
+                    {
+                        bool skip = player.PhasesState[i].Skipped || RoomThread.Trigger(TriggerEvent.EventPhaseChanging, this, player, ref data);               //不能改变跳至的阶段
+                        if (skip && !RoomThread.Trigger(TriggerEvent.EventPhaseSkipping, this, player, ref data))                                               //应该用插入一个新阶段
+                            phase_proceed = false;
+                    }
+
+                    if (phase_proceed)
+                    {
+                        PhaseStruct phase = phases_state[i];
+                        phase.Phase = phases[i] = phase_change.To;
+                        player.PhasesState[i] = phase;
+
+                        player.Phase = phases[i];
+                        BroadcastProperty(player, "Phase");
+                        Thread.Sleep(200);
+
+
+                        if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
+                        {
+                            if (player.Phase != PlayerPhase.NotActive)                                                                          //回合结束没有执行和结束时机
+                            {
+                                if (player.Phase == PlayerPhase.Draw)
+                                {
+                                    object draw = 2;
+                                    RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player, ref draw);
+                                }
+                                else
+                                    RoomThread.Trigger(TriggerEvent.EventPhaseProceeding, this, player);
+                            }
+                            else
+                            {
+                                proceed = false;
+                                break;
+                            }
+                        }
+                        RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
+                    }
+
+                    for (int index = 0; index < player.PhasesState.Count; index++)                                                                  //运行到这一段表示该阶段已经执行完毕
+                    {
+                        if (player.PhasesState[index].Phase == phase_change.To && !player.PhasesState[index].Finished)
+                        {
+                            player.PhasesState[index] = new PhaseStruct() { Phase = player.PhasesState[index].Phase, Skipped = player.PhasesState[index].Skipped, Finished = true };
+                            break;
+                        }
+                    }
+
                     break;
+                }
+                if (!proceed) break;                            //当没有任何一个阶段被执行，或是进入了回合结束，则结束循环检查
             }
+            while (true);
         }
 
         private readonly List<string> phase_strings = new List<string> {"round_start", "start" , "judge" , "draw"
@@ -6357,8 +6339,8 @@ namespace SanguoshaServer.Game
             {
                 if (player.PhasesState[i].Phase == phase)
                 {
-                    if (player.PhasesState[i].Finished) return;
-                    player.PhasesState[i] = new PhaseStruct { Phase = phase, Finished = true };
+                    if (player.PhasesState[i].Skipped) return;
+                    player.PhasesState[i] = new PhaseStruct { Phase = phase, Skipped = true };
                     break;
                 }
             }
@@ -6832,7 +6814,7 @@ namespace SanguoshaServer.Game
                 if (card.Name != key && (card.Name.Contains(Slash.ClassName) || card.Name == Analeptic.ClassName))
                     card_use.From.AddHistory(card.Name);
 
-                if (RoomLogic.IsVirtualCard(this, card) && fcard.TypeID != CardType.TypeSkill && !string.IsNullOrEmpty(card.Skill))
+                if (card.IsVirtualCard() && fcard.TypeID != CardType.TypeSkill && !string.IsNullOrEmpty(card.Skill))
                 {
                     string name = card.Skill;
                     card_use.From.AddHistory(string.Format("ViewAsSkill_{0}Card", name));
@@ -7009,8 +6991,10 @@ namespace SanguoshaServer.Game
             player.Piles.Clear();
         }
 
+        private KeyValuePair<string, List<int>> table_ag = new KeyValuePair<string, List<int>>();
         public void FillAG(string reason, List<int> card_ids, Player who = null, List<int> disabled_ids = null, List<Player> watchers = null, string prompt = null)
         {
+            if (who == null) table_ag = new KeyValuePair<string, List<int>>(reason, card_ids);
             prompt = prompt ?? string.Empty;
             List<string> arg = new List<string> { reason, JsonUntity.Object2Json(card_ids), JsonUntity.Object2Json(disabled_ids), prompt };
             if (who != null)
@@ -7097,6 +7081,7 @@ namespace SanguoshaServer.Game
 
         public void ClearAG(Player player = null)
         {
+            table_ag = new KeyValuePair<string, List<int>>(); ;
             if (player != null)
                 DoNotify(GetClient(player), CommandType.S_COMMAND_CLEAR_AMAZING_GRACE, new List<string>());
             else
@@ -8560,10 +8545,8 @@ namespace SanguoshaServer.Game
             }
         }
 
-        public bool AskForYiji(Player guojia, List<int> cards, string skill_name = null,
-            bool is_preview = false, bool visible = false, bool optional = true, int max_num = -1,
-            List<Player> players = null, CardMoveReason reason = null, string prompt = null,
-            string expand_pile = null, bool notify_skill = true, string position = null)
+        public bool AskForYiji(Player guojia, List<int> cards, string skill_name = null,  bool is_preview = false, bool visible = false, bool optional = true, int max_num = -1,
+            List<Player> players = null, CardMoveReason reason = null, string prompt = null, string expand_pile = null, bool notify_skill = true, string position = null)
         {
             if (max_num == -1)
                 max_num = cards.Count;
@@ -8576,6 +8559,7 @@ namespace SanguoshaServer.Game
             if (reason.Reason == CardMoveReason.MoveReason.S_REASON_UNKNOWN)
             {
                 reason.PlayerId = guojia.Name;
+                reason.SkillName = skill_name;
                 // when we use ? : here, compiling error occurs under debug mode...
                 if (is_preview)
                     reason.Reason = CardMoveReason.MoveReason.S_REASON_PREVIEWGIVE;
@@ -8605,7 +8589,7 @@ namespace SanguoshaServer.Game
                 else
                 {
                     Interactivity client = GetInteractivity(guojia);
-                    bool success = client != null && client.YijiRequest(this, guojia, cards, players, prompt, max_num, optional, expand_pile, position);
+                    bool success = client != null && client.YijiRequest(this, guojia, cards, skill_name, players, prompt, max_num, optional, expand_pile, position);
                     //Validate client response
                     List<string> clientReply = client?.ClientReply;
                     if (!success || clientReply == null || clientReply.Count != 2)
@@ -8651,8 +8635,7 @@ namespace SanguoshaServer.Game
                 to_move.Add(card_id);
             }
 
-            object decisionData = string.Format("Yiji:{0}:{1}:{2}:{3}",
-                skill_name, guojia.Name, target.Name, string.Join("+", JsonUntity.IntList2StringList(ids)));
+            object decisionData = string.Format("Yiji:{0}:{1}:{2}:{3}", skill_name, guojia.Name, target.Name, string.Join("+", JsonUntity.IntList2StringList(ids)));
             RoomThread.Trigger(TriggerEvent.ChoiceMade, this, guojia, ref decisionData);
 
             if (notify_skill)
@@ -8670,8 +8653,13 @@ namespace SanguoshaServer.Game
                 string _skill_name = skill_name;
                 string general = gsk.General;
                 int index = -1, skin_id = gsk.SkinId;
-                skill.GetEffectIndex(this, target, null, ref index, ref _skill_name, ref general, ref skin_id);
-                if (skill != null) BroadcastSkillInvoke(_skill_name, "male", index, general, skin_id);
+                if (guojia != target) DoAnimate(AnimateType.S_ANIMATE_INDICATE, guojia.Name, target.Name);
+                if (skill != null)
+                {
+                    skill.GetEffectIndex(this, target, null, ref index, ref _skill_name, ref general, ref skin_id);
+                    if (index != -2)
+                        BroadcastSkillInvoke(_skill_name, "male", index, general, skin_id);
+                }
                 NotifySkillInvoked(guojia, _skill_name);
             }
 
@@ -8681,12 +8669,9 @@ namespace SanguoshaServer.Game
                 assist.Assist += to_move.Count;
                 guojia.Result = assist;
             }
-
-            guojia.SetFlags("Global_GongxinOperator");
+            
+            reason.TargetId = target.Name;
             MoveCardsAtomic(new CardsMoveStruct(to_move, target, Place.PlaceHand, reason), visible);
-
-            guojia.SetFlags("-Global_GongxinOperator");
-
             return true;
         }
 
@@ -9331,9 +9316,7 @@ namespace SanguoshaServer.Game
                 if (length_equal && result_equal && bottom_cards.Count >= min_num && (bottom_cards.Count <= max_num || max_num == 0))
                     success = true;
 
-
-                if (visible || isTrustAI)
-                    Thread.Sleep(1000);
+                if (visible || isTrustAI) Thread.Sleep(1000);
 
                 if (success)
                 {
@@ -9360,7 +9343,7 @@ namespace SanguoshaServer.Game
                             }
                         }
                     }
-                    if (!match)
+                    if (!match && (visible || isTrustAI))
                     {
                         int fromPos = 0;
                         int toPos = 0;
@@ -9414,8 +9397,11 @@ namespace SanguoshaServer.Game
                                     ups.Remove(adjust_id);
                                     downs.Add(adjust_id);
                                 }
-                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), target_id.ToString(), fromPos.ToString(), toPos.ToString() };
-                                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base, isTrustAI ? null : GetClient(zhuge));
+                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), "-1", fromPos.ToString(), toPos.ToString() };
+                                if (visible)
+                                    DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                                else
+                                    DoNotify(GetClient(zhuge), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
                                 Thread.Sleep(500);
                             }
                         }
@@ -9432,8 +9418,11 @@ namespace SanguoshaServer.Game
                                 toPos = -downs.Count - 1;
                                 downs.Add(adjust_id);
 
-                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), adjust_id.ToString(), fromPos.ToString(), toPos.ToString() };
-                                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base, isTrustAI ? null : GetClient(zhuge));
+                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), "-1", fromPos.ToString(), toPos.ToString() };
+                                if (visible)
+                                    DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                                else
+                                    DoNotify(GetClient(zhuge), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
                                 Thread.Sleep(500);
                             }
                         }
@@ -9463,8 +9452,11 @@ namespace SanguoshaServer.Game
                                 downs.Add(bottom_cards[i]);
                                 downs.AddRange(empty);
 
-                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), bottom_cards[i].ToString(), fromPos.ToString(), toPos.ToString() };
-                                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base, isTrustAI ? null : GetClient(zhuge));
+                                List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), "-1", fromPos.ToString(), toPos.ToString() };
+                                if (visible)
+                                    DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                                else
+                                    DoNotify(GetClient(zhuge), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
                                 Thread.Sleep(500);
                             }
                         }
@@ -9476,7 +9468,7 @@ namespace SanguoshaServer.Game
             {
                 Interactivity client = GetInteractivity(zhuge);
                 if (client != null)
-                    client.GuanxingRequest(this, zhuge, skillName, upcards, downcards, min_num, max_num, can_refuse, write_step, position);
+                    client.GuanxingRequest(this, zhuge, skillName, upcards, downcards, min_num, max_num, can_refuse, write_step, visible, position);
                 AskForMoveCardsStruct guanxin = new AskForMoveCardsStruct
                 {
                     Top = new List<int>(),
@@ -9541,8 +9533,7 @@ namespace SanguoshaServer.Game
             NotifyMoveFocus(player, CommandType.S_COMMAND_SKILL_MOVECARDS);
             List<string> stepArgs = new List<string>
             {
-                GuanxingStep.S_GUANXING_START.ToString(), player.Name, skillName, JsonUntity.Object2Json(cards),
-                MoveCardType.S_TYPE_SORT.ToString(), position
+                GuanxingStep.S_GUANXING_START.ToString(), player.Name, skillName, JsonUntity.Object2Json(cards), string.Empty, MoveCardType.S_TYPE_SORT.ToString(), position
             };
 
             if (visible)
@@ -9555,7 +9546,7 @@ namespace SanguoshaServer.Game
                 if (isTrustAI)
                     DoNotify(GetClient(player), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, stepArgs);
 
-                AskForMoveCardsStruct map = ai.AskForSortCards(cards, skillName);
+                AskForMoveCardsStruct map = ai.AskForMoveCards(cards, new List<int>(), skillName, cards.Count, cards.Count);
                 top_cards = map.Top;
                 bottom_cards = map.Bottom;
 
@@ -9585,38 +9576,49 @@ namespace SanguoshaServer.Game
                     success = check;
                 }
 
-                if (visible || isTrustAI)
-                    Thread.Sleep(700);
+                if (isTrustAI) Thread.Sleep(700);
 
                 if (success)
                 {
-                    foreach (int id in top_cards)
+                    if (isTrustAI || visible)
                     {
-                        List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), id.ToString(), "0", "1" };
-                        DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base, isTrustAI ? null : GetClient(player));
-                        Thread.Sleep(500);
-                    }
+                        foreach (int id in top_cards)
+                        {
+                            List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), to_move.IndexOf(id).ToString(), "0", "1" };
+                            to_move.Remove(id);
+                            if (visible)
+                                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                            else
+                                DoNotify(GetClient(player), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                            Thread.Sleep(500);
+                        }
 
-                    foreach (int id in bottom_cards)
-                    {
-                        List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), id.ToString(), "0", "2" };
-                        DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base, isTrustAI ? null : GetClient(player));
-                        Thread.Sleep(500);
-                    }
+                        foreach (int id in bottom_cards)
+                        {
+                            List<string> movearg_base = new List<string> { GuanxingStep.S_GUANXING_MOVE.ToString(), to_move.IndexOf(id).ToString(), "0", "2" };
+                            to_move.Remove(id);
+                            if (visible)
+                                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                            else
+                                DoNotify(GetClient(player), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, movearg_base);
+                            Thread.Sleep(500);
+                        }
 
-                    Thread.Sleep(1000);
+                        Thread.Sleep(1500);
+                    }
                 }
                 else
                 {
                     top_cards.Clear();
                     bottom_cards.Clear();
                 }
+                if (isTrustAI)
+                    DoNotify(GetClient(player), CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, new List<string> { GuanxingStep.S_GUANXING_FINISH.ToString() });
             }
             else
             {
                 Interactivity client = GetInteractivity(player);
-                if (client != null)
-                    client.SortCardRequest(this, player, skillName, cards, position);
+                if (client != null) client.SortCardRequest(this, player, skillName, cards, visible, position);
                 AskForMoveCardsStruct guanxin = new AskForMoveCardsStruct
                 {
                     Top = new List<int>(),
@@ -9662,8 +9664,8 @@ namespace SanguoshaServer.Game
                     }
                 }
             }
-
-            DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, new List<string> { GuanxingStep.S_GUANXING_FINISH.ToString() }, isTrustAI ? null : GetClient(player));
+            if (visible)
+                DoBroadcastNotify(CommandType.S_COMMAND_MIRROR_MOVECARDS_STEP, new List<string> { GuanxingStep.S_GUANXING_FINISH.ToString()}, GetClient(player));
             DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             object decisionData = string.Format("{0}chose:{1}:{2}:{3}", skillName, player.Name,
@@ -9805,7 +9807,7 @@ namespace SanguoshaServer.Game
             DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
         }
 
-        public int DoGongxin(Player shenlvmeng, Player target, List<int> enabled_ids, string skill_name, string prompt, string position)
+        public int DoGongxin(Player shenlvmeng, Player target, List<int> cards, List<int> enabled_ids, string skill_name, string prompt, string position)
         {
             Thread.Sleep(300);
 
@@ -9814,11 +9816,11 @@ namespace SanguoshaServer.Game
                 Type = "$ViewAllCards",
                 From = shenlvmeng.Name,
                 To = new List<string> { target.Name },
-                Card_str = string.Join("+", JsonUntity.IntList2StringList(target.HandCards))
+                Card_str = string.Join("+", JsonUntity.IntList2StringList(cards))
             };
             SendLog(log, shenlvmeng);
 
-            object decisionData = "viewCards:" + shenlvmeng.Name;
+            object decisionData = string.Format("viewCards:{0}:{1}", shenlvmeng.Name, string.Join("+", JsonUntity.IntList2StringList(cards)));
             RoomThread.Trigger(TriggerEvent.ChoiceMade, this, target, ref decisionData);
 
             NotifyMoveFocus(shenlvmeng, CommandType.S_COMMAND_SKILL_GONGXIN);
@@ -9830,7 +9832,7 @@ namespace SanguoshaServer.Game
                 bool isTrustAI = shenlvmeng.Status == "trust";
                 if (isTrustAI)
                 {
-                    List<string> gongxinArgs = new List<string> { target.Name, JsonUntity.Object2Json(target.HandCards), skill_name };
+                    List<string> gongxinArgs = new List<string> { target.Name, JsonUntity.Object2Json(cards), skill_name };
                     DoNotify(GetClient(shenlvmeng), CommandType.S_COMMAND_SHOW_CARD, gongxinArgs);
                 }
 
@@ -9843,7 +9845,7 @@ namespace SanguoshaServer.Game
                     shenlvmeng.Name,
                     target.Name,
                     false.ToString(),
-                    JsonUntity.Object2Json(target.HandCards),
+                    JsonUntity.Object2Json(cards),
                     JsonUntity.Object2Json(enabled_ids),
                     skill_name,
                     prompt,
@@ -9851,7 +9853,7 @@ namespace SanguoshaServer.Game
                 };
                 bool success = DoRequest(shenlvmeng, CommandType.S_COMMAND_SKILL_GONGXIN, gongxinArgs, true);
                 List<string> clientReply = GetInteractivity(shenlvmeng).ClientReply;
-                if (!success || clientReply == null || clientReply.Count == 0 || !target.HandCards.Contains(int.Parse(clientReply[0])))
+                if (!success || clientReply == null || clientReply.Count == 0 || !cards.Contains(int.Parse(clientReply[0])))
                 {
                 }
                 else

@@ -376,6 +376,7 @@ namespace SanguoshaServer.Game
                     Type t = Type.GetType("SanguoshaServer.Scenario." + mode_name);
                     GameScenario scenario = (GameScenario)Activator.CreateInstance(t);
                     scenarios.Add(mode_name, scenario);
+                    AddSkills(scenario.Skills);
                 }
                 else
                 {
@@ -601,10 +602,10 @@ namespace SanguoshaServer.Game
         }
         public static WrappedCard GetRealCard(int id)
         {
-            System.Diagnostics.Debug.Assert(id > -1);
+            Debug.Assert(id > -1);
             if (wrapped_cards.ContainsKey(id))
             {
-                System.Diagnostics.Debug.Assert(wrapped_cards[id] != null);
+                Debug.Assert(wrapped_cards[id] != null);
                 return wrapped_cards[id];
             }
             else
@@ -626,7 +627,7 @@ namespace SanguoshaServer.Game
                 Skill = card.Skill,
                 ShowSkill = card.ShowSkill,
                 UserString = card.UserString,
-                Flags = card.Flags,
+                Flags = new List<string>(card.Flags),
                 Mute = card.Mute,
             };
             new_card.ExtraTarget = card.ExtraTarget;

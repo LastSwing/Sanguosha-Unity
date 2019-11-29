@@ -16,19 +16,6 @@ namespace SanguoshaServer.AI
         private readonly List<string> kingdoms = new List<string> { "wei", "shu", "wu", "qun" };
         public SmartAI(Room room, Player player) : base(room, player)
         {
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null)
-                    skill_events[skill] = e;
-            }
-
-            foreach (FunctionCard card in room.AvailableFunctionCards)
-            {
-                SkillEvent e = Engine.GetSkillEvent(card.Name);
-                if (e != null)
-                    skill_events[card.Name] = e;
-            }
         }
         public override void Event(TriggerEvent triggerEvent, Player player, object data)
         {
@@ -87,16 +74,7 @@ namespace SanguoshaServer.AI
                 bool pile_open = false;
                 Player from = move.From;
                 Player to = move.To;
-
-                foreach (Player p in room.GetAlivePlayers())
-                {
-                    if (p.HasFlag("Global_GongxinOperator") && (p == self || self.IsSameCamp(p)))
-                    {
-                        open = true;
-                        break;
-                    }
-                }
-
+                
                 if ((from != null && (from == self || self.IsSameCamp(from))) || (to != null && (to == self || self.IsSameCamp(to)) && move.To_place != Player.Place.PlaceSpecial))
                     open = true;
 
@@ -239,14 +217,22 @@ namespace SanguoshaServer.AI
 
                 if (choices[0] == "viewCards")
                 {
-                    List<int> ids = player.GetCards("h");
+                    List<int> ids = new List<int>();
                     if (choices[choices.Count - 1] == "all")
+                        player.GetCards("h");
+                    else
                     {
-                        public_handcards[player] = ids;
-                        private_handcards[player] = ids;
+                        List<string> card_str = new List<string>(choices[choices.Count - 1].Split('+'));
+                        ids = JsonUntity.StringList2IntList(card_str);
                     }
-                    else if (choices[choices.Count - 1] == self.Name)
-                        private_handcards[player] = ids;
+                    if (choices[choices.Count - 2] == "all")
+                    {
+                        foreach (int id in ids)
+                            SetPublicKnownCards(player, id);
+                    }
+                    else if (choices[choices.Count - 2] == self.Name)
+                        foreach (int id in ids)
+                            SetPrivateKnownCards(player, id);
                 }
                 else if (choices[0] == "showCards")
                 {
@@ -1671,6 +1657,14 @@ namespace SanguoshaServer.AI
             }
 
             return result;
+        }
+        public override AskForMoveCardsStruct AskForMoveCards(List<int> upcards, List<int> downcards, string reason, int min_num, int max_num)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+                return e.OnMoveCards(this, self, new List<int>(upcards), new List<int>(downcards), min_num, max_num);
+
+            return base.AskForMoveCards(upcards, downcards, reason, min_num, max_num);
         }
 
         public override int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids)

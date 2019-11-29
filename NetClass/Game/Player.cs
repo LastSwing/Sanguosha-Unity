@@ -127,7 +127,7 @@ namespace CommonClass.Game
             ClientId = other.ClientId;
             SceenName = other.SceenName;
             Status = other.Status;
-            MaxHp = other.Hp;
+            MaxHp = other.MaxHp;
             Hp = other.Hp;
             Seat = other.Seat;
             DisableShow = other.DisableShow;
@@ -890,20 +890,21 @@ namespace CommonClass.Game
             for (int i = PhasesIndex; i < PhasesState.Count; i++)
             {
                 if (PhasesState[i].Phase == phase)
-                    return PhasesState[i].Finished;
+                    return PhasesState[i].Skipped;
             }
             return false;
         }
 
-        public void InsertPhase(PlayerPhase phase)
+        public void AddPhase(PlayerPhase phase)
         {
             PhaseStruct _phase = new PhaseStruct
             {
                 Phase = phase,
-                Finished = false
+                Skipped = false,
+                Finished = false,
             };
-            Phases.Insert(PhasesIndex, phase);
-            PhasesState.Insert(PhasesIndex, _phase);
+            Phases.Insert(PhasesIndex + 1, phase);
+            PhasesState.Insert(PhasesIndex + 1, _phase);
         }
 
         public void AddCard(WrappedCard card, Place place, int location = 0)

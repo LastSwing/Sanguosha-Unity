@@ -18,19 +18,6 @@ namespace SanguoshaServer.AI
         private Dictionary<PlayerRole, int> roles = new Dictionary<PlayerRole, int>();
         public StupidAI(Room room, Player player) : base(room, player)
         {
-            foreach (string skill in room.Skills)
-            {
-                SkillEvent e = Engine.GetSkillEvent(skill);
-                if (e != null)
-                    skill_events[skill] = e;
-            }
-
-            foreach (FunctionCard card in room.AvailableFunctionCards)
-            {
-                SkillEvent e = Engine.GetSkillEvent(card.Name);
-                if (e != null)
-                    skill_events[card.Name] = e;
-            }
         }
 
         private readonly List<string> intention_roles = new List<string> { "loyalist", "rebel", "renegade" };
@@ -90,7 +77,8 @@ namespace SanguoshaServer.AI
                     if (general.Kingdom == "god" && p.Kingdom != lord.Kingdom)
                         player_intention[p]["rebel"] += 20;                         //神将国籍与主公不同偏反
                 }
-
+                if (HasSkill(MasochismSkill, lord) && p.General1 == "zhangchunhua")             //主公卖血用春哥的明反
+                    player_intention[p]["rebel"] += 80;
                 if (lord.General1 == "xizhicai" && (p.General1 == "jvshou" || p.General1 == "caorui")) player_intention[p]["loyalist"] += 30;
                 if (lord.IsFemale())
                 {
@@ -107,12 +95,14 @@ namespace SanguoshaServer.AI
 
                 if (lord.General1 == "maliang" && (p.General1 == "lusu" || p.General1 == "diaochan_sp" || p.General1 == "wangji"))  //专克马良的偏反
                     player_intention[p]["rebel"] += 25;
-                if (lord.General1 == "maliang" && (p.General1 == "caorui" || p.General1 == "liubei"))                                //不配合马良的偏反
+                if (lord.General1 == "maliang" && (p.General1 == "caorui" || p.General1 == "liubei" || p.General1 == "zhangchangpu")) //不配合马良的偏反
                     player_intention[p]["rebel"] += 15;
                 if ((lord.General1 == "liubei" || lord.General1 == "lusu" || lord.General1 == "caorui") && p.General1 == "maliang") player_intention[p]["rebel"] += 20;
 
                 if (p.General1 == "quyi" && RoomLogic.DistanceTo(room, p, lord) == 1)
                     player_intention[p]["rebel"] += 10;                                             //近位麹义偏反
+                if (lord.General1 == "caocao_god" && p.General1 == "haozhao")
+                    player_intention[p]["rebel"] += 30;                                             //神曹操局郝昭偏反
             }
         }
 
@@ -128,7 +118,6 @@ namespace SanguoshaServer.AI
                 {
                     //根据场面选将决定初始身份倾向
                     InitRoleTendency();
-
                     UpdatePlayers();
                 }
             }
@@ -144,15 +133,6 @@ namespace SanguoshaServer.AI
                 bool pile_open = false;
                 Player from = move.From;
                 Player to = move.To;
-
-                foreach (Player p in room.GetAlivePlayers())
-                {
-                    if (p.HasFlag("Global_GongxinOperator") && (p == self || self.IsSameCamp(p)))
-                    {
-                        open = true;
-                        break;
-                    }
-                }
 
                 if ((from != null && (from == self || self.IsSameCamp(from))) || (to != null && (to == self || self.IsSameCamp(to)) && move.To_place != Place.PlaceSpecial))
                     open = true;
@@ -335,14 +315,22 @@ namespace SanguoshaServer.AI
                 List<string> choices = new List<string>(str.Split(':'));
                 if (str.StartsWith("viewCards"))
                 {
-                    List<int> ids= player.GetCards("h");
+                    List<int> ids = new List<int>();
                     if (choices[choices.Count - 1] == "all")
+                        player.GetCards("h");
+                    else
                     {
-                        public_handcards[player] = ids;
-                        private_handcards[player] = ids;
+                        List<string> card_str = new List<string>(choices[choices.Count - 1].Split('+'));
+                        ids = JsonUntity.StringList2IntList(card_str);
                     }
-                    else if (choices[choices.Count - 1] == self.Name)
-                        private_handcards[player] = ids;
+                    if (choices[choices.Count - 2] == "all")
+                    {
+                        foreach (int id in ids)
+                            SetPublicKnownCards(player, id);
+                    }
+                    else if (choices[choices.Count - 2] == self.Name)
+                        foreach (int id in ids)
+                            SetPrivateKnownCards(player, id);
                 }
 
                 else if (choices[0] == "showCards")
@@ -573,6 +561,14 @@ namespace SanguoshaServer.AI
             {
                 SkillEvent e = Engine.GetSkillEvent(skill);
                 point += Engine.GetSkillValue(skill) + (e != null ? e.GetSkillAdjustValue(this, who) : 0);
+                Skill _skill = Engine.GetSkill(skill);
+                if (_skill.SkillFrequency == Skill.Frequency.Limited && who.GetMark(_skill.LimitMark) == 0)
+                {
+                    point -= 1.5;
+                    if (skill == "xiongluan") point -= 2;
+                }
+                if (_skill.SkillFrequency == Skill.Frequency.Wake && who.GetMark(skill) > 0)
+                    point += 1.5;
             }
 
             point += (who.MaxHp - 3) * 1;
@@ -2129,7 +2125,7 @@ namespace SanguoshaServer.AI
                 foreach (WrappedCard analeptic in analeptics)
                 {
                     if (fcard.IsAvailable(room, player, analeptic) && (will_use
-                            || (RoomLogic.IsVirtualCard(room, analeptic) && analeptic.SubCards.Count == 0 && GetUseValue(analeptic, player) > 0)))
+                            || (analeptic.IsVirtualCard() && analeptic.SubCards.Count == 0 && GetUseValue(analeptic, player) > 0)))
                     {
                         pre_drink = analeptic;
                         double drank_value = 0;
@@ -2276,6 +2272,18 @@ namespace SanguoshaServer.AI
                     {
                         DistanceLimited = slash.DistanceLimited
                     };
+                    fire_slash.AddSubCard(slash);
+                    fire_slash = RoomLogic.ParseUseCard(room, fire_slash);
+                    fire_slash.UserString = RoomLogic.CardToString(room, slash);
+                    cards.Add(fire_slash);
+                }
+                else if (!player.HasWeapon(Fan.ClassName) && slash.Name == Slash.ClassName && HasSkill("lihuo", player) && player.Hp > 1)
+                {
+                    WrappedCard fire_slash = new WrappedCard(FireSlash.ClassName)
+                    {
+                        DistanceLimited = slash.DistanceLimited
+                    };
+                    fire_slash.SetFlags("lihuo");
                     fire_slash.AddSubCard(slash);
                     fire_slash = RoomLogic.ParseUseCard(room, fire_slash);
                     fire_slash.UserString = RoomLogic.CardToString(room, slash);
@@ -2840,6 +2848,15 @@ namespace SanguoshaServer.AI
             return result;
         }
 
+        public override AskForMoveCardsStruct AskForMoveCards(List<int> upcards, List<int> downcards, string reason, int min_num, int max_num)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+                return e.OnMoveCards(this, self, new List<int>(upcards), new List<int>(downcards), min_num, max_num);
+
+            return base.AskForMoveCards(upcards, downcards, reason, min_num, max_num);
+        }
+
         public override int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids)
         {
             SkillEvent e = Engine.GetSkillEvent(reason);
@@ -2867,7 +2884,7 @@ namespace SanguoshaServer.AI
 
         private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
             { "collateral-slash", Collateral.ClassName },
-            { "@tiaoxin-slash", "tiaoxin" },
+            { "@tiaoxin_jx-slash", "tiaoxin_jx" },
             { "@luanwu-slash", "luanwu" },
             { "@kill_victim", BeltsheChao.ClassName },
             { "@kangkai-use", "kangkai" },

@@ -33,6 +33,8 @@ namespace SanguoshaServer.AI
                 new YajiaoAI(),
                 new GuanxingJXAI(),
                 new TieqiJXAI(),
+                new JijieAI(),
+                new JiyuanAI(),
 
                 new LiyuAI(),
                 new BiyueJXAI(),
@@ -57,6 +59,7 @@ namespace SanguoshaServer.AI
                 new JieyinJXCardAI(),
                 new GongxinCardAI(),
                 new YijiJCardAI(),
+                new JijieCardAI(),
             };
         }
     }
@@ -70,7 +73,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             double value = 0;
-            if (!RoomLogic.IsVirtualCard(room, card))
+            if (!card.IsVirtualCard())
             {
                 foreach (int id in card.SubCards)
                 {
@@ -552,7 +555,7 @@ namespace SanguoshaServer.AI
                     WrappedCard.CardSuit suit = RoomLogic.GetCardSuit(room, card);
                     int number = RoomLogic.GetCardNumber(room, card);
 
-                    if (judge.Reason == "beige")
+                    if (judge.Reason == "beige" || judge.Reason == "beige_jx")
                     {
                         if (!judge.Who.FaceUp && suit == WrappedCard.CardSuit.Spade)
                             ai.UpdatePlayerRelation(player, judge.Who, true);
@@ -1705,6 +1708,101 @@ namespace SanguoshaServer.AI
                 return !ai.IsFriend(p);
 
             return true;
+        }
+    }
+
+    public class JijieAI : SkillEvent
+    {
+        public JijieAI() : base("jijie")
+        {
+            key = new List<string> { "Yiji:jijie" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                Player target = room.FindPlayer(strs[3]);
+                if (target == player) return;
+
+                ai.UpdatePlayerRelation(player, target, true);
+                if (player == ai.Self)
+                {
+                    List<string> cards = new List<string>(strs[4].Split('+'));
+                    List<int> ids = JsonUntity.StringList2IntList(cards);
+                    foreach (int id in ids)
+                        ai.SetPrivateKnownCards(target, id);
+                }
+            }
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.HasUsed(JijieCard.ClassName))
+                return new List<WrappedCard> { new WrappedCard(JijieCard.ClassName) { Skill = Name } };
+
+            return new List<WrappedCard>();
+        }
+
+        public override Player OnYiji(TrustedAI ai, Player player, List<int> ids, ref int id)
+        {
+            List<Player> friends = ai.FriendNoSelf;
+            id = ids[0];
+            if (friends.Count > 0)
+            {
+                ai.SortByDefense(ref friends, false);
+                foreach (Player p in friends)
+                    if (ai.HasSkill("qingjian", p)) return p;
+
+                foreach (Player p in friends)
+                    if (!ai.HasSkill("zishu", p)) return p;
+            }
+
+            return null;
+        }
+    }
+
+    public class JijieCardAI : UseCard
+    {
+        public JijieCardAI() : base(JijieCard.ClassName) { }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            use.Card = card;
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 10;
+        }
+    }
+
+    public class JiyuanAI : SkillEvent
+    {
+        public JiyuanAI() : base("jiyuan")
+        {
+            key = new List<string> { "skillInvoke:jiyuan:yes" };
+        }
+        
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
+            {
+                List<string> choices = new List<string>(choice.Split(':'));
+                if (choices[1] == Name && ai.Self != player && choices[2] == "yes")
+                {
+                    Room room = ai.Room;
+                    foreach (Player p in room.GetAlivePlayers())
+                        if (p.HasFlag(Name) && ai.GetPlayerTendency(p) != "unknown")
+                            ai.UpdatePlayerRelation(player, p, true);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return data is Player target && ai.IsFriend(target);
         }
     }
 

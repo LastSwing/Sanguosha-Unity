@@ -15,6 +15,7 @@ namespace SanguoshaServer.AI
             {
                 new GuixinAI(),
                 new PoxiAI(),
+                new WumouAI(),
             };
 
             use_cards = new List<UseCard>
@@ -109,6 +110,19 @@ namespace SanguoshaServer.AI
                 foreach (int id in ids)
                     ai.SetPrivateKnownCards(target, id);
             }
+        }
+    }
+
+    public class WumouAI : SkillEvent
+    {
+        public WumouAI() : base("wumou") { }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (ai.HasSkill(Name, player) && card != null && Engine.GetFunctionCard(card.Name) is TrickCard)
+                return -3;
+
+            return 0;
         }
     }
 }

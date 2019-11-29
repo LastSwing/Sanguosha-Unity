@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
@@ -60,7 +61,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             double value = 0;
-            if (!RoomLogic.IsVirtualCard(room, card))
+            if (!card.IsVirtualCard())
             {
                 foreach (int id in card.SubCards)
                 {
@@ -216,7 +217,7 @@ namespace SanguoshaServer.AI
                     WrappedCard.CardSuit suit = RoomLogic.GetCardSuit(room, card);
                     int number = RoomLogic.GetCardNumber(room, card);
 
-                    if (judge.Reason == "beige")
+                    if (judge.Reason == "beige" || judge.Reason == "beige_jx")
                     {
                         if (!judge.Who.FaceUp && suit == WrappedCard.CardSuit.Spade)
                             ai.UpdatePlayerRelation(player, judge.Who, true);
@@ -851,7 +852,27 @@ namespace SanguoshaServer.AI
     {
         public YijiAI() : base("yiji")
         {
+            key = new List<string> { "Yiji:yiji" };
         }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                Player target = room.FindPlayer(strs[3]);
+                ai.UpdatePlayerRelation(player, target, true);
+                if (player == ai.Self)
+                {
+                    List<string> cards = new List<string>(strs[4].Split('+'));
+                    List<int> ids = JsonUntity.StringList2IntList(cards);
+                    foreach (int id in ids)
+                        ai.SetPrivateKnownCards(target, id);
+                }
+            }
+        }
+
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;

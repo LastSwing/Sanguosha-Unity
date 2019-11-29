@@ -18,6 +18,7 @@ namespace SanguoshaServer.Scenario
         {
             mode_name = "Hegemony";
             rule = new HegemonyRule();
+            skills = new List<Skill> { new GameRule_AskForGeneralShowHead(), new GameRule_AskForGeneralShowDeputy(), new GameRule_AskForArraySummon() };
         }
         public override TrustedAI GetAI(Room room, Player player)
         {
@@ -299,7 +300,7 @@ namespace SanguoshaServer.Scenario
             if (!player.HasShownOneGeneral() || !other.HasShownOneGeneral())
                 return false;
 
-            if (player.GetRoleEnum() == Player.PlayerRole.Careerist || other.GetRoleEnum() == Player.PlayerRole.Careerist)
+            if (player.GetRoleEnum() == PlayerRole.Careerist || other.GetRoleEnum() == PlayerRole.Careerist)
                 return false;
 
             return player.Kingdom == other.Kingdom;
@@ -584,7 +585,6 @@ namespace SanguoshaServer.Scenario
         public GameRule_AskForGeneralShowHead() : base("GameRule_AskForGeneralShowHead")
         {
             events.Add(TriggerEvent.EventPhaseStart);
-            global = true;
         }
 
         public override TriggerStruct Cost(TriggerEvent trigger_event, Room room, Player player, ref object data, Player target, TriggerStruct trigger_struct)
@@ -604,7 +604,6 @@ namespace SanguoshaServer.Scenario
         public GameRule_AskForGeneralShowDeputy() : base("GameRule_AskForGeneralShowDeputy")
         {
             events.Add(TriggerEvent.EventPhaseStart);
-            global = true;
         }
 
         public override TriggerStruct Cost(TriggerEvent trigger_event, Room room, Player player, ref object data, Player target, TriggerStruct trigger_struct)
@@ -625,7 +624,6 @@ namespace SanguoshaServer.Scenario
         public GameRule_AskForArraySummon() : base("GameRule_AskForArraySummon")
         {
             events.Add(TriggerEvent.EventPhaseStart);
-            global = true;
         }
 
         public override TriggerStruct Cost(TriggerEvent trigger_event, Room room, Player player, ref object data, Player target, TriggerStruct trigger_struct)
@@ -820,20 +818,6 @@ namespace SanguoshaServer.Scenario
             }
             else
                 room.ThrowAllHandCardsAndEquips(killer);
-        }
-
-        protected override void AddRuleSkill()
-        {
-            List<Skill> list = new List<Skill> { new GameRule_AskForGeneralShowHead(), new GameRule_AskForGeneralShowDeputy(), new GameRule_AskForArraySummon() };
-            List<Skill> list_copy = new List<Skill>();
-            foreach (Skill s in list)
-            {
-                if (Engine.GetSkill(s.Name) == null)
-                {
-                    list_copy.Add(s);
-                }
-            }
-            Engine.AddSkills(list_copy);
         }
     }
 }

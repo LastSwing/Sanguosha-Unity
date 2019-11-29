@@ -879,7 +879,7 @@ namespace SanguoshaServer.AI
 
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-            if (!isUse && ai.HasSkill(Name, player) && place == Player.Place.PlaceHand && !RoomLogic.IsVirtualCard(ai.Room, card))
+            if (!isUse && ai.HasSkill(Name, player) && place == Player.Place.PlaceHand && !card.IsVirtualCard())
             {
                 if (WrappedCard.IsBlack(ai.Room.GetCard(card.GetEffectiveId()).Suit))
                     return 1.5;
@@ -1334,7 +1334,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill(Name, player))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard is TrickCard && !(fcard is DelayedTrick) && !RoomLogic.IsVirtualCard(ai.Room, card))
+                if (fcard is TrickCard && !(fcard is DelayedTrick) && !card.IsVirtualCard())
                     return 2;
             }
 

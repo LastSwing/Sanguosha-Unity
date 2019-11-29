@@ -1972,7 +1972,7 @@ namespace SanguoshaServer.AI
                         foreach (int id in cards[0].SubCards)
                             ids.Remove(id);
 
-                        if (ids.Count == 0 && (RoomLogic.IsVirtualCard(ai.Room, cards[0]) || !ai.HasSkill("jizhi", ai.Self)))
+                        if (ids.Count == 0 && (cards[0].IsVirtualCard() || !ai.HasSkill("jizhi", ai.Self)))
                             return result;
                     }
                     result.Null = true;
@@ -1990,7 +1990,7 @@ namespace SanguoshaServer.AI
                 List<int> ids= player.GetCards("h");
                 ids.RemoveAll(t => card.SubCards.Contains(t));
 
-                if (ai.HasSkill("jizhi") && !RoomLogic.IsVirtualCard(ai.Room, card) || ids.Count > 0)
+                if (ai.HasSkill("jizhi") && !card.IsVirtualCard() || ids.Count > 0)
                 {
                     use.Card = card;
                 }

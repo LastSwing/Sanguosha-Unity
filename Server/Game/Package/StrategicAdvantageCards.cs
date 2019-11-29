@@ -173,7 +173,7 @@ namespace SanguoshaServer.Package
             CardUseStruct use = (CardUseStruct)data;
             room.SetTag("extra_target_skill", data);                   //for AI
             List<Player> targets = room.AskForExtraTargets(player, use.To, use.Card,
-                                                                     Halberd.ClassName, "@extra_targets1:::" + use.Card.Name, true);
+                                                                     Halberd.ClassName, "@halberd-target:::" + use.Card.Name, true);
             room.RemoveTag("extra_target_skill");
             if (targets.Count > 0)
             {

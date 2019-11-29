@@ -696,20 +696,14 @@ namespace CommonClass.Game
 
     public struct PhaseChangeStruct
 {
-        //public PhaseChangeStruct();
-        public Player.PlayerPhase From { set; get; }
-        public Player.PlayerPhase To { set; get; }
+        public PlayerPhase From { set; get; }
+        public PlayerPhase To { set; get; }
     };
 
     public struct PhaseStruct
     {
-        //inline PhaseStruct()
-        //{
-        //    phase = Player::PhaseNone;
-        //    finished = false;
-        //}
-
-        public Player.PlayerPhase Phase { set; get; }
+        public PlayerPhase Phase { set; get; }
+        public bool Skipped { set; get; }
         public bool Finished { set; get; }
     };
 

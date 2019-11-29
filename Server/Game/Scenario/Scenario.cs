@@ -23,6 +23,7 @@ namespace SanguoshaServer.Scenario
         protected List<string> loyalists, rebels, renegades;
         protected GameRule rule;
         protected bool random_seat;
+        protected List<Skill> skills = new List<Skill>();
         public abstract void Assign(Room room);
         public abstract void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile);
         public abstract void PrepareForPlayers(Room room);
@@ -31,6 +32,7 @@ namespace SanguoshaServer.Scenario
         {
             return new RoomThread(room, rule);
         }
+        public List<Skill> Skills => skills;
         public abstract bool IsFriendWith(Room room, Player player, Player other);
         public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
         public abstract TrustedAI GetAI(Room room, Player player);
@@ -70,6 +72,7 @@ namespace SanguoshaServer.Scenario
                     _player.SetTag("huashen", player.GetTag("huashen"));
 
                 _player.SetFlags("marshal");
+                _player.Status = "online";
             }
             else
             {
@@ -161,12 +164,6 @@ namespace SanguoshaServer.Scenario
     {
         public GameRule(string name) : base(name)
         {
-            AddTrigger();
-            AddRuleSkill();
-        }
-
-        protected virtual void AddTrigger()
-        {
             events = new List<TriggerEvent>
             {
                 TriggerEvent.GameStart, TriggerEvent.TurnStart, TriggerEvent.EventPhaseProceeding, TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseChanging,
@@ -174,12 +171,11 @@ namespace SanguoshaServer.Scenario
                 TriggerEvent.PostHpReduced, TriggerEvent.EventLoseSkill, TriggerEvent.EventAcquireSkill, TriggerEvent.AskForPeaches,
                 TriggerEvent.AskForPeachesDone, TriggerEvent.BuryVictim, TriggerEvent.BeforeGameOverJudge, TriggerEvent.GameOverJudge,
                 TriggerEvent.SlashHit, TriggerEvent.SlashEffected, TriggerEvent.SlashProceed, TriggerEvent.ConfirmDamage, TriggerEvent.DamageDone, TriggerEvent.DamageComplete,
-                TriggerEvent.StartJudge, TriggerEvent.FinishRetrial, TriggerEvent.FinishJudge,
+                TriggerEvent.StartJudge, TriggerEvent.JudgeResult, TriggerEvent.FinishJudge,
                 TriggerEvent.ChoiceMade, TriggerEvent.GeneralShown, TriggerEvent.BeforeCardsMove, TriggerEvent.Death, TriggerEvent.CardsMoveOneTime
             };
         }
-
-        protected abstract void AddRuleSkill();
+        
         public override int GetPriority() => 0;
         public abstract string GetWinner(Room room);
         public override bool Triggerable(Player player, Room room)
@@ -603,7 +599,8 @@ namespace SanguoshaServer.Scenario
                         break;
                 case TriggerEvent.CardFinished:
                     CardUseStruct use = (CardUseStruct)data;
-                    room.ClearCardFlag(use.Card);
+                    //room.ClearCardFlag(use.Card);
+                    use.Card.ClearFlags();                  //RoomCard会在其移动后自动清除flag
 
                     //以askforcard形式使用的卡牌没有onUse的trigger，但有finish
                     if (use.Reason != CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
@@ -829,7 +826,8 @@ namespace SanguoshaServer.Scenario
                             break;
                         if (effect.Jink_num == 1)
                         {
-                            CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, "slash-jink:" + slasher, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                            CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, string.Format("slash-jink:{0}::{1}", slasher, effect.Slash.Name),
+                                data, HandlingMethod.MethodUse, null, effect.From, false, false);
                             room.SlashResult(effect, room.IsJinkEffected(effect.To, resp) ? resp.Card : null);
                         }
                         else
@@ -837,7 +835,7 @@ namespace SanguoshaServer.Scenario
                             WrappedCard jink = new WrappedCard(DummyCard.ClassName);
                             for (int i = effect.Jink_num; i > 0; i--)
                             {
-                                string prompt = string.Format("@multi-jink{0}:{1}::{2}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i);
+                                string prompt = string.Format("@multi-jink{0}:{1}::{2}:{3}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i, effect.Slash.Name);
                                 CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
 
                                 if (!room.IsJinkEffected(effect.To, resp))
@@ -926,7 +924,7 @@ namespace SanguoshaServer.Scenario
                         data = judge_struct;
                         break;
                     }
-                case TriggerEvent.FinishRetrial:
+                case TriggerEvent.JudgeResult:
                     {
                         JudgeStruct judge = (JudgeStruct)data;
                         LogMessage log = new LogMessage

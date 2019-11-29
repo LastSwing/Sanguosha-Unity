@@ -249,7 +249,7 @@ namespace SanguoshaServer.AI
                 if (prompt.StartsWith("@multi-jink"))
                 {
                     List<string> strs = new List<string>(prompt.Split(':'));
-                    rest = int.Parse(strs[strs.Count - 1]);
+                    rest = int.Parse(strs[strs.Count - 2]);
                 }
                 WrappedCard result = null;
                 int available = 0;
@@ -590,7 +590,7 @@ namespace SanguoshaServer.AI
             }
 
             //进入鏖战前将桃吃完
-            if (room.AliveCount() <= room.Players.Count / 2 && room.Setting.GameMode == "Hegemony" && !RoomLogic.IsVirtualCard(room, card))
+            if (room.AliveCount() <= room.Players.Count / 2 && room.Setting.GameMode == "Hegemony" && !card.IsVirtualCard())
             {
                 bool check = true;
                 foreach (Player p in room.GetAlivePlayers())
@@ -909,7 +909,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             double good = 0, bad = 0;
             int wounded_friend = 0;
-            if ((!RoomLogic.IsVirtualCard(room, card) || card.SubCards.Count == 0) && ai.HasSkill("jizhi|jizhi_jx", player))
+            if ((!card.IsVirtualCard() || card.SubCards.Count == 0) && ai.HasSkill("jizhi|jizhi_jx", player))
                 good += 6;
             if ((ai.HasSkill("kongcheng|kongcheng_jx", player) || ai.HasLoseHandcardEffective()) && player.IsLastHandCard(card, true))
                 good += 5;
@@ -1533,7 +1533,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (ai.HasSkill("jizhi|jizhi_jx") && !RoomLogic.IsVirtualCard(ai.Room, duel) || ai.HasSkill("jiang"))
+            if (ai.HasSkill("jizhi|jizhi_jx") && !duel.IsVirtualCard() || ai.HasSkill("jiang"))
             {
                 if (targets.Count > 0 && scores[targets[0]] > 0)
                 {
@@ -1850,7 +1850,7 @@ namespace SanguoshaServer.AI
                 if (ai.Room.GetCardPlace(id) == Player.Place.PlaceHand && ai.Room.GetCardOwner(id) == player)
                     hand = true;
             }
-            if (!RoomLogic.IsVirtualCard(room, card) || card.SubCards.Count == 0)
+            if (!card.IsVirtualCard() || card.SubCards.Count == 0)
                 use.Card = card;
             else
             {
@@ -2126,7 +2126,7 @@ namespace SanguoshaServer.AI
             {
                 if (!fire.TargetFilter(room, new List<Player>(), p, player, card)) continue;
                 double adjust = 0;
-                if (ai.HasSkill("jizhi|jizhi_jx", player) && !RoomLogic.IsVirtualCard(room, card))
+                if (ai.HasSkill("jizhi|jizhi_jx", player) && !card.IsVirtualCard())
                     adjust += 3.5;
 
                 if (!ai.IsCancelTarget(card, p, player) && ai.IsCardEffect(card, p, player))
@@ -2541,7 +2541,7 @@ namespace SanguoshaServer.AI
                 return;
             }
 
-            if (can_recast && (!ai.HasSkill("jizhi|jizhi_jx", player) || (RoomLogic.IsVirtualCard(room, card) && card.SubCards.Count != 1)))
+            if (can_recast && (!ai.HasSkill("jizhi|jizhi_jx", player) || (card.IsVirtualCard() && card.SubCards.Count != 1)))
             {
                 use.Card = card;
                 return;
@@ -2742,7 +2742,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            double use_value = use.To.Count > 0 && ai.HasSkill("jizhi|jizhi_jx") && !RoomLogic.IsVirtualCard(room, card) ? 2 : 0;
+            double use_value = use.To.Count > 0 && ai.HasSkill("jizhi|jizhi_jx") && !card.IsVirtualCard() ? 2 : 0;
             foreach (Player p in use.To)
             {
                 foreach (string skill in ai.GetKnownSkills(p))
@@ -4231,7 +4231,8 @@ namespace SanguoshaServer.AI
             if (data is CardUseStruct use)
             {
                 List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { use.Card }, new List<Player>(use.To), false);
-                if (scores.Count > 0 && scores[0].Card.Name == FireSlash.ClassName)
+                if ((scores.Count > 0 && scores[0].Card.Name == FireSlash.ClassName) ||
+                    (ai.HasSkill("lihuo") && scores.Count > 1 && scores[1].Card.Name == FireSlash.ClassName || scores[1].Score > 0 && scores[0].Score - scores[1].Score < 1))
                 {
                     WrappedCard fire = new WrappedCard(FireSlash.ClassName) { Skill = use.Card.Skill, UserString = use.Card.UserString };
                     fire.AddSubCard(use.Card);
@@ -4368,8 +4369,10 @@ namespace SanguoshaServer.AI
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
             double value = 0;
+            Room room = ai.Room;
             if (ai.HasSkill("gangzhi", player)) return 10;
-
+            List<Player> enemies = ai.GetEnemies(player);
+            if (ai.GetFriends(player).Count + enemies.Count == room.AliveCount() && enemies.Count == 1 && ai.HasSkill("jueqing", enemies[0])) return 8;
             if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx|benyu|jianxiong|jianxiong_jx", player))
                 value -= 10;
 

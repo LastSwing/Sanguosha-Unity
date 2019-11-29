@@ -35,7 +35,63 @@ namespace SanguoshaServer
             clientList = new ConcurrentDictionary<int, string>();
             Version = ConfigurationManager.AppSettings.Get("ServerVersion");
             new Engine();
+            /*
+            MyData data = new MyData
+            {
+                Protocol = Protocol.ClientMessage,
+                Description = PacketDescription.Client2Hall,
+                Body = new List<string> { "damnyou" }
+            };
+
+            byte[] bytes = Data2byte(data);
+            MyData new_one = Unpack(bytes);
+
+            Debug(new_one.Protocol.ToString());
+            Debug(new_one.Description.ToString());
+            Debug(new_one.Body[0]);
+            */
         }
+        /*
+        public byte[] Data2byte(MyData data)
+        {
+            byte[] rawData = Encoding.UTF8.GetBytes(JsonUntity.Object2Json(data));
+            using (MemoryStream ms = new MemoryStream())
+            {
+                GZipOutputStream compressedzipStream = new GZipOutputStream(ms);
+
+                compressedzipStream.Write(rawData, 0, rawData.Length);
+                compressedzipStream.Close();
+                byte[] dataBody = ms.ToArray();
+                ms.Close();
+                return dataBody;
+            }
+        }
+
+        public MyData Unpack(byte[] bytes)
+        {
+            using (MemoryStream raw = new MemoryStream(bytes))
+            {
+                GZipInputStream zipFile = new GZipInputStream(raw);
+                using (MemoryStream re = new MemoryStream(5000))
+                {
+                    int count;
+                    byte[] data = new byte[5000];
+                    while ((count = zipFile.Read(data, 0, data.Length)) != 0)
+                    {
+                        re.Write(data, 0, count);
+                    }
+                    byte[] overarr = re.ToArray();
+                    re.Close();
+                    zipFile.Close();
+                    raw.Close();
+
+                    //将byte数组转为string
+                    string result = Encoding.UTF8.GetString(overarr);
+                    return JsonUntity.Json2Object<MyData>(result);
+                }
+            }
+        }
+        */
         public Room GetRoom(int room_id)
         {
             if (RId2Room.TryGetValue(room_id, out Room room))
@@ -505,10 +561,8 @@ namespace SanguoshaServer
                         if (RId2Room.TryGetValue(client.GameRoom, out room) && room != null && room.Host == client && !room.GameStarted)
                         {
                             int victim_id = int.Parse(data.Body[0]);
-                            if (!UId2ClientTable.TryGetValue(victim_id, out Client victim) || victim != null || victim_id < 0)
-                            {
+                            if (UId2ClientTable.TryGetValue(victim_id, out Client victim) && victim != null)
                                 victim.RequestLeaveRoom(true);
-                            }
                         }
                         break;
                     case Protocol.ConfigChange:

@@ -526,6 +526,16 @@ namespace SanguoshaServer.Scenario
 
         public override bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null)
         {
+            switch (player.GetRoleEnum())
+            {
+                case PlayerRole.Lord:
+                    return other.GetRoleEnum() == PlayerRole.Loyalist;
+                case PlayerRole.Loyalist:
+                    return other.GetRoleEnum() == PlayerRole.Lord || other.GetRoleEnum() == PlayerRole.Loyalist;
+                case PlayerRole.Rebel:
+                    return other.GetRoleEnum() == PlayerRole.Rebel;
+            }
+
             return false;
         }
 
@@ -652,10 +662,6 @@ namespace SanguoshaServer.Scenario
             return string.Join("+", winners);
         }
 
-        protected override void AddRuleSkill()
-        {
-        }
-
         public override void CheckBigKingdoms(Room room)
         {
         }
@@ -759,6 +765,17 @@ namespace SanguoshaServer.Scenario
         {
             double value = 0;
             General general = Engine.GetGeneral(general_name, "Classic");
+            List<string> skills = new List<string>(TrustedAI.MasochismSkill.Split('|'));
+            bool blood = false;
+            foreach (string skill in skills)
+            {
+                if (RoomLogic.PlayerHasSkill(room, lord, skill))
+                {
+                    blood = true;
+                    break;
+                }
+            }
+
             if (role == PlayerRole.Loyalist)
             {
                 General lord_general = Engine.GetGeneral(lord.General1, "Classic");
@@ -775,9 +792,16 @@ namespace SanguoshaServer.Scenario
                     value += 3;
                 if ((lord.General1 == "maliang" && general_name == "xiahoushi") || (general_name == "maliang" && lord.General1 == "xiahoushi"))         //马良和夏侯氏配合佳
                     value += 1;
-                if (lord.General1 == "maliang" && (general_name == "lusu" || general_name == "liubei" || general_name == "caorui"))                    //专克马良
+                if (lord.General1 == "maliang" && (general_name == "lusu" || general_name == "liubei" || general_name == "caorui" || general_name == "zhangchangpu"))    //专克马良
                     value -= 1;
                 if (general_name == "maliang" && (lord.General1 == "liubei" || lord.General1 == "lusu" || lord.General1 == "caorui")) value -= 2;
+                if (blood && general_name == "zhangchunhua") value -= 3;                                                                                //春哥克卖血
+                if (lord.General1 == "zhangchunhua")
+                {
+                    List<string> _skills = Engine.GetGeneralSkills(general_name, room.Setting.GameMode);
+                    foreach (string skill in _skills)
+                        if (TrustedAI.MasochismGood.Contains(skill)) value -= 1.5;
+                }
             }
             else if (role == PlayerRole.Rebel)
             {
@@ -786,19 +810,9 @@ namespace SanguoshaServer.Scenario
                     value -= 2;
                 if (general_name == "machao" && room.Players.Count > 5 && (self.Seat - lord.Seat > 0 && self.Seat - lord.Seat <= 2 || self.Seat >= room.Players.Count - 1))
                 {
-                    List<string> skills = new List<string>(TrustedAI.MasochismSkill.Split('|'));
-                    bool blood = false;
-                    foreach (string skill in skills)
-                    {
-                        if (RoomLogic.PlayerHasSkill(room, lord, skill))
-                        {
-                            blood = true;
-                            break;
-                        }
-                    }
-
                     if (blood) value += 1;
                 }
+                if (blood && general_name == "zhangchunhua") value += 2.5;                                                                        //春哥克卖血
                 if (general_name == "quyi" && (self.Seat - lord.Seat > 0 && self.Seat - lord.Seat <= 1 || self.Seat == room.Players.Count))     //近位麹义反贼有利
                     value += 1.5;
 
@@ -814,6 +828,16 @@ namespace SanguoshaServer.Scenario
 
                 if (lord.General1 == "maliang" && (general_name == "lusu" || general_name == "wangji" || lord.General1 == "diaochan_sp"))         //专克马良主
                     value += 2;
+
+                if (lord.General1 == "zhangchunhua")                                                            //春哥克卖血
+                {
+                    List<string> _skills = Engine.GetGeneralSkills(general_name, room.Setting.GameMode);
+                    foreach (string skill in _skills)
+                        if (skills.Contains(skill)) value -= 1.5;
+                }
+                if (lord.General1 == "caocao_god" && general_name == "haozhao") value += 3;                     //郝昭克神曹操 
+                if (general_name == "lusu" || general_name == "liubei" || general_name == "panjun" || general_name == "zhangchangpu")
+                    value -= 0.5 * (8 - room.Players.Count);                                                    //以8人局为标准，每少1人强度减少0.5
             }
             else if (role == PlayerRole.Renegade)
             {
@@ -823,12 +847,19 @@ namespace SanguoshaServer.Scenario
 
                 if (lord.IsFemale() && general_name == "xushi")                                                 //主公女性，徐氏不利
                     value -= 0.7;
+
+                if (lord.General1 == "zhangchunhua")                                                            //春哥克卖血
+                {
+                    List<string> _skills = Engine.GetGeneralSkills(general_name, room.Setting.GameMode);
+                    foreach (string skill in _skills)
+                        if (skills.Contains(skill)) value -= 1.5;
+                }
             }
 
             if (role != PlayerRole.Lord && (lord.General1 == "jvshou" || general_name == "caorui") && general_name == "xizhicai")
                 value += 2;
 
-            if (general_name == "caocao_god") value -= 0.5 * (8 - room.Players.Count);                          //以8人局为标准，每少1人强度减少0.5
+            if (general_name == "caocao_god" || general_name == "tadun") value -= 0.5 * (8 - room.Players.Count);   //以8人局为标准，每少1人强度减少0.5
             if (general_name == "liuyu") value += 0.2 * room.Players.Count - 4;                                 //游戏人数用4人起，每多1人强度+0.2
 
             return value;

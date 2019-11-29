@@ -1088,7 +1088,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            if (RoomLogic.IsVirtualCard(room, card) && card.GetSkillName() == "yigui" && to != null && to.HasShownOneGeneral())
+            if (card.IsVirtualCard() && card.GetSkillName() == "yigui" && to != null && to.HasShownOneGeneral())
             {
                 General general = Engine.GetGeneral(card.UserString, room.Setting.GameMode);
                 if (general == null)
@@ -1675,6 +1675,8 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed };
             skill_type = SkillType.Replenish;
         }
+
+        public override bool CanPreShow() => true;
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {

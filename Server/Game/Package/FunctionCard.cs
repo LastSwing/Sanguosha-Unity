@@ -85,7 +85,7 @@ namespace SanguoshaServer.Package
 
         public virtual void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
         {
-            use.Card = RoomLogic.ParseUseCard(room, use.Card);
+            use.Card = RoomLogic.ParseUseCard(room, use.Card).GetRealCard();
             room.ShowSkill(use.From, use.Card.ShowSkill, use.Card.SkillPosition);
 
             if (!ignore_rule)
@@ -94,11 +94,12 @@ namespace SanguoshaServer.Package
             WrappedCard use_card = use.Card;
 
             //将卡牌转化为延时锦囊就相当于改写了该牌的牌名，必须对其重写以保证此延时锦囊将来可以正确生效
-            if (Engine.GetFunctionCard(use_card.Name) is DelayedTrick && RoomLogic.IsVirtualCard(room, use_card) && use_card.SubCards.Count == 1)
+            if (Engine.GetFunctionCard(use_card.Name) is DelayedTrick && use_card.IsVirtualCard() && use_card.SubCards.Count == 1)
             {
-                WrappedCard wrapped = room.GetCard(use_card.GetEffectiveId());
+                RoomCard wrapped = room.GetCard(use_card.GetEffectiveId());
+                use_card.Id = wrapped.Id;
                 wrapped.TakeOver(use_card);
-                use.Card = wrapped;
+                use.Card = wrapped.GetRealCard();
             }
 
             //record big or small for fighttogether

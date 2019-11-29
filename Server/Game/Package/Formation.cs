@@ -36,6 +36,7 @@ namespace SanguoshaServer.Package
                 new QianhuanClear(),
                 new Zhendu(),
                 new Qiluan(),
+                new QiluanClear(),
                 new Zhangwu(),
                 new Zhangwu_Draw(),
                 new Shouyue(),
@@ -56,7 +57,8 @@ namespace SanguoshaServer.Package
                 { "tuntian", new List<string>{"#tuntian-gotofield", "#tuntian-clear" } },
                 { "shengxi", new List<string>{ "#shengxi-clear" } },
                 { "qianhuan", new List<string>{ "#qianhuan-clear" } },
-                { "zhangwu", new List<string>{ "#zhangwu-draw" } }
+                { "zhangwu", new List<string>{ "#zhangwu-draw" } },
+                { "qiluan", new List<string>{ "#qiluan" } }
             };
         }
     }
@@ -743,7 +745,7 @@ namespace SanguoshaServer.Package
                         blacks.Add(card_id);
                 }
                 effect.To.SetFlags("shangyi_target");
-                int to_discard = room.DoGongxin(effect.From, effect.To, blacks, "shangyi", "@shangyi:" + effect.To.Name, effect.Card.SkillPosition);
+                int to_discard = room.DoGongxin(effect.From, effect.To, effect.To.GetCards("h"), blacks, "shangyi", "@shangyi:" + effect.To.Name, effect.Card.SkillPosition);
                 effect.To.SetFlags("-shangyi_target");
 
                 if (to_discard == -1) return;
@@ -1159,44 +1161,30 @@ namespace SanguoshaServer.Package
         public Qiluan() : base("qiluan")
         {
             events = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.EventPhaseStart };
-            frequency = Frequency.Frequent;
             skill_type = SkillType.Replenish;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.Death && data is DeathStruct death)
+            if (triggerEvent == TriggerEvent.Death && data is DeathStruct death && death.Damage.From != null && death.Damage.From.Alive)
             {
-                if (death.Damage.From == null)
-                    return;
-
                 Player current = room.Current;
                 if (current != null && (current.Alive || death.Who == current) && current.Phase != PlayerPhase.NotActive)
-                {
-                    foreach (Player p in room.GetAllPlayers()) {
-                        if (base.Triggerable(p, room) && death.Damage.From == p)
-                            p.SetMark(Name, 1);
-                    }
-                }
+                    death.Damage.From.SetMark(Name , 1);
             }
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> skill_list = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player != null)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.NotActive)
             {
-                if (player.Phase == PlayerPhase.NotActive)
-                {
-                    foreach (Player p in room.GetAllPlayers()) {
-                        if (p.GetMark(Name) > 0 && base.Triggerable(p, room) && p.Alive)
-                            skill_list.Add(new TriggerStruct(Name, p));
-                    }
-                }
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                    if (p.GetMark(Name) > 0) skill_list.Add(new TriggerStruct(Name, p));
             }
+
             return skill_list;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player hetaihou, TriggerStruct info)
         {
-            hetaihou.SetMark(Name, 0);
             if (room.AskForSkillInvoke(hetaihou, Name, null, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, hetaihou, info.SkillPosition);
@@ -1211,6 +1199,29 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class QiluanClear : TriggerSkill
+    {
+        public QiluanClear() : base("#qiluan")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
+        }
+        public override int GetPriority() => 2;
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark("qiluan") > 0) p.SetMark("qiluan", 0);
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
     public class Zhangwu : TriggerSkill
     {
         public Zhangwu() : base("zhangwu")

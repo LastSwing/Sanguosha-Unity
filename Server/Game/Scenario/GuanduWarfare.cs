@@ -424,11 +424,7 @@ namespace SanguoshaServer.Scenario
 
             return string.Join("+", winners);
         }
-
-        protected override void AddRuleSkill()
-        {
-        }
-
+        
         public override void CheckBigKingdoms(Room room)
         {
         }

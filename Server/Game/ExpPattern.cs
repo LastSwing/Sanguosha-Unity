@@ -118,7 +118,7 @@ namespace SanguoshaServer.Game
                         //国战鏖战模式对桃特殊判断
 
                         bool name_match = false;
-                        if (room.BloodBattle && card.Name == Peach.ClassName && !RoomLogic.IsVirtualCard(room, card))
+                        if (room.BloodBattle && card.Name == Peach.ClassName && !card.IsVirtualCard())
                         {
                             if (positive && (name == Slash.ClassName || name == "%Slash" || name == Jink.ClassName || name == "%Jink"))
                                 name_match = true;

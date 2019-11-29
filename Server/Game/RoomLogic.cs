@@ -148,7 +148,7 @@ namespace SanguoshaServer.Game
         public static string CardToString(Room room, WrappedCard card)
         {
             bool modified = false;
-            if (!IsVirtualCard(room, card))
+            if (!card.IsVirtualCard())
             {
                 WrappedCard origin = Engine.GetRealCard(card.Id);
                 if (origin.Equals(card))
@@ -167,7 +167,7 @@ namespace SanguoshaServer.Game
 
             return str.ToString();
         }
-
+        /*
         public static bool IsVirtualCard(Room room, WrappedCard card)
         {
             if (card.Id < 0)
@@ -178,10 +178,10 @@ namespace SanguoshaServer.Game
                 return ori_card != card;
             }
         }
-
+        */
         public static WrappedCard ParseUseCard(Room room, WrappedCard card)
         {
-            if (!IsVirtualCard(room, card))
+            if (!card.IsVirtualCard())
             {
                 return card;
             }
@@ -277,7 +277,7 @@ namespace SanguoshaServer.Game
 
         public static CardSuit GetCardSuit(Room room, WrappedCard card)
         {
-            if (IsVirtualCard(room, card))
+            if (card.IsVirtualCard())
             {
                 if (Engine.GetFunctionCard(card.Name) is SkillCard)
                     return CardSuit.NoSuit;

@@ -176,7 +176,7 @@ namespace SanguoshaServer.AI
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
             Room room = ai.Room;
-            if (!isUse && ai.HasSkill(Name, player) && !RoomLogic.IsVirtualCard(room, card)
+            if (!isUse && ai.HasSkill(Name, player) && !card.IsVirtualCard()
                 && (player.GetHandPile().Contains(card.GetEffectiveId()) || place == Player.Place.PlaceHand || place == Player.Place.PlaceEquip)
                 && WrappedCard.IsRed(RoomLogic.GetCardSuit(room, card)) && (ai.Room.BloodBattle || card.Name != Peach.ClassName))
             {
@@ -517,8 +517,8 @@ namespace SanguoshaServer.AI
         public override bool IsCancelTarget(TrustedAI ai, WrappedCard card, Player from, Player to)
         {
             Room room = ai.Room;
-            if (card != null && ai.HasSkill(Name, to) && WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, card)))
-                return Engine.GetFunctionCard(card.Name) is TrickCard;
+            if (card != null && ai.HasSkill(Name, to) && Engine.GetFunctionCard(card.Name) is TrickCard)
+                return WrappedCard.IsBlack(RoomLogic.GetCardSuit(room, card));
 
             return false;
         }
@@ -958,7 +958,7 @@ namespace SanguoshaServer.AI
 
                     if (change)
                     {
-                        if (judge.Reason == "beige")
+                        if (judge.Reason == "beige" || judge.Reason == "beige_jx")
                         {
                             if (!judge.Who.FaceUp && suit == WrappedCard.CardSuit.Spade)
                                 ai.UpdatePlayerRelation(player, judge.Who, true);
