@@ -1636,6 +1636,11 @@ namespace SanguoshaServer.AI
                 if (damage.Nature == DamageStruct.DamageNature.Fire && damage.To.GetMark("@gale") > 0) damage.Damage++;
                 if (damage.Nature != DamageStruct.DamageNature.Thunder && damage.To.GetMark("@fog") > 0) return 0;
                 if (damage.To.GetMark("@tangerine") > 0) return 0;
+                if (damage.Nature == DamageStruct.DamageNature.Fire && HasSkill("shixin", damage.To)) return 0;
+                if (HasSkill("yinshi", damage.To) && damage.To.GetMark("@dragon") == 0 && damage.To.GetMark("@phenix") == 0
+                    && !damage.To.EquipIsBaned(1) && !damage.To.GetArmor() && (damage.Card != null && Engine.GetFunctionCard(damage.Card.Name).TypeID == CardType.TypeTrick
+                    || damage.Nature != DamageStruct.DamageNature.Normal))
+                    return 0;
 
                 if (damage.From != null && damage.From.Alive && HasSkill("gongqing", damage.To) && damage.Damage > 1)
                 {
@@ -2908,6 +2913,8 @@ namespace SanguoshaServer.AI
             double jink = 0;
             double force_hit = 0;
 
+            if (from.ContainsTag("wenji") && from.GetTag("wenji") is List<string> names && names.Contains(Slash.ClassName))
+                force_hit = 1;
             if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, to) == 1)
                 force_hit = 1;
             if (HasSkill("wanglie", from) && from.Phase == PlayerPhase.Play && !IsFriend(from, to)) force_hit = 1;
@@ -3179,6 +3186,8 @@ namespace SanguoshaServer.AI
             double jink = 0;
             double force_hit = 0;
 
+            if (from.ContainsTag("wenji") && from.GetTag("wenji") is List<string> names && names.Contains(Slash.ClassName))
+                force_hit = 1;
             if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, to) == 1)
                 force_hit = 1;
 
@@ -4184,6 +4193,7 @@ namespace SanguoshaServer.AI
             Player attacker = self;
             double good = 0, bad = 0;
             Player current = room.Current;
+            int target_num = 0;
             bool wansha = RoomLogic.PlayerHasShownSkill(room, current, "wansha");
             int peach_num = GetKnownCardsNums(Peach.ClassName, "he", self);
             int null_num = GetKnownCardsNums(Nullification.ClassName, "he", self);
@@ -4193,6 +4203,8 @@ namespace SanguoshaServer.AI
             {
                 if (RoomLogic.IsProhibited(room, self, p, card) == null && !IsCancelTarget(card, p, self) && IsCardEffect(card, p, self))
                     targets.Add(p);
+                if (RoomLogic.IsProhibited(room, self, p, card) == null && !IsCancelTarget(card, p, self))
+                    target_num++;
             }
 
             foreach (Player p in room.GetOtherPlayers(self))
@@ -4202,6 +4214,8 @@ namespace SanguoshaServer.AI
 
                 bool fuqi = false;
                 if (HasSkill("fuqi") && RoomLogic.DistanceTo(room, self, p) == 1)
+                    fuqi = true;
+                if (self.ContainsTag("wenji") && self.GetTag("wenji") is List<string> names && names.Contains(card.Name))
                     fuqi = true;
 
                 if (IsFriend(p))
@@ -4368,8 +4382,22 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-
-            //room.OutPut("good is " + good.ToString() + " bad is " + bad.ToString());
+            double adjust = 0;
+            if (HasSkill("tushe"))
+            {
+                bool basic = false;
+                foreach (int id in self.GetCards("h"))
+                {
+                    WrappedCard wrapped = room.GetCard(id);
+                    if (Engine.GetFunctionCard(wrapped.Name).TypeID == CardType.TypeBasic)
+                    {
+                        basic = true;
+                        break;
+                    }
+                }
+                if (!basic) adjust = 1.5 * target_num;
+                good += adjust;
+            }
 
             return good > bad;
         }
@@ -5667,7 +5695,9 @@ namespace SanguoshaServer.AI
 
             AskForMoveCardsStruct result = new AskForMoveCardsStruct
             {
-                Success = true
+                Success = true,
+                Top = new List<int>(),
+                Bottom = new List<int>()
             };
             if (judge_for_next.Count > 0)
             {
@@ -6370,7 +6400,7 @@ namespace SanguoshaServer.AI
             if (refusable)
                 return -1;
 
-            Shuffle.shuffle<int>(ref card_ids);
+            Shuffle.shuffle(ref card_ids);
             return card_ids[0];
         }
         public virtual WrappedCard AskForCardShow(Player requestor, string reason, object data) => room.GetCard(room.GetRandomHandCard(self));

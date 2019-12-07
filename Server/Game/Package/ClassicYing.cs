@@ -2686,7 +2686,7 @@ namespace SanguoshaServer.Package
     {
         public Huaiju() : base("huaiju")
         {
-            events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.DamageInflicted, TriggerEvent.EventPhaseProceeding, TriggerEvent.Death };
+            events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.DamageDefined, TriggerEvent.EventPhaseProceeding, TriggerEvent.Death };
             frequency = Frequency.Compulsory;
         }
 
@@ -2705,7 +2705,7 @@ namespace SanguoshaServer.Package
             {
                 case TriggerEvent.EventPhaseProceeding when player.GetMark("@tangerine") > 0 && player.Phase == PlayerPhase.Draw && luji != null:
                     return new TriggerStruct(Name, luji);
-                case TriggerEvent.DamageInflicted when player.GetMark("@tangerine") > 0 && luji != null:
+                case TriggerEvent.DamageDefined when player.GetMark("@tangerine") > 0 && luji != null:
                     return new TriggerStruct(Name, luji);
                 case TriggerEvent.GameStart when base.Triggerable(player, room):
                     return new TriggerStruct(Name, player);
@@ -2735,7 +2735,7 @@ namespace SanguoshaServer.Package
                         break;
                     }
 
-                case TriggerEvent.DamageInflicted:
+                case TriggerEvent.DamageDefined:
                     {
                         room.SendCompulsoryTriggerLog(ask_who, Name);
                         room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);

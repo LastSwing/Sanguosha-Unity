@@ -644,21 +644,15 @@ namespace SanguoshaServer.Package
             while (guojia.Alive && yiji_cards.Count > 0)
             {
                 guojia.PileChange("#yiji", yiji_cards);
-                if (!room.AskForYiji(guojia, yiji_cards, Name, true, false, true, -1,
-                                      room.GetOtherPlayers(guojia), null, null, "#yiji", false, info.SkillPosition))
+                if (!room.AskForYiji(guojia, yiji_cards, Name, true, false, true, -1, room.GetOtherPlayers(guojia), null, null, "#yiji", false, info.SkillPosition))
                     break;
 
-                guojia.PileChange("#yiji", origin_yiji, false);
+                guojia.Piles["#yiji"].Clear();
                 foreach (int id in origin_yiji)
-                {
                     if (room.GetCardPlace(id) != Place.DrawPile)
-                    {
                         yiji_cards.Remove(id);
-                    }
-                }
             }
-
-            guojia.PileChange("#yiji", yiji_cards, false);
+            if (guojia.GetPile("#yiji").Count > 0) guojia.Piles["#yiji"].Clear();
             if (yiji_cards.Count > 0 && guojia.Alive)
             {
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GOTBACK, guojia.Name);
@@ -669,7 +663,6 @@ namespace SanguoshaServer.Package
             if (yiji_cards.Count > 0)
                 room.ReturnToDrawPile(yiji_cards, false);
         }
-
     }
 
     public class Luoshen : TriggerSkill
@@ -6208,10 +6201,7 @@ namespace SanguoshaServer.Package
             filter_pattern = ".|red|.|hand";
             response_or_use = true;
         }
-        public override bool IsEnabledAtPlay(Room room, Player player)
-        {
-            return player.UsedTimes("ViewAsSkill_duoshiCard") < 4;
-        }
+        public override bool IsEnabledAtPlay(Room room, Player player) => player.UsedTimes("ViewAsSkill_duoshiCard") < 4;
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
             WrappedCard await = new WrappedCard(AwaitExhausted.ClassName);

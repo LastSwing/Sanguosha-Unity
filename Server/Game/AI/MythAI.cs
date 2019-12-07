@@ -16,11 +16,13 @@ namespace SanguoshaServer.AI
                 new GuixinAI(),
                 new PoxiAI(),
                 new WumouAI(),
+                new CuikeAI(),
             };
 
             use_cards = new List<UseCard>
             {
                 new PoxiCardAI(),
+                new ZhanhuoCardAI(),
             };
         }
     }
@@ -123,6 +125,65 @@ namespace SanguoshaServer.AI
                 return -3;
 
             return 0;
+        }
+    }
+
+    public class CuikeAI : SkillEvent
+    {
+        public CuikeAI() : base("cuike")
+        {
+            key = new List<string> { "playerChosen:cuike", "cardChosen:cuike" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                if (str.StartsWith("playerChosen:cuike") && strs[1] == Name)
+                {
+                    Player target = room.FindPlayer(strs[2]);
+                    if (ai.GetPlayerTendency(target) != "unknown" && ai is StupidAI _ai)
+                    {
+                         if (!player.HasFlag(Name) && !_ai.NeedDamage(new DamageStruct(Name, player, target)))
+                            ai.UpdatePlayerRelation(player, target, false);
+                         else if (player.HasFlag(Name) && player.IsAllNude())
+                            ai.UpdatePlayerRelation(player, target, false);
+                    }
+                }
+                else if (str.StartsWith("cardChosen:cuike"))
+                {
+
+                    int id = int.Parse(strs[2]);
+                    Player target = room.FindPlayer(strs[3]);
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                    {
+                        if (room.GetCardPlace(id) == Player.Place.PlaceEquip)
+                            ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(id, target) > 0);
+                        else if (room.GetCardPlace(id) == Player.Place.PlaceDelayedTrick)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                            ai.UpdatePlayerRelation(player, target, false);
+                    }
+                }
+            }
+        }
+    }
+
+    public class ZhanhuoCardAI : UseCard
+    {
+        public ZhanhuoCardAI() : base(ZhanhuoCard.ClassName) { }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                foreach (Player p in use.To)
+                {
+                    if (ai.GetPlayerTendency(p) != "unknown")
+                        ai.UpdatePlayerRelation(player, p, false);
+                }
+            }
         }
     }
 }

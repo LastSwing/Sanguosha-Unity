@@ -422,12 +422,22 @@ namespace SanguoshaServer.Scenario
             {
                 generalName = reply[0];
                 string[] generals = generalName.Split('+');
-                if (generals.Length != 2 || (!options.Contains(generals[0]) && room.GetClient(player).UserRight < 3)
-                    || (!options.Contains(generals[1]) && room.GetClient(player).UserRight < 3)
-                    || !SetPlayerGeneral(room, player, generals[0], true)
-                    || !SetPlayerGeneral(room, player, generals[1], false))
-                {
+                if (generals.Length != 2)
                     success = false;
+                else
+                {
+                    General general1 = Engine.GetGeneral(generals[0], "Hegemony");
+                    General general2 = Engine.GetGeneral(generals[1], "Hegemony");
+                    if (general1 == null || general1.Hidden || general2 == null || general2.Hidden
+                        || !room.Setting.GeneralPackage.Contains(general1.Package)
+                        || !room.Setting.GeneralPackage.Contains(general2.Package)
+                        || (!options.Contains(generals[0]) && room.GetClient(player).UserRight < 3)
+                        || (!options.Contains(generals[1]) && room.GetClient(player).UserRight < 3)
+                        || !SetPlayerGeneral(room, player, generals[0], true)
+                        || !SetPlayerGeneral(room, player, generals[1], false))
+                    {
+                        success = false;
+                    }
                 }
             }
 

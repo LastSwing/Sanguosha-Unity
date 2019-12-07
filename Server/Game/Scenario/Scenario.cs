@@ -379,8 +379,7 @@ namespace SanguoshaServer.Scenario
                     fcard.DoPreAction(room, player, card);
                     data = card_use;
                 }
-
-                List<Player> targets = card_use.To;
+                
                 List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
                     (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();                    //for serval purpose, such as AI
                 use_list.Add(card_use);
@@ -395,11 +394,10 @@ namespace SanguoshaServer.Scenario
                 {
                     thread.Trigger(TriggerEvent.TargetChoosing, room, card_use.From, ref data);
                     CardUseStruct new_use = (CardUseStruct)data;
-                    targets = new_use.To;
                 }
 
                 card_use = (CardUseStruct)data;
-                if (card_use.From != null && targets.Count > 0)
+                if (card_use.From != null && card_use.To.Count > 0)
                 {
                     foreach (CardBasicEffect effect in card_use.EffectCount)
                         effect.Triggered = false;
@@ -617,8 +615,6 @@ namespace SanguoshaServer.Scenario
 
                     foreach (Client p in room.Clients)
                         room.DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { "." });
-                    if (Engine.GetFunctionCard(use.Card.Name) is Slash)
-                        use.From.RemoveTag("Jink_" + RoomLogic.CardToString(room, use.Card));
 
                     break;
                 case TriggerEvent.EventAcquireSkill:
@@ -672,18 +668,16 @@ namespace SanguoshaServer.Scenario
                 case TriggerEvent.DamageDone:
                     {
                         damage = (DamageStruct)data;
-                        if (damage.From != null && !damage.From.Alive)
-                            damage.From = null;
-                        data = damage;
+                        if (damage.From != null && !damage.From.Alive) damage.From = null;
                         room.SendDamageLog(damage);
 
+                        if (damage.Nature != DamageNature.Normal && player.Chained && !damage.Chain && !damage.ChainStarter)
+                            damage.ChainStarter = true;
+
+                        data = damage;
+
                         bool reduce = !room.ApplyDamage(player, damage);
-                        if (damage.Nature != DamageNature.Normal && player.Chained && !damage.Chain)
-                        {
-                            int n = room.ContainsTag("is_chained") ? (int)room.GetTag("is_chained") : 0;
-                            n++;
-                            room.SetTag("is_chained", n);
-                        }
+
                         if (reduce)
                             room.RoomThread.Trigger(TriggerEvent.PostHpReduced, room, player, ref data);
 
@@ -694,47 +688,43 @@ namespace SanguoshaServer.Scenario
                         damage = (DamageStruct)data;
                         if (damage.Prevented)
                             return false;
+                        /*
                         if (damage.Nature != DamageNature.Normal && player.Chained)
                         {
                             room.ChainedRemoveOnDamageDone(player, damage);
-                            //player.Chained = false;
-                            //room.BroadcastProperty(player, "Chained");
                         }
-                        if (room.ContainsTag("is_chained") && (int)room.GetTag("is_chained") > 0)
+                        */
+                        if (damage.Nature != DamageNature.Normal && !damage.Chain && damage.ChainStarter)      // iron chain effect
                         {
-                            if (damage.Nature != DamageNature.Normal && !damage.Chain)
+                            List<Player> chained_players = new List<Player>();
+                            if (!room.Current.Alive)
+                                chained_players = room.GetOtherPlayers(room.Current);
+                            else
+                                chained_players = room.GetAllPlayers();
+                            chained_players.Remove(damage.To);
+                            foreach (Player chained_player in chained_players)
                             {
-                                // iron chain effect
-                                int n = (int)room.GetTag("is_chained");
-                                n--;
-                                room.SetTag("is_chained", n);
-                                List<Player> chained_players = new List<Player>();
-                                if (!room.Current.Alive)
-                                    chained_players = room.GetOtherPlayers(room.Current);
-                                else
-                                    chained_players = room.GetAllPlayers();
-                                foreach (Player chained_player in chained_players) {
-                                    if (chained_player.Chained)
+                                if (chained_player.Chained)
+                                {
+                                    Thread.Sleep(500);
+                                    LogMessage log = new LogMessage
                                     {
-                                        Thread.Sleep(500);
-                                        LogMessage log = new LogMessage
-                                        {
-                                            Type = "#IronChainDamage",
-                                            From = chained_player.Name
-                                        };
-                                        room.SendLog(log);
+                                        Type = "#IronChainDamage",
+                                        From = chained_player.Name
+                                    };
+                                    room.SendLog(log);
 
-                                        DamageStruct chain_damage = damage;
-                                        chain_damage.To = chained_player;
-                                        chain_damage.Chain = true;
-                                        chain_damage.Transfer = false;
-                                        chain_damage.TransferReason = null;
+                                    DamageStruct chain_damage = damage;
+                                    chain_damage.To = chained_player;
+                                    chain_damage.Chain = true;
+                                    chain_damage.Transfer = false;
+                                    chain_damage.TransferReason = null;
 
-                                        room.Damage(chain_damage);
-                                    }
+                                    room.Damage(chain_damage);
                                 }
                             }
                         }
+
                         foreach (Player p in room.GetAllPlayers()) {
                             if (p.HasFlag("Global_DFDebut"))
                             {

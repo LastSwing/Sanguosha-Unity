@@ -88,15 +88,16 @@ namespace SanguoshaServer.AI
                 string[] strs = str.Split(':');
                 if (strs[1] == Name)
                 {
+                    Player target = room.Current;
                     if (ai is SmartAI && player != ai.Self)
                     {
-                        Player target = room.Current;
                         if (ai.GetPlayerTendency(target) == "unknown")
                             ai.UpdatePlayerRelation(player, target, true);
                     }
                     else if (ai is StupidAI _ai)
                     {
-
+                        if (_ai.GetPlayerTendency(target) != "unknown")
+                            _ai.UpdatePlayerRelation(player, target, true);
                     }
                 }
             }

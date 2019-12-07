@@ -282,7 +282,7 @@ namespace SanguoshaServer.Package
     {
         public BreastPlateSkill() : base(BreastPlate.ClassName)
         {
-            events.Add(TriggerEvent.DamageInflicted);
+            events.Add(TriggerEvent.DamageDefined);
             frequency = Frequency.Compulsory;
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)

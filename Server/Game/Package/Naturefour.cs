@@ -63,6 +63,7 @@ namespace SanguoshaServer.Package
                 new TuntianJXDistance(),
                 new Zaoxian(),
                 new QiangxiJX(),
+                new ShensuJX(),
 
                 new BuquJX(),
                 new BuquJXClear(),
@@ -82,6 +83,7 @@ namespace SanguoshaServer.Package
                 new ZhibaCard(),
                 new GuhuoCard(),
                 new TiaoxinJXCard(),
+                new ShensuJXCard(),
             };
             related_skills = new Dictionary<string, List<string>>
             {
@@ -2900,6 +2902,158 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class ShensuJXCard : SkillCard
+    {
+        public static string ClassName = "ShensuJXCard";
+        public ShensuJXCard() : base(ClassName) { }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            WrappedCard slash = new WrappedCard(Slash.ClassName)
+            {
+                Skill = "shensu_jx",
+                DistanceLimited = false
+            };
+            return Slash.Instance.TargetFilter(room, targets, to_select, Self, slash);
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            if (room.GetRoomState().GetCurrentCardUsePattern().EndsWith("3"))
+                room.TurnOver(card_use.From);
+
+            List<Player> targets = new List<Player>(card_use.To);
+            if (targets.Count > 0)
+            {
+
+                room.SetTag("shensu_invoke" + card_use.From.Name, targets);
+            }
+        }
+    }
+
+    public class ShensuVS : ViewAsSkill
+    {
+        public ShensuVS() : base("shensu_jx")
+        {
+        }
+        public override bool IsEnabledAtPlay(Room room, Player player) => false;
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern) => pattern.StartsWith("@@shensu_jx");
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            if (room.GetRoomState().GetCurrentCardUsePattern().EndsWith("1"))
+                return false;
+            else
+                return selected.Count == 0 && Engine.GetFunctionCard(to_select.Name) is EquipCard && !RoomLogic.IsJilei(room, player, to_select);
+        }
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (room.GetRoomState().GetCurrentCardUsePattern().EndsWith("1") || room.GetRoomState().GetCurrentCardUsePattern().EndsWith("3"))
+            {
+                if (cards.Count == 0)
+                {
+                    WrappedCard card = new WrappedCard(ShensuJXCard.ClassName)
+                    {
+                        Skill = Name
+                    };
+                    return card;
+                }
+            }
+            else if (cards.Count == 1)
+            {
+                WrappedCard card = new WrappedCard(ShensuJXCard.ClassName)
+                {
+                    Skill = Name
+                };
+                card.AddSubCards(cards);
+                return card;
+            }
+            return null;
+        }
+    }
+
+    public class ShensuJX : TriggerSkill
+    {
+        public ShensuJX() : base("shensu_jx")
+        {
+            events.Add(TriggerEvent.EventPhaseChanging);
+            view_as_skill = new ShensuVS();
+            skill_type = SkillType.Attack;
+        }
+        public override bool CanPreShow() => true;
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player xiahouyuan, ref object data, Player ask_who)
+        {
+            if (!base.Triggerable(xiahouyuan, room) || !Slash.IsAvailable(room, xiahouyuan))
+                return new TriggerStruct();
+
+            PhaseChangeStruct change = (PhaseChangeStruct)data;
+            if (change.To == PlayerPhase.Judge && !xiahouyuan.IsSkipped(PlayerPhase.Judge) && !xiahouyuan.IsSkipped(PlayerPhase.Draw))
+            {
+                return new TriggerStruct(Name, xiahouyuan);
+            }
+            else if (change.To == PlayerPhase.Play && RoomLogic.CanDiscard(room, xiahouyuan, xiahouyuan, "he") && !xiahouyuan.IsSkipped(PlayerPhase.Play))
+            {
+                return new TriggerStruct(Name, xiahouyuan);
+            }
+            if (change.To == PlayerPhase.Discard && !xiahouyuan.IsSkipped(PlayerPhase.Discard))
+            {
+                return new TriggerStruct(Name, xiahouyuan);
+            }
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player xiahouyuan, ref object data, Player ask_who, TriggerStruct info)
+        {
+            PhaseChangeStruct change = (PhaseChangeStruct)data;
+            if (change.To == PlayerPhase.Judge && room.AskForUseCard(xiahouyuan, "@@shensu_jx1", "@shensu_jx1", -1, HandlingMethod.MethodUse, true, info.SkillPosition) != null)
+            {
+                if (room.ContainsTag("shensu_invoke" + xiahouyuan.Name))
+                {
+                    room.SkipPhase(xiahouyuan, PlayerPhase.Judge);
+                    room.SkipPhase(xiahouyuan, PlayerPhase.Draw);
+                    return info;
+                }
+            }
+            else if (change.To == PlayerPhase.Play && room.AskForUseCard(xiahouyuan, "@@shensu_jx2", "@shensu_jx2", -1, HandlingMethod.MethodDiscard, true, info.SkillPosition) != null)
+            {
+                if (room.ContainsTag("shensu_invoke" + xiahouyuan.Name))
+                {
+                    room.SkipPhase(xiahouyuan, PlayerPhase.Play);
+                    return info;
+                }
+            }
+            else if (change.To == PlayerPhase.Discard && room.AskForUseCard(xiahouyuan, "@@shensu_jx3", "@shensu_jx3", -1, HandlingMethod.MethodUse, true, info.SkillPosition) != null)
+            {
+                if (room.ContainsTag("shensu_invoke" + xiahouyuan.Name))
+                {
+                    room.SkipPhase(xiahouyuan, PlayerPhase.Discard);
+                    return info;
+                }
+            }
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.Alive && data is PhaseChangeStruct change)
+            {
+                List<Player> targets = (List<Player>)room.GetTag("shensu_invoke" + player.Name);
+                room.RemoveTag("shensu_invoke" + player.Name);
+
+                WrappedCard slash = new WrappedCard(Slash.ClassName)
+                {
+                    Skill = "_shensu",
+                    DistanceLimited = false
+                };
+
+                room.UseCard(new CardUseStruct(slash, player, targets));
+            }
+
+            return false;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = card.SubCards.Count + 1;
+        }
+    }
+
     #region 吴
     public class BuquJX : TriggerSkill
     {
@@ -3087,7 +3241,7 @@ namespace SanguoshaServer.Package
     {
         public TianxiangJX() : base("tianxiang_jx")
         {
-            events.Add(TriggerEvent.DamageInflicted);
+            events.Add(TriggerEvent.DamageDefined);
             skill_type = SkillType.Defense;
             view_as_skill = new TianxiangJXViewAsSkill();
         }

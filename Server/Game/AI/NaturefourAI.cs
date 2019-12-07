@@ -36,6 +36,7 @@ namespace SanguoshaServer.AI
 
                 new QiangxiJXAI(),
                 new TuntianJXAI(),
+                new ShensuJXAI(),
             };
 
             use_cards = new List<UseCard>
@@ -586,6 +587,23 @@ namespace SanguoshaServer.AI
             }
         }
 
+        public override WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> players)
+        {
+            Player lord = players[0];
+            Room room = ai.Room;
+            if (ai.Self == requestor)
+            {
+                if (ai.Number[Name] >= 0)
+                    return room.GetCard((int)ai.Number[Name]);
+                else if (ai.IsFriend(lord))
+                    return ai.GetMinCard();
+                else
+                    return ai.GetMinCard();
+            }
+            else
+                return ai.GetMaxCard();
+        }
+
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             if (data is string str)
@@ -619,23 +637,6 @@ namespace SanguoshaServer.AI
                 return new List<WrappedCard> { new WrappedCard(ZhibaCard.ClassName) };
 
             return new List<WrappedCard>();
-        }
-
-        public override WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> players)
-        {
-            Player lord = players[0];
-            Room room = ai.Room;
-            if (ai.Self == requestor)
-            {
-                if (ai.Number[Name] >= 0)
-                    return room.GetCard((int)ai.Number[Name]);
-                else if (ai.IsFriend(lord))
-                    return ai.GetMinCard();
-                else
-                    return ai.GetMinCard();
-            }
-            else
-                return ai.GetMaxCard();
         }
     }
 
@@ -1312,6 +1313,203 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;
+        }
+    }
+
+    public class ShensuJXAI : SkillEvent
+    {
+        public ShensuJXAI() : base("shensu_jx")
+        {
+        }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            Room room = ai.Room;
+
+            if (prompt.EndsWith("1"))
+            {
+                if (!ai.WillShowForAttack()) return use;
+                if (RoomLogic.PlayerContainsTrick(room, player, Lightning.ClassName) && player.JudgingArea.Count == 1)
+                {
+                    Player wizzard = ai.GetWizzardRaceWinner(Lightning.ClassName, player);
+                    if (wizzard == null || !ai.IsEnemy(wizzard))
+                        return use;
+                }
+                if (!RoomLogic.PlayerContainsTrick(room, player, Indulgence.ClassName) && !RoomLogic.PlayerContainsTrick(room, player, SupplyShortage.ClassName))
+                {
+                    if (player.HasTreasure(JadeSeal.ClassName) || player.GetPile("yijipile").Count > 0) return use;
+                }
+
+                WrappedCard slash = new WrappedCard(Slash.ClassName)
+                {
+                    Skill = "_shensu_jx",
+                    DistanceLimited = false
+                };
+                List<WrappedCard> cards = new List<WrappedCard> { slash };
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, cards, null, false);
+                if (scores.Count > 0)
+                {
+                    foreach (Player p in scores[0].Players)
+                    {
+                        if (ai.IsEnemy(p) && scores[0].Score > 4)
+                        {
+                            if (p.Hp <= 1 && (!RoomLogic.InMyAttackRange(room, player, p) || ai.GetCards(Slash.ClassName, player).Count == 0 || RoomLogic.PlayerContainsTrick(room, player, Indulgence.ClassName)))
+                            {
+                                use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                                use.To = scores[0].Players;
+                                return use;
+                            }
+                        }
+                    }
+                }
+                bool Nullification = false;
+                foreach (Player p in ai.GetFriends(player))
+                {
+                    if (ai.GetKnownCardsNums("Nullification", "he", p) > 0)
+                    {
+                        Nullification = true;
+                        break;
+                    }
+                }
+
+                if (RoomLogic.PlayerContainsTrick(room, player, Indulgence.ClassName))
+                {
+                    Player wizzard = ai.GetWizzardRaceWinner(Indulgence.ClassName, player);
+                    if (!Nullification && (wizzard == null || ai.IsEnemy(wizzard)))
+                    {
+                        if (scores.Count > 0 && scores[0].Score > 3)
+                        {
+                            use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                            use.To = scores[0].Players;
+                            return use;
+                        }
+                        else
+                        {
+                            double value = 0;
+                            foreach (int id in player.GetCards("h"))
+                                value += ai.GetUseValue(id, player);
+
+                            foreach (int id in player.GetHandPile())
+                                value += ai.GetUseValue(id, player);
+
+                            if (value > 16 || ai.GetOverflow(player) > 0)
+                            {
+                                if (scores.Count > 0 && scores[0].Score > 0)
+                                {
+                                    use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                                    use.To = scores[0].Players;
+                                    return use;
+                                }
+                                else
+                                {
+                                    FunctionCard fcard = Slash.Instance;
+                                    foreach (Player p in room.GetOtherPlayers(player))
+                                    {
+                                        if (fcard.TargetFilter(room, new List<Player>(), p, player, slash)
+                                            && (!ai.IsFriend(p) || ai.IsCancelTarget(slash, p, player) || !ai.IsCardEffect(slash, p, player)))
+                                        {
+                                            use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                                            use.To.Add(p);
+                                            return use;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (prompt.EndsWith("2"))
+            {
+                if (!ai.WillShowForAttack()) return use;
+                double value = 0;
+                List<WrappedCard> cards = ai.GetCards(Slash.ClassName, player, true);
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, cards, null, false);
+                if (scores.Count > 0 && scores[0].Score > 0)
+                {
+                    if (ai.GetCards(CrossBow.ClassName, player).Count > 0 && cards.Count > 0)
+                        return use;
+                    value = scores[0].Score;
+                }
+
+                List<WrappedCard> slashes = new List<WrappedCard>();
+                foreach (int id in player.GetCards("he"))
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                    if (fcard is EquipCard && RoomLogic.CanDiscard(room, player, player, id))
+                    {
+                        WrappedCard slash = new WrappedCard(Slash.ClassName)
+                        {
+                            Skill = "_shensu_jx",
+                            DistanceLimited = false,
+                        };
+                        slash.AddSubCard(id);
+                    }
+                }
+                if (slashes.Count > 0)
+                {
+                    scores.Clear();
+                    scores = ai.CaculateSlashIncome(player, slashes, null, false);
+                    if (scores.Count > 0)
+                    {
+                        for (int i = 0; i < scores.Count; i++)
+                        {
+                            ScoreStruct score = scores[i];
+                            WrappedCard equip = room.GetCard(score.Card.SubCards[0]);
+                            if (equip.Name == SilverLion.ClassName && player.HasArmor(equip.Name) && player.IsWounded())
+                                score.Score += 2.5;
+                            else if (player.HasEquip(equip.Name) || ai.GetSameEquip(equip, player) == null)
+                                score.Score -= 2;
+                        }
+
+                        ai.CompareByScore(ref scores);
+                        if (scores[0].Score > value && scores[0].Score > 4)
+                        {
+                            use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                            use.Card.AddSubCards(scores[0].Card.SubCards);
+                            use.To = scores[0].Players;
+                            return use;
+                        }
+                    }
+                }
+            }
+            else if (prompt.EndsWith("3"))
+            {
+                List<WrappedCard> slashes = new List<WrappedCard>();
+                WrappedCard slash = new WrappedCard(Slash.ClassName)
+                {
+                    Skill = "_shensu_jx",
+                    DistanceLimited = false
+                };
+                slashes.Add(slash);
+
+                if (slashes.Count > 0)
+                {
+                    List<ScoreStruct> scores = ai.CaculateSlashIncome(player, slashes, null, false);
+                    if (scores.Count > 0 && scores[0].Score >= 0)
+                    {
+                        double value = 0;
+                        List<int> ids = player.GetCards("he");
+                        int over = ai.GetOverflow(player);
+                        if (over > 0)
+                        {
+                            List<double> values = ai.SortByKeepValue(ref ids, false);
+                            for (int i = 0; i < over; i++)
+                                value += values[0];
+                        }
+                        value += scores[0].Score;
+                        if (value >= 8)
+                        {
+                            use.Card = new WrappedCard(ShensuCard.ClassName) { Skill = Name };
+                            use.To = scores[0].Players;
+                            return use;
+                        }
+                    }
+                }
+            }
+
+            return use;
         }
     }
 }

@@ -1636,7 +1636,7 @@ namespace SanguoshaServer.Package
             if (RoomLogic.IsCardLimited(room, Self, card, HandlingMethod.MethodUse))
                 return false;
 
-            return Engine.IsProhibited(room, Self, to_select, card, targets) == null;
+            return Engine.IsProhibited(room, Self, to_select, card, targets) == null && (to_select.Chained || RoomLogic.CanBeChainedBy(room, to_select, Self));
         }
         public override bool TargetsFeasible(Room room, List<Player> selected, Player Self, WrappedCard card)
         {
@@ -1700,7 +1700,7 @@ namespace SanguoshaServer.Package
                 if (card_to_throw != null)
                 {
                     room.SetEmotion(effect.From, "fire_attack");
-                    room.Damage(new DamageStruct(effect.Card, effect.From, effect.To, 1, DamageStruct.DamageNature.Fire));
+                    room.Damage(new DamageStruct(effect.Card, effect.From, effect.To, 1 + effect.ExDamage + effect.BasicEffect.Effect1, DamageStruct.DamageNature.Fire));
                 }
                 else
                 {
@@ -2403,10 +2403,9 @@ namespace SanguoshaServer.Package
                 Arg2 = use.Card.Name
             };
 
+            use.Card.ChangeName(FireSlash.ClassName);
             if (!use.Card.IsVirtualCard())
                 room.GetCard(use.Card.GetEffectiveId()).ChangeName(FireSlash.ClassName);
-            else
-                use.Card.ChangeName(FireSlash.ClassName);
 
             log.Card_str = RoomLogic.CardToString(room, use.Card);
             room.SendLog(log);
@@ -2617,12 +2616,12 @@ namespace SanguoshaServer.Package
     {
         public SilverLionSkill() : base(SilverLion.ClassName)
         {
-            events = new List<TriggerEvent> { TriggerEvent.DamageInflicted, TriggerEvent.CardsMoveOneTime };
+            events = new List<TriggerEvent> { TriggerEvent.DamageDefined, TriggerEvent.CardsMoveOneTime };
             frequency = Frequency.Compulsory;
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && !player.ArmorIsNullifiedBy(damage.From)
+            if (triggerEvent == TriggerEvent.DamageDefined && data is DamageStruct damage && !player.ArmorIsNullifiedBy(damage.From)
                 && base.Triggerable(player, room) && damage.Damage > 1)
             {
                 return new TriggerStruct(Name, player);
@@ -2654,7 +2653,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            if (triggerEvent == TriggerEvent.DamageDefined && data is DamageStruct damage)
             {
                 room.SetEmotion(player, "silverlion");
                 Thread.Sleep(400);

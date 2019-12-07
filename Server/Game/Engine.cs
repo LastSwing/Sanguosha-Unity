@@ -519,10 +519,11 @@ namespace SanguoshaServer.Game
                         bool lord = bool.Parse(row["lord"].ToString());
                         bool male = bool.Parse(row["sex"].ToString());
                         bool selectable = bool.Parse(row["selectable"].ToString());
+                        bool hidden = bool.Parse(row["hidden"].ToString());
                         int hp_adjust = int.Parse(row["adjust_hp"].ToString());
                         string main = row["main"].ToString();
 
-                        General general = new General(name, kingdom, lord, pack, double_max_hp, male, selectable);
+                        General general = new General(name, kingdom, lord, pack, double_max_hp, male, selectable, hidden);
                         if (hp_adjust > 0)
                             general.Head_max_hp_adjusted_value = -hp_adjust;
                         else
@@ -640,7 +641,7 @@ namespace SanguoshaServer.Game
         #endregion
 
         #region 武将相关
-        public static List<string> GetGenerals(List<string> packages, string mode, bool include_hidden = true)
+        public static List<string> GetGenerals(List<string> packages, string mode, bool include_unselectable = true)
         {
             List<string> generals = new List<string>();
             foreach (string key in pack_generals.Keys)
@@ -650,7 +651,7 @@ namespace SanguoshaServer.Game
                     foreach (string name in pack_generals[key])
                     {
                         General general = GetGeneral(name, mode);
-                        if (general != null && (include_hidden || general.Selectable))
+                        if (general != null && (include_unselectable || general.Selectable))
                             generals.Add(general.Name);
                     }
                 }

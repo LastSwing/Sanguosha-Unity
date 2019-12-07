@@ -129,7 +129,7 @@ namespace CommonClass.Game
             return Name.GetHashCode() * Id.GetHashCode() * Suit.GetHashCode() * Number.GetHashCode()
                 * SubCards.GetHashCode() * Skill.GetHashCode() * ShowSkill.GetHashCode() * UserString.GetHashCode();
         }
-        public virtual WrappedCard GetRealCard()
+        public virtual WrappedCard GetUsedCard()
         {
             return this;
         }
@@ -163,7 +163,7 @@ namespace CommonClass.Game
         }
         */
 
-        public virtual void SetFlags(string flag)
+        public void SetFlags(string flag)
         {
             lock (Flags)
             {
@@ -181,7 +181,7 @@ namespace CommonClass.Game
                     Flags.Add(flag);
             }
         }
-        public virtual void ClearFlags()
+        public void ClearFlags()
         {
             lock (Flags)
             {

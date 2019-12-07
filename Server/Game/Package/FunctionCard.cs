@@ -85,7 +85,7 @@ namespace SanguoshaServer.Package
 
         public virtual void OnCardAnnounce(Room room, CardUseStruct use, bool ignore_rule)
         {
-            use.Card = RoomLogic.ParseUseCard(room, use.Card).GetRealCard();
+            use.Card = RoomLogic.ParseUseCard(room, use.Card).GetUsedCard();
             room.ShowSkill(use.From, use.Card.ShowSkill, use.Card.SkillPosition);
 
             if (!ignore_rule)
@@ -99,7 +99,7 @@ namespace SanguoshaServer.Package
                 RoomCard wrapped = room.GetCard(use_card.GetEffectiveId());
                 use_card.Id = wrapped.Id;
                 wrapped.TakeOver(use_card);
-                use.Card = wrapped.GetRealCard();
+                use.Card = wrapped.GetUsedCard();
             }
 
             //record big or small for fighttogether
@@ -231,7 +231,8 @@ namespace SanguoshaServer.Package
         public virtual void Use(Room room, CardUseStruct card_use)
         {
             WrappedCard card = card_use.Card;
-            List<Player> targets = card_use.To;
+            List<Player> targets = new List<Player>(card_use.To);
+            //List<Player> targets = card_use.To;                           //插入濒死后To会被改写成空，至今未找到问题所在
             for (int index = 0; index < targets.Count; index++)
             {
                 Player target = targets[index];
@@ -259,7 +260,8 @@ namespace SanguoshaServer.Package
             }
 
             List<int> table_cardids = room.GetCardIdsOnTable(card);
-            if (table_cardids.Count > 0) {
+            if (table_cardids.Count > 0)
+            {
                 CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_USE, card_use.From.Name, null, card.Skill, null)
                 {
                     CardString = RoomLogic.CardToString(room, card)

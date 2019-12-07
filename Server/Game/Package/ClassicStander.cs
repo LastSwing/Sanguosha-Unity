@@ -896,7 +896,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null)
+            if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && (!use.Card.IsVirtualCard() || use.Card.SubCards.Count == 0))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard.IsNDTrick())
@@ -2213,15 +2213,14 @@ namespace SanguoshaServer.Package
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
 
-            if (player != null && player.Alive && (triggerEvent == TriggerEvent.PreCardUsed || triggerEvent == TriggerEvent.CardResponded))
+            if (player != null && player.Alive && player.Phase == PlayerPhase.Play && (triggerEvent == TriggerEvent.PreCardUsed || triggerEvent == TriggerEvent.CardResponded))
             {
                 WrappedCard card = null;
                 if (triggerEvent == TriggerEvent.PreCardUsed && data is CardUseStruct use)
                     card = use.Card;
                 else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp)
                     card = resp.Card;
-                if (card.Name.Contains(Slash.ClassName) && player.Phase == PlayerPhase.Play)
-                    player.SetFlags("KejiSlashInPlayPhase");
+                if (card.Name.Contains(Slash.ClassName)) player.SetFlags("KejiSlashInPlayPhase");
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)

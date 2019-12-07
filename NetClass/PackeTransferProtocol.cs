@@ -163,10 +163,10 @@ namespace CommonClassLibrary
             using (MemoryStream raw = new MemoryStream(bytes))
             {
                 GZipInputStream zipFile = new GZipInputStream(raw);
-                using (MemoryStream re = new MemoryStream(5000))
+                using (MemoryStream re = new MemoryStream(1000))
                 {
                     int count;
-                    byte[] data = new byte[5000];
+                    byte[] data = new byte[1000];
                     while ((count = zipFile.Read(data, 0, data.Length)) != 0)
                     {
                         re.Write(data, 0, count);

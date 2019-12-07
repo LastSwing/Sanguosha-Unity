@@ -904,6 +904,50 @@ namespace SanguoshaServer.AI
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
             List<int> ids = player.GetCards("he");
             Room room = ai.Room;
+
+            if (player.HasFlag("xiashu") && ai.IsEnemy(room.Current))
+            {
+                KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, null, Player.Place.PlaceHand, Name);
+                if (pair.Key != null && pair.Value > -1)
+                {
+                    use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                    use.Card.AddSubCards(player.GetCards("h"));
+                    use.To.Add(pair.Key);
+                    return use;
+                }
+
+                List<Player> friends = ai.FriendNoSelf;
+                if (friends.Count > 0)
+                {
+                    ai.SortByDefense(ref friends, false);
+                    foreach (Player p in friends)
+                    {
+                        if (!ai.HasSkill("zishu", p) && !ai.WillSkipPlayPhase(p))
+                        {
+                            use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                            use.Card.AddSubCards(player.GetCards("h"));
+                            use.To.Add(p);
+                            return use;
+                        }
+                    }
+                    foreach (Player p in friends)
+                    {
+                        if (!ai.HasSkill("zishu", p))
+                        {
+                            use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                            use.Card.AddSubCards(player.GetCards("h"));
+                            use.To.Add(p);
+                            return use;
+                        }
+                    }
+
+                    use.Card = new WrappedCard(QingjianCard.ClassName) { Skill = Name };
+                    use.Card.AddSubCards(player.GetCards("h"));
+                    use.To.Add(friends[0]);
+                    return use;
+                }
+            }
+
             if (ids.Count == 0 || (room.Current != null && !ai.IsFriend(room.Current) && ai.GetOverflow(room.Current) > 0)) return use;
             
             Player target = null;
@@ -1752,9 +1796,15 @@ namespace SanguoshaServer.AI
             id = ids[0];
             if (friends.Count > 0)
             {
-                ai.SortByDefense(ref friends, false);
+                ai.Room.SortByActionOrder(ref friends);
                 foreach (Player p in friends)
                     if (ai.HasSkill("qingjian", p)) return p;
+
+                foreach (Player p in friends)
+                    if (!ai.WillSkipPlayPhase(player) && !ai.HasSkill("zishu", p) && ai.HasSkill(TrustedAI.CardneedSkill, p)) return p;
+
+                foreach (Player p in friends)
+                    if (!ai.WillSkipPlayPhase(player) && !ai.HasSkill("zishu", p)) return p;
 
                 foreach (Player p in friends)
                     if (!ai.HasSkill("zishu", p)) return p;
@@ -1791,7 +1841,7 @@ namespace SanguoshaServer.AI
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 List<string> choices = new List<string>(choice.Split(':'));
-                if (choices[1] == Name && ai.Self != player && choices[2] == "yes")
+                if (choices[1] == Name && choices[2] == "yes")
                 {
                     Room room = ai.Room;
                     foreach (Player p in room.GetAlivePlayers())

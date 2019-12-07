@@ -926,7 +926,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             List<int> ids= player.GetCards("h");
-            ids.AddRange(player.GetHandPile()); Player lord = RoomLogic.GetLord(room, player.Kingdom);
+            ids.AddRange(player.GetHandPile());
 
             foreach (int id in ids)
             {

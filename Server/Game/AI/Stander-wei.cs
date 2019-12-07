@@ -2180,10 +2180,25 @@ namespace SanguoshaServer.AI
 
             Room room = ai.Room;
             foreach (Player p in ai.GetFriends(player))
-                if (p != player && !p.FaceUp)
-                    return new List<Player> { p };
+            {
+                if (p != player && !p.FaceUp && ai.HasSkill("jushou_", p) && p == room.Current)
+                {
+                    List<string> kingdoms = new List<string>();
+                    foreach (Player _p in room.Players)
+                        if (_p.HasShownOneGeneral() && !kingdoms.Contains(_p.Kingdom))
+                            kingdoms.Add(_p.Kingdom);
 
-            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou", room.Current))
+                    if (!kingdoms.Contains(player.Kingdom))
+                        kingdoms.Add(player.Kingdom);
+
+                    if (kingdoms.Count > 2) continue;
+                    else return new List<Player> { p };
+                }
+                else if (p != player && !p.FaceUp && (!ai.HasSkill("jushou_jx", p) || p != room.Current))
+                    return new List<Player> { p };
+            }
+
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou", room.Current) && room.Current.FaceUp)
             {
                 List<string> kingdoms = new List<string>();
                 foreach (Player p in room.Players)
@@ -2196,10 +2211,8 @@ namespace SanguoshaServer.AI
                 if (kingdoms.Count > 2)
                     return new List<Player> { room.Current };
             }
-            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx", room.Current))
-            {
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx", room.Current) && room.Current.FaceUp)
                 return new List<Player> { room.Current };
-            }
 
             Dictionary<Player, double> strenth = new Dictionary<Player, double>();
             List<Player> enemis = ai.GetEnemies(player);

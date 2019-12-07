@@ -433,8 +433,17 @@ namespace SanguoshaServer.AI
                                     }
                                 }
                             }
-                            else if (!to.IsNude())
+                            else if (IsEnemy(from, to) && !to.IsNude())
+                            {
                                 UpdatePlayerRelation(player, to, positive);
+                            }
+                            else
+                            {
+                                if (to.JudgingArea.Count == 0)
+                                    UpdatePlayerRelation(player, to, positive);
+                                else if (to.IsNude())
+                                    UpdatePlayerRelation(player, to, !positive);
+                            }
                         }
                         else if (trick == IronChain.ClassName)
                         {

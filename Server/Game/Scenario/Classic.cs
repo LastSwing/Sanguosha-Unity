@@ -334,7 +334,9 @@ namespace SanguoshaServer.Scenario
             else
                 generalName = reply[0];
 
-            if (!success || (!options.Contains(generalName) && room.GetClient(client.ClientId).UserRight < 3))
+            General general = Engine.GetGeneral(generalName, "Classic");
+            if (!success || general == null || general.Hidden || !room.Setting.GeneralPackage.Contains(general.Package)
+                 || (!options.Contains(generalName) && room.GetClient(client.ClientId).UserRight < 3))
             {
                 generalName = options[0];
             }
@@ -412,6 +414,7 @@ namespace SanguoshaServer.Scenario
                     Shuffle.shuffle(ref generals);
                     foreach (string general_name in generals)
                     {
+                        if (player.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
                         if (Engine.GetGeneral(general_name, room.Setting.GameMode).IsLord())
                             choices.Add(general_name);
 
@@ -420,12 +423,18 @@ namespace SanguoshaServer.Scenario
                     generals.RemoveAll(t => choices.Contains(t));
 
                     int adjust = options.ContainsKey(player) ? options[player].Count : 0;
-
                     for (int i = choices.Count; i < max_choice + 1 - adjust; i++)
                     {
                         Shuffle.shuffle(ref generals);
-                        choices.Add(generals[0]);
-                        generals.RemoveAt(0);
+                        string choice = string.Empty;
+                        foreach (string general_name in generals)
+                        {
+                            if (player.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
+                            choice = general_name;
+                            break;
+                        }
+                        choices.Add(choice);
+                        generals.Remove(choice);
                     }
                     if (options.ContainsKey(player))
                         options[player].AddRange(choices);
@@ -802,6 +811,8 @@ namespace SanguoshaServer.Scenario
                     foreach (string skill in _skills)
                         if (TrustedAI.MasochismGood.Contains(skill)) value -= 1.5;
                 }
+
+                if (lord.General1 == "simahui" && general_name == "guanyinping") value += 3;                                                    //关妹配合司马徽
             }
             else if (role == PlayerRole.Rebel)
             {
@@ -838,6 +849,8 @@ namespace SanguoshaServer.Scenario
                 if (lord.General1 == "caocao_god" && general_name == "haozhao") value += 3;                     //郝昭克神曹操 
                 if (general_name == "lusu" || general_name == "liubei" || general_name == "panjun" || general_name == "zhangchangpu")
                     value -= 0.5 * (8 - room.Players.Count);                                                    //以8人局为标准，每少1人强度减少0.5
+
+                if (lord.General1 == "simahui" && general_name == "guanyinping") value -= 4;
             }
             else if (role == PlayerRole.Renegade)
             {
@@ -854,13 +867,17 @@ namespace SanguoshaServer.Scenario
                     foreach (string skill in _skills)
                         if (skills.Contains(skill)) value -= 1.5;
                 }
+                if (lord.General1 == "simahui" && general_name == "guanyinping") value -= 2;
             }
 
             if (role != PlayerRole.Lord && (lord.General1 == "jvshou" || general_name == "caorui") && general_name == "xizhicai")
                 value += 2;
+            if (role != PlayerRole.Lord && lord.General1 == "guanyinping" && general_name == "simahui") value += 3;
 
             if (general_name == "caocao_god" || general_name == "tadun") value -= 0.5 * (8 - room.Players.Count);   //以8人局为标准，每少1人强度减少0.5
             if (general_name == "liuyu") value += 0.2 * room.Players.Count - 4;                                 //游戏人数用4人起，每多1人强度+0.2
+            if (general_name == "shixie" || general_name == "liubiao")
+                value -= 0.5 * (8 - room.Players.Count);                                                        //以8人局为标准，每少1人强度减少0.5
 
             return value;
         }

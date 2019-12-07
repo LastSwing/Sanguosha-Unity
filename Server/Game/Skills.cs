@@ -58,7 +58,8 @@ namespace SanguoshaServer.Game
         Predamage,        // trigger the certain skill -- jueqing
         DamageForseen,    // the first event in a damage -- kuangfeng dawu
         DamageCaused,     // the moment for -- qianxi..
-        DamageInflicted,  // the moment for -- tianxiang..
+        DamageInflicted,  // the moment for most of add damamge skills -- tianxiang..
+        DamageDefined,   // the moment for reduce or prevent damage  -- kuanshi..
         PreDamageDone,    // before reducing Hp
         DamageDone,       // it's time to do the damage
         Damage,           // the moment for -- lieren..

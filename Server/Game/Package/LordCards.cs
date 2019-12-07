@@ -256,12 +256,12 @@ namespace SanguoshaServer.Package
     {
         public PeaceSpellSkill() : base(PeaceSpell.ClassName)
         {
-            events = new List<TriggerEvent> { TriggerEvent.DamageInflicted, TriggerEvent.CardsMoveOneTime };
+            events = new List<TriggerEvent> { TriggerEvent.DamageDefined, TriggerEvent.CardsMoveOneTime };
             frequency = Frequency.Compulsory;
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage && base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
+            if (triggerEvent == TriggerEvent.DamageDefined && data is DamageStruct damage && base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
             {
                 if (player.ArmorIsNullifiedBy(damage.From)) return new TriggerStruct();
                 return new TriggerStruct(Name, player);
@@ -296,7 +296,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
+            if (triggerEvent == TriggerEvent.DamageDefined && data is DamageStruct damage)
             {
                 LogMessage log = new LogMessage
                 {
@@ -349,133 +349,7 @@ namespace SanguoshaServer.Package
             return 0;
         }
     }
-    /*
-    public class PeaceSpellSkill : ArmorSkill
-    {
-        public PeaceSpellSkill() : base(PeaceSpell.ClassName)
-        {
-            events = new List<TriggerEvent> { TriggerEvent.DamageInflicted, TriggerEvent.CardsMoveOneTime, TriggerEvent.QuitDying };
-            frequency = Frequency.Compulsory;
-        }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
-        {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
-            {
-                if (base.Triggerable(player, room) && damage.Nature != DamageStruct.DamageNature.Normal)
-                    return new TriggerStruct(Name, player);
-            }
-            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
-                && move.From_places.Contains(Player.Place.PlaceEquip) && move.From.HasFlag("peacespell_throwing"))
-            {
-                for (int i = 0; i < move.Card_ids.Count; i++)
-                {
-                    if (move.From_places[i] != Player.Place.PlaceEquip) continue;
-                    WrappedCard card = Engine.GetRealCard(move.Card_ids[i]);
-                    if (card.Name == Name)
-                        return new TriggerStruct(Name, move.From);
-                }
-            }
-            else if (triggerEvent == TriggerEvent.QuitDying && player.HasFlag("peacespell_dying") && player.Alive)
-                return new TriggerStruct(Name, player);
-
-            return new TriggerStruct();
-        }
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            if (triggerEvent ==  TriggerEvent.CardsMoveOneTime || triggerEvent == TriggerEvent.QuitDying) return info;
-            return base.Cost(room, ref data, info);
-        }
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            if (triggerEvent == TriggerEvent.DamageInflicted && data is DamageStruct damage)
-            {
-                LogMessage l = new LogMessage
-                {
-                    Type = "#PeaceSpellNatureDamage",
-                    From = damage.From.Name,
-                    To = new List<string> { damage.To.Name },
-                    Arg = damage.Damage.ToString()
-                };
-                switch (damage.Nature)
-                {
-                    case DamageStruct.DamageNature.Normal: l.Arg2 = "normal_nature"; break;
-                    case DamageStruct.DamageNature.Fire: l.Arg2 = "fire_nature"; break;
-                    case DamageStruct.DamageNature.Thunder: l.Arg2 = "thunder_nature"; break;
-                }
-
-                room.SendLog(l);
-                room.SetEmotion(damage.To, "peacespell");
-                return true;
-            }
-            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
-            {
-                move.From.SetFlags("-peacespell_throwing");
-
-                if (move.From.HasFlag("Global_Dying"))
-                    move.From.SetFlags("peacespell_dying");
-                else
-                {
-                    LogMessage l = new LogMessage
-                    {
-                        Type = "#PeaceSpellLost",
-                        From = move.From.Name
-                    };
-                    room.SendLog(l);
-
-                    room.LoseHp(move.From);
-                    if (move.From.Alive)
-                        room.DrawCards(move.From, 2, Name);
-                }
-            }
-            else
-            {
-                player.SetFlags("-peacespell_dying");
-                LogMessage l = new LogMessage
-                {
-                    Type = "#PeaceSpellLost",
-                    From = player.Name
-                };
-                room.SendLog(l);
-
-                room.LoseHp(player);
-                if (player.Alive)
-                    room.DrawCards(player, 2, Name);
-            }
-            return false;
-        }
-    }
-    public class PeaceSpellSkillMaxCards : MaxCardsSkill
-    {
-        public PeaceSpellSkillMaxCards() : base("#PeaceSpell-max")
-        {
-        }
-        public override int GetExtra(Room room, Player target)
-        {
-            if (!target.HasShownOneGeneral())
-                return 0;
-
-            List<Player> targets = room.GetAlivePlayers();
-
-            Player ps_owner = null;
-            foreach (Player p in targets) {
-                if (RoomLogic.HasArmorEffect(room, p, PeaceSpell.ClassName))
-                {
-                    ps_owner = p;
-                    break;
-                }
-            }
-
-            if (ps_owner == null)
-                return 0;
-
-            if (RoomLogic.IsFriendWith(room, target ,ps_owner))
-                return RoomLogic.GetPlayerNumWithSameKingdom(room, ps_owner) + ps_owner.GetPile("heavenly_army").Count;
-
-            return 0;
-        }
-        
-    }
-    */
+    
     public class LuminouSpearl : Treasure
     {
         public static string ClassName = "LuminouSpearl";

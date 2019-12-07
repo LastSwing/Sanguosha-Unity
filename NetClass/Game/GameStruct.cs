@@ -37,6 +37,7 @@ namespace CommonClass.Game
             Steped = DamageStep.None;
             Drank = false;
             Marks = new List<string>();
+            ChainStarter = false;
         }
 
         public DamageStruct(WrappedCard card, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal) {
@@ -54,6 +55,7 @@ namespace CommonClass.Game
             Steped = DamageStep.None;
             Drank = false;
             Marks = new List<string>();
+            ChainStarter = false;
         }
 
         public DamageStruct(string reason, Player from, Player to, int damage = 1, DamageNature nature = DamageNature.Normal)
@@ -72,6 +74,7 @@ namespace CommonClass.Game
             Steped = DamageStep.None;
             Drank = false;
             Marks = new List<string>();
+            ChainStarter = false;
         }
 
         public Player From { get; set; }
@@ -101,6 +104,7 @@ namespace CommonClass.Game
         public DamageStep Steped { get; set; }
         public bool Drank { set; get; }
         public List<string> Marks { set; get; }
+        public bool ChainStarter { set; get; }
     }
 
     public struct RoomSetting

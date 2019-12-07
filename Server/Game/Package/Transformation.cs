@@ -2080,8 +2080,9 @@ namespace SanguoshaServer.Package
 
                 LogMessage log = new LogMessage
                 {
-                    Type = "$FlameMapRemove",
+                    Type = "$RemoveFromPile",
                     From = player.Name,
+                    Arg = Name,
                     Card_str = card_id.ToString()
                 };
                 room.SendLog(log);

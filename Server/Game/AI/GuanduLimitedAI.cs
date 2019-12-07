@@ -1583,7 +1583,23 @@ namespace SanguoshaServer.AI
 
     public class ShefuAI : SkillEvent
     {
-        public ShefuAI() : base("shefu") { }
+        public ShefuAI() : base("shefu") { key = new List<string> { "cardExchange:shefu" }; }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                string[] strs = str.Split(':');
+                if (!string.IsNullOrEmpty(strs[2]))
+                {
+                    Room room = ai.Room;
+                    if (room.GetTag("shefu_data") is CardUseStruct use)
+                    {
+                        if (ai.GetPlayerTendency(use.From) != "unknown")
+                            ai.UpdatePlayerRelation(player, use.From, false);
+                    }
+                }
+            }
+        }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
@@ -1926,43 +1942,71 @@ namespace SanguoshaServer.AI
 
     public class ChoulueAI : SkillEvent
     {
-        public ChoulueAI() : base("choulue") { }
-
+        public ChoulueAI() : base("choulue") { key = new List<string> { "cardExchange:choulue" }; }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                string[] strs = str.Split(':');
+                if (!string.IsNullOrEmpty(strs[2]))
+                {
+                    if (ai.GetPlayerTendency(ai.Room.Current) != "unknown")
+                        ai.UpdatePlayerRelation(player, ai.Room.Current, true);
+                }
+            }
+        }
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
             List<Player> targets = ai.FriendNoSelf;
-            ai.SortByDefense(ref targets);
-            foreach (Player p in targets)
+            if (targets.Count > 0)
             {
-                if (player.HasEquip())
+                ai.SortByDefense(ref targets);
+                foreach (Player p in targets)
                 {
-                    List<int> ids = player.GetCards("e");
-                    foreach (int id in ids)
+                    if (player.HasEquip())
                     {
-                        if (ai.GetKeepValue(id, p) < 0)
+                        List<int> ids = player.GetCards("e");
+                        foreach (int id in ids)
                         {
-                            return new List<Player> { p };
+                            if (ai.GetKeepValue(id, p) < 0)
+                            {
+                                return new List<Player> { p };
+                            }
                         }
                     }
                 }
-            }
-            foreach (Player p in targets)
-            {
-                if (ai.GetOverflow(p) > 0)
-                    return new List<Player> { p };
-            }
-            foreach (Player p in targets)
-            {
-                if (ai.WillSkipPlayPhase(p) && !p.IsNude())
-                    return new List<Player> { p };
-            }
-
-            if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
-            {
                 foreach (Player p in targets)
                 {
-                    if (!p.IsNude() && !ai.IsWeak(p))
+                    if (ai.GetOverflow(p) > 0)
                         return new List<Player> { p };
+                }
+                foreach (Player p in targets)
+                {
+                    if (ai.WillSkipPlayPhase(p) && !p.IsNude())
+                        return new List<Player> { p };
+                }
+
+                if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
+                {
+                    foreach (Player p in targets)
+                    {
+                        if (!p.IsNude() && !ai.IsWeak(p))
+                            return new List<Player> { p };
+                    }
+                }
+            }
+            else
+            {
+                Room room = ai.Room;
+                List<Player> players = new List<Player>();
+                foreach (Player p in room.GetOtherPlayers(player))
+                    if (!ai.IsEnemy(p) && !ai.IsWeak(p) && !p.IsNude())
+                        players.Add(p);
+
+                if (players.Count > 0)
+                {
+                    ai.SortByDefense(ref players);
+                    return new List<Player> { players[0] };
                 }
             }
 

@@ -496,18 +496,14 @@ namespace SanguoshaServer.Package
                     friends.Remove(target);
                     targets.Add(target);
                     CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty);
-                    CardsMoveStruct move = new CardsMoveStruct(new List<int>(card.SubCards), target, Player.Place.PlaceHand, reason);
+                    CardsMoveStruct move = new CardsMoveStruct(new List<int>(card.SubCards), target, Place.PlaceHand, reason);
                     moves.Add(move);
 
                     player.PileChange("#shushou", card.SubCards, false);
                     cards.RemoveAll(t => card.SubCards.Contains(t));
-                    /*
-                    JsonArray val;
-                    QString footname = "@attribute:" + target->objectName();
-                    val << footname;
-                    val << JsonUtils::toJsonArray(card->getSubcards());
-                    room->doNotify(player->getClient(), QSanProtocol::S_COMMAND_UPDATE_CARD_FOOTNAME, val);
-                    */
+
+                    List<string> args = new List<string> { JsonUntity.Object2Json(card.SubCards), "@attribute:" + target.Name };
+                    room.DoNotify(room.GetClient(player), CommandType.S_COMMAND_UPDATE_CARD_FOOTNAME, args);
                 }
                 else
                     break;
@@ -1153,7 +1149,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == Player.PlayerPhase.Play)
+            if (base.Triggerable(player, room) && triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play)
             {
                 foreach (Player p in room.GetOtherPlayers(player))
                     if (!p.IsNude())

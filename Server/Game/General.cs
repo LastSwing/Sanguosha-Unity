@@ -15,10 +15,11 @@ namespace SanguoshaServer.Game
         public int Deputy_max_hp_adjusted_value { set; get; } = 0;
         public bool Selectable { get; private set; }
         public string Package { get; private set; }
+        public bool Hidden { get; private set; }
 
         private readonly bool lord;
 
-        public General(string name, string kingdom, bool lord, string pack, int double_max_hp, bool male, bool selectable)
+        public General(string name, string kingdom, bool lord, string pack, int double_max_hp, bool male, bool selectable, bool hidden)
         {
             Name = name;
             Kingdom = kingdom;
@@ -27,6 +28,7 @@ namespace SanguoshaServer.Game
             Selectable = selectable;
             Package = pack;
             this.lord = lord;
+            Hidden = hidden;
         }
 
         public bool IsLord() => lord;
