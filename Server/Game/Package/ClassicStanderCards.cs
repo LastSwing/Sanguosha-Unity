@@ -51,7 +51,7 @@ namespace SanguoshaServer.Package
             room.SetCardFlag(player.Weapon.Key, "using");
             effect.To.SetFlags("SlashAssignee");
 
-            WrappedCard slash = room.AskForUseCard(player, "Slash:ClassicBlade", "@blade:" + effect.To.Name, -1, FunctionCard.HandlingMethod.MethodUse, false);
+            WrappedCard slash = room.AskForUseCard(player, "Slash:ClassicBlade", "@blade:" + effect.To.Name, null, -1, FunctionCard.HandlingMethod.MethodUse, false);
             if (slash == null)
             {
                 player.SetFlags("-slashTargetFix");

@@ -724,7 +724,7 @@ namespace SanguoshaServer.AI
                 }
                 else if (data is CardsMoveOneTimeStruct move)
                 {
-                    WrappedCard card = RoomLogic.ParseCard(room, move.Reason.CardString);
+                    WrappedCard card = move.Reason.Card;
                     if (card.Name == SupplyShortage.ClassName || card.Name == Indulgence.ClassName)
                     {
                         player.SetFlags("-target_confirming");

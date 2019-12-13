@@ -126,7 +126,7 @@ namespace SanguoshaServer.Package
                 WrappedCard treasure = room.GetCard(card_use.From.Treasure.Key);
                 if (treasure != null)
                     room.MoveCardTo(treasure, card_use.From, target, Place.PlaceEquip,
-                        new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, card_use.From.Name, "ClassicWoodenOx", null));
+                        new CardMoveReason(MoveReason.S_REASON_TRANSFER, card_use.From.Name, "ClassicWoodenOx", null));
             }
         }
     }
@@ -199,11 +199,11 @@ namespace SanguoshaServer.Package
                     {
                         Player to = move.To;
                         if (to != null && to.GetTreasure() && to.Treasure.Value == "ClassicWoodenOx"
-                            && move.To_place == Place.PlaceEquip && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_TRANSFER)
+                            && move.To_place == Place.PlaceEquip && move.Reason.Reason == MoveReason.S_REASON_TRANSFER)
                         {
                             List<Player> p_list = new List<Player> { to };
                             room.AddToPile(to, "wooden_ox", player.GetPile("wooden_ox"), false, p_list,
-                                new CardMoveReason(CardMoveReason.MoveReason.S_REASON_TRANSFER, player.Name));
+                                new CardMoveReason(MoveReason.S_REASON_TRANSFER, player.Name));
                         }
                         else
                         {

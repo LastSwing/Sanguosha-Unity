@@ -98,7 +98,7 @@ namespace SanguoshaServer.Package
             else if (data is DyingStruct dying && dying.Damage.From != null && dying.Damage.From.Alive && !player.IsKongcheng() && RoomLogic.CanGetCard(room, ask_who, player, "h"))
             {
                 int id = room.AskForCardChosen(ask_who, player, "h", Name, false, FunctionCard.HandlingMethod.MethodGet);
-                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, ask_who.Name, Name, Name);
+                CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_EXTRACTION, ask_who.Name, Name, Name);
                 room.ObtainCard(ask_who, room.GetCard(id), reason, false);
             }
 

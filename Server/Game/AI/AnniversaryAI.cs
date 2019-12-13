@@ -837,7 +837,7 @@ namespace SanguoshaServer.AI
             if (damage.From != null && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && damage.From.GetMark(Name) > 0)
             {
                 Room room = ai.Room;
-                List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ? (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();
+                List<CardUseStruct> use_list = room.GetUseList();
 
                 if (use_list.Count == 0 || use_list[use_list.Count - 1].Card != damage.Card)
                     damage.Damage += damage.From.GetMark(Name);

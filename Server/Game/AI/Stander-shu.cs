@@ -1210,7 +1210,7 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai is StupidAI && data is CardUseStruct use && player != ai.Self)
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && ai is StupidAI && data is CardUseStruct use)
             {
                 Player target = use.To[0];
                 if (ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);

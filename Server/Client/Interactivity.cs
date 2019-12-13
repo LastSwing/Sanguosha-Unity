@@ -548,7 +548,7 @@ namespace SanguoshaServer
             skill_position = position;
             pending_skill = null;
             skill_invoke = false;
-            available_targets = targets;
+            available_targets = new List<Player>(targets);
             this.max_num = max_num;
             this.min_num = min_num;
             ex_information = new List<string> { min_num.ToString(), max_num.ToString() };

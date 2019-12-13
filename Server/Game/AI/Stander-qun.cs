@@ -738,7 +738,7 @@ namespace SanguoshaServer.AI
                 if (ai.IsFriend(target)) return false;
 
                 Room room = ai.Room;
-                List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
+                List<CardUseStruct> list = room.GetUseList();
                 CardUseStruct use = list[list.Count - 1];
                 int damage_count = 1 + use.Drank + use.ExDamage;
 
@@ -769,7 +769,7 @@ namespace SanguoshaServer.AI
         public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
         {
             Room room = ai.Room;
-            List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
+            List<CardUseStruct> list = room.GetUseList();
             CardUseStruct use = list[list.Count - 1];
             int damage_count = 1 + use.Drank + use.ExDamage;
 
@@ -837,7 +837,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             List<ScoreStruct> scores = new List<ScoreStruct>();
             ai.Choice[Name] = null;
-            List<CardUseStruct> list = room.ContainsTag("card_proceeing") ? (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();
+            List<CardUseStruct> list = room.GetUseList();
             if (list.Count > 0)
             {
                 CardUseStruct use = list[list.Count - 1];

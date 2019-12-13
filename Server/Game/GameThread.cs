@@ -118,19 +118,14 @@ namespace SanguoshaServer.Game
                         new_round = true;
                 }
 
-                while (room.ContainsTag("ExtraTurnList") && room.GetTag("ExtraTurnList") is List<Player> extraTurnList)
+                Player next = room.GetExtraTurn();
+                while (next != null)
                 {
-                    if (extraTurnList.Count > 0)
-                    {
-                        Player next = extraTurnList[0];
-                        extraTurnList.RemoveAt(0);
-                        room.SetTag("ExtraTurnList", extraTurnList);
-                        room.SetCurrent(next);
-                        Trigger(TriggerEvent.TurnStart, room, next, ref data);
-                        if (room.Finished) break;
-                    }
-                    else
-                        room.RemoveTag("ExtraTurnList");
+                    room.SetCurrent(next);
+                    Trigger(TriggerEvent.TurnStart, room, next, ref data);
+                    if (room.Finished) break;
+
+                    next = room.GetExtraTurn();
                 }
                 if (room.Finished) break;
                 room.SetCurrent(regular_next);

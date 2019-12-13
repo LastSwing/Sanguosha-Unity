@@ -199,10 +199,10 @@ namespace SanguoshaServer.AI
                                 || move.To_place == Place.PlaceTable)
                         {
                             //蛊惑的真假判断
-                            if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_ANNOUNCE && !open
+                            if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == MoveReason.S_REASON_ANNOUNCE && !open
                                 && private_handcards[from].Count > move.From.HandcardNum)
                             {
-                                WrappedCard guhuo = RoomLogic.ParseCard(room, move.Reason.CardString);
+                                WrappedCard guhuo = move.Reason.Card;
                                 bool doubt = true;
                                 foreach (int hand in private_handcards[from])
                                 {
@@ -232,10 +232,10 @@ namespace SanguoshaServer.AI
                 if (from != null && move.From_places.Contains(Place.PlaceSpecial) && move.From_pile_names.Contains("wooden_ox"))
                 {
                     //蛊惑的真假判断
-                    if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == CardMoveReason.MoveReason.S_REASON_ANNOUNCE && !open
+                    if (move.To_place == Place.PlaceTable && move.Reason.SkillName == "guhuo" && move.Reason.Reason == MoveReason.S_REASON_ANNOUNCE && !open
                         && wooden_cards[move.From].Count > move.From.GetPile("wooden_ox").Count)
                     {
-                        WrappedCard guhuo = RoomLogic.ParseCard(room, move.Reason.CardString);
+                        WrappedCard guhuo = move.Reason.Card;
                         bool doubt = true;
                         foreach (int hand in wooden_cards[move.From])
                         {
@@ -3061,12 +3061,15 @@ namespace SanguoshaServer.AI
 
             return base.AskForPlayersChosen(targets, reason, max_num, min_num);
         }
-        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive)
+        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive, CardEffectStruct real)
         {
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
             Choice[HegNullification.ClassName] = null;
             if (!to.Alive) return null;
+
+            if (real.From != null && HasSkill("funan", real.From) && !IsFriend(real.From) && (real.From.GetMark("funan") > 0 || room.GetSubCards(real.Card).Count > 0))
+                return null;
 
             List<WrappedCard> nullcards = GetCards(Nullification.ClassName, self);
             if (nullcards.Count == 0)

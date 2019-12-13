@@ -904,7 +904,7 @@ namespace SanguoshaServer.AI
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
             List<int> ids = player.GetCards("he");
             Room room = ai.Room;
-
+            if (player.HasFlag("bingzheng") && ai.IsFriend(room.Current) && player.HandcardNum == player.Hp) return use;
             if (player.HasFlag("xiashu") && ai.IsEnemy(room.Current))
             {
                 KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, null, Player.Place.PlaceHand, Name);

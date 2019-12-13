@@ -98,7 +98,7 @@ namespace SanguoshaServer.AI
             Player player = ai.Self;
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
-            List<Player> delete = (List<Player>)room.GetTag("targets" + RoomLogic.CardToString(room, trick));
+            List<Player> delete = new List<Player>(effect.StackPlayers);
             List<Player> targets = new List<Player>(delete);
             foreach (Player p in delete)
                 if (delete.IndexOf(p) < delete.IndexOf(to))

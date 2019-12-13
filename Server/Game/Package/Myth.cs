@@ -252,7 +252,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From.Phase == PlayerPhase.Discard
                 && base.Triggerable(move.From, room) && move.From_places.Contains(Place.PlaceHand) && move.Reason.PlayerId == move.From.Name
-                && (move.Reason.Reason & CardMoveReason.MoveReason.S_MASK_BASIC_REASON) == CardMoveReason.MoveReason.S_REASON_DISCARD)
+                && (move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_DISCARD)
                 foreach (Place place in move.From_places)
                     if (place == Place.PlaceHand)
                         move.From.AddMark(Name);
@@ -536,9 +536,9 @@ namespace SanguoshaServer.Package
                     if (up.Count > 0)
                     {
                         List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
-                        CardsMoveStruct move1 = new CardsMoveStruct(up, player, Place.PlaceHand, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXCHANGE_FROM_PILE, player.Name, Name, string.Empty));
+                        CardsMoveStruct move1 = new CardsMoveStruct(up, player, Place.PlaceHand, new CardMoveReason(MoveReason.S_REASON_EXCHANGE_FROM_PILE, player.Name, Name, string.Empty));
                         CardsMoveStruct move2 = new CardsMoveStruct(down, player, Place.PlaceSpecial,
-                            new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_GAME, player.Name, Name, string.Empty))
+                            new CardMoveReason(MoveReason.S_REASON_REMOVE_FROM_GAME, player.Name, Name, string.Empty))
                         {
                             To_pile_name = Name
                         };
@@ -598,7 +598,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.AskForUseCard(player, "@@kuangfeng", "@kuangfeng", -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+            room.AskForUseCard(player, "@@kuangfeng", "@kuangfeng", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
             return new TriggerStruct();
         }
     }
@@ -683,7 +683,7 @@ namespace SanguoshaServer.Package
             List<int> ids = new List<int>(card_use.Card.SubCards);
             room.SetTag("kuangfeng", player);
 
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_PILE, null, "kuangfeng", null);
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_REMOVE_FROM_PILE, null, "kuangfeng", null);
             room.ThrowCard(ref ids, reason, null);
 
             room.AddPlayerMark(target, "@gale");
@@ -729,7 +729,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.AskForUseCard(player, "@@dawu", "@dawu", -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+            room.AskForUseCard(player, "@@dawu", "@dawu", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
             return new TriggerStruct();
         }
     }
@@ -823,7 +823,7 @@ namespace SanguoshaServer.Package
             List<int> ids = new List<int>(card_use.Card.SubCards);
             room.SetTag("dawu", player);
 
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_REMOVE_FROM_PILE, null, "dawu", null);
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_REMOVE_FROM_PILE, null, "dawu", null);
             room.ThrowCard(ref ids, reason, null);
 
             base.Use(room, card_use);
@@ -897,7 +897,7 @@ namespace SanguoshaServer.Package
                     if (RoomLogic.CanGetCard(room, target, p, id))
                     {
                         List<int> cards = new List<int> { id };
-                        room.ObtainCard(target, ref cards, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, target.Name, p.Name, Name, string.Empty), false);
+                        room.ObtainCard(target, ref cards, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, target.Name, p.Name, Name, string.Empty), false);
                         Thread.Sleep(300);
                         break;
                     }
@@ -1344,7 +1344,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From.Phase == PlayerPhase.Discard
                 && base.Triggerable(move.From, room) && move.From_places.Contains(Place.PlaceHand) && move.Reason.PlayerId == move.From.Name
-                && (move.Reason.Reason & CardMoveReason.MoveReason.S_MASK_BASIC_REASON) == CardMoveReason.MoveReason.S_REASON_DISCARD)
+                && (move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_DISCARD)
             {
                 foreach (Place place in move.From_places)
                     if (place == Place.PlaceHand)
@@ -2110,7 +2110,7 @@ namespace SanguoshaServer.Package
                 {
                     GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, "jieying_gn", info.SkillPosition);
                     room.BroadcastSkillInvoke("jieying_gn", "male", 2, gsk.General, gsk.SkinId);
-                    room.ObtainCard(ask_who, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, ask_who.Name, player.Name, "jieying_gn", string.Empty), false);
+                    room.ObtainCard(ask_who, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, ask_who.Name, player.Name, "jieying_gn", string.Empty), false);
                 }
             }
 
@@ -2294,7 +2294,7 @@ namespace SanguoshaServer.Package
                     foreach (int id in p.GetEquips())
                         if (RoomLogic.CanDiscard(room, p, p, id)) ids.Add(id);
 
-                    if (ids.Count > 0) room.ThrowCard(ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_THROW, p.Name, "zhanhuo", string.Empty), p); 
+                    if (ids.Count > 0) room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, p.Name, "zhanhuo", string.Empty), p); 
                 }
             }
 

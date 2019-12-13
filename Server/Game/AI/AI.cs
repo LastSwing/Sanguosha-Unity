@@ -1414,7 +1414,7 @@ namespace SanguoshaServer.AI
             if (player.Phase == PlayerPhase.Judge && room.ContainsTag("judge_draw") && (int)room.GetTag("judge_draw") > 0)
             {
                 judging++;
-                List<JudgeStruct> judges = (List<JudgeStruct>)room.GetTag("current_judge");
+                List<JudgeStruct> judges = room.GetJudgeList();
                 JudgeStruct judge = judges[judges.Count - 1];
                 if (judge.Reason == card.Name)
                     index = 0;
@@ -2148,6 +2148,8 @@ namespace SanguoshaServer.AI
         public bool HasCrossbowEffect(Player player)
         {
             WrappedCard slash = new WrappedCard(Slash.ClassName);
+            if (HasSkill("kuangcai", player) && player.GetMark("kuangcai") < 3) return true;
+
             if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.Residue, player, slash) > 5)
                 return true;
 
@@ -2227,7 +2229,7 @@ namespace SanguoshaServer.AI
             if (judge.Reason == EightDiagram.ClassName && IsFriend(judge.Who))
             {
                 bool effect = true;
-                List<CardUseStruct> list = (List<CardUseStruct>)room.GetTag("card_proceeing");
+                List<CardUseStruct> list = room.GetUseList();
                 CardUseStruct use = list[list.Count - 1];
                 if (use.To.Contains(judge.Who))
                 {
@@ -2552,6 +2554,32 @@ namespace SanguoshaServer.AI
 
                 if (will_slash)
                 {
+                    if (player.ContainsTag("xianzhen") && player.GetTag("xianzhen") is List<string> names)
+                    {
+                        WrappedCard slash = null;
+                        foreach (ScoreStruct score in values)
+                        {
+                            if (names.Contains(score.Players[0].Name) && score.Score > 0)
+                            {
+                                slash = score.Card;
+                                break;
+                            }
+                        }
+
+                        if (slash != null)
+                        {
+                            foreach (ScoreStruct score in values)
+                            {
+                                if (score.Score > 0 && !names.Contains(score.Players[0].Name) && score.Players.Count == 1 && slash == score.Card)
+                                {
+                                    use.Card = score.Card;
+                                    use.To = score.Players;
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
                     if (HasSkill("duanbing") && WillShowForAttack() && values[0].Players.Count == 1 && RoomLogic.DistanceTo(room, player, values[0].Players[0], values[0].Card) == 1
                         && values.Count > 1)
                     {
@@ -3452,9 +3480,7 @@ namespace SanguoshaServer.AI
             {
                 if (HasSkill("pojun", from) || RoomLogic.CanDiscard(room, from, to, to.Armor.Key))
                 {
-                    List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
-                        (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();
-
+                    List<CardUseStruct> use_list = room.GetUseList();
                     if (self.HasFlag("target_confirming") || use_list.Count == 0 || use_list[use_list.Count - 1].Card != card || use_list[use_list.Count - 1].From != from)
                         armor_ignore = true;
                 }
@@ -3463,9 +3489,7 @@ namespace SanguoshaServer.AI
             if (!armor_ignore && card.Name.Contains(Slash.ClassName) && !IsFriend(from, to) && HasSkill("juzhan", from)
                 && from.GetMark("juzhan") > 0 && to.GetArmor() && RoomLogic.CanGetCard(room, from, to, to.Armor.Key))
             {
-                List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
-                    (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();
-
+                List<CardUseStruct> use_list = room.GetUseList();
                 if (self.HasFlag("target_confirming") || use_list.Count == 0 || use_list[use_list.Count - 1].Card != card || use_list[use_list.Count - 1].From != from)
                     armor_ignore = true;
             }
@@ -4198,6 +4222,11 @@ namespace SanguoshaServer.AI
             int peach_num = GetKnownCardsNums(Peach.ClassName, "he", self);
             int null_num = GetKnownCardsNums(Nullification.ClassName, "he", self);
             int enemies = 0;
+            
+            Player dongyun = FindPlayerBySkill("sheyan");
+            if (dongyun != null && (dongyun == self || RoomLogic.IsProhibited(room, self, dongyun, card) != null)) dongyun = null;
+            double best_good = 0, best_bad = 0;
+
             List<Player> targets = new List<Player>();
             foreach (Player p in room.GetOtherPlayers(self))
             {
@@ -4273,31 +4302,42 @@ namespace SanguoshaServer.AI
                     if (NotSlashJiaozhu(p))
                     {
                         bad += 20;
+                        if (best_bad < 20) best_bad = 20;
                         continue;
                     }
                     if (JiaozhuneedSlash(p))
                     {
                         good += 20;
+                        if (best_good < 20) best_good = 20;
                         continue;
                     }
                 }
 
+                double value = score.Score;
                 if (IsFriend(p) && score.Score > 0)
                 {
-                    good += score.Score;
+                    good += value;
+                    if (best_good < value) best_good = value;
                 }
                 else if (!IsFriend(p) && score.Score < 0)
                 {
-                    bad -= score.Score;
+                    bad -= value;
+                    if (best_bad < -value) best_bad = -value;
                 }
                 else
                 {
                     if (fuqi)
                     {
                         if (IsFriend(p))
-                            bad += score.Score;
+                        {
+                            bad += value;
+                            if (best_bad < -value) best_bad = -value;
+                        }
                         else
-                            good += score.Score;
+                        {
+                            good += value;
+                            if (best_good < value) best_good = value;
+                        }
                     }
                     else
                     {//room.OutPut("对" + p.SceenName + "计算命中率");
@@ -4375,6 +4415,8 @@ namespace SanguoshaServer.AI
                             }
                             bad += _bad;
                             good += _good;
+                            if (best_good < _good) best_good = _good;
+                            if (best_bad < _bad) best_bad = _bad;
                         }
 
                         if (card.Skill == "luanji" && IsFriend(p))
@@ -4397,6 +4439,14 @@ namespace SanguoshaServer.AI
                 }
                 if (!basic) adjust = 1.5 * target_num;
                 good += adjust;
+            }
+
+            if (dongyun != null)
+            {
+                if (IsFriend(dongyun))
+                    bad -= best_bad;
+                else if (IsEnemy(dongyun))
+                    good -= best_good;
             }
 
             return good > bad;
@@ -6329,7 +6379,7 @@ namespace SanguoshaServer.AI
 
             return result;
         }
-        public virtual WrappedCard AskForNullification(CardEffectStruct effect, bool positive) => null;
+        public virtual WrappedCard AskForNullification(CardEffectStruct effect, bool positive, CardEffectStruct real) => null;
         public virtual int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids) => -1;
         // virtual List<int> AskForCardsChosen(List<Player> targets, string flags, string reason, int min, int max, List<int> disabled_ids) => new List<int>();
         public virtual WrappedCard AskForCard(string reason, string pattern, string prompt, object data)

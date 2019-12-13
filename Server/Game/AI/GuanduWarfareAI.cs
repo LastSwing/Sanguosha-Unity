@@ -871,7 +871,7 @@ namespace SanguoshaServer.AI
 
             return base.AskForPlayersChosen(targets, reason, max_num, min_num);
         }
-        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive)
+        public override WrappedCard AskForNullification(CardEffectStruct effect, bool positive, CardEffectStruct real)
         {
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;

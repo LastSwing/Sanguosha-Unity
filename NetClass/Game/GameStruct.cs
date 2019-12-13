@@ -140,6 +140,7 @@ namespace CommonClass.Game
         public int Drank { set; get; }
         public int ExDamage { set; get; }
         public List<CardBasicEffect> EffectCount { set; get; }
+        public UseRespond RespondData { set; get; }
 
         public CardUseStruct(WrappedCard card)
         {
@@ -155,6 +156,7 @@ namespace CommonClass.Game
             Drank = 0;
             EffectCount = null;
             ExDamage = 0;
+            RespondData = null;
         }
         public CardUseStruct(WrappedCard card, Player from, List<Player> to, bool isOwnerUse = true)
         {
@@ -170,6 +172,7 @@ namespace CommonClass.Game
             Drank = 0;
             EffectCount = null;
             ExDamage = 0;
+            RespondData = null;
         }
         public CardUseStruct(WrappedCard card, Player from, Player target, bool isOwnerUse = true)
         {
@@ -185,20 +188,21 @@ namespace CommonClass.Game
             Drank = 0;
             EffectCount = null;
             ExDamage = 0;
+            RespondData = null;
         }
-        public bool IsValid(string pattern)
-        {
-            return true;
-        }
-        //public void Parse(string str, Room room)
-        //    {
-
-        //    }
-        //public bool tryParse(const QVariant &usage, Room* room) { }
-
-        //};
     }
-
+    public class UseRespond
+    {
+        public UseRespond(Player from, List<Player> targets, WrappedCard card)
+        {
+            From = from;
+            Targets = targets;
+            Card = card;
+        }
+        public Player From { set; get; }
+        public List<Player> Targets { set; get; }
+        public WrappedCard Card { set; get; }
+    }
     public class CardBasicEffect
     {
         public CardBasicEffect(Player to, int count, int count2, int count3)
@@ -295,6 +299,63 @@ namespace CommonClass.Game
         public int SkinId { set; get; }
     }
 
+    public enum MoveReason
+    {
+        S_REASON_UNKNOWN = 0x00,
+        S_REASON_USE = 0x01,
+        S_REASON_RESPONSE = 0x02,
+        S_REASON_DISCARD = 0x03,
+        S_REASON_RECAST = 0x04,          // ironchain etc.
+        S_REASON_PINDIAN = 0x05,
+        S_REASON_DRAW = 0x06,
+        S_REASON_GOTCARD = 0x07,
+        S_REASON_SHOW = 0x08,
+        S_REASON_TRANSFER = 0x09,
+        S_REASON_PUT = 0x0A,
+        S_REASON_ANNOUNCE = 0x0B,       //virtual skill card use
+        S_REASON_ABOLISH = 0x0C,        //abolish an equip
+                                        //subcategory of use
+        S_REASON_LETUSE = 0x11,           // use a card when self is not current
+
+        //subcategory of response
+        S_REASON_RETRIAL = 0x12,
+
+        //subcategory of discard
+        S_REASON_RULEDISCARD = 0x13,       //  discard at one's Player::Discard for gamerule
+        S_REASON_THROW = 0x23,             /*  gamerule(dying or punish)
+                                                            as the cost of some skills   */
+        S_REASON_DISMANTLE = 0x33,         //  one throw card of another
+
+        //subcategory of gotcard
+        S_REASON_GIVE = 0x17,             // from one hand to another hand
+        S_REASON_EXTRACTION = 0x27,        // from another's place to one's hand
+        S_REASON_GOTBACK = 0x37,          // from placetable to hand
+        S_REASON_RECYCLE = 0x47,          // from discardpile to hand
+        S_REASON_ROB = 0x57,               // got a definite card from other's hand
+        S_REASON_PREVIEWGIVE = 0x67,       // give cards after previewing, i.e. Yiji & Miji
+
+        //subcategory of show
+        S_REASON_TURNOVER = 0x18,          // show n cards from drawpile
+        S_REASON_JUDGE = 0x28,           // show a card from drawpile for judge
+        S_REASON_PREVIEW = 0x38,          // Not done yet, plan for view some cards for self only(guanxing yiji miji)
+        S_REASON_DEMONSTRATE = 0x48,       // show a card which copy one to move to table
+        S_REASON_DELAYTRICK_EFFECT = 0x58,    //delay trick move to table and start judge
+
+        //subcategory of transfer
+        S_REASON_SWAP = 0x19,              // exchange card for two players
+        S_REASON_OVERRIDE = 0x29,          // exchange cards from cards in game
+        S_REASON_EXCHANGE_FROM_PILE = 0x39,// exchange cards from cards moved out of game (for qixing only)
+
+        //subcategory of put
+        S_REASON_NATURAL_ENTER = 0x1A,     //  a card with no-owner move into discardpile
+                                           //  e.g. delayed trick enters discardpile
+        S_REASON_REMOVE_FROM_PILE = 0x2A,  //  cards moved out of game go back into discardpile
+        S_REASON_JUDGEDONE = 0x3A,         //  judge card move into discardpile
+        S_REASON_CHANGE_EQUIP = 0x4A,     //  replace existed equip
+        S_REASON_REMOVE_FROM_GAME = 0x5A, //  remove cards out of game, such as like add to player's plie
+
+        S_MASK_BASIC_REASON = 0x0F,
+    }
     public class CardMoveReason
     {
         public MoveReason Reason { set; get; } = MoveReason.S_REASON_UNKNOWN;
@@ -304,7 +365,8 @@ namespace CommonClass.Game
                                                             // judgement!!! It will not accurately reflect the real reason.
         public string SkillName { set; get; } = null;       // skill that triggers movement of the cards, such as "longdang", "dimeng"
         public string EventName { set; get; } = null;       // additional arg such as "lebusishu" on top of "S_REASON_JUDGE"
-        public string CardString { set; get; } = null;      // if the card moved by using/responding, then it has this
+        //public string CardString { set; get; } = null;      // if the card moved by using/responding, then it has this
+        public WrappedCard Card { set; get; } = null;      // if the card moved by using/responding, then it has this
         public GeneralSkin General { set; get; } = new GeneralSkin();    //卡牌信息不该由客户端计算
 
         public CardMoveReason()
@@ -349,64 +411,58 @@ namespace CommonClass.Game
             return Reason.GetHashCode() * (!string.IsNullOrEmpty(PlayerId) ? PlayerId.GetHashCode() : 10) * (!string.IsNullOrEmpty(TargetId) ? TargetId.GetHashCode() : 11)
                 * (!string.IsNullOrEmpty(SkillName) ? SkillName.GetHashCode() : 12) * (!string.IsNullOrEmpty(EventName) ? EventName.GetHashCode() : 13);
         }
+    };
 
-        public enum MoveReason
+    public struct CardMoveReasonStruct
+    {
+        public MoveReason Reason { set; get; }
+        public string PlayerId { set; get; }        // the cause (not the source) of the movement, such as "lusu" when "dimeng", or "zhanghe" when "qiaobian"
+        public string TargetId { set; get; }        // To keep this structure lightweight, currently this is only used for UI purpose.
+                                                            // It will be set to empty if multiple targets are involved. NEVER use it for trigger condition
+                                                            // judgement!!! It will not accurately reflect the real reason.
+        public string SkillName { set; get; }       // skill that triggers movement of the cards, such as "longdang", "dimeng"
+        public string EventName { set; get; }       // additional arg such as "lebusishu" on top of "S_REASON_JUDGE"
+        public string CardString { set; get; }      // if the card moved by using/responding, then it has this
+        public GeneralSkin General { set; get; }    //卡牌信息不该由客户端计算
+    };
+
+    public struct ClientCardsMoveStruct
+    {
+        public ClientCardsMoveStruct(int id, Player to, Place to_place, CardMoveReasonStruct reason)
         {
-            S_REASON_UNKNOWN = 0x00,
-            S_REASON_USE = 0x01,
-            S_REASON_RESPONSE = 0x02,
-            S_REASON_DISCARD = 0x03,
-            S_REASON_RECAST = 0x04,          // ironchain etc.
-            S_REASON_PINDIAN = 0x05,
-            S_REASON_DRAW = 0x06,
-            S_REASON_GOTCARD = 0x07,
-            S_REASON_SHOW = 0x08,
-            S_REASON_TRANSFER = 0x09,
-            S_REASON_PUT = 0x0A,
-            S_REASON_ANNOUNCE = 0x0B,       //virtual skill card use
-            S_REASON_ABOLISH = 0x0C,        //abolish an equip
-        //subcategory of use
-            S_REASON_LETUSE = 0x11,           // use a card when self is not current
-
-        //subcategory of response
-            S_REASON_RETRIAL = 0x12,
-
-        //subcategory of discard
-            S_REASON_RULEDISCARD = 0x13,       //  discard at one's Player::Discard for gamerule
-            S_REASON_THROW = 0x23,             /*  gamerule(dying or punish)
-                                                            as the cost of some skills   */
-            S_REASON_DISMANTLE = 0x33,         //  one throw card of another
-
-        //subcategory of gotcard
-            S_REASON_GIVE = 0x17,             // from one hand to another hand
-            S_REASON_EXTRACTION = 0x27,        // from another's place to one's hand
-            S_REASON_GOTBACK = 0x37,          // from placetable to hand
-            S_REASON_RECYCLE = 0x47,          // from discardpile to hand
-            S_REASON_ROB = 0x57,               // got a definite card from other's hand
-            S_REASON_PREVIEWGIVE = 0x67,       // give cards after previewing, i.e. Yiji & Miji
-
-        //subcategory of show
-            S_REASON_TURNOVER = 0x18,          // show n cards from drawpile
-            S_REASON_JUDGE = 0x28,           // show a card from drawpile for judge
-            S_REASON_PREVIEW = 0x38,          // Not done yet, plan for view some cards for self only(guanxing yiji miji)
-            S_REASON_DEMONSTRATE = 0x48,       // show a card which copy one to move to table
-            S_REASON_DELAYTRICK_EFFECT = 0x58,    //delay trick move to table and start judge
-
-        //subcategory of transfer
-            S_REASON_SWAP = 0x19,              // exchange card for two players
-            S_REASON_OVERRIDE = 0x29,          // exchange cards from cards in game
-            S_REASON_EXCHANGE_FROM_PILE = 0x39,// exchange cards from cards moved out of game (for qixing only)
-
-        //subcategory of put
-            S_REASON_NATURAL_ENTER = 0x1A,     //  a card with no-owner move into discardpile
-                                                            //  e.g. delayed trick enters discardpile
-            S_REASON_REMOVE_FROM_PILE = 0x2A,  //  cards moved out of game go back into discardpile
-            S_REASON_JUDGEDONE = 0x3A,         //  judge card move into discardpile
-            S_REASON_CHANGE_EQUIP = 0x4A,     //  replace existed equip
-            S_REASON_REMOVE_FROM_GAME = 0x5A, //  remove cards out of game, such as like add to player's plie
-
-            S_MASK_BASIC_REASON = 0x0F,
+            Card_ids = new List<int> { id };
+            From_place = Place.PlaceUnknown;
+            To_place = to_place;
+            From = string.Empty;
+            To = to != null ? to.Name : string.Empty;
+            Reason = reason;
+            Is_last_handcard = false;
+            Open = false;
+            From_pile_name = null;
+            To_pile_name = null;
+            Origin_from_place = Place.PlaceUnknown;
+            Origin_to_place = Place.PlaceUnknown;
+            Origin_from = null;
+            Origin_to = null;
+            Origin_from_pile_name = null;
+            Origin_to_pile_name = null;
         }
+        public List<int> Card_ids { set; get; }
+        public Place From_place { set; get; }
+        public Place To_place { set; get; }
+        public string From_pile_name { set; get; }
+        public string To_pile_name { set; get; }
+        public string From { set; get; }
+        public string To { set; get; }
+        public CardMoveReasonStruct Reason { set; get; }
+        public bool Open { set; get; } // helper to prevent sending card_id to unrelevant clients
+        public bool Is_last_handcard { set; get; }
+        public Place Origin_from_place { set; get; }
+        public Place Origin_to_place { set; get; }
+        public string Origin_from { set; get; }
+        public string Origin_to { set; get; }
+        public string Origin_from_pile_name { set; get; }
+        public string Origin_to_pile_name { set; get; } //for case of the movement transitted
     };
 
     public struct CardsMoveOneTimeStruct
@@ -416,7 +472,7 @@ namespace CommonClass.Game
             Card_ids = new List<int>();
             From_places = new List<Place>();
             To_place = Place.PlaceUnknown; ;
-            Reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_UNKNOWN, string.Empty);
+            Reason = new CardMoveReason(MoveReason.S_REASON_UNKNOWN, string.Empty);
             From = from;
             To = null;
             From_pile_names = new List<string>();

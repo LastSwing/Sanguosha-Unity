@@ -380,11 +380,7 @@ namespace SanguoshaServer.Scenario
                     data = card_use;
                 }
                 
-                List<CardUseStruct> use_list = room.ContainsTag("card_proceeing") ?
-                    (List<CardUseStruct>)room.GetTag("card_proceeing") : new List<CardUseStruct>();                    //for serval purpose, such as AI
-                use_list.Add(card_use);
-                room.SetTag("card_proceeing", use_list);
-
+                room.AddUseList(card_use);
                 card_use.EffectCount = new List<CardBasicEffect>();
                 foreach (Player p in card_use.To)
                     card_use.EffectCount.Add(fcard.FillCardBasicEffct(room, p));
@@ -557,9 +553,9 @@ namespace SanguoshaServer.Scenario
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player target, TriggerStruct trigger_info)
         {
-            if (room.ContainsTag("SkipGameRule") && (bool)room.GetTag("SkipGameRule"))
+            if (room.SkipGameRule)
             {
-                room.RemoveTag("SkipGameRule");
+                room.SkipGameRule = false;
                 return false;
             }
 
@@ -599,19 +595,15 @@ namespace SanguoshaServer.Scenario
                     CardUseStruct use = (CardUseStruct)data;
                     //room.ClearCardFlag(use.Card);
                     use.Card.ClearFlags();                  //RoomCard会在其移动后自动清除flag
+                    room.RemoveSubCards(use.Card);
 
                     //以askforcard形式使用的卡牌没有onUse的trigger，但有finish
                     if (use.Reason != CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE)
                     {
-                        List<CardUseStruct> use_list = (List<CardUseStruct>)room.GetTag("card_proceeing");                    //remove when finished
-                        if (use_list.Count > 0) use_list.RemoveAt(use_list.Count - 1);
-                        room.SetTag("card_proceeing", use_list);
-
-                        //room.RemoveTag("targets" + RoomLogic.CardToString(room, use.Card));
+                        room.RemoveUseOnFinish();
                     }
 
-                    if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
-                        room.RemoveTag(RoomLogic.CardToString(room, use.Card) + "HegnullificationTargets");
+                    if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick()) room.RemoveHegNullification(use.Card);
 
                     foreach (Client p in room.Clients)
                         room.DoNotify(p, CommandType.S_COMMAND_NULLIFICATION_ASKED, new List<string> { "." });
@@ -740,10 +732,10 @@ namespace SanguoshaServer.Scenario
                         {
                             if (Engine.GetFunctionCard(effect.Card.Name) is DelayedTrick)
                             {
-                                CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_DELAYTRICK_EFFECT,
+                                CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_DELAYTRICK_EFFECT,
                                     effect.To.Name, effect.Card.Skill, effect.Card.Name)
                                 {
-                                    CardString = RoomLogic.CardToString(room, effect.Card)
+                                    Card = effect.Card
                                 };
 
                                 room.MoveCardTo(effect.Card, effect.To, Place.PlaceTable, reason, true);
@@ -777,11 +769,8 @@ namespace SanguoshaServer.Scenario
                             object _effect = effect;
                             room.RoomThread.Trigger(TriggerEvent.CardEffectConfirmed, room, effect.To, ref _effect);
 
-                            room.SetTag("Global_CardEffected", _effect);                                         //for AI 
                             if (effect.To.Alive || fcard is Slash)
                                 fcard.OnEffect(room, effect);
-
-                            room.RemoveTag("Global_CardEffected");
                         }
 
                         break;
@@ -906,7 +895,7 @@ namespace SanguoshaServer.Scenario
                         room.SendLog(log);
 
                         room.MoveCardTo(judge_struct.Card, null, judge_struct.Who, Place.PlaceJudge,
-                            new CardMoveReason(CardMoveReason.MoveReason.S_REASON_JUDGE, judge_struct.Who.Name, null, null, judge_struct.Reason), true);
+                            new CardMoveReason(MoveReason.S_REASON_JUDGE, judge_struct.Who.Name, null, null, judge_struct.Reason), true);
 
                         Thread.Sleep(500);
                         bool effected = judge_struct.Good == Engine.MatchExpPattern(room, judge_struct.Pattern, judge_struct.Who, judge_struct.Card);
@@ -940,7 +929,7 @@ namespace SanguoshaServer.Scenario
 
                         if (room.GetCardPlace(judge.Card.Id) == Place.PlaceJudge)
                         {
-                            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_JUDGEDONE, judge.Who.Name, null, judge.Reason);
+                            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_JUDGEDONE, judge.Who.Name, null, judge.Reason);
                             room.MoveCardTo(judge.Card, judge.Who, null, Place.DiscardPile, reason, true);
                         }
 
@@ -997,7 +986,7 @@ namespace SanguoshaServer.Scenario
                             bool should_find_io = false;
                             if (move.To_place == Place.DiscardPile)
                             {
-                                if (move.Reason.Reason != CardMoveReason.MoveReason.S_REASON_USE)
+                                if (move.Reason.Reason != MoveReason.S_REASON_USE)
                                 {
                                     should_find_io = true; // not use
                                 }

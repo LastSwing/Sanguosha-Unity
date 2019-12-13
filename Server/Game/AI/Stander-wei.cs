@@ -676,7 +676,7 @@ namespace SanguoshaServer.AI
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
-            if (player.HasTreasure(JadeSeal.ClassName)) return new List<Player>();
+            if (player.HasFlag("jieyue_draw") || player.HasTreasure(JadeSeal.ClassName)) return new List<Player>();
 
             List<Player> result = FindTuxiTargets(ai, player);
             if (result.Count == 1 && result[0].HandcardNum != 1)
@@ -1360,7 +1360,8 @@ namespace SanguoshaServer.AI
                 ai.Target["qiaobian1"] = null;
                 ai.Target["qiaobian2"] = null;
 
-                if (player.HasTreasure(JadeSeal.ClassName) || player.GetPile("yijipile").Count > 0) return new List<int>();
+                if (player.HasFlag("jieyue_draw") || player.HasTreasure(JadeSeal.ClassName) || player.GetMark("@tangerine") > 0)
+                    return new List<int>();
                 List<Player> targets = TuxiAI.FindTuxiTargets(ai, player);
                 if (targets.Count == 2)
                 {
@@ -2154,23 +2155,52 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
-            if (data is string choice && ai.Self != player)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
+                Room room = ai.Room;
                 string[] choices = choice.Split(':');
-                if (choices[1] == Name)
+                Player target = room.FindPlayer(choices[2]);
+                if (ai is SmartAI && ai.Self != player)
                 {
-                    Room room = ai.Room;
                     if (!player.HasShownOneGeneral())
                     {
                         string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
                         ai.UpdatePlayerIntention(player, role, 100);
                     }
-                    Player target = room.FindPlayer(choices[2]);
+                    int count = player.GetLostHp();
+                    if (count >= 2 && ai.HasCrossbowEffect(target)) return; 
+
                     if (target != null && !target.FaceUp)
                         ai.UpdatePlayerRelation(player, target, true);
                     if (ai.GetPlayerTendency(target) == "unknown" && target.FaceUp && ai.IsKnown(player, target))
-                        ai.UpdatePlayerRelation(player, target, false);
+                    {
+                        if (ai.HasSkill("jushou", target))
+                        {
+                            List<string> kingdoms = new List<string>();
+                            foreach (Player p in room.Players)
+                                if (p.HasShownOneGeneral() && !kingdoms.Contains(p.Kingdom))
+                                    kingdoms.Add(p.Kingdom);
+
+                            if (kingdoms.Count > 2)
+                                ai.UpdatePlayerRelation(player, target, true);
+                        }
+                        else
+                            ai.UpdatePlayerRelation(player, target, false);
+                    }
+                }
+                else if (ai is StupidAI)
+                {
+                    int count = player.GetLostHp();
+                    if (count >= 2 && ai.HasCrossbowEffect(target) || (ai.HasSkill("luanji_jx", target) && target == room.Current)) return;
+
+                    if (!target.FaceUp) ai.UpdatePlayerRelation(player, target, true);
+                    if (ai.GetPlayerTendency(target) == "unknown" && target.FaceUp)
+                    {
+                        if (ai.HasSkill("jushou_jx", target))
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                            ai.UpdatePlayerRelation(player, target, false);
+                    }
                 }
             }
         }
@@ -2179,6 +2209,7 @@ namespace SanguoshaServer.AI
             if (!ai.WillShowForMasochism()) return new List<Player>();
 
             Room room = ai.Room;
+            int count = player.GetLostHp();
             foreach (Player p in ai.GetFriends(player))
             {
                 if (p != player && !p.FaceUp && ai.HasSkill("jushou_", p) && p == room.Current)
@@ -2213,6 +2244,9 @@ namespace SanguoshaServer.AI
             }
             if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx", room.Current) && room.Current.FaceUp)
                 return new List<Player> { room.Current };
+            if (count >= 3 && ai.IsFriend(room.Current) && ai.HasCrossbowEffect(room.Current) && !ai.HasSkill("kuangcai", room.Current))
+                return new List<Player> { room.Current };
+            if (ai is StupidAI && count >= 2 && ai.IsFriend(room.Current) && ai.HasSkill("luanji_jx", room.Current)) return new List<Player> { room.Current };
 
             Dictionary<Player, double> strenth = new Dictionary<Player, double>();
             List<Player> enemis = ai.GetEnemies(player);
@@ -2220,8 +2254,16 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in enemis)
                 {
-                    double value = smart.EvaluatePlayerStrength(p);
-                    if (room.Current == p) value -= 1.5;
+                    double value = 0;
+                    if (count >= 2 && (ai.HasCrossbowEffect(p) || ai.HasSkill("luanji|luanji_jx", p)) && p == room.Current)
+                    {
+                        value = -10;
+                    }
+                    else
+                    {
+                        value = smart.EvaluatePlayerStrength(p);
+                        if (room.Current == p) value -= 1.5;
+                    }
                     strenth.Add(p, value);
                 }
             }
@@ -2229,20 +2271,31 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in enemis)
                 {
-                    double value = stupid.EvaluatePlayerStrength(p);
-                    if (room.Current == p) value -= 1.5;
+                    double value = 0;
+                    if (count >= 2 && (ai.HasCrossbowEffect(p) || ai.HasSkill("luanji|luanji_jx", p)) && p == room.Current)
+                    {
+                        value = -10;
+                    }
+                    else
+                    {
+                        value = stupid.EvaluatePlayerStrength(p);
+                        if (room.Current == p) value -= 1.5;
+                    }
                     strenth.Add(p, value);
                 }
             }
 
             enemis.Sort((x, y) => { return strenth[x] > strenth[y] ? -1 : 1; });
             foreach (Player p in enemis)
-                if (p.FaceUp && !ai.WillSkipPlayPhase(p))
+                if (p.FaceUp && !ai.WillSkipPlayPhase(p) && strenth[p] >= 0)
                     return new List<Player> { p };
 
             foreach (Player p in enemis)
-                if (p.FaceUp)
+                if (p.FaceUp && strenth[p] >= 0)
                     return new List<Player> { p };
+
+            if (count >= 2 && ai.IsFriend(room.Current) && ai.HasCrossbowEffect(room.Current) && !ai.HasSkill("kuangcai", room.Current))
+                return new List<Player> { room.Current };
 
             return new List<Player>();
         }

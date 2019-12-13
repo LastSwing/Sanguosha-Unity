@@ -269,7 +269,7 @@ namespace SanguoshaServer.Package
                     room.SetTag("zhezhu_target", lord);
                     List<int> ids = room.AskForExchange(card_use.From, "zhezhu", 1, 1, "@zhezhu:" + lord.Name, string.Empty, "..", card_use.Card.SkillPosition);
                     room.RemoveTag("zhezhu_target");
-                    room.ObtainCard(lord, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, lord.Name, "zhezhu", string.Empty), false);
+                    room.ObtainCard(lord, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, card_use.From.Name, lord.Name, "zhezhu", string.Empty), false);
                 }
             }
         }
@@ -487,7 +487,7 @@ namespace SanguoshaServer.Package
             List<CardsMoveStruct> moves = new List<CardsMoveStruct>();
             while (cards.Count > 0 && friends.Count > 0)
             {
-                WrappedCard card = room.AskForUseCard(player, "@@shushou", "@shushou", -1, FunctionCard.HandlingMethod.MethodNone, true, info.SkillPosition);
+                WrappedCard card = room.AskForUseCard(player, "@@shushou", "@shushou", null, -1, FunctionCard.HandlingMethod.MethodNone, true, info.SkillPosition);
                 if (card != null)
                 {
                     Player target = (Player)room.GetTag("shushou_target");
@@ -495,7 +495,7 @@ namespace SanguoshaServer.Package
                     target.SetFlags("-" + Name);
                     friends.Remove(target);
                     targets.Add(target);
-                    CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty);
+                    CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty);
                     CardsMoveStruct move = new CardsMoveStruct(new List<int>(card.SubCards), target, Place.PlaceHand, reason);
                     moves.Add(move);
 
@@ -728,7 +728,7 @@ namespace SanguoshaServer.Package
             card_use.From.Result = result;
 
             Player target = card_use.To[0];
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "yuanlue", string.Empty);
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "yuanlue", string.Empty);
             List<int> ids = new List<int>(card_use.Card.SubCards);
             room.ObtainCard(target, ref ids, reason, true);
 
@@ -739,7 +739,7 @@ namespace SanguoshaServer.Package
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                 if (fcard.IsAvailable(room, target, card))
                 {
-                    WrappedCard use = room.AskForUseCard(target, card_id.ToString(), "@yuanlue:" + card_use.From.Name);
+                    WrappedCard use = room.AskForUseCard(target, card_id.ToString(), "@yuanlue:" + card_use.From.Name, null);
                     if (use != null && card_use.From.Alive)
                         room.DrawCards(card_use.From, 1, "yuanlue");
                 }
@@ -866,12 +866,12 @@ namespace SanguoshaServer.Package
                             ids.AddRange(target.JudgingArea);
                     }
 
-                    room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
+                    room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
                 }
                 else if (!player.IsNude())
                 {
                     List<int> ids = room.AskForExchange(player, Name, 1, 1, "@fenglue-fail:" + target.Name, string.Empty, "..", info.SkillPosition);
-                    room.ObtainCard(target, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty), false);
+                    room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty), false);
                 }
             }
             else if (data is PindianStruct pindian)
@@ -908,7 +908,7 @@ namespace SanguoshaServer.Package
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, "moushi", card_use.Card.SkillPosition);
             room.BroadcastSkillInvoke("moushi", "male", 1, gsk.General, gsk.SkinId);
             Player target = card_use.To[0];
-            CardMoveReason reason = new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, player.Name, target.Name, "moushi", string.Empty);
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "moushi", string.Empty);
             List<int> ids = new List<int>(card_use.Card.SubCards);
             room.ObtainCard(target,ref ids, reason, false);
 
@@ -1077,12 +1077,12 @@ namespace SanguoshaServer.Package
                 if (equipped_id != -1)
                 {
                     CardsMoveStruct move1 = new CardsMoveStruct(new List<int> { equipped_id }, player, Player.Place.PlaceTable,
-                        new CardMoveReason(CardMoveReason.MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
+                        new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
                     exchangeMove.Add(move1);
                     room.MoveCardsAtomic(exchangeMove, true);
                 }
                 CardsMoveStruct move2 = new CardsMoveStruct(new List<int> { catapult }, room.GetCardOwner(catapult), player, room.GetCardPlace(catapult),
-                                      Place.PlaceEquip, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_PUT, player.Name, Name, string.Empty));
+                                      Place.PlaceEquip, new CardMoveReason(MoveReason.S_REASON_PUT, player.Name, Name, string.Empty));
                 exchangeMove.Add(move2);
                 room.MoveCardsAtomic(exchangeMove, true);
 
@@ -1099,7 +1099,7 @@ namespace SanguoshaServer.Package
                     if (room.GetCardPlace(equipped_id) == Place.PlaceTable)
                     {
                         CardsMoveStruct move3 = new CardsMoveStruct(new List<int> { equipped_id }, null, Player.Place.DiscardPile,
-                           new CardMoveReason(CardMoveReason.MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
+                           new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
                         room.MoveCardsAtomic(new List<CardsMoveStruct> { move3 }, true);
                     }
                 }
@@ -1192,14 +1192,14 @@ namespace SanguoshaServer.Package
                     result.Assist++;
                     target.Result = result;
 
-                    room.ObtainCard(player, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
+                    room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
                     if (player.ContainsTag(Name) && player.GetTag(Name) is string card_name && !string.IsNullOrEmpty(card_name))
                     {
                         WrappedCard card = new WrappedCard(card_name) { Skill = "_choulue" };
                         FunctionCard fcard = Engine.GetFunctionCard(card_name);
                         if (fcard != null && fcard.IsAvailable(room, player, card))
                         {
-                            room.AskForUseCard(player, "@@choulue", "@choulue-use:::" + card_name, -1, FunctionCard.HandlingMethod.MethodUse, false, info.SkillPosition);
+                            room.AskForUseCard(player, "@@choulue", "@choulue-use:::" + card_name, null, -1, FunctionCard.HandlingMethod.MethodUse, false, info.SkillPosition);
                         }
                     }
                 }

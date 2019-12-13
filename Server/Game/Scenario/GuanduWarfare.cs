@@ -437,7 +437,7 @@ namespace SanguoshaServer.Scenario
             if (killer != null && killer.Alive && killer.Camp != player.Camp && !player.IsKongcheng())
             {
                 List<int> ids = player.GetCards("h");
-                room.ObtainCard(killer, ref ids, new CardMoveReason(CardMoveReason.MoveReason.S_REASON_EXTRACTION, killer.Name));
+                room.ObtainCard(killer, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, killer.Name));
             }
 
             room.BuryPlayer(player);
