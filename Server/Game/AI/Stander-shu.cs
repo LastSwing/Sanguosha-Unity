@@ -62,6 +62,16 @@ namespace SanguoshaServer.AI
             friends.RemoveAll(t => t.HasFlag("rende_" + player.Name));
             Player shenpei = ai.FindPlayerBySkill("beizhan");
 
+            if (player.ContainsTag("zhengu") && player.GetTag("zhengu") is string haozhao)
+            {
+                Player owner = room.FindPlayer(haozhao);
+                if (owner != null && (ai.IsFriend(owner) || player.HandcardNum > owner.HandcardNum))
+                    return true;
+            }
+            Player fazheng = ai.FindPlayerBySkill("enyuan_jx");
+            if (fazheng != null && ai.IsFriend(fazheng) && player.HandcardNum >= 2 && !fazheng.HasFlag("rende_" + player.Name))
+                return true;
+
             string card_name = player.HasFlag("rende_judged") && player.GetMark(Name) < 2 ? ai.Choice[Name] : string.Empty;
             if (!string.IsNullOrEmpty(card_name))
             {
@@ -129,7 +139,7 @@ namespace SanguoshaServer.AI
                             }
                         }
 
-                        if (slash != null && !slash.Skill.Contains("rende") && drink != null)
+                        if (slash != null && !slash.Skill.Contains("rende") && drink != null && player.HandcardNum > 2 - player.GetMark(Name))
                         {
                             int hand = 0;
                             foreach (int id in slash.SubCards)
@@ -222,7 +232,7 @@ namespace SanguoshaServer.AI
             if (use_slash)
             {
                 WrappedCard card = new WrappedCard(Slash.ClassName) { Skill = "_rende" };
-                FunctionCard fcard = Engine.GetFunctionCard(Slash.ClassName);
+                FunctionCard fcard = Slash.Instance;
                 if (fcard.IsAvailable(room, player, card))
                 {
 
@@ -241,10 +251,24 @@ namespace SanguoshaServer.AI
                     {
                         use.Card = scores[0].Card;
                         use.To = scores[0].Players;
+                        return use;
                     }
                 }
-
             }
+
+            WrappedCard peach = new WrappedCard(Peach.ClassName) { Skill = "_rend" };
+            if (Peach.Instance.IsAvailable(room, player, peach))
+            {
+                use.Card = peach;
+                return use;
+            }
+            WrappedCard ana = new WrappedCard(Analeptic.ClassName) { Skill = "_rend" };
+            if (Analeptic.Instance.IsAvailable(room, player, peach))
+            {
+                use.Card = ana;
+                return use;
+            }
+
             return use;
         }
 
@@ -287,8 +311,39 @@ namespace SanguoshaServer.AI
             List<int> ids= player.GetCards("h");
             if (ids.Count == 0) return;
 
-            string card_name = player.HasFlag("rende_judged") && player.GetMark("rende") < 2 ? ai.Choice["rende"] : string.Empty;
             Room room = ai.Room;
+            if (player.ContainsTag("zhengu") && player.GetTag("zhengu") is string haozhao)
+            {
+                Player owner = room.FindPlayer(haozhao);
+                if (owner != null && ai.IsFriend(owner) && owner.HandcardNum < 5 && !owner.HasFlag("rende_" + player.Name))
+                {
+                    List<int> sub = new List<int>();
+                    ai.SortByKeepValue(ref ids, false);
+                    for (int i = 0; i < Math.Min(ids.Count, 5 - owner.HandcardNum); i++)
+                        sub.Add(ids[i]);
+
+                    card.AddSubCards(sub);
+                    use.Card = card;
+                    use.To = new List<Player> { owner };
+                    return;
+                }
+            }
+
+            Player fazheng = ai.FindPlayerBySkill("enyuan_jx");
+            if (fazheng != null && ai.IsFriend(fazheng) && player.HandcardNum >= 2 && !fazheng.HasFlag("rende_" + player.Name))
+            {
+                List<int> sub = new List<int>();
+                ai.SortByUseValue(ref ids, false);
+                for (int i = 0; i < 2; i++)
+                    sub.Add(ids[i]);
+
+                card.AddSubCards(sub);
+                use.Card = card;
+                use.To = new List<Player> { fazheng };
+                return;
+            }
+
+            string card_name = player.HasFlag("rende_judged") && player.GetMark("rende") < 2 ? ai.Choice["rende"] : string.Empty;
             List<Player> friends = ai.FriendNoSelf;
             friends.RemoveAll(t => t.HasFlag("rende_" + player.Name));
             List<Player> _friends = new List<Player>(friends);
@@ -343,8 +398,9 @@ namespace SanguoshaServer.AI
                 }
                 if (card.SubCards.Count > 0 && _friends.Count == 1)
                 {
+                    ids.RemoveAll(t => card.SubCards.Contains(t));
                     //如只有1位友方，则须至少给够2张牌
-                    if (friends.Count == 1 && card.SubCards.Count < 2 - player.GetMark("rende"))
+                    if (friends.Count == 1 && card.SubCards.Count < 2 - player.GetMark("rende") && ids.Count > 0)
                     {
                         ai.SortByUseValue(ref ids, false);
                         for (int i = card.SubCards.Count - 2 + player.GetMark("rende"); i >= 0; i--)
@@ -960,11 +1016,16 @@ namespace SanguoshaServer.AI
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 string[] choices = choice.Split(':');
-                Player who =  ai.Room.FindPlayer(choices[1]);
-                if (who != null)
+                List<int> ups = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
+                List<int> downs = JsonUntity.StringList2IntList(new List<string>(choices[3].Split('+')));
+                ai.SetGuanxingResult(player, ups);
+                if (ai.Self == player)
                 {
-                    List<int> ups = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
-                    ai.SetGuanxingResult(who, ups);
+                    Room room = ai.Room;
+                    foreach (int id in ups)
+                        room.GetCard(id).SetFlags("visible2" + player.Name);
+                    foreach (int id in downs)
+                        room.GetCard(id).SetFlags("visible2" + player.Name);
                 }
             }
         }

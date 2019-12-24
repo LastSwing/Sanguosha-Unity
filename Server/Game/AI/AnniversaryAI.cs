@@ -16,6 +16,8 @@ namespace SanguoshaServer.AI
             {
                 new YanjiaoAI(),
                 new XingshenAI(),
+                new AndongAI(),
+                new YingshiAI(),
 
                 new TunanAI(),
 
@@ -25,6 +27,8 @@ namespace SanguoshaServer.AI
                 new YoudiAI(),
                 new DuanfaAI(),
                 new GongqingAI(),
+                new BiaozhaoAI(),
+                new YechouAI(),
 
                 new KannanAI(),
                 new JiedaoAI(),
@@ -229,6 +233,100 @@ namespace SanguoshaServer.AI
                 score.Score += 1.5;
 
             return score;
+        }
+    }
+
+    public class AndongAI : SkillEvent
+    {
+        public AndongAI() : base("andong")
+        {
+        }
+
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
+            if (ai.HasSkill(Name, damage.To) && damage.From != null && damage.From != damage.To && !ai.IsFriend(damage.To, damage.From)
+                && !damage.To.IsKongcheng() && ai.Self == damage.From)
+            {
+                Room room = ai.Room;
+                List<int> ids = new List<int>();
+                foreach (int id in ai.Self.GetCards("h"))
+                    if (room.GetCard(id).Suit == WrappedCard.CardSuit.Heart) ids.Add(id);
+
+                if (damage.Card != null)
+                    ids.RemoveAll(t => damage.Card.SubCards.Contains(t));
+
+                double value = 0;
+                if (ai.Self.Phase == PlayerPhase.Play)
+                {
+                    foreach (int id in ids)
+                        value += ai.GetUseValue(id, ai.Self);
+
+                }
+                else
+                {
+                    foreach (int id in ids)
+                        value += ai.GetKeepValue(id, ai.Self);
+                }
+                score.Score -= value / 2;
+            }
+
+            return score;
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            if (data is DamageStruct damage)
+            {
+                Player target = damage.To;
+                ScoreStruct score = ai.GetDamageScore(damage);
+                if (score.Score > 0)
+                    return "view";
+                else
+                    return "prevent";
+            }
+
+            return "view";
+        }
+    }
+
+    public class YingshiAI : SkillEvent
+    {
+        public YingshiAI() : base("yingshi")
+        {
+            key = new List<string> { "playerChosen:hongde" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, false);
+                }
+            }
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> enemies = ai.GetPrioEnemies();
+            if (ai.GetEnemies(player).Count <= 1 && ai.GetOverflow(player) == 0) return new List<Player>();
+            if (enemies.Count > 0)
+            {
+                ai.SortByDefense(ref enemies, false);
+                return new List<Player> { enemies[0] };
+            }
+
+            return new List<Player>();
         }
     }
 
@@ -610,7 +708,6 @@ namespace SanguoshaServer.AI
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             //针对所选择的卡牌判断敌友
-            if (ai.Self == player && !(ai is StupidAI)) return;
             Room room = ai.Room;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
@@ -639,7 +736,7 @@ namespace SanguoshaServer.AI
                 if (WrappedCard.IsBlack(card.Suit)) black++;
                 if (card.Name.Contains(Slash.ClassName)) slash++;
             }
-            if ((slash + black) / (ids.Count * 2) >= 1 / 3) return new List<Player>();
+            if ((double)(slash + black) / (ids.Count * 2) >= (double)1 / 3) return new List<Player>();
 
             List<ScoreStruct> scores = new List<ScoreStruct>();
             foreach (Player p in targets)
@@ -755,7 +852,7 @@ namespace SanguoshaServer.AI
 
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
-            base.Use(ai, player, ref use, card);
+            use.Card = card;
         }
 
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
@@ -823,6 +920,160 @@ namespace SanguoshaServer.AI
                 int range = RoomLogic.GetAttackRange(ai.Room, damage.From, weapon);
                 if (range > 3) damage.Damage++;
             }
+        }
+    }
+
+    public class BiaozhaoAI : SkillEvent
+    {
+        public BiaozhaoAI() : base("biaozhao")
+        {
+            key = new List<string> { "playerChosen:juedi" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (ai.Self == player) return;
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            Room room = ai.Room;
+            int count = 0;
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.HandcardNum > count) count = p.HandcardNum;
+            
+            double value = 0;
+            Dictionary<Player, double> points = new Dictionary<Player, double>();
+            foreach (Player p in targets)
+            {
+                if (!ai.IsFriend(p) || ai.HasSkill("zishu", p)) continue;
+                int draw = Math.Min(count - p.HandcardNum, 5);
+                double _value = draw * 1.5;
+                if (p.IsWounded()) _value += 3;
+                if (ai.HasSkill(TrustedAI.CardneedSkill, p)) _value += draw;
+                points[p] = _value;
+            }
+
+            if (points.Count > 0)
+            {
+                List<Player> frineds = new List<Player>(points.Keys);
+                frineds.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
+                if (value < points[frineds[0]]) return new List<Player> { frineds[0] };
+            }
+
+            return new List<Player>();
+        }
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            List<int> ids = player.GetCards("he");
+            if (ids.Count > 0)
+            {
+                List<double> values = ai.SortByKeepValue(ref ids, false);
+                if (values[0] < 6) return new List<int> { ids[0] };
+            }
+
+            return new List<int>();
+        }
+    }
+
+    public class YechouAI : SkillEvent
+    {
+        public YechouAI() : base("yechou") { }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            if (ai is StupidAI && (player.GetRoleEnum() == PlayerRole.Loyalist || player.GetRoleEnum() == PlayerRole.Rebel))
+            {
+                Room room = ai.Room;
+                Dictionary<Player, double> points = new Dictionary<Player, double>();
+                foreach (Player p in targets)
+                {
+                    if (!ai.IsEnemy(p)) continue;
+                    double basic = 1;
+                    if (player.GetRoleEnum() == PlayerRole.Rebel && p.GetRoleEnum() != PlayerRole.Lord) basic = 0.6;
+                    int count = 1;
+                    Player next = room.GetNextAlive(room.Current, 1, false);
+                    while (next != p)
+                    {
+                        if (next.FaceUp)
+                            count++;
+                        next = room.GetNextAlive(next, 1, false);
+                    }
+                    points[p] = count * basic;
+                }
+
+                if (points.Count > 0)
+                {
+                    List<Player> players = new List<Player>(points.Keys);
+                    players.Sort((x, y) => { return points[x] > points[y] ? -1 : 1; });
+                    return new List<Player> { players[0] };
+                }
+            }
+
+            return new List<Player>();
+        }
+
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
+            if (ai is StupidAI _ai && ai.HasSkill(Name, damage.To) && damage.Damage >= damage.To.Hp && ai.IsSituationClear())
+            {
+                Room room = ai.Room;
+                if ((_ai.GetRolePitts(PlayerRole.Rebel) > 1 || _ai.GetRolePitts(PlayerRole.Renegade) > 0) && ai.GetPlayerTendency(damage.To) == "rebel")
+                {
+                    Player lord = null;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.GetRoleEnum() == PlayerRole.Lord && p.GetLostHp() > 1)
+                        {
+                            lord = p;
+                            break;
+                        }
+                    }
+
+                    if (lord != null)
+                    {
+                        int count = 1;
+                        Player next = room.GetNextAlive(room.Current, 1, false);
+                        while (next != lord)
+                        {
+                            if (next.FaceUp && next != damage.To)
+                                count++;
+                            next = room.GetNextAlive(next, 1, false);
+                        }
+
+                        if (count > lord.Hp)
+                        {
+                            switch (ai.Self.GetRoleEnum())
+                            {
+                                case PlayerRole.Lord:
+                                case PlayerRole.Loyalist:
+                                case PlayerRole.Renegade:
+                                    score.Score = -40;
+                                    break;
+                                case PlayerRole.Rebel:
+                                    score.Score = 20;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return score;
         }
     }
 

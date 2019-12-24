@@ -305,7 +305,7 @@ namespace SanguoshaServer.AI
                     else
                     {
                         bool armor_ignore = false;
-                        if (p.HasWeapon(QinggangSword.ClassName) || ai.HasSkill("jianchu", p))
+                        if (p.HasWeapon(QinggangSword.ClassName) || p.HasWeapon(Saber.ClassName) || (player.GetArmor() && ai.HasSkill("jianchu|moukui", p)))
                             armor_ignore = true;
                         else if (ai.HasSkill("paoxiao|paoxiao_fz", p))
                         {

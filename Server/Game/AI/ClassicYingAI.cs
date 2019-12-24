@@ -527,6 +527,11 @@ namespace SanguoshaServer.AI
                 {
                     Room room = ai.Room;
                     Player target = room.FindPlayer(choices[2], true);
+                    if (ai.HasSkill("mingjian|rende|mizhao", target) && target.HandcardNum - player.HandcardNum <= 2)
+                    {
+                        ai.UpdatePlayerRelation(player, target, true);
+                    }
+
                     bool friendly = target.HandcardNum < player.HandcardNum;
                     if (ai.GetPlayerTendency(target) != "unknown")
                         ai.UpdatePlayerRelation(player, target, friendly);
@@ -540,8 +545,14 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             foreach (Player p in targets)
             {
+                if (ai.IsFriend(p) && ai.HasSkill("rende|mingjian|mizhao", p) && !ai.WillSkipPlayPhase(p) && p.HandcardNum - player.HandcardNum <= 2)
+                    return new List<Player> { p };
+            }
+
+            foreach (Player p in targets)
+            {
                 double value = 0;
-                if (ai.IsFriend(p) && p.HandcardNum < player.HandcardNum)
+                if (ai.IsFriend(p) && p.HandcardNum < player.HandcardNum && !ai.HasSkill("zishu", p))
                 {
                     value = player.HandcardNum - p.HandcardNum * 1.5 - 1;
                     Player next = room.GetNextAlive(player, 1, false);
@@ -1380,7 +1391,8 @@ namespace SanguoshaServer.AI
         {
             if (data is CardUseStruct use)
             {
-                if (use.Card.Name == FireAttack.ClassName || use.Card.Name == IronChain.ClassName || use.Card.Name == GodSalvation.ClassName || use.Card.Name == AmazingGrace.ClassName)
+                if (use.Card.Name == FireAttack.ClassName || use.Card.Name == IronChain.ClassName || use.Card.Name == GodSalvation.ClassName
+                    || use.Card.Name == AmazingGrace.ClassName || use.Card.Name.Contains(Nullification.ClassName))
                     return false;
 
                 Room room = ai.Room;
@@ -1408,7 +1420,7 @@ namespace SanguoshaServer.AI
                     }
                 }
                 if (use.Card.Name == Duel.ClassName && ai.IsEnemy(target) && (!ai.IsLackCard(target, Jink.ClassName)
-                    || (ai.HasArmorEffect(target, EightDiagram.ClassName) && !target.HasWeapon(QinggangSword.ClassName))) && target.Hp <= 1 + use.Drank)
+                    || (ai.HasArmorEffect(target, EightDiagram.ClassName) && !target.HasWeapon(QinggangSword.ClassName) && !target.HasWeapon(Saber.ClassName))) && target.Hp <= 1 + use.Drank)
                     return true;
                 if (use.Card.Name == Duel.ClassName && ai.IsEnemy(target) && (target.Hp == 1 || target.HandcardNum > 2))
                     return true;

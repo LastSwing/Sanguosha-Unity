@@ -3,6 +3,7 @@ using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 using static CommonClass.Game.CardUseStruct;
@@ -817,14 +818,15 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (!(fcard is SkillCard))
+                List<int> ids = room.GetSubCards(use.Card);
+                if (!(fcard is SkillCard) && ids.SequenceEqual(use.Card.SubCards) && ids.Count > 0)
                 {
-                    bool dis = false;
+                    bool dis = true;
                     foreach (int id in use.Card.SubCards)
                     {
-                        if (room.GetCardPlace(id) == Place.DiscardPile)
+                        if (room.GetCardPlace(id) != Place.DiscardPile)
                         {
-                            dis = true;
+                            dis = false;
                             break;
                         }
                     }
@@ -839,7 +841,9 @@ namespace SanguoshaServer.Package
             {
                 FunctionCard fcard = Engine.GetFunctionCard(_use.Card.Name);
                 List<FunctionCard.CardType> types = player.ContainsTag(Name) ? (List<FunctionCard.CardType>)player.GetTag(Name) : new List<FunctionCard.CardType>();
-                if (fcard is EquipCard && !types.Contains(FunctionCard.CardType.TypeEquip) && room.GetCardPlace(_use.Card.GetEffectiveId()) == Place.PlaceTable)
+                List<int> ids = room.GetSubCards(_use.Card);
+                if (fcard is EquipCard && !types.Contains(FunctionCard.CardType.TypeEquip) && ids.Count > 0 && ids.SequenceEqual(_use.Card.SubCards)
+                    && room.GetCardPlace(_use.Card.GetEffectiveId()) == Place.PlaceTable)
                     return new TriggerStruct(Name, player);
             }
 
@@ -859,14 +863,10 @@ namespace SanguoshaServer.Package
                     player.SetTag(Name, types);
                 }
 
-                List<int> dis = new List<int>();
-                foreach (int id in use.Card.SubCards)
-                    if ((room.GetCardPlace(id) == Place.DiscardPile && triggerEvent == TriggerEvent.CardFinished) ||
-                        (triggerEvent == TriggerEvent.TargetConfirmed && room.GetCardPlace(id) == Place.PlaceTable))
-                        dis.Add(id);
-
+                List<int> dis = room.GetSubCards(use.Card);
                 if (dis.Count > 0 && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
                 {
+                    room.RemoveSubCards(use.Card);
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                     CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_PUT, player.Name, Name, string.Empty);
                     CardsMoveStruct move = new CardsMoveStruct(dis, null, Place.DrawPile, reason)
@@ -1838,7 +1838,7 @@ namespace SanguoshaServer.Package
                 }
                 target.AddMark(mark);
 
-                string choice = room.AskForChoice(player, "feijun", string.Join("+", choices), new List<string> { "@feijun-choice:" + target.Name }, target);
+                string choice = room.AskForChoice(player, "feijun", string.Join("+", choices), new List<string> { "@to-player:" + target.Name }, target);
                 if (choice == "handcard")
                 {
                     List<int> ids = room.AskForExchange(target, "feijun", 1, 1, "@feijun-give:" + player.Name, string.Empty, "..", string.Empty);
@@ -1905,9 +1905,7 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use)
             {
-                string flag = string.Format("{0}_{1}", Name, RoomLogic.CardToString(room, use.Card));
-                player.SetFlags(flag);
-
+                use.Card.SetFlags(string.Format("{0}_{1}", Name, player.Name));
                 RoomLogic.SetPlayerCardLimitation(player, "use", ".$1");
             }
 
@@ -1925,20 +1923,19 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct use && player.Alive && player.Phase == PlayerPhase.Play)
+            if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct use && player.Alive && player.Phase == PlayerPhase.Play
+                && use.Card.HasFlag(string.Format("wanglie_{0}", player.Name)))
             {
-                string flag = string.Format("wanglie_{0}", RoomLogic.CardToString(room, use.Card));
-                if (player.HasFlag(flag) && (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Duel.ClassName || use.Card.Name == Collateral.ClassName
-                    || use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName))
+                if (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Duel.ClassName || use.Card.Name == Collateral.ClassName
+                    || use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName)
                 {
                     return new TriggerStruct(Name, player, use.To);
                 }
             }
-            else if (triggerEvent == TriggerEvent.TrickCardCanceling && data is CardEffectStruct effect && effect.From != null && effect.From.Alive && effect.From.Phase == PlayerPhase.Play)
+            else if (triggerEvent == TriggerEvent.TrickCardCanceling && data is CardEffectStruct effect && effect.From != null && effect.From.Alive
+                && effect.From.Phase == PlayerPhase.Play && effect.Card.HasFlag(string.Format("wanglie_{0}", effect.From.Name)))
             {
-                string flag = string.Format("wanglie_{0}", RoomLogic.CardToString(room, effect.Card));
-                if (effect.From.HasFlag(flag))
-                    return new TriggerStruct(Name, effect.From);
+                return new TriggerStruct(Name, effect.From);
             }
 
             return new TriggerStruct();

@@ -970,8 +970,10 @@ namespace SanguoshaServer.Package
                     {
                         LogMessage log = new LogMessage
                         {
-                            Type = "#longhun-damage",
-                            From = player.Name
+                            Type = "#card-damage",
+                            From = player.Name,
+                            Arg = Name,
+                            Arg2 = use.Card.Name
                         };
                         room.SendLog(log);
                     }
@@ -979,8 +981,10 @@ namespace SanguoshaServer.Package
                     {
                         LogMessage log = new LogMessage
                         {
-                            Type = "#longhun-recover",
-                            From = player.Name
+                            Type = "#card-recover",
+                            From = player.Name,
+                            Arg = Name,
+                            Arg2 = use.Card.Name
                         };
 
                         room.SendLog(log);
@@ -2179,7 +2183,7 @@ namespace SanguoshaServer.Package
             {
                 List<Player> targets = new List<Player>();
                 foreach (Player p in room.GetAlivePlayers())
-                    if (!p.Chained && RoomLogic.CanBeChainedBy(room, p, player)) targets.Add(p);
+                    if ((!p.Chained && RoomLogic.CanBeChainedBy(room, p, player)) || (!p.IsNude() && RoomLogic.CanDiscard(room, player, p, "hej"))) targets.Add(p);
                 
                 if (targets.Count > 0)
                 {
@@ -2223,7 +2227,9 @@ namespace SanguoshaServer.Package
                 room.RemoveTag(Name);
                 if (player.GetMark("@junlue") == 0 || (player.GetMark("@junlue") & 1) != 1)
                 {
-                    room.SetPlayerChained(target, true);
+                    if (!target.Chained && RoomLogic.CanBeChainedBy(room, target, player))
+                        room.SetPlayerChained(target, true);
+
                     if (player.Alive && target.Alive && !target.IsAllNude() && RoomLogic.CanDiscard(room, player, target, "hej"))
                     {
                         int id = room.AskForCardChosen(player, target, "hej", Name, false, HandlingMethod.MethodDiscard);

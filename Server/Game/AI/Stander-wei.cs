@@ -2196,7 +2196,7 @@ namespace SanguoshaServer.AI
                     if (!target.FaceUp) ai.UpdatePlayerRelation(player, target, true);
                     if (ai.GetPlayerTendency(target) == "unknown" && target.FaceUp)
                     {
-                        if (ai.HasSkill("jushou_jx", target))
+                        if (ai.HasSkill("jushou_jx|shensu_jx", target))
                             ai.UpdatePlayerRelation(player, target, true);
                         else
                             ai.UpdatePlayerRelation(player, target, false);
@@ -2212,7 +2212,7 @@ namespace SanguoshaServer.AI
             int count = player.GetLostHp();
             foreach (Player p in ai.GetFriends(player))
             {
-                if (p != player && !p.FaceUp && ai.HasSkill("jushou_", p) && p == room.Current)
+                if (p != player && !p.FaceUp && ai.HasSkill("jushou", p) && p == room.Current)
                 {
                     List<string> kingdoms = new List<string>();
                     foreach (Player _p in room.Players)
@@ -2225,7 +2225,7 @@ namespace SanguoshaServer.AI
                     if (kingdoms.Count > 2) continue;
                     else return new List<Player> { p };
                 }
-                else if (p != player && !p.FaceUp && (!ai.HasSkill("jushou_jx", p) || p != room.Current))
+                else if (p != player && !p.FaceUp && (!ai.HasSkill("jushou_jx|shensu_jx", p) || p != room.Current))
                     return new List<Player> { p };
             }
 
@@ -2242,7 +2242,7 @@ namespace SanguoshaServer.AI
                 if (kingdoms.Count > 2)
                     return new List<Player> { room.Current };
             }
-            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx", room.Current) && room.Current.FaceUp)
+            if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou_jx|shensu_jx", room.Current) && room.Current.FaceUp)
                 return new List<Player> { room.Current };
             if (count >= 3 && ai.IsFriend(room.Current) && ai.HasCrossbowEffect(room.Current) && !ai.HasSkill("kuangcai", room.Current))
                 return new List<Player> { room.Current };

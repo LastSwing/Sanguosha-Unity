@@ -612,7 +612,9 @@ namespace SanguoshaServer.Game
             else
                 return null;
         }
-        
+
+        public static List<int> GetEngineCards() => new List<int>(wrapped_cards.Keys);
+
         public static FunctionCard GetFunctionCard(string card_name)
         {
             if (function_cards.ContainsKey(card_name))
@@ -909,67 +911,99 @@ namespace SanguoshaServer.Game
         public static int CorrectCardTarget(Room room, TargetModSkill.ModType type, Player from, WrappedCard card)
         {
             int x = 0;
-
-            if (type == TargetModSkill.ModType.Residue)
+            switch (type)
             {
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card))
+                case TargetModSkill.ModType.Residue:
                     {
-                        int residue = skill.GetResidueNum(room, from, card);
-                        if (residue >= 998) return residue;
-                        x += residue;
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card))
+                            {
+                                int residue = skill.GetResidueNum(room, from, card);
+                                if (residue >= 998) return residue;
+                                x += residue;
+                            }
+                        }
+
+                        break;
                     }
-                }
-            }
-            else if (type == TargetModSkill.ModType.ExtraMaxTarget)
-            {
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card))
-                        x += skill.GetExtraTargetNum(room, from, card);
-                }
+
+                case TargetModSkill.ModType.ExtraMaxTarget:
+                    {
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card))
+                                x += skill.GetExtraTargetNum(room, from, card);
+                        }
+
+                        break;
+                    }
             }
 
             return x;
         }
         public static bool CorrectCardTarget(Room room, TargetModSkill.ModType type, Player from, Player to, WrappedCard card)
         {
-            if (type == TargetModSkill.ModType.DistanceLimit)
+            switch (type)
             {
-                CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
-                string pattern = room.GetRoomState().GetCurrentCardUsePattern(from);
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card) && skill.GetDistanceLimit(room, from, to, card, reason, pattern)) return true;
-                }
-            }
-            else if (type == TargetModSkill.ModType.SpecificAssignee)
-            {
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card)) return true;
-                }
-            }
-            else if (type == TargetModSkill.ModType.SpecificTarget)
-            {
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card) && skill.CheckSpecificTarget(room, from, to, card)) return true;
-                }
-            }
-            else if (type == TargetModSkill.ModType.History)
-            {
-                foreach (TargetModSkill skill in targetmod_skills)
-                {
-                    CardPattern p = GetPattern(skill.Pattern);
-                    if (p.Match(from, room, card) && skill.IgnoreCount(room, from, card)) return true;
-                }
+                case TargetModSkill.ModType.DistanceLimit:
+                    {
+                        CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+                        string pattern = room.GetRoomState().GetCurrentCardUsePattern(from);
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card) && skill.GetDistanceLimit(room, from, to, card, reason, pattern)) return true;
+                        }
+
+                        break;
+                    }
+
+                case TargetModSkill.ModType.SpecificAssignee:
+                    {
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card)) return true;
+                        }
+
+                        break;
+                    }
+
+                case TargetModSkill.ModType.SpecificTarget:
+                    {
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card) && skill.CheckSpecificTarget(room, from, to, card)) return true;
+                        }
+
+                        break;
+                    }
+
+                case TargetModSkill.ModType.History:
+                    {
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card) && skill.IgnoreCount(room, from, card)) return true;
+                        }
+
+                        break;
+                    }
+
+                case TargetModSkill.ModType.AttackRange:
+                    {
+                        foreach (TargetModSkill skill in targetmod_skills)
+                        {
+                            CardPattern p = GetPattern(skill.Pattern);
+                            if (p.Match(from, room, card) && skill.InAttackRange(room, from, to, card)) return true;
+                        }
+
+                        break;
+                    }
             }
 
             return false;

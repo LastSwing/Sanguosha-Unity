@@ -742,7 +742,7 @@ namespace SanguoshaServer.AI
                 CardUseStruct use = list[list.Count - 1];
                 int damage_count = 1 + use.Drank + use.ExDamage;
 
-                if (target.GetCards("he").Count == 1 && !player.HasWeapon(QinggangSword.ClassName)
+                if (target.GetCards("he").Count == 1 && !player.HasWeapon(QinggangSword.ClassName) && !player.HasWeapon(Saber.ClassName)
                     && target.GetArmor() && RoomLogic.CanDiscard(room, player, target, target.Armor.Key))
                 {
                     if (target.HasArmor(Vine.ClassName) && use.Card.Name == FireSlash.ClassName)
@@ -1147,6 +1147,11 @@ namespace SanguoshaServer.AI
                     return HasClub(ai, player);
                 else
                     return HasSpade(ai, player);
+            }
+            if (pattern == "leiji_jx")
+            {
+                if (!ai.IsFriend(player, judge_who))
+                    return HasSpade(ai, player) || HasClub(ai, player);
             }
             else if (pattern == SupplyShortage.ClassName)
             {

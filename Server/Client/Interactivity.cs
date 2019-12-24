@@ -1555,12 +1555,13 @@ namespace SanguoshaServer
                 up_max = Math.Max(3, up_max);
 
                 List<int> ups = guanxing.Top, downs = guanxing.Bottom;
-                if (!int.TryParse(args[1], out int card) || !int.TryParse(args[2], out int from) || from == 0 || !int.TryParse(args[3], out int to) || to == 0)
+                if (!int.TryParse(args[1], out int card) || !int.TryParse(args[2], out int _from) || _from == 0 || !int.TryParse(args[3], out int _to) || _to == 0)
                 {
                     error = true;
                 }
                 else
                 {
+                    int from = _from, to = _to, origin = -1;
                     if (from > 0)
                     {
                         from = from - 1;
@@ -1585,6 +1586,7 @@ namespace SanguoshaServer
                         if (to > 0)
                         {
                             to = to - 1;
+                            if (ups.Count > to) origin = ups[to];
                             if (to > ups.Count)
                                 ups.Add(card);
                             else
@@ -1592,14 +1594,23 @@ namespace SanguoshaServer
 
                             if (ups.Count > up_max)
                             {
-                                int card_id = ups[ups.Count - 1];
-                                ups.Remove(card_id);
-                                downs.Add(card_id);
+                                if (ups.Count + downs.Count == up_max + down_max)
+                                {
+                                    ups.Remove(origin);
+                                    downs.Insert(from, origin);
+                                }
+                                else
+                                {
+                                    int card_id = ups[ups.Count - 1];
+                                    ups.Remove(card_id);
+                                    downs.Add(card_id);
+                                }
                             }
                         }
                         else
                         {
                             to = -to - 1;
+                            if (downs.Count > to) origin = downs[to];
                             if (to > downs.Count)
                                 downs.Add(card);
                             else
@@ -1607,9 +1618,17 @@ namespace SanguoshaServer
 
                             if (downs.Count > down_max)
                             {
-                                int card_id = downs[downs.Count - 1];
-                                downs.Remove(card_id);
-                                ups.Add(card_id);
+                                if (ups.Count + downs.Count == up_max + down_max)
+                                {
+                                    downs.Remove(origin);
+                                    ups.Insert(from, origin);
+                                }
+                                else
+                                {
+                                    int card_id = downs[downs.Count - 1];
+                                    downs.Remove(card_id);
+                                    ups.Add(card_id);
+                                }
                             }
                         }
 
@@ -2370,22 +2389,6 @@ namespace SanguoshaServer
 
                 StartPending(player);
             }
-        }
-
-        private void PendingHuashen(Player player)
-        {
-            //huashen_pending = true;
-            //available_cards.Clear();
-            //Dictionary<string, List<string>> huashens = player.GetHuashen();
-            //if (huashens.Count == 0)
-            //{
-            //    HandleInfos();
-            //    return;
-            //}
-
-            //List<string> args = new List<string> { JsonUntity.Dictionary2Json(huashens) };
-
-            //GetPacket2Client(false, null, -1, args);
         }
 
         private void DoCancelButton()

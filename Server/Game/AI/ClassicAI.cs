@@ -155,6 +155,17 @@ namespace SanguoshaServer.AI
                     }
                 }
 
+                if (move.To_place == Place.DrawPile)
+                {
+                    for (int i = 0; i < move.Card_ids.Count; i++)
+                    {
+                        if (move.Open[i])
+                            room.GetCard(move.Card_ids[i]).SetFlags("visible");
+                        else if (from != null)
+                            room.GetCard(move.Card_ids[i]).SetFlags("visible2" + from.Name);
+                    }
+                }
+
                 if (to != null && move.To_place == Place.PlaceHand)
                 {
                     foreach (int id in move.Card_ids)
@@ -2033,20 +2044,6 @@ namespace SanguoshaServer.AI
                 else if (!IsSituationClear() && value > 0)
                     value /= 2;
 
-                //ai debug log
-                /*
-                if (IsFriend(to) && value > 0)
-                {
-                    string damage_from = damage.From != null ? string.Format("{0} has skills {1}", damage.From.ActualGeneral1, string.Join(",", GetKnownSkills(damage.From))) : "no damage from";
-                    string damage_str = string.Format("nature {0} count {1} reason {2}", damage.Nature == DamageStruct.DamageNature.Normal ? "normal" : damage.Nature == DamageStruct.DamageNature.Fire ?
-                        "fire" : "thunder", damage.Damage, damage.Card != null ? damage.Card.Name : damage.Reason);
-                    string damage_to = string.Format("{0} has skills {1}", damage.To.ActualGeneral1, string.Join(",", GetKnownSkills(damage.To)));
-                    string self_str = self.ActualGeneral1;
-
-                    File.AppendAllText("ai_classic_damage_log.txt", string.Format("{0} judge damage {1} against {2} {6} and value is {3} and ai judge target is my {4} and I'm {5}\r\n",
-                        damage_from, damage_str, damage_to, value, IsFriend(self, to) ? "friend" : "enemy", self_str, to.Chained ? "chained" : string.Empty));
-                }
-                */
                 result_score.Score = value;
             }
             scores.Add(result_score);
@@ -2605,7 +2602,7 @@ namespace SanguoshaServer.AI
                 bool will_save = false;
                 if (dying.GetRoleEnum() == PlayerRole.Lord)
                 {
-                    if (self.GetRoleEnum() == PlayerRole.Loyalist)              //忠诚一定会救主公
+                    if (self.GetRoleEnum() == PlayerRole.Loyalist)              //忠臣一定会救主公
                     {
                         will_save = true;
                     }
@@ -2628,6 +2625,46 @@ namespace SanguoshaServer.AI
 
                         if (count >= 1 - dying.Hp) return null;
                         will_save = true;
+                    }
+                }
+
+                if (HasSkill("yechou", dying) && GetPlayerTendency(dying) == "rebel" && (GetRolePitts(PlayerRole.Rebel) > 1 || GetRolePitts(PlayerRole.Renegade) > 0))
+                {
+                    Player lord = null;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.GetRoleEnum() == PlayerRole.Lord && p.GetLostHp() > 1)
+                        {
+                            lord = p;
+                            break;
+                        }
+                    }
+
+                    if (lord != null)
+                    {
+                        int count = 1;
+                        Player next = room.GetNextAlive(room.Current, 1, false);
+                        while (next != lord)
+                        {
+                            if (next.FaceUp && next != dying)
+                                count++;
+
+                            next = room.GetNextAlive(next, 1, false);
+                        }
+
+                        if (count > lord.Hp)
+                        {
+                            switch (Self.GetRoleEnum())
+                            {
+                                case PlayerRole.Lord:
+                                case PlayerRole.Loyalist:
+                                case PlayerRole.Renegade:
+                                    will_save = CanSave(dying, 1 - dying.Hp);
+                                    break;
+                                case PlayerRole.Rebel:
+                                    return null;
+                            }
+                        }
                     }
                 }
 
@@ -2897,6 +2934,7 @@ namespace SanguoshaServer.AI
             { "@luanwu-slash", "luanwu" },
             { "@kill_victim", BeltsheChao.ClassName },
             { "@kangkai-use", "kangkai" },
+            { "@lianji", "lianji" },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)

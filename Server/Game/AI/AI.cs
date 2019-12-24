@@ -1641,6 +1641,20 @@ namespace SanguoshaServer.AI
                     && !damage.To.EquipIsBaned(1) && !damage.To.GetArmor() && (damage.Card != null && Engine.GetFunctionCard(damage.Card.Name).TypeID == CardType.TypeTrick
                     || damage.Nature != DamageStruct.DamageNature.Normal))
                     return 0;
+                if (HasSkill("andong", to) && from != null && from != to && from != to)
+                {
+                    int count = from.HandcardNum;
+                    if (damage.Card != null)
+                    {
+                        foreach (int id in damage.Card.SubCards)
+                            if (room.GetCardOwner(id) == from && room.GetCardPlace(id) == Place.PlaceHand)
+                                count--;
+                    }
+                    if (count <= 0) return 0;
+
+                    if (IsFriend(from, to) && (!to.HasFlag("andong") || damage.Chain))
+                        return 0;
+                }
 
                 if (damage.From != null && damage.From.Alive && HasSkill("gongqing", damage.To) && damage.Damage > 1)
                 {
@@ -1677,7 +1691,7 @@ namespace SanguoshaServer.AI
                 bool armor_ignore = false;
                 if (from != null && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName))
                 {
-                    if (from.HasWeapon(QinggangSword.ClassName))
+                    if (from.HasWeapon(QinggangSword.ClassName) || from.HasWeapon(Saber.ClassName))
                         armor_ignore = true;
                     else if (HasSkill("paoxiao|paoxiao_fz", from))
                     {
@@ -2418,6 +2432,28 @@ namespace SanguoshaServer.AI
                     else
                         break;
                 }
+                else if (reason == "lueming")
+                {
+                    Player target = null;
+                    foreach (Player p in room.GetOtherPlayers(who))
+                    {
+                        if (p.HasFlag("lueming"))
+                        {
+                            target = p;
+                            break;
+                        }
+                    }
+
+                    if (target != null && target.Alive && who.Alive)
+                    {
+                        DamageStruct damgage = new DamageStruct("lueming", who, target, 2);
+                        ScoreStruct score = GetDamageScore(damgage);
+                        if (!judge.Good && score.Score > 7 && Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x))
+                            can_use.Add(id);
+                        else if (judge.Good && score.Score < -6 && !Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x))
+                            can_use.Add(id);
+                    }
+                }
                 else if (IsFriend(who) && judge.Negative != (Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
                            && !(self_card && DontRespondPeachInJudge(judge) && is_peach))
                     can_use.Add(id);
@@ -2915,7 +2951,7 @@ namespace SanguoshaServer.AI
             }
 
             double result = 0;
-            if (from.HasWeapon(QinggangSword.ClassName))
+            if (from.HasWeapon(QinggangSword.ClassName) || from.HasWeapon(Saber.ClassName))
                 pre_ignore_armor.Add(to);
             if (from.HasWeapon(DragonPhoenix.ClassName) && !IsFriend(from, to) && to.GetArmor() && to.GetCards("he").Count == 1)
                 pre_discard[to].Add(to.Armor.Key);
@@ -3188,7 +3224,7 @@ namespace SanguoshaServer.AI
             }
 
             double result = 0;
-            if (from.HasWeapon(QinggangSword.ClassName))
+            if (from.HasWeapon(QinggangSword.ClassName) || from.HasWeapon(Saber.ClassName))
                 pre_ignore_armor.Add(to);
             if (from.HasWeapon(DragonPhoenix.ClassName) && !IsFriend(from, to) && to.GetArmor() && to.GetCards("he").Count == 1)
                 pre_discard[to].Add(to.Armor.Key);
@@ -3432,11 +3468,11 @@ namespace SanguoshaServer.AI
             if (ev != null && !ev.IsCardEffect(this, card, from, to)) return false;
 
             bool armor_ignore = false;
-            if (to.ArmorIsNullifiedBy(from)) armor_ignore = true;
+            if (from != null && to.ArmorIsNullifiedBy(from)) armor_ignore = true;
 
             if (!armor_ignore && from != null && card.Name.Contains(Slash.ClassName))
             {
-                if (from.HasWeapon(QinggangSword.ClassName))
+                if (from.HasWeapon(QinggangSword.ClassName) || from.HasWeapon(Saber.ClassName))
                     armor_ignore = true;
                 else if (HasSkill("paoxiao|paoxiao_fz", from))
                 {
@@ -3616,22 +3652,6 @@ namespace SanguoshaServer.AI
                 else if (!IsSituationClear() && value > 0)
                     value /= 2;
 
-                //ai debug log
-                /*
-                if ((RoomLogic.IsFriendWith(room, self, to) || IsFriend(to)) && value > 0)
-                {
-                    string damage_from = damage.From != null ? string.Format("{0},{1} has skills {2}", damage.From.General1Showed ? damage.From.ActualGeneral1 : "hidden head",
-                        damage.From.General2Showed ? damage.From.ActualGeneral2 : "hidden deputy", string.Join(",", GetKnownSkills(damage.From))) : "no damage from";
-                    string damage_str = string.Format("nature {0} count {1} reason {2}", damage.Nature == DamageStruct.DamageNature.Normal ? "normal" : damage.Nature == DamageStruct.DamageNature.Fire ?
-                        "fire" : "thunder", damage.Damage, damage.Card != null ? damage.Card.Name : damage.Reason);
-                    string damage_to =  string.Format("{0},{1} has skills {2}", damage.To.General1Showed ? damage.To.ActualGeneral1 : "hidden head",
-                        damage.To.General2Showed ? damage.To.ActualGeneral2 : "hidden deputy", string.Join(",", GetKnownSkills(damage.To)));
-                    string self_str = string.Format("{0},{1}", self.ActualGeneral1, self.ActualGeneral2);
-
-                    File.AppendAllText("ai_damage_log.txt", string.Format("{0} judge damage {1} against {2} {6} and value is {3} and ai judge target is my {4} and I'm {5}\r\n",
-                        damage_from, damage_str, damage_to, value, IsFriend(self, to) ? "friend" : "enemy", self_str, to.Chained ? "chained" : string.Empty));
-                }
-                */
                 result_score.Score = value;
             }
             scores.Add(result_score);
@@ -3800,6 +3820,10 @@ namespace SanguoshaServer.AI
         public Player GetWizzardRaceWinner(string reason, Player judge_who, Player starter = null)
         {
             Player winner = null;
+            Player zhangqiying = FindPlayerBySkill("zhenyi");
+            if (zhangqiying != null && CanRetrial(zhangqiying, reason, judge_who))
+                return zhangqiying;
+
             List<Player> players = new List<Player>();
             if (starter != null)
             {
@@ -4340,8 +4364,9 @@ namespace SanguoshaServer.AI
                         }
                     }
                     else
-                    {//room.OutPut("对" + p.SceenName + "计算命中率");
-                     //计算命中率
+                    {
+                        //room.OutPut("对" + p.SceenName + "计算命中率");
+                        //计算命中率
                         double basic_rate = 0;
                         bool no_red = p.GetMark("@qianxi_red") > 0;
                         bool no_black = p.GetMark("@qianxi_black") > 0;
@@ -4375,8 +4400,12 @@ namespace SanguoshaServer.AI
                                 if (!RoomLogic.IsCardLimited(room, p, c, HandlingMethod.MethodResponse))
                                     count++;
 
+                            bool guess = true;
                             if (count > 0)
+                            {
                                 hit_rate = 0;
+                                guess = false;
+                            }
                             else
                             {
                                 count = p.HandcardNum + p.GetHandPile().Count - GetKnownHandPileCards(p).Count;
@@ -4385,38 +4414,46 @@ namespace SanguoshaServer.AI
                                 hit_rate = Math.Max(0, 1 - count / rate);
                             }
 
-                            double _good = 0, _bad = 0;
-                            if (IsFriend(p))
+                            if (guess && (p.GetRoleEnum() == PlayerRole.Lord || IsFriend(p)) && value < -10)                     //如果风险很大，就不能赌
                             {
-                                _bad -= score.Score * Math.Max(1 - hit_rate - basic_rate, 0);
-                                _bad -= (1 - basic_rate) * (1 - hit_rate) * 2;
-                                if (IsWeak(p)) _bad += 8;
+                                bad -= value;
+                                if (best_bad < -value) best_bad = -value;
                             }
                             else
                             {
-                                _good += score.Score * Math.Max(1 - hit_rate - basic_rate, 0);
-                                _good += (1 - basic_rate) * (1 - hit_rate) * 2;
-                            }
+                                double _good = 0, _bad = 0;
+                                if (IsFriend(p))
+                                {
+                                    _bad -= score.Score * Math.Max(1 - hit_rate - basic_rate, 0);
+                                    _bad -= (1 - basic_rate) * (1 - hit_rate) * 2;
+                                    if (IsWeak(p)) _bad += 8;
+                                }
+                                else
+                                {
+                                    _good += score.Score * Math.Max(1 - hit_rate - basic_rate, 0);
+                                    _good += (1 - basic_rate) * (1 - hit_rate) * 2;
+                                }
 
-                            if (_bad > 10 && null_num > 0)
-                            {
-                                null_num--;
-                                _bad = 4;
+                                if (_bad > 10 && null_num > 0)
+                                {
+                                    null_num--;
+                                    _bad = 4;
+                                }
+                                if (_bad > 10 && peach_num > 0)
+                                {
+                                    peach_num--;
+                                    _bad = 4;
+                                }
+                                if (_good > 10 && null_num < 0)
+                                {
+                                    null_num++;
+                                    _good = 4;
+                                }
+                                bad += _bad;
+                                good += _good;
+                                if (best_good < _good) best_good = _good;
+                                if (best_bad < _bad) best_bad = _bad;
                             }
-                            if (_bad > 10 && peach_num > 0)
-                            {
-                                peach_num--;
-                                _bad = 4;
-                            }
-                            if (_good > 10 && null_num < 0)
-                            {
-                                null_num++;
-                                _good = 4;
-                            }
-                            bad += _bad;
-                            good += _good;
-                            if (best_good < _good) best_good = _good;
-                            if (best_bad < _bad) best_bad = _bad;
                         }
 
                         if (card.Skill == "luanji" && IsFriend(p))
@@ -4448,6 +4485,8 @@ namespace SanguoshaServer.AI
                 else if (IsEnemy(dongyun))
                     good -= best_good;
             }
+            if (self.HasFlag("qiaoshui") && self.GetMark("qiaoshui") == 0)
+                bad -= best_bad;
 
             return good > bad;
         }
@@ -6137,6 +6176,9 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+
+                foreach (int id in equips)
+                    result.Add(room.GetCard(id));
             }
 
             return result;

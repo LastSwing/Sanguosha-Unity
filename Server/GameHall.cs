@@ -35,6 +35,7 @@ namespace SanguoshaServer
             clientList = new ConcurrentDictionary<int, string>();
             Version = ConfigurationManager.AppSettings.Get("ServerVersion");
             new Engine();
+
             /*
             MyData data = new MyData
             {

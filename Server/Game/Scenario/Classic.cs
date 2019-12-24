@@ -813,6 +813,10 @@ namespace SanguoshaServer.Scenario
                 }
 
                 if (lord.General1 == "simahui" && general_name == "guanyinping") value += 3;                                                    //关妹配合司马徽
+                if ((lord.General1 == "liubei" || lord.General1 == "caorui" || lord.General1 == "liuxie") && general_name == "haozhao")
+                    value += 4;                                                                                                                 //郝昭配合给牌
+                if ((general_name == "liubei" || general_name == "caorui" || general_name == "liuxie") && lord.General1 == "haozhao")
+                    value += 4;
             }
             else if (role == PlayerRole.Rebel)
             {

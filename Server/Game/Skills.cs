@@ -26,6 +26,7 @@ namespace SanguoshaServer.Game
         AfterDrawNCards,
         DrawPileChanged,
         CardDrawing,
+        SwapPile,
 
         PreHpRecover,
         HpRecover,
@@ -931,6 +932,7 @@ namespace SanguoshaServer.Game
             SpecificAssignee,
             History,
             SpecificTarget,
+            AttackRange,
         };
 
         public bool SkillRelated { get; protected set; }
@@ -943,6 +945,7 @@ namespace SanguoshaServer.Game
         public virtual bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card,
                                   List<Player> previous_targets, List<Player> targets = null) => false;
         public virtual bool CheckSpecificTarget(Room room, Player from, Player to, WrappedCard card) => false;
+        public virtual bool InAttackRange(Room room, Player from, Player to, WrappedCard card) => false;
         public virtual void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
             index = -1;

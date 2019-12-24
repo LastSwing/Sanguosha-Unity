@@ -91,9 +91,8 @@ namespace SanguoshaServer.Game
         {
             if (DistanceTo(room, from, other, card) == -1)
                 return false;
-            List<string> in_attack_range_players = from.ContainsTag("in_my_attack_range") ? (List<string>)from.GetTag("in_my_attack_range") : new List<string>();
-            if (in_attack_range_players.Contains(other.Name)) // for DIY Skills
-                return true;
+
+            if (Engine.CorrectCardTarget(room, TargetModSkill.ModType.AttackRange, from, other, card)) return true;
 
             bool inclue_weapon = from.Weapon.Key != -1;
             if (card != null && inclue_weapon && card.SubCards.Contains(from.Weapon.Key))

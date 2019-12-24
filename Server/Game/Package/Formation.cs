@@ -724,7 +724,7 @@ namespace SanguoshaServer.Package
                 choices.Add("hidden_general");
 
             effect.To.SetFlags("shangyiTarget");        //for AI
-            string choice = room.AskForChoice(effect.From, "shangyi",  string.Join("+", choices), new List<string> { string.Format("@shangyi::{0}:", effect.To.Name) }, effect.To);
+            string choice = room.AskForChoice(effect.From, "shangyi",  string.Join("+", choices), new List<string> { string.Format("@to-player:{0}", effect.To.Name) }, effect.To);
             effect.To.SetFlags("-shangyiTarget");
 
             LogMessage log = new LogMessage

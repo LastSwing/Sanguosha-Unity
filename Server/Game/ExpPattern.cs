@@ -36,35 +36,33 @@ namespace SanguoshaServer.Game
 
             return false;
         }
-        public override string GetPatternString() 
-        {
-            return exp;
-        }
+        public override string GetPatternString() => exp;
 
         public virtual string ReplaceCardType(string card_type)
         {
             WrappedCard card = new WrappedCard(card_type);
 
             List<string> patterns = new List<string>(), results = new List<string>();
-            foreach (string one_exp in exp.Split('#')) {
+            foreach (string one_exp in exp.Split('#'))
                 if (MatchType(card, one_exp))
                     patterns.Add(one_exp);
-            }
 
             if (patterns.Count == 0) return card_type;
 
-            foreach (string one_exp in patterns) {
-
+            foreach (string one_exp in patterns)
+            {
                 string[] factors = one_exp.Split('|');
                 string[] card_types = factors[0].Split(',');
 
                 List<string> or_names = new List<string>();
-                foreach (string or_name in card_types) {
+                foreach (string or_name in card_types)
+                {
                     List<string> names = new List<string>
                     {
                         Engine.GetPattern(card_type).GetPatternString()
                     };
-                    foreach (string _name in or_name.Split('+')) {
+                    foreach (string _name in or_name.Split('+'))
+                    {
                         string name = _name;
                         if (name.StartsWith("^"))
                             name = name.Substring(1);
@@ -92,7 +90,8 @@ namespace SanguoshaServer.Game
         #endregion
 
         private bool MatchOne(Player player, Room room, WrappedCard card, string exp)
-            {
+        {
+            if (card == null && exp != ".") return false;
             string[] factors = exp.Split('|');
 
             bool checkpoint = false;
@@ -144,7 +143,8 @@ namespace SanguoshaServer.Game
 
             checkpoint = false;
             string[] card_suits = factors[1].Split(',');
-            foreach (string _suit in card_suits) {
+            foreach (string _suit in card_suits)
+            {
                 string suit = _suit;
                 if (suit == ".")
                 {
@@ -171,7 +171,8 @@ namespace SanguoshaServer.Game
             string[] card_numbers = factors[2].Split(',');
             int cdn = RoomLogic.GetCardNumber(room, card);
 
-            foreach (string number in card_numbers) {
+            foreach (string number in card_numbers)
+            {
                 if (number == ".")
                 {
                     checkpoint = true;
@@ -220,7 +221,8 @@ namespace SanguoshaServer.Game
                     foreach (int id in ids) {
                         checkpoint = false;
                         WrappedCard sub_card = room.GetCard(id);
-                        foreach (string _p in place.Split(',')) {
+                        foreach (string _p in place.Split(','))
+                        {
                             string p = _p;
                             if (p == "equipped" && player.HasEquip(sub_card.Name))
                             {
@@ -228,7 +230,8 @@ namespace SanguoshaServer.Game
                             }
                             else if (p == "hand" && sub_card.Id >= 0)
                             {
-                                foreach (int h_id in player.GetCards("h")) {
+                                foreach (int h_id in player.GetCards("h"))
+                                {
                                     if (h_id == id)
                                     {
                                         checkpoint = true;
@@ -243,7 +246,8 @@ namespace SanguoshaServer.Game
                                 if (p.StartsWith("%"))
                                 {
                                     p = p.Substring(1);
-                                    foreach (Player pl in room.GetAlivePlayers()) {
+                                    foreach (Player pl in room.GetAlivePlayers())
+                                    {
                                         if (pl.GetPile(p).Count > 0 && pl.GetPile(p).Contains(id))
                                         {
                                             checkpoint = true;
@@ -273,9 +277,11 @@ namespace SanguoshaServer.Game
 
             bool checkpoint = false;
             string[] card_types = factors[0].Split(',');
-            foreach (string or_name in card_types) {
+            foreach (string or_name in card_types)
+            {
                 checkpoint = false;
-                foreach (string _name in or_name.Split('+')) {
+                foreach (string _name in or_name.Split('+'))
+                {
                     string name = _name;
                     if (name == ".")
                     {

@@ -39,6 +39,8 @@ namespace SanguoshaServer.Package
                 new Xinsheng(),
                 new BeigeJX(),
 
+                new FangquanJX(),
+                new FangquanMax(),
                 new LiegongJX(),
                 //new LiegongRecord(),
                 new LiegongTar(),
@@ -94,6 +96,7 @@ namespace SanguoshaServer.Package
                 { "tianxiang_jx", new List<string>{ "#tianxian-second" } },
                 { "jiuchi", new List<string>{ "#jiuchi-invalid" } },
                 { "tuntian_jx", new List<string>{ "#tuntian_jx" } },
+                { "fangquan_jx", new List<string>{ "#fangquan-max" } },
             };
         }
     }
@@ -1350,9 +1353,13 @@ namespace SanguoshaServer.Package
             foreach (string name in room.Generals)
             {
                 General general = Engine.GetGeneral(name, room.Setting.GameMode);
-                if (!room.UsedGeneral.Contains(name) && general.Kingdom != "god" && !ban.Contains(name)
-                    && general.Package != "ClassicSpecial" && general.Package != "ClassicYing" && general.Package != "Anniversary")
+                if (!room.UsedGeneral.Contains(name) && !ban.Contains(name))
+                {
                     available.Add(name);
+                    foreach (General g in Engine.GetConverPairs(name))
+                        if (!room.UsedGeneral.Contains(g.Name) && !ban.Contains(g.Name))
+                            available.Add(g.Name);
+                }
             }
             List<string> result = new List<string>();
             Shuffle.shuffle(ref available);
@@ -1966,6 +1973,89 @@ namespace SanguoshaServer.Package
             }
             return false;
         }
+    }
+
+    public class FangquanVS : OneCardViewAsSkill
+    {
+        public FangquanVS() : base("fangquan_jx")
+        {
+            filter_pattern = ".!";
+            response_pattern = "@@fangquan_jx";
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard fangquan = new WrappedCard(FangquanCard.ClassName);
+            fangquan.AddSubCard(card);
+            fangquan.Skill = Name;
+            return fangquan;
+        }
+    }
+
+    public class FangquanJX : TriggerSkill
+    {
+        public FangquanJX() : base("fangquan_jx")
+        {
+            events.Add(TriggerEvent.EventPhaseChanging);
+            view_as_skill = new FangquanVS();
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is PhaseChangeStruct change)
+            {
+                if (base.Triggerable(player, room) && change.To == PlayerPhase.Play)
+                {
+                    return (player.IsSkipped(PlayerPhase.Play)) ? new TriggerStruct() : new TriggerStruct(Name, player);
+                }
+                else if (change.To == PlayerPhase.NotActive && player.HasFlag(Name) && RoomLogic.CanDiscard(room, player, player, "h"))
+                {
+                    TriggerStruct trigger = new TriggerStruct(Name, player)
+                    {
+                        SkillPosition = (string)player.GetTag(Name)
+                    };
+                    return trigger;
+                }
+            }
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            PhaseChangeStruct change = (PhaseChangeStruct)data;
+            if (change.To == PlayerPhase.Play)
+            {
+                if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+                {
+                    room.SkipPhase(player, PlayerPhase.Play);
+                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                    return info;
+                }
+            }
+            else if (change.To == PlayerPhase.NotActive)
+                room.AskForUseCard(player, "@@fangquan_jx", "@fangquan-discard", null, -1, HandlingMethod.MethodDiscard, true, info.SkillPosition);
+
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player liushan, ref object data, Player ask_who, TriggerStruct info)
+        {
+            PhaseChangeStruct change = (PhaseChangeStruct)data;
+            if (change.To == PlayerPhase.Play)
+            {
+                liushan.SetTag(Name, info.SkillPosition);
+                liushan.SetFlags(Name);
+            }
+            return false;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = 2;
+        }
+    }
+
+    public class FangquanMax : MaxCardsSkill
+    {
+        public FangquanMax() : base("#fangquan-max") { }
+        public override int GetFixed(Room room, Player target) => target.HasFlag("fangquan_jx") ? target.MaxHp : -1;
     }
 
     public class LiegongJX : TriggerSkill
@@ -3316,7 +3406,7 @@ namespace SanguoshaServer.Package
             xiaoqiao.SetFlags("-tianxiang_invoke");
             DamageStruct damage = (DamageStruct)data;
             room.SetTag("TianxiangDamage", data);
-            string choice = room.AskForChoice(xiaoqiao, "tianxiang_jx", "damage+losehp", new List<string> { "@tianxiang-target:" + target.Name });
+            string choice = room.AskForChoice(xiaoqiao, "tianxiang_jx", "damage+losehp", new List<string> { "@to-player:" + target.Name });
             room.RemoveTag("TianxiangDamage");
             xiaoqiao.RemoveTag("tianxiang_target");
 
@@ -3435,7 +3525,7 @@ namespace SanguoshaServer.Package
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
             List<Player> jiaozhu = RoomLogic.FindPlayersBySkillName(room, "zhiba");
-            if (jiaozhu.Count < 2) return RoomLogic.CanBePindianBy(room, jiaozhu[0], Self);
+            if (jiaozhu.Count == 1) return RoomLogic.CanBePindianBy(room, jiaozhu[0], Self);
 
             return targets.Count == 0 && jiaozhu.Contains(to_select) && RoomLogic.CanBePindianBy(room, to_select, Self);
         }

@@ -40,6 +40,7 @@ namespace SanguoshaServer.AI
                 new BiyueJXAI(),
 
                 new ZhihengJXAI(),
+                new JiuyuanAI(),
                 new GuoseJXAI(),
                 new KurouJXAI(),
                 new QianxunJXAI(),
@@ -723,6 +724,29 @@ namespace SanguoshaServer.AI
                 }
                 else
                     return HasSpade(ai, player);
+            }
+            else if (pattern == "leiji_jx")
+            {
+                if (ai.IsFriend(player, judge_who))
+                {
+                    List<int> ids = ai.GetKnownCards(player);
+                    ids.AddRange(ai.GetKnownHandPileCards(player));
+                    foreach (int id in ids)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (card.Suit != WrappedCard.CardSuit.Spade && card.Suit != WrappedCard.CardSuit.Club
+                            && !RoomLogic.IsCardLimited(room, player, room.GetCard(id), FunctionCard.HandlingMethod.MethodResponse))
+                            return true;
+                    }
+
+                    int count = player.GetHandPile(true).Count - ai.GetKnownHandPileCards(player).Count;
+                    if (!RoomLogic.IsHandCardLimited(room, player, FunctionCard.HandlingMethod.MethodResponse))
+                        count += player.HandcardNum - ai.GetKnownCards(player).Count;
+
+                    if (count > 1) return true;
+                }
+                else
+                    return HasSpade(ai, player) || HasClub(ai, player);
             }
             else if (pattern == SupplyShortage.ClassName)
             {
@@ -1694,11 +1718,16 @@ namespace SanguoshaServer.AI
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 string[] choices = choice.Split(':');
-                Player who = ai.Room.FindPlayer(choices[1]);
-                if (who != null)
+                List<int> ups = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
+                List<int> downs = JsonUntity.StringList2IntList(new List<string>(choices[3].Split('+')));
+                ai.SetGuanxingResult(player, ups);
+                if (ai.Self == player)
                 {
-                    List<int> ups = JsonUntity.StringList2IntList(new List<string>(choices[2].Split('+')));
-                    ai.SetGuanxingResult(who, ups);
+                    Room room = ai.Room;
+                    foreach (int id in ups)
+                        room.GetCard(id).SetFlags("visible2" + player.Name);
+                    foreach (int id in downs)
+                        room.GetCard(id).SetFlags("visible2" + player.Name);
                 }
             }
         }
@@ -1967,6 +1996,58 @@ namespace SanguoshaServer.AI
                 return new List<WrappedCard> { new WrappedCard(ZhihengJCard.ClassName) { Skill = Name, ShowSkill = Name } };
 
             return null;
+        }
+    }
+
+    public class JiuyuanAI : SkillEvent
+    {
+        public JiuyuanAI() : base("jiuyuan")
+        {
+            key = new List<string> { "skillInvoke:jiuyuan:yes" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
+            {
+                List<string> choices = new List<string>(choice.Split(':'));
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player lord = null;
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (p.GetRoleEnum() == Player.PlayerRole.Lord)
+                        {
+                            lord = p;
+                            break;
+                        }
+                    }
+                    ai.UpdatePlayerRelation(player, lord, true);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Player lord = null;
+            Room room = ai.Room;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.GetRoleEnum() == Player.PlayerRole.Lord)
+                {
+                    if (ai.IsFriend(p))
+                        return true;
+                    else
+                    {
+                        lord = p;
+                    }
+                    break;
+                }
+            }
+            if (player.GetRoleEnum() == Player.PlayerRole.Renegade && !ai.IsEnemy(lord) && lord.Hp == 1 && ai is StupidAI _ai && _ai.GetRolePitts(Player.PlayerRole.Rebel) > 0)
+                return true;
+
+            return false;
         }
     }
 

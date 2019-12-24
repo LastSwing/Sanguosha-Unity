@@ -1887,6 +1887,9 @@ namespace SanguoshaServer.AI
             int count = player.HandcardNum + draw + 2;
             if (player.HasTreasure(JadeSeal.ClassName))
                 count++;
+            if (player.GetMark("@tangerine") > 0) count++;
+            if (player.GetMark("duliang") > 0) count++;
+            if (player.GetMark("@rob") > 0) count++;
 
             if (count > 5)
             {

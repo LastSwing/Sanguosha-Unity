@@ -2183,7 +2183,8 @@ namespace SanguoshaServer.Package
 
             if (room.AskForCard(target, "tieqi",
                 string.Format("..{0}", suit.Substring(0, 1).ToUpper()),
-                string.Format("@tieqi-discard:{0}:{1}_char", suit, suit), judge.Card) == null)
+                string.Format("@tieqi-discard:::{0}", string.Format("<color={0}>{1}</color>", WrappedCard.IsBlack(judge.Card.Suit) ? "black" : "red", WrappedCard.GetSuitIcon(judge.Card.Suit))),
+                judge.Card) == null)
             {
                 LogMessage log = new LogMessage
                 {

@@ -822,9 +822,10 @@ namespace SanguoshaServer.Package
             room.SendLog(l);
             target.SetTag("tieqi_judge", judge.Card.Id);
 
-            if (room.AskForCard(target, Name,
+            if (room.AskForCard(target, "tieqi",
                 string.Format("..{0}", suit.Substring(0, 1).ToUpper()),
-                string.Format("@tieqi-discard:{0}:{1}_char", suit, suit), judge.Card) == null)
+                string.Format("@tieqi-discard:::{0}", string.Format("<color={0}>{1}</color>", WrappedCard.IsBlack(judge.Card.Suit) ? "black" : "red", WrappedCard.GetSuitIcon(judge.Card.Suit))),
+                judge.Card) == null)
             {
                 LogMessage log = new LogMessage
                 {
@@ -2630,7 +2631,7 @@ namespace SanguoshaServer.Package
                     if (!RoomLogic.CanDiscard(room, player, player, card_use.Card.GetEffectiveId()))
                         hand = false;
                     else if (target.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(target, equip_card))
-                        hand = room.AskForChoice(player, "jieyin_jx", "discard+put", new List<string> { "@jieyin_jx:" + target.Name }, target) == "discard";
+                        hand = room.AskForChoice(player, "jieyin_jx", "discard+put", new List<string> { "@to-player:" + target.Name }, target) == "discard";
                 }
             }
 

@@ -96,6 +96,17 @@ namespace SanguoshaServer.AI
                     }
                 }
 
+                if (move.To_place == Player.Place.DrawPile)
+                {
+                    for (int i = 0; i < move.Card_ids.Count; i++)
+                    {
+                        if (move.Open[i])
+                            room.GetCard(move.Card_ids[i]).SetFlags("visible");
+                        else if (from != null)
+                            room.GetCard(move.Card_ids[i]).SetFlags("visible2" + from.Name);
+                    }
+                }
+
                 if (to != null && move.To_place == Player.Place.PlaceHand)
                 {
                     foreach (int id in move.Card_ids)

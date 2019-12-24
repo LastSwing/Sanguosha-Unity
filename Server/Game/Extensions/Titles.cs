@@ -259,4 +259,103 @@ namespace SanguoshaServer.Extensions
             }
         }
     }
+
+    //伍肆叁贰零
+    public class OnlyFive : Title
+    {
+        public OnlyFive(int id) : base(id)
+        {
+            EventList = new List<TriggerEvent> { TriggerEvent.GameOverJudge };
+            MarkId = 5;
+        }
+
+        public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.GameOverJudge && data is DeathStruct death && player.ClientId > 0)
+            {
+                if (player.GetRoleEnum() == Player.PlayerRole.Lord && death.Who.General1 == "sunce" && death.Damage.Damage > 1 && player.GetMark("hunzi") == 0)
+                {
+                    int id = player.ClientId;
+                    if (!ClientDBOperation.CheckTitle(id, TitleId))
+                    {
+                        int value = ClientDBOperation.GetTitleMark(id, MarkId);
+                        value++;
+                        if (value >= 20)
+                        {
+                            ClientDBOperation.SetTitle(id, TitleId);
+                            Client client = room.Hall.GetClient(id);
+                            if (client != null)
+                                client.AddProfileTitle(TitleId);
+                        }
+                        else
+                            ClientDBOperation.SetTitleMark(id, MarkId, value);
+                    }
+                }
+            }
+        }
+    }
+
+    //这把稳了
+    public class Victory : Title
+    {
+        public Victory(int id) : base(id)
+        {
+            EventList = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.GameFinished };
+        }
+
+        public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card.Name == FumanCard.ClassName && player.ClientId > 0)
+            {
+                player.AddMark("fuman_used");
+            }
+            else if (triggerEvent == TriggerEvent.GameFinished && data is string winner)
+            {
+                if (winner == ".") return;
+                List<string> winners = new List<string>(winner.Split('+'));
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    int id = p.ClientId;
+                    if (id > 0 && winners.Contains(p.Name) && p.General1 == "mazhong" && p.GetMark("fuman_used") >= 44 && !ClientDBOperation.CheckTitle(id, TitleId))
+                    {
+                        ClientDBOperation.SetTitle(id, TitleId);
+                        Client client = room.Hall.GetClient(id);
+                        if (client != null)
+                            client.AddProfileTitle(TitleId);
+                    }
+                }
+            }
+        }
+    }
+
+    public class LightningMan : Title
+    {
+        public LightningMan(int id) : base(id)
+        {
+            EventList = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.GameFinished };
+        }
+
+        public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && player.Alive && player.ClientId > 0
+                && (damage.Card.Name == Lightning.ClassName || damage.Reason == "leiji" || damage.Reason == "leiji_jx") && !damage.Transfer && !damage.Chain)
+            {
+                player.AddMark("lightning_damaged", damage.Damage);
+            }
+            else if (triggerEvent == TriggerEvent.GameFinished)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    int id = p.ClientId;
+                    if (id > 0 && p.GetMark("lightning_damaged") >= 15 && !ClientDBOperation.CheckTitle(id, TitleId))
+                    {
+                        ClientDBOperation.SetTitle(id, TitleId);
+                        Client client = room.Hall.GetClient(id);
+                        if (client != null)
+                            client.AddProfileTitle(TitleId);
+                    }
+                }
+            }
+        }
+    }
 }

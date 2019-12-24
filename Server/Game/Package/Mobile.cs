@@ -19,6 +19,8 @@ namespace SanguoshaServer.Package
                 new QiancongTar(),
                 new QiancongVH(),
                 new Shangjian(),
+                new Zhanyi(),
+                new ZhanyiEffect(),
 
                 new Zhaohuo(),
                 new Yixiang(),
@@ -36,6 +38,7 @@ namespace SanguoshaServer.Package
 
             skill_cards = new List<FunctionCard>
             {
+                new ZhanyiCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -43,6 +46,7 @@ namespace SanguoshaServer.Package
                 { "kuangcai", new List<string>{ "#kuangcai", "#kuangcai-tar" } },
                 { "fenyin", new List<string>{ "#fenyin" } },
                 { "qiancong", new List<string>{ "#qiancong", "#qiancong-tar" } },
+                { "zhanyi", new List<string>{ "#zhanyi" } },
             };
         }
     }
@@ -200,6 +204,276 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class Zhanyi : ViewAsSkill
+    {
+        public Zhanyi() : base("zhanyi")
+        {
+            skill_type = SkillType.Attack;
+            response_or_use = true;
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            if (selected.Count > 0) return false;
+
+            if (!player.HasUsed(ZhanyiCard.ClassName))
+                return (room.GetCardPlace(to_select.Id) == Place.PlaceHand || room.GetCardPlace(to_select.Id) == Place.PlaceEquip)
+                    && !RoomLogic.IsCardLimited(room, player, to_select, HandlingMethod.MethodDiscard);
+            else if (player.HasFlag("zhanyi_basic"))
+                return Engine.GetFunctionCard(to_select.Name).TypeID == CardType.TypeBasic;
+
+            return false;
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return !player.HasUsed(ZhanyiCard.ClassName) || player.HasFlag("zhanyi_basic");
+        }
+
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
+        {
+            if (player.HasFlag("zhanyi_basic") && room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+            {
+                WrappedCard slash = new WrappedCard(Slash.ClassName);
+                WrappedCard jink = new WrappedCard(Jink.ClassName);
+                WrappedCard peach = new WrappedCard(Peach.ClassName);
+                WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+
+                return Engine.MatchExpPattern(room, pattern, player, slash) || Engine.MatchExpPattern(room, pattern, player, jink)
+                    || Engine.MatchExpPattern(room, pattern, player, peach) || Engine.MatchExpPattern(room, pattern, player, ana);
+            }
+
+            return false;
+        }
+
+        public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player Self)
+        {
+            List<WrappedCard> all_cards = new List<WrappedCard>();
+            if (Self.HasFlag("zhanyi_basic") && cards.Count == 1)
+            {
+                CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+                if (reason == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
+                {
+                    List<string> names = GetGuhuoCards(room, "b");
+                    foreach (string name in names)
+                    {
+                        if (name == Jink.ClassName) continue;
+                        WrappedCard card = new WrappedCard(name);
+                        card.AddSubCards(cards);
+                        all_cards.Add(card);
+                    }
+                }
+                else
+                {
+                    string pattern = room.GetRoomState().GetCurrentCardUsePattern(Self);
+                    WrappedCard slash = new WrappedCard(Slash.ClassName);
+                    slash.AddSubCards(cards);
+                    WrappedCard fslash = new WrappedCard(FireSlash.ClassName);
+                    fslash.AddSubCards(cards);
+                    WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName);
+                    tslash.AddSubCards(cards);
+                    WrappedCard jink = new WrappedCard(Jink.ClassName);
+                    jink.AddSubCards(cards);
+                    WrappedCard peach = new WrappedCard(Peach.ClassName);
+                    peach.AddSubCards(cards);
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    ana.AddSubCards(cards);
+
+                    if (Engine.MatchExpPattern(room, pattern, Self, slash))
+                        all_cards.Add(slash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, fslash))
+                        all_cards.Add(fslash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, tslash))
+                        all_cards.Add(tslash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, jink))
+                        all_cards.Add(jink);
+                    if (Engine.MatchExpPattern(room, pattern, Self, peach))
+                        all_cards.Add(peach);
+                    if (Engine.MatchExpPattern(room, pattern, Self, ana))
+                        all_cards.Add(ana);
+                }
+            }
+
+            return all_cards;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count != 1) return null;
+
+            if (!player.HasUsed(ZhanyiCard.ClassName))
+            {
+                WrappedCard zy = new WrappedCard(ZhanyiCard.ClassName) { Skill = Name };
+                zy.AddSubCards(cards);
+                return zy;
+            }
+            else if (player.HasFlag("zhanyi_basic") && cards[0].IsVirtualCard())
+            {
+                WrappedCard card = RoomLogic.ParseUseCard(room, cards[0]);
+                card.Skill = Name;
+                return card;
+            }
+
+            return null;
+        }
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            if (card.Name == ZhanyiCard.ClassName)
+                index = 1;
+            else
+                index = 2;
+        }
+    }
+
+    public class ZhanyiCard : SkillCard
+    {
+        public static string ClassName = "ZhanyiCard";
+        public ZhanyiCard() : base(ClassName) { target_fixed = true; }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            WrappedCard card = room.GetCard(card_use.Card.GetEffectiveId());
+            FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+            Player player = card_use.From;
+            switch (fcard.TypeID)
+            {
+                case CardType.TypeBasic:
+                    player.SetFlags("zhanyi_basic");
+                    break;
+                case CardType.TypeEquip:
+                    player.SetFlags("zhanyi_equip");
+                    break;
+                case CardType.TypeTrick:
+                    player.SetFlags("zhanyi_trick");
+                    room.DrawCards(player, 3, "zhanyi");
+                    break;
+            }
+        }
+    }
+
+    public class ZhanyiEffect : TriggerSkill
+    {
+        public ZhanyiEffect() : base("#zhanyi")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.TargetChosen, TriggerEvent.TrickCardCanceling,
+                TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded, TriggerEvent.CardsMoveOneTime };
+            frequency = Frequency.Compulsory;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play
+                && (player.HasFlag("zhanyi_basic") || player.HasFlag("zhanyi_trick") || player.HasFlag("zhanyi_equip")))
+            {
+                player.SetFlags("-zhanyi_basic");
+                player.SetFlags("-zhanyi_trick");
+                player.SetFlags("-zhanyi_equip");
+                player.SetMark(Name, 0);
+            }
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && player.HasFlag("zhanyi_basic"))
+                player.AddMark(Name);
+            else if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.HasFlag("zhanyi_basic") && Engine.GetFunctionCard(use.Card.Name).TypeID == CardType.TypeBasic)
+                player.AddMark(Name);
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.DiscardPile && move.From != null
+                && move.Reason.Reason == MoveReason.S_REASON_THROW && move.Reason.SkillName == "zhanyi" && move.From.Name == move.Reason.PlayerId && move.Card_ids.Count > 0)
+            {
+                List<int> ids = new List<int>();
+                foreach (int id in ids)
+                    if (room.GetCardPlace(id) == Place.DiscardPile)
+                        ids.Add(id);
+
+                if (ids.Count > 0) move.From.SetTag(Name, ids);
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.GetMark(Name) == 1 && player.HasFlag("zhanyi_basic")
+                && (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Peach.ClassName
+                || (use.Card.Name == Analeptic.ClassName && player.HasFlag("Global_Dying") && use.To.Contains(player))))
+            {
+                return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.TrickCardCanceling && data is CardEffectStruct effect && effect.From.Alive && effect.From.HasFlag("zhanyi_trick"))
+            {
+                return new TriggerStruct(Name, effect.From);
+            }
+            else if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct _use && _use.Card.Name.Contains(Slash.ClassName) && player.HasFlag("zhanyi_equip"))
+            {
+                return new TriggerStruct(Name, player, _use.To);
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use)
+            {
+                use.ExDamage++;
+                data = use;
+
+                if (use.Card.Name.Contains(Slash.ClassName))
+                {
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#card-damage",
+                        From = player.Name,
+                        Arg = Name,
+                        Arg2 = use.Card.Name
+                    };
+                    room.SendLog(log);
+                }
+                else
+                {
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#card-recover",
+                        From = player.Name,
+                        Arg = Name,
+                        Arg2 = use.Card.Name
+                    };
+
+                    room.SendLog(log);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.TrickCardCanceling)
+                return true;
+            else if (triggerEvent == TriggerEvent.TargetChosen)
+            {
+                if (!player.IsNude())
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+                    room.AskForDiscard(player, "zhanyi", 2, 2, false, true, "@zhanyi:" + ask_who.Name);
+
+                    if (player.ContainsTag(Name) && player.GetTag(Name) is List<int> ids)
+                    {
+                        player.RemoveTag(Name);
+
+                        List<int> get = new List<int>();
+                        foreach (int id in ids)
+                            if (room.GetCardPlace(id) == Place.DiscardPile)
+                                get.Add(id);
+
+                        if (ask_who.Alive && get.Count > 0)
+                        {
+                            if (get.Count > 1)
+                            {
+                                room.FillAG("zhanyi", get, ask_who, null, null, "@zhanyi-get");
+                                int card_id = room.AskForAG(player, get, false, "zhanyi");
+                                room.ClearAG();
+                                get = new List<int> { card_id };
+                            }
+
+                            room.ObtainCard(ask_who, ref get, new CardMoveReason(MoveReason.S_REASON_RECYCLE, ask_who.Name, "zhanyi", string.Empty));
+                        }
+                    }
+                 }
+            }
+
+            return false;
+        }
+    }
+
 
     public class Zhaohuo : TriggerSkill
     {

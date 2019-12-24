@@ -545,7 +545,7 @@ namespace SanguoshaServer.AI
                         else
                             ai.UpdatePlayerRelation(player, dying, true);
                     }
-                    else if (ai is StupidAI && ai.GetPlayerTendency(dying) != "unknown")
+                    else if (ai is StupidAI && ai.GetPlayerTendency(dying) != "unknown" && !ai.HasSkill("yechou", dying))
                     {
                         ai.UpdatePlayerRelation(player, dying, true);
                     }
@@ -731,6 +731,11 @@ namespace SanguoshaServer.AI
             //为队友保留桃子
             foreach (Player p in ai.FriendNoSelf)
             {
+                if (ai.HasSkill("jiuyuan", p) && p.Hp < player.Hp && player.Kingdom == p.Kingdom)
+                {
+                    use.Card = card;
+                    return;
+                }
                 if (ai.IsWeak(p) && (peaches == 1 || !hand || !overflow))
                     return;
             }
@@ -813,6 +818,9 @@ namespace SanguoshaServer.AI
                 else if (ai.IsEnemy(dongyun))
                     good -= best_good;
             }
+            if (player.HasFlag("qiaoshui") && player.GetMark("qiaoshui") == 0)
+                good += best_bad;
+
             good += adjust;
             if (good > 0) use.Card = card;
         }
@@ -985,6 +993,8 @@ namespace SanguoshaServer.AI
                             value += 5;
                         if (ai.NeedToLoseHp(new DamageStruct(string.Empty, null, friend), true, true))
                             value -= 3;
+                        if (ai.HasSkill("qingxian|liexian|hexian", friend))
+                            value += 6;
 
                         good += value;
                         if (value > best_good) best_good = value;
@@ -1007,6 +1017,8 @@ namespace SanguoshaServer.AI
                             value += 5;
                         if (ai.NeedToLoseHp(new DamageStruct(string.Empty, null, enemy), true, true))
                             value -= 3;
+                        if (ai.HasSkill("qingxian|liexian|hexian", enemy))
+                            value += 8;
 
                         bad += value;
                         if (value > best_bad) best_bad = value;
@@ -1021,6 +1033,8 @@ namespace SanguoshaServer.AI
                 else if (ai.IsEnemy(dongyun))
                     good -= best_good;
             }
+            if (player.HasFlag("qiaoshui") && player.GetMark("qiaoshui") == 0)
+                bad -= best_bad;
 
             if (good - bad > 5 && wounded_friend > 0)
             {
@@ -1053,6 +1067,8 @@ namespace SanguoshaServer.AI
                         good += 3;
                     if (ai.IsWeak(to) && to.Hp <= 1)
                         good += 5;
+                    if (ai.HasSkill("qingxian|liexian|hexian", to))
+                        good += 10;
 
                     if (ai.GetCards(HegNullification.ClassName, player).Count > 0 || (room.NullTimes > 0 && room.HegNull))
                     {
@@ -1093,6 +1109,8 @@ namespace SanguoshaServer.AI
                         good += 3;
                     if (ai.IsWeak(to) && to.Hp <= 1)
                         good += 5;
+                    if (ai.HasSkill("qingxian|liexian|hexian", to))
+                        good += 10;
 
                     if (room.NullTimes > 0 && room.HegNull)
                     {
@@ -3450,6 +3468,17 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
+            Room room = ai.Room;
+
+            if (room.DrawPile.Count > 0)
+            {
+                int id = room.DrawPile[0];
+                RoomCard card = room.GetCard(id);
+                if ((card.HasFlag("visible") || card.HasFlag("visible2" + ai.Self.Name))
+                    && (card.Suit == CardSuit.Heart || (ai.HasSkill("hongyan", to) && card.Suit == CardSuit.Spade)))
+                    return result;
+            }
+
             if (positive)
             {
                 if (ai.IsFriend(to) && !ai.IsGuanxingEffected(to, false, trick))
@@ -3607,6 +3636,15 @@ namespace SanguoshaServer.AI
             NulliResult result = new NulliResult();
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
+            Room room = ai.Room;
+            if (room.DrawPile.Count > 0)
+            {
+                int id = room.DrawPile[0];
+                RoomCard card = room.GetCard(id);
+                if ((card.HasFlag("visible") || card.HasFlag("visible2" + ai.Self.Name)) && card.Suit == CardSuit.Club)
+                    return result;
+            }
+
             if (positive)
             {
                 if (ai.IsFriend(to) && !ai.IsGuanxingEffected(to, false, trick))
@@ -3698,22 +3736,42 @@ namespace SanguoshaServer.AI
             Player from = effect.From, to = effect.To;
             WrappedCard trick = effect.Card;
             DamageStruct damage = new DamageStruct(trick, null, to, 3, DamageStruct.DamageNature.Thunder);
+            double value = ai.GetDamageScore(damage).Score;
             NulliResult result = new NulliResult();
+            Room room = ai.Room;
+            if (room.DrawPile.Count > 0)
+            {
+                int id = room.DrawPile[0];
+                RoomCard card = room.GetCard(id);
+                if (card.HasFlag("visible") || card.HasFlag("visible2" + ai.Self.Name))
+                {
+                    if (card.Suit != CardSuit.Club || card.Number == 1 || card.Number > 9)
+                    {
+                        return result;
+                    }
+                    else
+                    {
+                        if ((positive && ai.IsFriend(to) && value < -5) || (!positive && ai.IsEnemy(to) && value > 5))
+                        {
+                            result.Null = true;
+                            return result;
+                        }
+                    }
+                }
+            }
+
             if (positive)
             {
                 if (ai.IsFriend(to) && ai.IsGuanxingEffected(to, true, trick))
                 {
-                    double value = ai.GetDamageScore(damage).Score;
                     value += ai.ChainDamage(damage);
                     if (value < -5)
                     {
-                        //wizzard skill
                         Player wizzard = ai.GetWizzardRaceWinner(Name, to, to);
                         if (wizzard != null && ai.IsEnemy(wizzard) && ai.PlayersLevel[wizzard] >= 3)
                         {
                             result.Null = true;
                         }
-                        //guanxin to do
                     }
                 }
             }
@@ -3734,7 +3792,7 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             DamageStruct damage = new DamageStruct(card, null, player, 3, DamageStruct.DamageNature.Thunder);
             damage.Damage = ai.DamageEffect(damage, DamageStruct.DamageStep.Done);
-            if (ai.IsCancelTarget(card, player, player) || !ai.IsCardEffect(card, player, player) || damage.Damage == 0)
+            if (!ai.IsCardEffect(card, player, player) || (damage.Damage == 0 && player.GetMark("@tangerine") == 0))
             {
                 shouldUse = true;
                 foreach (Player p in room.GetOtherPlayers(player))
@@ -3763,7 +3821,7 @@ namespace SanguoshaServer.AI
                     Damage = ai.DamageEffect(damage, DamageStruct.DamageStep.Done),
                     Steped = DamageStruct.DamageStep.Done
                 };
-                bool effect = _damage.Damage == 0 || !ai.IsCardEffect(card, player, player);
+                bool effect = (_damage.Damage > 1 || p.GetMark("@tangerine") > 0) && !ai.IsCardEffect(card, p, null) && ai.IsCancelTarget(card, p, null);
                 if (effect)
                 {
                     if (ai.IsFriend(p))
@@ -3774,10 +3832,10 @@ namespace SanguoshaServer.AI
                             no_use = true;
                             break;
                         }
-                        if (!ai.HasSkill("guanxing|yizhi", p))
+                        if (!ai.HasSkill("guanxing|yizhi|guanxing_jx|dianhua", p))
                             friends++;
                         Player last = room.GetLastAlive(p);
-                        if (ai.IsEnemy(last) && ai.HasSkill("guanxing|yizhi", last))
+                        if (ai.IsEnemy(last) && ai.HasSkill("guanxing|yizhi|guanxing_jx|dianhua", last))
                         {
                             no_use = true;
                             break;
@@ -3786,7 +3844,7 @@ namespace SanguoshaServer.AI
                     else
                     {
                         Player wizzard = ai.GetWizzardRaceWinner(Name, p, p);
-                        if (!ai.HasSkill("guanxing|yizhi", p) || wizzard == null || !ai.IsFriend(p, wizzard))
+                        if (!ai.HasSkill("guanxing|yizhi|guanxing_jx|dianhua", p) || wizzard == null || !ai.IsFriend(p, wizzard))
                             enemies++;
                     }
                 }
@@ -3800,7 +3858,7 @@ namespace SanguoshaServer.AI
                 {
                     shouldUse = true;
                 }
-                else if ((double)enemies / friends > 1.5)
+                else if (ai.IsSituationClear() && (double)enemies / friends > 1.5)
                 {
                     shouldUse = true;
                 }

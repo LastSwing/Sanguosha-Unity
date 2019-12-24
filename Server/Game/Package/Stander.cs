@@ -2481,7 +2481,8 @@ namespace SanguoshaServer.Package
 
             if (room.AskForCard(target, Name,
                 string.Format("..{0}", suit.Substring(0, 1).ToUpper()),
-                string.Format("@tieqi-discard:::{0}_char", suit), judge.Card) == null)
+                string.Format("@tieqi-discard:::{0}", string.Format("<color={0}>{1}</color>", WrappedCard.IsBlack(judge.Card.Suit) ? "black" : "red", WrappedCard.GetSuitIcon(judge.Card.Suit))),
+                judge.Card) == null)
             {
                 LogMessage log = new LogMessage
                 {
@@ -6362,7 +6363,7 @@ namespace SanguoshaServer.Package
                 else
                 {
                     to.SetFlags("YinghunTarget");
-                    List<string> descriptions = new List<string> { "#yinghun::" + to.Name, "@d1tx:::" + x.ToString(), "@dxt1:::" + x.ToString() };
+                    List<string> descriptions = new List<string> { "@to-player:" + to.Name, "@d1tx:::" + x.ToString(), "@dxt1:::" + x.ToString() };
                     string choice = room.AskForChoice(sunjian, Name,  "d1tx+dxt1", descriptions);
                     to.SetFlags("-YinghunTarget");
                     if (choice.Contains("d1tx"))

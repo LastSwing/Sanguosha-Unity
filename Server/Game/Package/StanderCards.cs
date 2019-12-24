@@ -659,7 +659,7 @@ namespace SanguoshaServer.Package
                 // recover hp
                 RecoverStruct recover = new RecoverStruct
                 {
-                    Recover = 1,
+                    Recover = 1 + effect.ExDamage,
                     Card = effect.Card,
                     Who = effect.From
                 };

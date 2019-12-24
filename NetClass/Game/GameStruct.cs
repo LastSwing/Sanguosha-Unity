@@ -705,6 +705,7 @@ namespace CommonClass.Game
             To_cards = new List<WrappedCard>();
             From_number = 0;
             To_numbers = new List<int>();
+            Index = 0;
         }
         public bool Success { set; get; }
         public Player From { set; get; }
@@ -714,6 +715,7 @@ namespace CommonClass.Game
         public int From_number { set; get; }
         public List<int> To_numbers { set; get; }
         public string Reason { set; get; }
+        public int Index { set; get; }
     };
 
     public struct JudgeStruct
