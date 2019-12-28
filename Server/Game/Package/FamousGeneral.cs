@@ -282,7 +282,7 @@ namespace SanguoshaServer.Package
 
         public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
         {
-            return room.GetCardPlace(to_select.Id) == Place.PlaceHand && !RoomLogic.IsCardLimited(room, player, to_select, FunctionCard.HandlingMethod.MethodRecast, true)
+            return room.GetCardPlace(to_select.Id) == Place.PlaceHand && !RoomLogic.IsCardLimited(room, player, to_select, HandlingMethod.MethodRecast, true)
                 && to_select.Name.Contains(Slash.ClassName);
         }
 
@@ -1459,7 +1459,7 @@ namespace SanguoshaServer.Package
                 if (use.AddHistory)
                 {
                     use.AddHistory = false;
-                    player.AddHistory(Slash.ClassName, -1);
+                    player.AddHistory(use.Card.Name, -1);
                     data = use;
                 }
 
@@ -3186,7 +3186,7 @@ namespace SanguoshaServer.Package
                 }
                 else
                 {
-                    RoomLogic.SetPlayerCardLimitation(player, "use", "TrickCard", true);
+                    RoomLogic.SetPlayerCardLimitation(player, Name, "use", "TrickCard", true);
                 }
             }
             else if (data is CardUseStruct use)
@@ -3745,7 +3745,7 @@ namespace SanguoshaServer.Package
             else
             {
                 int id = room.AskForCardChosen(ask_who, player, "e", Name, false, HandlingMethod.MethodNone, disable_equiplist);
-                room.MoveCardTo(room.GetCard(id), ask_who, Place.PlaceEquip);
+                room.MoveCardTo(room.GetCard(id), ask_who, Place.PlaceEquip, new CardMoveReason(MoveReason.S_REASON_TRANSFER, player.Name, ask_who.Name, Name, string.Empty));
             }
 
             return false;
@@ -3758,7 +3758,6 @@ namespace SanguoshaServer.Package
         public XianzhouCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -3868,7 +3867,6 @@ namespace SanguoshaServer.Package
         public MingceCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
@@ -4171,7 +4169,6 @@ namespace SanguoshaServer.Package
         public MiejiCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -4432,7 +4429,6 @@ namespace SanguoshaServer.Package
         public static string ClassName = "ShenduanCard";
         public ShenduanCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodUse;
             will_throw = false;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -5000,7 +4996,6 @@ namespace SanguoshaServer.Package
         public HuomoCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -5539,7 +5534,7 @@ namespace SanguoshaServer.Package
         public static string ClassName = "MijiCard";
         public MijiCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodNone;
+            will_throw = false;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -5573,15 +5568,23 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Quanji : MasochismSkill
+    public class Quanji : TriggerSkill
     {
         public Quanji() : base("quanji")
         {
+            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.Damaged };
             skill_type = SkillType.Masochism;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct info && info.Info == Name && player.GetPile(Name).Count > 0)
+            {
+                room.ClearOnePrivatePile(player, Name);
+            }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is DamageStruct damage)
+            if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room) && data is DamageStruct damage)
             {
                 TriggerStruct trigger = new TriggerStruct(Name, player)
                 {
@@ -5604,7 +5607,7 @@ namespace SanguoshaServer.Package
             return new TriggerStruct();
         }
 
-        public override void OnDamaged(Room room, Player target, DamageStruct damage, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
             room.DrawCards(target, 1, Name);
             if (target.Alive && !target.IsKongcheng())
@@ -5612,6 +5615,8 @@ namespace SanguoshaServer.Package
                 List<int> ids = room.AskForExchange(target, Name, 1, 1, "@quanji", string.Empty, ".", info.SkillPosition);
                 room.AddToPile(target, Name, ids, true);
             }
+
+            return false;
         }
     }
 
@@ -6092,7 +6097,7 @@ namespace SanguoshaServer.Package
                 if (choice == "more")
                 {
                     n++;
-                    RoomLogic.SetPlayerCardLimitation(player, "use,response", Slash.ClassName, true);
+                    RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", Slash.ClassName, true);
                 }
                 else
                 {
@@ -6205,16 +6210,7 @@ namespace SanguoshaServer.Package
             else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
             {
                 player.SetFlags("-sidi");
-                if (player.GetMark("@qianxi_red") > 0)
-                {
-                    RoomLogic.RemovePlayerCardLimitation(player, "use,response", ".|red$0");
-                    room.SetPlayerMark(player, "@qianxi_red", 0);
-                }
-                if (player.GetMark("@qianxi_black") > 0)
-                {
-                    RoomLogic.RemovePlayerCardLimitation(player, "use,response", ".|black$0");
-                    room.SetPlayerMark(player, "@qianxi_black", 0);
-                }
+                RoomLogic.RemovePlayerCardLimitation(player, Name);
             }
         }
 
@@ -6275,7 +6271,7 @@ namespace SanguoshaServer.Package
             target.RemoveTag(Name);
             string pattern = string.Format(".|{0}$0", color);
             room.AddPlayerMark(target, "@qianxi_" + color);
-            RoomLogic.SetPlayerCardLimitation(target, "use,response", pattern, true);
+            RoomLogic.SetPlayerCardLimitation(target, Name, "use,response", pattern, true);
             target.SetFlags(Name);
             LogMessage log = new LogMessage
             {
@@ -6998,8 +6994,7 @@ namespace SanguoshaServer.Package
                 {
                     room.RemovePlayerStringMark(player, Name);
                     player.RemoveTag(Name);
-                    foreach (WrappedCard.CardSuit suit in suits)
-                        RoomLogic.RemovePlayerCardLimitation(player, "use", string.Format(".|{0}", WrappedCard.GetSuitString(suit)));
+                    RoomLogic.RemovePlayerCardLimitation(player, Name);
                 }
             }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.PlaceTable
@@ -7069,7 +7064,7 @@ namespace SanguoshaServer.Package
                     foreach (WrappedCard.CardSuit s in suits)
                         mark += WrappedCard.GetSuitIcon(s);
                     room.SetPlayerStringMark(player, "jiyu", mark);
-                    RoomLogic.SetPlayerCardLimitation(player, "use", string.Format(".|{0}", WrappedCard.GetSuitString(suit)));
+                    RoomLogic.SetPlayerCardLimitation(player, "jiyu", "use", string.Format(".|{0}", WrappedCard.GetSuitString(suit)));
                 }
 
                 if (suit == WrappedCard.CardSuit.Spade)
@@ -7463,7 +7458,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                RoomLogic.SetPlayerCardLimitation(player, "use", Slash.ClassName, true);
+                RoomLogic.SetPlayerCardLimitation(player, "xianzhen", "use", Slash.ClassName, true);
                 player.SetFlags("xianzhen_fail");
             }
         }
@@ -9043,7 +9038,6 @@ namespace SanguoshaServer.Package
         public AnxuCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -10423,7 +10417,6 @@ namespace SanguoshaServer.Package
         public static string ClassName = "ChunlaoCard";
         public ChunlaoCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodNone;
             target_fixed = true;
         }
 
@@ -11139,10 +11132,7 @@ namespace SanguoshaServer.Package
                     if (p.ContainsTag(Name) && p.GetTag(Name) is List<int> ids)
                     {
                         p.RemoveTag(Name);
-                        List<string> patterns = new List<string>();
-                        foreach (int id in ids)
-                            patterns.Add(id.ToString());
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Join("#", patterns));
+                        RoomLogic.RemovePlayerCardLimitation(p, Name);
                     }
                 }
             }
@@ -11250,20 +11240,17 @@ namespace SanguoshaServer.Package
                 if (player.Alive)
                 {
                     List<int> ids = player.ContainsTag(Name) ? (List<int>)player.GetTag(Name) : new List<int>();
-                    List<string> patterns = new List<string>();
-                    foreach (int id in ids)
-                        patterns.Add(id.ToString());
-                    RoomLogic.RemovePlayerCardLimitation(player, "use,response", string.Join("#", patterns));
+                    RoomLogic.RemovePlayerCardLimitation(player, Name);
 
                     ids.RemoveAll(t => give.Contains(t));
                     ids.AddRange(give);
                     player.SetTag(Name, ids);
 
-                    patterns.Clear();
+                    List<string> patterns = new List<string>();
                     foreach (int id in ids)
                         patterns.Add(id.ToString());
 
-                    RoomLogic.SetPlayerCardLimitation(player, "use,response", string.Join("#", patterns));
+                    RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", string.Join("#", patterns));
                 }
             }
 

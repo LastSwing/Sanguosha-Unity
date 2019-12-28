@@ -400,7 +400,6 @@ namespace SanguoshaServer.Package
         {
             target_fixed = true;
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
@@ -539,7 +538,6 @@ namespace SanguoshaServer.Package
         public JadeSealCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {

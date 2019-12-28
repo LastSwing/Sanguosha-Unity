@@ -364,17 +364,6 @@ namespace SanguoshaServer.Scenario
         }
         protected override void OnGameStart(Room room, ref object data)
         {
-            //游戏开始时将霹雳车移出游戏
-            foreach (int id in room.DrawPile)
-            {
-                WrappedCard card = room.GetCard(id);
-                if (card.Name == "Catapult")
-                {
-                    room.AddToPile(room.Players[0], "#catapult", card, false);
-                    break;
-                }
-            }
-
             foreach (Player player in room.Players)
             {
                 foreach (string skill_name in player.GetSkills())

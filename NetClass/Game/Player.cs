@@ -103,7 +103,7 @@ namespace CommonClass.Game
         public List<PlayerPhase> Phases { set; get; } = new List<PlayerPhase>();
         public int PhasesIndex { set; get; }
         public List<PhaseStruct> PhasesState { set; get; } = new List<PhaseStruct>();
-        public Dictionary<int, List<string>> Limitation { get; set; } = new Dictionary<int, List<string>>();
+        public Dictionary<string, Dictionary<int, List<string>>> Limitation { get; set; } = new Dictionary<string, Dictionary<int, List<string>>>();
         public ResultStruct Result { get; set; } = new ResultStruct();
 
         private int _maxHp;
@@ -120,7 +120,7 @@ namespace CommonClass.Game
 
             return null;
         }
-
+        
         public void Copy(Player other)
         {
             Name = other.Name;
@@ -151,6 +151,49 @@ namespace CommonClass.Game
             StringMarks = other.StringMarks;
             TurnSkillState = other.TurnSkillState;
             JudgingAreaAvailable = other.JudgingAreaAvailable;
+            Result = other.Result;
+        }
+
+        public void CopyAll(Player other)
+        {
+            Name = other.Name;
+            ClientId = other.ClientId;
+            SceenName = other.SceenName;
+            Status = other.Status;
+            MaxHp = other.MaxHp;
+            Hp = other.Hp;
+            Seat = other.Seat;
+            DisableShow = other.DisableShow;
+            FaceUp = other.FaceUp;
+            Removed = other.Removed;
+            DuanChang = other.DuanChang;
+            Alive = other.Alive;
+            Chained = other.Chained;
+            Next = other.Next;
+            General1Showed = other.General1Showed;
+            General2Showed = other.General2Showed;
+            Camp = other.Camp;
+            PhasesState = other.PhasesState;
+            PhasesIndex = other.PhasesIndex;
+            foreach (string skill in other.HeadAcquiredSkills)
+                if (!other.HasEquip(skill))
+                    HeadAcquiredSkills.Add(skill);
+            foreach (string skill in other.DeputyAcquiredSkills)
+                if (!other.HasEquip(skill))
+                    DeputyAcquiredSkills.Add(skill);
+            StringMarks = other.StringMarks;
+            TurnSkillState = other.TurnSkillState;
+            JudgingAreaAvailable = other.JudgingAreaAvailable;
+            HandCards = other.HandCards;
+            Role = other.Role;
+            Kingdom = other.Kingdom;
+            General1 = other.General1;
+            General2 = other.General2;
+            HeadSkinId = other.HeadSkinId;
+            DeputySkinId = other.DeputySkinId;
+            Marks = other.Marks;
+            StringMarks = other.StringMarks;
+            PlayerGender = other.PlayerGender;
         }
 
         //绝对不能给Player类设置class类的tag

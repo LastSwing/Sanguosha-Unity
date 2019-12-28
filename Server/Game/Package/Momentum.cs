@@ -66,7 +66,6 @@ namespace SanguoshaServer.Package
     {
         public Xunxun() : base("xunxun")
         {
-            frequency = Frequency.Frequent;
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who)
         {
@@ -360,7 +359,7 @@ namespace SanguoshaServer.Package
                     {
                         if (p.HasFlag("QianxiTarget"))
                         {
-                            RoomLogic.RemovePlayerCardLimitation(p, "use,response", string.Format(".|{0}|.|hand$0", color));
+                            RoomLogic.RemovePlayerCardLimitation(p, Name);
                             room.SetPlayerMark(p, "@qianxi_" + color, 0);
                         }
                     }
@@ -422,7 +421,7 @@ namespace SanguoshaServer.Package
                     string pattern = string.Format(".|{0}|.|hand$0", color);
                     victim.SetFlags("QianxiTarget");
                     room.AddPlayerMark(victim, "@qianxi_" + color);
-                    RoomLogic.SetPlayerCardLimitation(victim, "use,response", pattern, false);
+                    RoomLogic.SetPlayerCardLimitation(victim, Name, "use,response", pattern, false);
 
                     LogMessage log = new LogMessage
                     {

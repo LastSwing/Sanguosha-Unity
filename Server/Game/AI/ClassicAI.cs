@@ -1644,11 +1644,24 @@ namespace SanguoshaServer.AI
                 DoDamage = true
             };
 
+            if (from != null && from.Alive && damage.To.HasFlag(string.Format("yinju_{0}", from.Name)))
+            {
+                result_score.DoDamage = false;
+                double value = 4 * Math.Min(to.GetLostHp(), damage.Damage);
+                if (IsFriend(to))
+                    result_score.Score += value;
+                else if (IsEnemy(to))
+                    result_score.Score -= value;
+
+                return result_score;
+            }
+
             if (damage.Damage > 0 && NotHurtXiaoqiao(damage))
             {
                 result_score.Score = -20;
                 return result_score;
             }
+
 
             if (from == null || !HasSkill("jueqing", from))
                 damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
@@ -1656,6 +1669,7 @@ namespace SanguoshaServer.AI
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
 
+            if (HasSkill("lixun", to) && to.GetMark("@zhu") >= 10 && (from == null || !HasSkill("jueqing", from))) damage.Damage = 0;
             if (damage.To.GetMark("@tangerine") > 0)            //橘防止伤害时
             {
                 double value = 3;
@@ -1836,7 +1850,7 @@ namespace SanguoshaServer.AI
                             {
                                 value += 5;
                             }
-                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive && !HasSkill("jueqing", from))
+                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive && !HasSkill("jueqing", from) && !HasSkill("lixun", to))
                             {
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                             }
@@ -1883,7 +1897,7 @@ namespace SanguoshaServer.AI
                         }
                     }
 
-                    if (deadly && to.GetRoleEnum() != PlayerRole.Lord && !to.IsNude())
+                    if (deadly && to.GetRoleEnum() != PlayerRole.Lord && !to.IsNude() && !HasSkill("lixun", to))
                     {
                         Player caopi = FindPlayerBySkill("xingshang");
                         if (caopi != null && to != caopi && GetPlayerTendency(caopi) != "renegade")
@@ -1920,7 +1934,7 @@ namespace SanguoshaServer.AI
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                                 if (to.Hp == 1 && to.GetCardCount(true) < 2 && !MaySave(to) && GetPlayerTendency(from) == "rebel")      //无可救药的反贼同伴宁可被自己人收掉
                                 {
-                                    if (!HasSkill("jueqing", from))
+                                    if (!HasSkill("jueqing", from) && !HasSkill("lixun", to))
                                         value += 4;
                                     else
                                         value += 1;
@@ -1967,7 +1981,7 @@ namespace SanguoshaServer.AI
                         }
                     }
 
-                    if (deadly && to.GetRoleEnum() != PlayerRole.Lord && !to.IsNude())
+                    if (deadly && to.GetRoleEnum() != PlayerRole.Lord && !to.IsNude() && !HasSkill("lixun", to))
                     {
                         Player caopi = FindPlayerBySkill("xingshang");
                         if (caopi != null && caopi != to && GetPlayerTendency(caopi) != "renegade")
@@ -2030,7 +2044,7 @@ namespace SanguoshaServer.AI
                         if (GetPlayerTendency(to) == "rebel" && damage.From == self)
                             value += 1.5 * 3;
 
-                        if (HasSkill("xingshang")) value += 0.5 * to.GetCardCount(true);
+                        if (HasSkill("xingshang") && !HasSkill("lixun", to)) value += 0.5 * to.GetCardCount(true);
                     }
                 }
 
@@ -2935,6 +2949,7 @@ namespace SanguoshaServer.AI
             { "@kill_victim", BeltsheChao.ClassName },
             { "@kangkai-use", "kangkai" },
             { "@lianji", "lianji" },
+            { "@jianji", "jianji" },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)

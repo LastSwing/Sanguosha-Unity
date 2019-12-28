@@ -1303,7 +1303,7 @@ namespace SanguoshaServer.Package
                 {
                     if (p.HasFlag(Name))
                     {
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", ".|.|.|hand$0");
+                        RoomLogic.RemovePlayerCardLimitation(p, Name);
                         room.RemovePlayerStringMark(p, Name);
                     }
                 }
@@ -1366,7 +1366,7 @@ namespace SanguoshaServer.Package
 
             string pattern = ".|.|.|hand$0";
             room.SetPlayerStringMark(target, "xiongluan", string.Empty);
-            RoomLogic.SetPlayerCardLimitation(target, "use,response", pattern, false);
+            RoomLogic.SetPlayerCardLimitation(target, "xiongluan", "use,response", pattern, false);
         }
     }
 
@@ -1906,7 +1906,7 @@ namespace SanguoshaServer.Package
             if (data is CardUseStruct use)
             {
                 use.Card.SetFlags(string.Format("{0}_{1}", Name, player.Name));
-                RoomLogic.SetPlayerCardLimitation(player, "use", ".$1");
+                RoomLogic.SetPlayerCardLimitation(player, Name, "use", ".$1");
             }
 
             return false;
@@ -1998,8 +1998,8 @@ namespace SanguoshaServer.Package
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (data is CardsMoveOneTimeStruct move)
             {
-                if ((move.To_place == Place.PlaceSpecial && !move.From_places.Contains(Place.PlaceSpecial)) ||
-                    (move.To != null && move.To_place == Place.PlaceHand && move.From_places.Contains(Place.PlaceSpecial)))
+                if ((move.To_place == Place.PlaceSpecial && !move.From_places.Contains(Place.PlaceSpecial) && !move.From_places.Contains(Place.PlaceUnknown))
+                    || (move.To != null && move.To_place == Place.PlaceHand && move.From_places.Contains(Place.PlaceSpecial)))
                 {
                     List<Player> zhoufeis = RoomLogic.FindPlayersBySkillName(room, Name);
                     foreach (Player p in zhoufeis)

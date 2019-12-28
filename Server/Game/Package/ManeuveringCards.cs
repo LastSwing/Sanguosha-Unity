@@ -105,7 +105,6 @@ namespace SanguoshaServer.Package
         {
             target_fixed = true;
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override void Use(Room room, CardUseStruct card_use)
         {

@@ -1016,6 +1016,7 @@ namespace SanguoshaServer.Package
         public SkillCard(string name) : base(name)
         {
             type_id = CardType.TypeSkill;
+            if (will_throw) handling_method = HandlingMethod.MethodDiscard;
         }
 
         public override string GetSubtype() => "skill_card";

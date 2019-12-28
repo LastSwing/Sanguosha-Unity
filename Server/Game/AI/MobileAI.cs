@@ -22,6 +22,7 @@ namespace SanguoshaServer.AI
 
             use_cards = new List<UseCard>
             {
+                new WuyuanCardAI(),
             };
         }
     }
@@ -164,6 +165,21 @@ namespace SanguoshaServer.AI
             }
 
             return new List<Player>();
+        }
+    }
+
+    public class WuyuanCardAI : UseCard
+    {
+        public WuyuanCardAI() : base(WuyuanCard.ClassName) { }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                Player target = use.To[0];
+                if (ai.GetPlayerTendency(target) != "unknown")
+                    ai.UpdatePlayerRelation(player, target, true);
+            }
         }
     }
 }

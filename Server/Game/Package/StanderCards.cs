@@ -104,8 +104,6 @@ namespace SanguoshaServer.Package
         public DummyCard() : base(ClassName)
         {
             target_fixed = true;
-            handling_method = HandlingMethod.MethodNone;
-            type_id = CardType.TypeSkill;
         }
         public override string GetSubtype() => "dummy_card";
         public override void OnUse(Room room, CardUseStruct card_use)
@@ -1334,7 +1332,8 @@ namespace SanguoshaServer.Package
         }
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
-            return RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card) && !RoomLogic.PlayerContainsTrick(room, player, Name) && player.JudgingAreaAvailable;
+            return RoomLogic.IsProhibited(room, player, player, card) == null && base.IsAvailable(room, player, card)
+                && !RoomLogic.PlayerContainsTrick(room, player, Name) && player.JudgingAreaAvailable;
         }
 
         public override void TakeEffect(Room room, Player target, WrappedCard card)

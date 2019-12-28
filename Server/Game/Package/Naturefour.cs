@@ -77,6 +77,7 @@ namespace SanguoshaServer.Package
                 new Zhiba(),
                 new ZhibaVS(),
                 new PoluSJ(),
+                new ZhijianJX(),
             };
             skill_cards = new List<FunctionCard>
             {
@@ -349,7 +350,6 @@ namespace SanguoshaServer.Package
         public static string ClassName = "HuangtianCard";
         public HuangtianCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodNone;
             will_throw = false;
         }
 
@@ -1328,7 +1328,7 @@ namespace SanguoshaServer.Package
             if (remove.Count == 0) return;
 
             huashens.RemoveAll(t => remove.Contains(t));
-            zuoci.SetTag("spirit", huashens);
+            zuoci.SetTag("huashen", huashens);
 
             LogMessage log = new LogMessage
             {
@@ -1366,8 +1366,6 @@ namespace SanguoshaServer.Package
             for (int i = 0; i < Math.Min(available.Count, n); i++)
                 result.Add(available[i]);
 
-            //if (available.Contains("liuyu") && !result.Contains("liuyu")) result.Add("liuyu");
-
             return result;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player zuoci, ref object data)
@@ -1387,7 +1385,7 @@ namespace SanguoshaServer.Package
             if (remove)
             {
                 List<string> huashens = zuoci.ContainsTag("huashen") ? (List<string>)zuoci.GetTag("huashen") : new List<string>();
-                Huashen.RemoveHuashen(room, zuoci, huashens);
+                RemoveHuashen(room, zuoci, huashens);
 
                 string general = zuoci.ContainsTag("huashen_general") ? zuoci.GetTag("huashen_general").ToString() : string.Empty;
                 if (!string.IsNullOrEmpty(general))
@@ -1438,76 +1436,115 @@ namespace SanguoshaServer.Package
                 room.NotifySkillInvoked(player, Name);
                 return info;
             }
-            else if (room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            else
             {
-                string general = player.ContainsTag("huashen_general") ? player.GetTag("huashen_general").ToString() : string.Empty;
-                if (!string.IsNullOrEmpty(general))
+                string choice = room.AskForChoice(player, Name, "change+remove+cancel");
+                if (choice == "cancel") return new TriggerStruct();
+                bool remove = choice == "change";
+                if (remove)
                 {
-                    List<string> args = new List<string>
+                    string general = player.ContainsTag("huashen_general") ? player.GetTag("huashen_general").ToString() : string.Empty;
+                    if (!string.IsNullOrEmpty(general))
                     {
-                        GameEventType.S_GAME_EVENT_HUASHEN.ToString(),
-                        player.Name,
-                        string.Empty
-                    };
-                    room.DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
+                        List<string> args = new List<string>
+                        {
+                            GameEventType.S_GAME_EVENT_HUASHEN.ToString(),
+                            player.Name,
+                            string.Empty
+                        };
+                        room.DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
+                    }
+                    player.RemoveTag("huashen_general");
+
+                    string skill = player.ContainsTag("huashen_skill") ? player.GetTag("huashen_skill").ToString() : string.Empty;
+                    if (!string.IsNullOrEmpty(skill))
+                        room.HandleAcquireDetachSkills(player, string.Format("-{0}", skill), true);
+                    player.RemoveTag("huashen_skill");
                 }
-                player.RemoveTag("huashen_general");
-
-                string skill = player.ContainsTag("huashen_skill") ? player.GetTag("huashen_skill").ToString() : string.Empty;
-                if (!string.IsNullOrEmpty(skill))
-                    room.HandleAcquireDetachSkills(player, string.Format("-{0}", skill), true);
-                player.RemoveTag("huashen_skill");
-
-                return info;
             }
 
-            return new TriggerStruct();
+            return info;
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            List<string> huashens = (List<string>)player.GetTag("huashen");
 
-            List<string> huashens = player.ContainsTag("huashen") ? (List<string>)player.GetTag("huashen") : new List<string>();
-            if (huashens.Count > 0)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.ContainsTag("huashen_general") && player.GetTag("huashen_general") is string used)
             {
-                string general = room.AskForGeneral(player, huashens, null);
-                General g = Engine.GetGeneral(general, room.Setting.GameMode);
-                if (g != null)
-                {
-                    player.PlayerGender = g.GeneralGender;
-                    player.Kingdom = g.Kingdom;
-                    room.BroadcastProperty(player, "PlayerGender");
-                    room.BroadcastProperty(player, "Kingdom");
+                List<string> removes = new List<string>(), origin = new List<string>(huashens);
+                origin.Remove(used);
+                string general = room.AskforGeneral(player, origin, Name, false, "@huashen-discard", data, info.SkillPosition);
+                origin.Remove(general);
+                removes.Add(general);
 
-                    List<string> args = new List<string>
+                if (origin.Count > 0)
+                {
+                    general = room.AskforGeneral(player, origin, Name, true, "@huashen-discard", data, info.SkillPosition);
+                    if (!string.IsNullOrEmpty(general))
+                        removes.Add(general);
+                }
+
+                LogMessage log = new LogMessage
+                {
+                    Type = "#drophuashendetail",
+                    From = player.Name,
+                    Arg = "huashen",
+                    Arg2 = string.Join("\\, \\", removes)
+                };
+                room.SendLog(log);
+
+                room.DoAnimate(AnimateType.S_ANIMATE_HUASHEN, string.Join("+", removes), string.Format("{0}+null+huashen", player.Name));
+                Thread.Sleep(500);
+
+                Acquiregenerals(room, player, removes.Count);
+                huashens.RemoveAll(t => removes.Contains(t));
+                foreach (string name in removes)
+                    room.HandleUsedGeneral("-" + name);
+                room.SetPlayerStringMark(player, "huashen", huashens.Count.ToString(), room.GetClient(player));
+            }
+            else
+            {
+                if (huashens.Count > 0)
+                {
+                    string general = room.AskForGeneral(player, huashens, null);
+                    General g = Engine.GetGeneral(general, room.Setting.GameMode);
+                    if (g != null)
+                    {
+                        player.PlayerGender = g.GeneralGender;
+                        player.Kingdom = g.Kingdom;
+                        room.BroadcastProperty(player, "PlayerGender");
+                        room.BroadcastProperty(player, "Kingdom");
+
+                        List<string> args = new List<string>
                     {
                         GameEventType.S_GAME_EVENT_HUASHEN.ToString(),
                         player.Name,
                         general
                     };
-                    room.DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
+                        room.DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
 
-                    player.SetTag("huashen_general", general);
+                        player.SetTag("huashen_general", general);
 
-                    List<string> skills = new List<string>();
-                    foreach (string skill_name in Engine.GetGeneralSkills(general, room.Setting.GameMode, true))
-                    {
-                        Skill s = Engine.GetSkill(skill_name);
-                        if (s != null && s.SkillFrequency != Frequency.Limited && s.SkillFrequency != Frequency.Wake && !s.LordSkill && !s.Attached_lord_skill)
-                            skills.Add(skill_name);
-                    }
+                        List<string> skills = new List<string>();
+                        foreach (string skill_name in Engine.GetGeneralSkills(general, room.Setting.GameMode, true))
+                        {
+                            Skill s = Engine.GetSkill(skill_name);
+                            if (s != null && s.SkillFrequency != Frequency.Limited && s.SkillFrequency != Frequency.Wake && !s.LordSkill && !s.Attached_lord_skill)
+                                skills.Add(skill_name);
+                        }
 
-                    if (skills.Count > 0)
-                    {
-                        string skill = room.AskForChoice(player, Name, string.Join("+", skills));
-                        player.SetTag("huashen_skill", skill);
-                        room.HandleAcquireDetachSkills(player, skill, true);
-                        room.FilterCards(player, player.GetCards("he"), true);
+                        if (skills.Count > 0)
+                        {
+                            string skill = room.AskForChoice(player, Name, string.Join("+", skills));
+                            player.SetTag("huashen_skill", skill);
+                            room.HandleAcquireDetachSkills(player, skill, true);
+                            room.FilterCards(player, player.GetCards("he"), true);
+                        }
                     }
                 }
             }
-
             return false;
         }
     }
@@ -3518,7 +3555,6 @@ namespace SanguoshaServer.Package
         public static string ClassName = "ZhibaCard";
         public ZhibaCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodNone;
             will_throw = false;
         }
 
@@ -3621,6 +3657,61 @@ namespace SanguoshaServer.Package
                     room.DrawCards(p, new DrawCardStruct(count, ask_who, Name));
 
             return false;
+        }
+    }
+
+    public class ZhijianJX : TriggerSkill
+    {
+        public ZhijianJX() : base("zhijian_jx")
+        {
+            view_as_skill = new ZhijianJXVS();
+            events = new List<TriggerEvent> { TriggerEvent.CardUsed };
+            skill_type = SkillType.Replenish;
+        }
+
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is EquipCard)
+                    return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.DrawCards(ask_who, 1, Name);
+            return false;
+        }
+    }
+
+    public class ZhijianJXVS : OneCardViewAsSkill
+    {
+        public ZhijianJXVS() : base("zhijian_jx")
+        {
+            filter_pattern = "EquipCard|.|.|hand";
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard zhijian_card = new WrappedCard("ZhijianCard");
+            zhijian_card.AddSubCard(card);
+            zhijian_card.Skill = Name;
+            zhijian_card.ShowSkill = Name;
+            return zhijian_card;
         }
     }
     #endregion

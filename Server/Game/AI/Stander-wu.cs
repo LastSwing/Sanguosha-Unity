@@ -885,7 +885,7 @@ namespace SanguoshaServer.AI
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
-                    if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                    if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(from, p, slash))
                     {
                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
@@ -906,7 +906,7 @@ namespace SanguoshaServer.AI
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
-                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(from, p, slash))
                     {
                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
@@ -934,7 +934,7 @@ namespace SanguoshaServer.AI
                         use.To.Add(p);
                         return use;
                     }
-                    else if (!ai.NotSlashJiaozhu(p))
+                    else if (!ai.NotSlashJiaozhu(from, p, slash))
                     {
                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                         if (slash.Name.Contains("Fire"))
@@ -972,7 +972,7 @@ namespace SanguoshaServer.AI
                                 foreach (Player p in room.GetOtherPlayers(player))
                                 {
                                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
-                                    if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                                    if (ai.IsEnemy(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(from, p, slash))
                                     {
                                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                                         if (slash.Name.Contains("Fire"))
@@ -993,7 +993,7 @@ namespace SanguoshaServer.AI
                                 foreach (Player p in room.GetOtherPlayers(player))
                                 {
                                     if (p == from || !RoomLogic.InMyAttackRange(room, player, p, liuli) || _use.To.Contains(p)) continue;
-                                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(p))
+                                    if (!ai.IsFriend(p) && !ai.IsCancelTarget(slash, p, from) && ai.IsCardEffect(slash, p, from) && !ai.NotSlashJiaozhu(from, p, slash))
                                     {
                                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                                         if (slash.Name.Contains("Fire"))
@@ -1021,7 +1021,7 @@ namespace SanguoshaServer.AI
                                         use.To.Add(p);
                                         return use;
                                     }
-                                    else if (!ai.NotSlashJiaozhu(p))
+                                    else if (!ai.NotSlashJiaozhu(from, p, slash))
                                     {
                                         DamageStruct damage = new DamageStruct(slash, from, p, _use.Drank + 1 + _use.ExDamage);
                                         if (slash.Name.Contains("Fire"))

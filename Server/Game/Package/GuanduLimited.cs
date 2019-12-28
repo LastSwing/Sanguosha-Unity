@@ -54,7 +54,6 @@ namespace SanguoshaServer.Package
         {
             target_fixed = true;
             will_throw = true;
-            handling_method = HandlingMethod.MethodDiscard;
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -308,7 +307,7 @@ namespace SanguoshaServer.Package
                 {
                     if (p.GetMark(Name) > 0)
                     {
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", "..$1");
+                        RoomLogic.RemovePlayerCardLimitation(p, Name);
                         p.SetMark(Name, 0);
                         room.RemovePlayerStringMark(p, "no_handcards");
                     }
@@ -347,7 +346,7 @@ namespace SanguoshaServer.Package
                 {
                     p.SetMark(Name, 1);
                     room.SetPlayerStringMark(p, "no_handcards", string.Empty);
-                    RoomLogic.SetPlayerCardLimitation(p, "use,response", "..", true);
+                    RoomLogic.SetPlayerCardLimitation(p, Name, "use,response", ".", true);
                 }
             }
 
@@ -425,7 +424,7 @@ namespace SanguoshaServer.Package
         public static string ClassName = "ShushouCard";
         public ShushouCard() : base(ClassName)
         {
-            handling_method = HandlingMethod.MethodNone;
+            will_throw = false;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -709,7 +708,6 @@ namespace SanguoshaServer.Package
         public YuanlueCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -891,7 +889,6 @@ namespace SanguoshaServer.Package
         public MoushiCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
         {
@@ -1034,10 +1031,27 @@ namespace SanguoshaServer.Package
     {
         public Polu() : base("polu")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TurnStart };
+            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.TurnStart, TriggerEvent.GameStart };
             frequency = Frequency.Compulsory;
             skill_type = SkillType.Alter;
         }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.GameStart && base.Triggerable(player, room))
+            {
+                foreach (int id in Engine.GetEngineCards())
+                {
+                    WrappedCard real_card = Engine.GetRealCard(id);
+                    if (real_card.Name == Catapult.ClassName && room.GetCard(id) == null)
+                    {
+                        room.AddNewCard(id);
+                        break;
+                    }
+                }
+            }
+        }
+
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (base.Triggerable(player, room))

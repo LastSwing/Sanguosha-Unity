@@ -366,7 +366,7 @@ namespace SanguoshaServer.Game
         public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;
-            return target.HasWeapon(Name);
+            return target.Alive && target.HasWeapon(Name);
         }
     }
 

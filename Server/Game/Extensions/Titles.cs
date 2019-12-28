@@ -273,7 +273,8 @@ namespace SanguoshaServer.Extensions
         {
             if (triggerEvent == TriggerEvent.GameOverJudge && data is DeathStruct death && player.ClientId > 0)
             {
-                if (player.GetRoleEnum() == Player.PlayerRole.Lord && death.Who.General1 == "sunce" && death.Damage.Damage > 1 && player.GetMark("hunzi") == 0)
+                if (player.GetRoleEnum() == Player.PlayerRole.Lord && player.General1 == "sunce" && (!string.IsNullOrEmpty(death.Damage.Reason) || death.Damage.Card != null)
+                    && death.Damage.Damage > 1 && player.GetMark("hunzi") == 0 && death.Damage.From != player)
                 {
                     int id = player.ClientId;
                     if (!ClientDBOperation.CheckTitle(id, TitleId))
@@ -338,7 +339,8 @@ namespace SanguoshaServer.Extensions
         public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
         {
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && player.Alive && player.ClientId > 0
-                && (damage.Card.Name == Lightning.ClassName || damage.Reason == "leiji" || damage.Reason == "leiji_jx") && !damage.Transfer && !damage.Chain)
+                && (!string.IsNullOrEmpty(damage.Reason) || damage.Card != null) && (damage.Card.Name == Lightning.ClassName || damage.Reason == "leiji" || damage.Reason == "leiji_jx"
+                || damage.Reason == LightningSummoner.ClassName) && !damage.Transfer && !damage.Chain)
             {
                 player.AddMark("lightning_damaged", damage.Damage);
             }

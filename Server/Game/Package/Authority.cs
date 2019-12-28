@@ -525,7 +525,7 @@ namespace SanguoshaServer.Package
 
                 string pattern = ".|.|.|hand$0";
                 target.SetFlags("ChangeGeneralTarget");
-                RoomLogic.SetPlayerCardLimitation(target, "use,response", pattern);
+                RoomLogic.SetPlayerCardLimitation(target, ClassName, "use,response", pattern);
                 room.SetPlayerStringMark(target, "no_handcards", string.Empty);
 
                 return true;
@@ -560,7 +560,7 @@ namespace SanguoshaServer.Package
 
                     if (p.HasFlag("ChangeGeneralTarget"))
                     {
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", ".|.|.|hand$0");
+                        RoomLogic.RemovePlayerCardLimitation(p, ChangeGeneral.ClassName);
                         room.RemovePlayerStringMark(p, "no_handcards");
                     }
                 }

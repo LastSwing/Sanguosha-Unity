@@ -501,7 +501,7 @@ namespace SanguoshaServer.Game
         public static bool IsJilei(Room room, Player player, WrappedCard card) => IsCardLimited(room, player, card, HandlingMethod.MethodDiscard);
         public static bool IsLocked(Room room, Player player, WrappedCard card) => IsCardLimited(room, player, card, HandlingMethod.MethodUse);
 
-        public static void SetPlayerCardLimitation(Player player, string limit_list, string pattern, bool single_turn = false)
+        public static void SetPlayerCardLimitation(Player player, string reason, string limit_list, string pattern, bool single_turn = false)
         {
             List<string> limit_type = new List<string>(limit_list.Split(','));
             string _pattern = pattern;
@@ -510,32 +510,52 @@ namespace SanguoshaServer.Game
                 string symb = single_turn ? "$1" : "$0";
                 _pattern = _pattern + symb;
             }
-            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            if (!limitation.ContainsKey(reason)) limitation[reason] = new Dictionary<int, List<string>>();
             foreach (string limit in limit_type)
             {
                 HandlingMethod method = Engine.GetCardHandlingMethod(limit);
-                if (limitation.ContainsKey((int)method))
-                    limitation[(int)method].Add(_pattern);
+                if (limitation[reason].ContainsKey((int)method))
+                    limitation[reason][(int)method].Add(_pattern);
                 else
-                    limitation[(int)method] = new List<string> { _pattern };
+                    limitation[reason][(int)method] = new List<string> { _pattern };
             }
             player.Limitation = limitation;
         }
-
-        public static void RemovePlayerCardLimitation(Player player, string limit_list, string pattern)
+        public static void RemovePlayerCardLimitation(Player player, string reason)
         {
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            if (limitation.ContainsKey(reason))
+            {
+                limitation.Remove(reason);
+                player.Limitation = limitation;
+            }
+        }
+
+        public static void RemovePlayerCardLimitation(Player player, string reason, string limit_list, string pattern)
+        {
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            if (!limitation.ContainsKey(reason)) return;
+
             List<string> limit_type = new List<string>(limit_list.Split(','));
             string _pattern = pattern;
             if (!_pattern.EndsWith("$1") && !_pattern.EndsWith("$0"))
                 _pattern = _pattern + "$0";
 
-            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
             foreach (string limit in limit_type)
             {
                 HandlingMethod method = Engine.GetCardHandlingMethod(limit);
-                if (limitation.ContainsKey((int)method))
-                    limitation[(int)method].Remove(_pattern);
+                if (limitation[reason].ContainsKey((int)method))
+                    limitation[reason][(int)method].RemoveAll(t => t == _pattern);
             }
+            foreach (string limit in limit_type)
+            {
+                HandlingMethod method = Engine.GetCardHandlingMethod(limit);
+                int index = (int)method;
+                if (limitation[reason].ContainsKey(index) && limitation[reason][index].Count == 0)
+                    limitation[reason].Remove(index);
+            }
+            if (limitation[reason].Count == 0) limitation.Remove(reason);
             player.Limitation = limitation;
         }
 
@@ -547,17 +567,38 @@ namespace SanguoshaServer.Game
                 HandlingMethod.MethodRecast, HandlingMethod.MethodPindian
             };
 
-            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
-            foreach (HandlingMethod method in limit_type)
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            List<string> keys = new List<string>(limitation.Keys);
+            for (int i = 0; i < keys.Count; i++)
             {
-                if (!limitation.ContainsKey((int)method)) continue;
-                List<string> limit_patterns = new List<string>(limitation[(int)method]);
-                foreach (string pattern in limit_patterns)
+                string reason = keys[i];
+                Dictionary<int, List<string>> reason_limit = limitation[reason];
+                foreach (HandlingMethod method in limit_type)
                 {
-                    if (!single_turn || pattern.EndsWith("$1"))
-                        limitation[(int)method].Remove(pattern);
+                    if (!reason_limit.ContainsKey((int)method)) continue;
+                    List<string> limit_patterns = new List<string>(reason_limit[(int)method]);
+                    foreach (string pattern in limit_patterns)
+                    {
+                        if (!single_turn || pattern.EndsWith("$1"))
+                            reason_limit[(int)method].Remove(pattern);
+                    }
                 }
+
+                foreach (HandlingMethod method in limit_type)
+                {
+                    int index = (int)method;
+                    if (reason_limit.ContainsKey(index) && reason_limit[index].Count == 0)
+                        reason_limit.Remove(index);
+                }
+                limitation[reason] = reason_limit;
             }
+
+            for (int i = 0; i < keys.Count; i++)
+            {
+                string reason = keys[i];
+                if (limitation[reason].Count == 0) limitation.Remove(reason);
+            }
+
             player.Limitation = limitation;
         }
 
@@ -566,11 +607,14 @@ namespace SanguoshaServer.Game
             if (method == HandlingMethod.MethodNone)
                 return false;
 
-            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
-            if (!limitation.ContainsKey((int)method)) return false;
-
-            foreach (string pattern in limitation[(int)method])
-                if (pattern.Contains(".|.|.|hand")) return true;
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            foreach (string reason in limitation.Keys)
+            {
+                int index = (int)method;
+                if (!limitation[reason].ContainsKey(index)) continue;
+                foreach (string pattern in limitation[reason][index])
+                    if (pattern.Contains(".|.|.|hand")) return true;
+            }
 
             return false;
         }
@@ -581,20 +625,27 @@ namespace SanguoshaServer.Game
                 return false;
 
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-            Dictionary<int, List<string>> limitation = new Dictionary<int, List<string>>(player.Limitation);
-            if (fcard != null && fcard.TypeID == CardType.TypeSkill && method == fcard.Method)
+            Dictionary<string, Dictionary<int, List<string>>> limitation = new Dictionary<string, Dictionary<int, List<string>>>(player.Limitation);
+            if (fcard != null && fcard.TypeID == CardType.TypeSkill)
             {
-                foreach (int card_id in card.SubCards)
+                if (fcard.Method == method)
                 {
-                    if (!limitation.ContainsKey((int)method)) continue;
-                    WrappedCard c = room.GetCard(card_id);
-                    foreach (string pattern in limitation[(int)method])
+                    foreach (int card_id in card.SubCards)
                     {
-                        string _pattern = pattern.Split('$')[0];
-                        if (isHandcard)
-                            _pattern = _pattern.Replace("hand", ".");
-                        CardPattern p = Engine.GetPattern(_pattern);
-                        if (p.Match(player, room, c)) return true;
+                        foreach (string reason in limitation.Keys)
+                        {
+                            int index = (int)method;
+                            if (!limitation[reason].ContainsKey(index)) continue;
+                            WrappedCard c = room.GetCard(card_id);
+                            foreach (string pattern in limitation[reason][index])
+                            {
+                                string _pattern = pattern.Split('$')[0];
+                                if (isHandcard)
+                                    _pattern = _pattern.Replace("hand", ".");
+                                CardPattern p = Engine.GetPattern(_pattern);
+                                if (p.Match(player, room, c)) return true;
+                            }
+                        }
                     }
                 }
             }
@@ -603,15 +654,20 @@ namespace SanguoshaServer.Game
                 if (player.Removed && (method == HandlingMethod.MethodResponse || method == HandlingMethod.MethodUse))
                     return true;
 
-                if (limitation.ContainsKey((int)method))
+                foreach (int card_id in card.SubCards)
                 {
-                    foreach (string pattern in limitation[(int)method])
+                    foreach (string reason in limitation.Keys)
                     {
-                        string _pattern = pattern.Split('$')[0];
-                        if (isHandcard)
-                            _pattern = _pattern.Replace("hand", ".");
-                        if (Engine.MatchExpPattern(room, _pattern, player, card))
-                            return true;
+                        int index = (int)method;
+                        if (!limitation[reason].ContainsKey(index)) continue;
+                        foreach (string pattern in limitation[reason][index])
+                        {
+                            string _pattern = pattern.Split('$')[0];
+                            if (isHandcard)
+                                _pattern = _pattern.Replace("hand", ".");
+                            if (Engine.MatchExpPattern(room, _pattern, player, card))
+                                return true;
+                        }
                     }
                 }
             }

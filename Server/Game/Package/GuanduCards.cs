@@ -33,7 +33,7 @@ namespace SanguoshaServer.Package
 
     public class CatapultSkill : WeaponSkill
     {
-        public CatapultSkill() : base("Catapult")
+        public CatapultSkill() : base(Catapult.ClassName)
         {
             events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.BeforeCardsMove };
         }
@@ -41,7 +41,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.BeforeCardsMove && data is CardsMoveOneTimeStruct move)
             {
-                if (move.From != null && move.From_places.Contains(Player.Place.PlaceEquip) && move.To_pile_name != "#catapult")
+                if (move.From != null && move.From_places.Contains(Player.Place.PlaceEquip) && move.To_pile_name != "#virtual_cards")
                 {
                     int catapult = -1, card_index = -1;
                     foreach (int id in move.Card_ids)
@@ -62,8 +62,8 @@ namespace SanguoshaServer.Package
                         data = move;
 
                         Player holder = room.Players[0];
-                        room.AddToPile(holder, "#catapult", catapult, false);
                         room.SetEmotion(move.From, "catapult_broken");
+                        room.AddToPile(holder, "#virtual_cards", catapult, false);
                     }
                 }
             }

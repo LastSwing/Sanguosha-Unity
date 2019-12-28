@@ -4383,8 +4383,7 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (ai.JiaozhuneedSlash(player))
-                return true;
+            if (ai.HasSkill("leiji|leiji_jx")) return true;
 
             Room room = ai.Room;
             CardAskStruct asked = (CardAskStruct)data;
@@ -4850,13 +4849,13 @@ namespace SanguoshaServer.AI
                     if (RoomLogic.CanSlash(room, from, to))
                     {
                         to_value = 0;
-                        if (ai.IsEnemy(to) && !ai.NotSlashJiaozhu(to))
+                        if (ai.IsEnemy(to) && !ai.NotSlashJiaozhu(from, to, card))
                         {
                             to_value += 3;
                             if (ai.IsWeak(to))
                                 to_value += 5;
                         }
-                        if (ai.JiaozhuneedSlash(to))
+                        if (ai.JiaozhuneedSlash(from, to, card))
                             to_value += 6;
                     }
                     to_values[to] = to_value;
@@ -4927,7 +4926,7 @@ namespace SanguoshaServer.AI
             if (ai.IsFriend(target) && player.HasWeapon(CrossBow.ClassName) && ai.GetKnownCardsNums(Slash.ClassName, "he", target, player) > 1)
                 return use;
 
-            if (ai.JiaozhuneedSlash(target2))
+            if (ai.JiaozhuneedSlash(player, target2, new WrappedCard(Slash.ClassName)))
             {
                 foreach (WrappedCard slash in slashes)
                 {
@@ -4939,7 +4938,7 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-            else if (ai.NotSlashJiaozhu(target2))
+            else if (ai.NotSlashJiaozhu(player, target2, new WrappedCard(Slash.ClassName)))
             {
                 if (ai.IsEnemy(target))
                 {

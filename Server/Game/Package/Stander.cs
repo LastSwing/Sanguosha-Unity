@@ -1409,7 +1409,6 @@ namespace SanguoshaServer.Package
         public JushouCard() : base(ClassName)
         {
             target_fixed = true;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override void OnUse(Room room, CardUseStruct card_use)
@@ -1753,7 +1752,6 @@ namespace SanguoshaServer.Package
         public RendeCard() : base("RendeCard")
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -4825,7 +4823,6 @@ namespace SanguoshaServer.Package
         public LirangCard() : base("LirangCard")
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override void OnUse(Room room, CardUseStruct card_use)
         {
@@ -5386,7 +5383,6 @@ namespace SanguoshaServer.Package
     {
         public QingchengCard() : base("QingchengCard")
         {
-            handling_method = HandlingMethod.MethodDiscard;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -6567,7 +6563,7 @@ namespace SanguoshaServer.Package
             if (pd.Success)
                 card_use.From.SetFlags("TianyiSuccess");
             else
-                RoomLogic.SetPlayerCardLimitation(card_use.From, "use", Slash.ClassName, true);
+                RoomLogic.SetPlayerCardLimitation(card_use.From, "tianyi", "use", Slash.ClassName, true);
         }
     }
     public class TianyiVS : ZeroCardViewAsSkill
@@ -6819,7 +6815,6 @@ namespace SanguoshaServer.Package
         public HaoshiCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -7046,7 +7041,6 @@ namespace SanguoshaServer.Package
         public ZhijianCard() : base("ZhijianCard")
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {

@@ -34,6 +34,7 @@ namespace SanguoshaServer.AI
                 new ZhibaVSAI(),
                 new TianxiangJXAI(),
                 new PoluSJAI(),
+                new ZhijianJXAI(),
 
                 new QiangxiJXAI(),
                 new TuntianJXAI(),
@@ -920,6 +921,50 @@ namespace SanguoshaServer.AI
                 if (ai.IsFriend(p)) result.Add(p);
 
             return result;
+        }
+    }
+
+    public class ZhijianJXAI : SkillEvent
+    {
+        public ZhijianJXAI() : base("zhijian_jx")
+        {
+        }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            List<WrappedCard> ids = new List<WrappedCard>();
+            foreach (int id in player.GetCards("h"))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(ai.Room.GetCard(id).Name);
+                if (fcard.Name == CrossBow.ClassName)
+                {
+                    List<WrappedCard> slashes = ai.GetCards(Slash.ClassName, player, true);
+                    if (slashes.Count >= 4)
+                    {
+                        List<ScoreStruct> scores = ai.CaculateSlashIncome(player, slashes);
+                        if (scores.Count > 0 && scores[0].Score > 0)
+                            continue;
+                    }
+                }
+                if (fcard is EquipCard)
+                {
+                    WrappedCard card = new WrappedCard("ZhijianCard") { Skill = Name, ShowSkill = Name };
+                    card.AddSubCard(id);
+                    ids.Add(card);
+                }
+            }
+
+            return ids;
+        }
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (card.Id >= 0 && ai.HasSkill(Name, player) && !isUse && place == Player.Place.PlaceHand)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(ai.Room.GetCard(card.GetEffectiveId()).Name);
+                if (fcard is EquipCard)
+                    return 1;
+            }
+
+            return 0;
         }
     }
 

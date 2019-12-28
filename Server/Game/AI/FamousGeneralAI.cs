@@ -128,6 +128,7 @@ namespace SanguoshaServer.AI
                 new JiexunAI(),
                 new YanzhuAI(),
                 new XingxueAI(),
+                new ZhiyanAI(),
             };
 
             use_cards = new List<UseCard>
@@ -6222,13 +6223,13 @@ namespace SanguoshaServer.AI
                         {
                             if (use.Card.Name == ArcheryAttack.ClassName)
                                 foreach (Player p in targets)
-                                    if (!ai.IsFriend(p) && ai.NotSlashJiaozhu(p)) return new List<Player> { p };
+                                    if (!ai.IsFriend(p) && ai.NotSlashJiaozhu(use.From, p, use.Card)) return new List<Player> { p };
 
                             ai.SortByDefense(ref targets, false);
                             List<ScoreStruct> scores = new List<ScoreStruct>();
                             foreach (Player p in targets)
                             {
-                                if (ai.IsFriend(p) && use.Card.Name == ArcheryAttack.ClassName && ai.JiaozhuneedSlash(p)) continue;
+                                if (ai.IsFriend(p) && use.Card.Name == ArcheryAttack.ClassName && ai.JiaozhuneedSlash(use.From, p, use.Card)) continue;
                                 if (ai.IsCardEffect(use.Card, p, use.From) && !ai.IsCancelTarget(use.Card, p, use.From))
                                 {
                                     DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.ExDamage);
@@ -8203,5 +8204,35 @@ namespace SanguoshaServer.AI
 
             return new List<int> { ids[0] };
         }
+    }
+
+    public class ZhiyanAI : SkillEvent
+    {
+        public ZhiyanAI() : base("zhiyan")
+        {
+            key = new List<string> { "playerChosen:zhiyan" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(strs[2]);
+                    if (ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> players = ai.GetFriends(player);
+            ai.SortByDefense(ref players, false);
+            foreach (Player p in players)
+                if (!ai.HasSkill("zishu", p)) return new List<Player> { p };
+
+            return new List<Player> { players[0] }
+;        }
     }
 }

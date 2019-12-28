@@ -815,7 +815,6 @@ namespace SanguoshaServer.Package
         public BifaCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -2873,24 +2872,24 @@ namespace SanguoshaServer.Package
                     }
 
                     player.SetFlags("lingren_basic");
-                    string basic_choice = room.AskForChoice(player, Name, "yes+no", new List<string> { "@lingren-basic:" + target.Name }, target);
+                    string basic_choice = room.AskForChoice(player, Name, "has+nohas", new List<string> { "@lingren-basic:" + target.Name }, target);
                     player.SetFlags("-lingren_basic");
 
-                    if ((basic_choice == "yes" && basic) || (basic_choice != "yes" && !basic))
+                    if ((basic_choice == "has" && basic) || (basic_choice != "has" && !basic))
                         correct++;
 
                     player.SetFlags("lingren_equip");
-                    string equip_choice = room.AskForChoice(player, Name, "yes+no", new List<string> { "@lingren-equip:" + target.Name }, target);
+                    string equip_choice = room.AskForChoice(player, Name, "has+nohas", new List<string> { "@lingren-equip:" + target.Name }, target);
                     player.SetFlags("-lingren_equip");
 
-                    if ((equip_choice == "yes" && equip) || (equip_choice != "yes" && !equip))
+                    if ((equip_choice == "has" && equip) || (equip_choice != "has" && !equip))
                         correct++;
 
                     player.SetFlags("lingren_trick");
-                    string trick_choice = room.AskForChoice(player, Name, "yes+no", new List<string> { "@lingren-trick:" + target.Name }, target);
+                    string trick_choice = room.AskForChoice(player, Name, "has+nohas", new List<string> { "@lingren-trick:" + target.Name }, target);
                     player.SetFlags("-lingren_trick");
 
-                    if ((trick_choice == "yes" && trick) || (trick_choice != "yes" && !trick))
+                    if ((trick_choice == "has" && trick) || (trick_choice != "has" && !trick))
                         correct++;
 
                     LogMessage log = new LogMessage
@@ -3325,7 +3324,7 @@ namespace SanguoshaServer.Package
     public class MizhaoCard : SkillCard
     {
         public static string ClassName = "MizhaoCard";
-        public MizhaoCard() : base(ClassName) { handling_method = HandlingMethod.MethodNone; }
+        public MizhaoCard() : base(ClassName) { will_throw = false; }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -3468,7 +3467,6 @@ namespace SanguoshaServer.Package
         public WeidiJXCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -7091,7 +7089,7 @@ namespace SanguoshaServer.Package
             if (targets.Count > 0)
             {
                 Player target = room.AskForPlayerChosen(player, targets, Name, "@wenji-ask", true, true, info.SkillPosition);
-                if (player != null)
+                if (target != null)
                 {
                     room.SetTag(Name, target);
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
@@ -7417,6 +7415,8 @@ namespace SanguoshaServer.Package
                         room.SetTag("saber_changed", true);
                     }
                 }
+
+                room.RemoveTag("saber_change");
             }
         }
 
@@ -8009,7 +8009,7 @@ namespace SanguoshaServer.Package
             {
                 List<int> remove = ids.FindAll(t => _move.Card_ids.Contains(t));
                 foreach (int id in remove)
-                    RoomLogic.RemovePlayerCardLimitation(_move.From, "use,response,discard", id.ToString());
+                    RoomLogic.RemovePlayerCardLimitation(_move.From, Name, "use,response,discard", id.ToString());
 
                 ids.RemoveAll(t => _move.Card_ids.Contains(t));
                 if (ids.Count == 0)
@@ -8020,8 +8020,7 @@ namespace SanguoshaServer.Package
             else if (triggerEvent == TriggerEvent.PostHpReduced && player.ContainsTag(Name) && player.GetTag(Name) is List<int> remove)
             {
                 player.RemoveTag(Name);
-                foreach (int id in remove)
-                    RoomLogic.RemovePlayerCardLimitation(player, "use,response,discard", id.ToString());
+                RoomLogic.RemovePlayerCardLimitation(player, Name);
             }
         }
 
@@ -8049,8 +8048,9 @@ namespace SanguoshaServer.Package
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, move.To.Name);
 
                 List<int> fix = move.Card_ids.FindAll(t => ids.Contains(t));
+                move.To.SetTag(Name, fix);
                 foreach (int id in fix)
-                    RoomLogic.SetPlayerCardLimitation(move.To, "use,response,discard", id.ToString());
+                    RoomLogic.SetPlayerCardLimitation(move.To, Name, "use,response,discard", id.ToString());
             }
             return false;
         }
@@ -8412,6 +8412,7 @@ namespace SanguoshaServer.Package
             if (player == ask_who)
             {
                 target = player;
+                target.SetMark(Name, 1);
             }
             else
             {
@@ -9128,7 +9129,6 @@ namespace SanguoshaServer.Package
         public FanghunCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
@@ -9505,7 +9505,6 @@ namespace SanguoshaServer.Package
         public ZiyuanCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -9995,7 +9994,6 @@ namespace SanguoshaServer.Package
         public FumanCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -10344,7 +10342,7 @@ namespace SanguoshaServer.Package
         {
             return targets.Count == 0 && Self != to_select;
         }
-        public override void OnUse(Room room, CardUseStruct card_use)
+        public override void Use(Room room, CardUseStruct card_use)
         {
             Player target = card_use.To[0];
             List<int> ids = room.DrawCards(target, new DrawCardStruct(1, card_use.From, "jianji"));
@@ -10997,7 +10995,7 @@ namespace SanguoshaServer.Package
 
                 List<int> get = room.AskForExchange(player, Name, 1, 1, "@mumu-get", string.Empty, string.Join("#", JsonUntity.IntList2StringList(ids)), info.SkillPosition);
                 room.ObtainCard(player, ref get, new CardMoveReason(MoveReason.S_REASON_GOTCARD, player.Name, Name, string.Empty));
-                RoomLogic.SetPlayerCardLimitation(player, "use,response", "Slash", true);
+                RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", "Slash", true);
             }
             else
             {
@@ -11011,7 +11009,7 @@ namespace SanguoshaServer.Package
                 if (room.AskForChoice(player, Name, string.Join("+", choices), null, card_id) == "get")
                 {
                     room.ObtainCard(player, card_id);
-                    RoomLogic.SetPlayerCardLimitation(player, "use,response", "Slash", true);
+                    RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", "Slash", true);
                 }
                 else
                     room.ThrowCard(card_id, target, player);
@@ -11039,7 +11037,7 @@ namespace SanguoshaServer.Package
                     player.AddMark(Name);
                     if (!player.HasFlag(Name) && (player.GetMark(Name) >= player.Hp || fcard is TrickCard))
                     {
-                        RoomLogic.SetPlayerCardLimitation(player, "use", ".", true);
+                        RoomLogic.SetPlayerCardLimitation(player, Name, "use", ".", true);
                         player.SetFlags(Name);
                     }
                 }
@@ -11050,17 +11048,15 @@ namespace SanguoshaServer.Package
                 player.AddMark(Name);
                 if (!player.HasFlag(Name) && player.GetMark(Name) >= player.Hp)
                 {
-                    RoomLogic.SetPlayerCardLimitation(player, "use", ".", true);
+                    RoomLogic.SetPlayerCardLimitation(player, Name, "use", ".", true);
                     player.SetFlags(Name);
                 }
             }
             else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
             {
                 room.HandleAcquireDetachSkills(player, "-zhixi", true);
-                if (player.HasFlag(Name))
-                    RoomLogic.RemovePlayerCardLimitation(player, "use", ".$0");
-                if (player.GetMark(Name) > 0)
-                    player.SetMark(Name, 0);
+                if (player.HasFlag(Name)) RoomLogic.RemovePlayerCardLimitation(player, Name);
+                if (player.GetMark(Name) > 0) player.SetMark(Name, 0);
             }
         }
 

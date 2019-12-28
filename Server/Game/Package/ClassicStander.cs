@@ -330,7 +330,7 @@ namespace SanguoshaServer.Package
                     if (p.GetMark("@yijue") > 0)
                     {
                         room.SetPlayerMark(p, "@yijue", 0);
-                        RoomLogic.RemovePlayerCardLimitation(p, "use,response", ".|.|.|hand$0");
+                        RoomLogic.RemovePlayerCardLimitation(p, Name);
                     }
                 }
             }
@@ -404,7 +404,7 @@ namespace SanguoshaServer.Package
             if (WrappedCard.IsBlack(room.GetCard(id).Suit))
             {
                 string pattern = ".|.|.|hand$0";
-                RoomLogic.SetPlayerCardLimitation(target, "use,response", pattern);
+                RoomLogic.SetPlayerCardLimitation(target, "yijue", "use,response", pattern);
                 room.SetPlayerMark(target, "@yijue", 1);
                 player.SetFlags("yijue_" + target.Name);
             }
@@ -2594,7 +2594,6 @@ namespace SanguoshaServer.Package
         public JieyinJCard() : base(ClassName)
         {
             will_throw = false;
-            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)

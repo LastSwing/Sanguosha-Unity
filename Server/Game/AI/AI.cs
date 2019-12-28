@@ -5,7 +5,6 @@ using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
 
@@ -1603,6 +1602,9 @@ namespace SanguoshaServer.AI
                 if (fcard is TrickCard) return 0;
             }
 
+            if (from != null && from.Alive && damage.To.HasFlag(string.Format("yinju_{0}", from.Name)))
+                return 0;
+
             foreach (SkillEvent e in skill_events.Values)
                 e.DamageEffect(this, ref damage, step);
 
@@ -1627,6 +1629,8 @@ namespace SanguoshaServer.AI
 
             if (damage.Steped < DamageStruct.DamageStep.Done && step <= DamageStruct.DamageStep.Done)
             {
+                if (damage.Card != null && damage.Card.HasFlag("chijie")) return 0;
+                if (damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && HasSkill("renshi", to)) return 0;
                 if (damage.Card != null && HasSkill("wuyan", to))
                 {
                     FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
@@ -2926,6 +2930,24 @@ namespace SanguoshaServer.AI
 
             if (IsCancelTarget(card, to, from)) return new ScoreStruct();
             ScoreStruct result_score = new ScoreStruct();
+            if (from.HasWeapon(PosionedDagger.ClassName) && WrappedCard.IsBlack(card.Suit))
+            {
+                if (HasSkill("zhaxiang", to) && to.Hp > 1)
+                {
+                    if (IsFriend(from, to))
+                    {
+                        result_score.Score += IsFriend(to) ? 4 : -4;
+                    }
+                }
+                else if (!IsFriend(from, to))
+                {
+                    double posion = 3;
+                    if (to.Hp == 1) posion += 4;
+                    if (IsFriend(to)) result_score.Score += posion;
+                    if (IsEnemy(to)) result_score.Score -= posion;
+                }
+            }
+
             if (from != null && HasSkill("fuyin", to) && to.GetMark("fuyin") == 0)
             {
                 int hand = from.HandcardNum;
@@ -2969,6 +2991,11 @@ namespace SanguoshaServer.AI
 
             if (!IsCardEffect(card, to, from))
             {                            // card will be nullified
+                if (IsEnemy(from, to) && from.HasWeapon(LightningSummoner.ClassName))           //天雷刃保证有0.5的最低分
+                {
+                    if (IsFriend(to)) result -= 0.5;
+                    if (IsEnemy(to)) result += 0.5;
+                }
                 result_score.Score = result;
                 return result_score;
             }
@@ -3054,7 +3081,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (force_hit < 1 && jink > 0.3 && NotSlashJiaozhu(to))
+                if (force_hit < 1 && jink > 0.3 && NotSlashJiaozhu(self, to, card))
                 {
                     result_score.Score = -20;
                     result_score.Info = "no";
@@ -3093,7 +3120,7 @@ namespace SanguoshaServer.AI
 
                 jink = dodge;
             }
-            else if (force_hit < 1 && JiaozhuneedSlash(to))
+            else if (force_hit < 1 && JiaozhuneedSlash(from, to, card))
             {
                 int jink_need = RoomLogic.PlayerHasShownSkill(room, from, "wushuang") ? 2 : 1;
                 if (HasArmorEffect(to, EightDiagram.ClassName))
@@ -3205,6 +3232,24 @@ namespace SanguoshaServer.AI
             if (IsCancelTarget(card, to, from)) return new ScoreStruct();
 
             ScoreStruct result_score = new ScoreStruct();
+            if (from.HasWeapon(PosionedDagger.ClassName) && WrappedCard.IsBlack(card.Suit))
+            {
+                if (HasSkill("zhaxiang", to) && to.Hp > 1)
+                {
+                    if (IsFriend(from, to))
+                    {
+                        result_score.Score += IsFriend(to) ? 4 : -4;
+                    }
+                }
+                else if(!IsFriend(from, to))
+                {
+                    double posion = 3;
+                    if (to.Hp == 1) posion += 4;
+                    if (IsFriend(to)) result_score.Score += posion;
+                    if (IsEnemy(to)) result_score.Score -= posion;
+                }
+            }
+
             if (from != null && HasSkill("fuyin", to) && to.GetMark("fuyin") == 0)
             {
                 int hand = from.HandcardNum;
@@ -3216,7 +3261,7 @@ namespace SanguoshaServer.AI
                 {
                     if (IsFriend(to))
                         result_score.Score = -1;
-                    else
+                    else if (IsEnemy(to))
                         result_score.Score = 1;
 
                     return result_score;
@@ -3242,6 +3287,11 @@ namespace SanguoshaServer.AI
 
             if (!IsCardEffect(card, to, from))
             {                            // card will be nullified
+                if (IsEnemy(from, to) && from.HasWeapon(LightningSummoner.ClassName))           //天雷刃保证有0.5的最低分
+                {
+                    if (IsFriend(to)) result -= 0.5;
+                    if (IsEnemy(to)) result += 0.5;
+                }
                 result_score.Score = result;
                 return result_score;
             }
@@ -3322,7 +3372,7 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                if (force_hit < 1 && jink > 0.3 && NotSlashJiaozhu(to))
+                if (force_hit < 1 && jink > 0.3 && NotSlashJiaozhu(self, to, card))
                 {
                     result_score.Score = -20;
                     result_score.Info = "no";
@@ -3359,7 +3409,7 @@ namespace SanguoshaServer.AI
 
                 jink = dodge;
             }
-            else if (force_hit < 1 && JiaozhuneedSlash(to))
+            else if (force_hit < 1 && JiaozhuneedSlash(from, to, card))
             {
                 int jink_need = RoomLogic.PlayerHasShownSkill(room, from, "wushuang") ? 2 : 1;
                 if (HasArmorEffect(to, EightDiagram.ClassName))
@@ -3687,8 +3737,9 @@ namespace SanguoshaServer.AI
         public virtual bool IsSpreadStarter(DamageStruct damage, bool for_self = true)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
+                || HasSkill("gangzhi|lixun", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
                 return false;
+            if (damage.Card != null && HasSkill("renshi", damage.To) && damage.Card.Name.Contains(Slash.ClassName)) return false;
 
             List<Player> players = GetSpreadTargets(damage);
             return players.Count > 0;
@@ -4184,9 +4235,14 @@ namespace SanguoshaServer.AI
             return false;
         }
 
-        public bool NotSlashJiaozhu(Player jiaozhu)
+        public bool NotSlashJiaozhu(Player from, Player jiaozhu, WrappedCard card)
         {
             if (IsFriend(jiaozhu) || !HasSkill("leiji|leiji_jx", jiaozhu)) return false;
+            if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, jiaozhu) == 1) return false;
+
+            if (from.ContainsTag("wenji") && card != null && from.GetTag("wenji") is List<string> names
+                && (names.Contains(card.Name) || (card.Name.Contains(Slash.ClassName) && names.Contains(Slash.ClassName))))
+                return false;
 
             DamageStruct damage = new DamageStruct
             {
@@ -4210,9 +4266,15 @@ namespace SanguoshaServer.AI
             return false;
         }
 
-        public bool JiaozhuneedSlash(Player jiaozhu)
+        public bool JiaozhuneedSlash(Player from, Player jiaozhu, WrappedCard card)
         {
-            if (!IsFriend(jiaozhu) || !HasSkill("leiji", jiaozhu)) return false;
+            if (!IsFriend(jiaozhu) || !HasSkill("leiji|leiji_jx", jiaozhu)) return false;
+
+            if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, jiaozhu) == 1) return false;
+
+            if (from.ContainsTag("wenji") && card != null && from.GetTag("wenji") is List<string> names
+                && (names.Contains(card.Name) || (card.Name.Contains(Slash.ClassName) && names.Contains(Slash.ClassName))))
+                return false;
 
             DamageStruct damage = new DamageStruct
             {
@@ -4323,13 +4385,13 @@ namespace SanguoshaServer.AI
 
                 if (!fuqi && pattern == Jink.ClassName)
                 {
-                    if (NotSlashJiaozhu(p))
+                    if (NotSlashJiaozhu(self, p, card))
                     {
                         bad += 20;
                         if (best_bad < 20) best_bad = 20;
                         continue;
                     }
-                    if (JiaozhuneedSlash(p))
+                    if (JiaozhuneedSlash(self, p, card))
                     {
                         good += 20;
                         if (best_good < 20) best_good = 20;
@@ -4542,10 +4604,10 @@ namespace SanguoshaServer.AI
 
         public bool IsLackCard(Player who, string flag)
         {
-            if (flag == Slash.ClassName && HasSkill("longdan", who) && card_lack[who].Contains(Jink.ClassName))
+            if (flag == Slash.ClassName && HasSkill("longdan|longdan_jx", who) && card_lack[who].Contains(Jink.ClassName))
                 return true;
 
-            if (flag == Jink.ClassName && HasSkill("longdan", who) && card_lack[who].Contains(Slash.ClassName))
+            if (flag == Jink.ClassName && HasSkill("longdan|longdan_jx", who) && card_lack[who].Contains(Slash.ClassName))
                 return true;
 
             return card_lack[who].Contains(flag);
@@ -6069,7 +6131,7 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (sames.Count > 1 && (NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill)))
+            if (sames.Count > 1 && (HasSkill("zhijian_jx") || NeedKongcheng(self) || (!guzheng && GetOverflow(self) > 1) || lv_fan || HasSkill(LoseEquipSkill)))
                 use_same = true;
             if (!use_same && HasSkill("qinguo"))
             {

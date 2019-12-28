@@ -1397,7 +1397,7 @@ namespace SanguoshaServer.AI
 
                 Room room = ai.Room;
                 Player target = use.To[0];
-                if (ai.NotSlashJiaozhu(target)) return true;
+                if (ai.NotSlashJiaozhu(use.From, target, use.Card)) return true;
 
                 bool will_use = false;
                 foreach (int id in player.GetCards("h"))

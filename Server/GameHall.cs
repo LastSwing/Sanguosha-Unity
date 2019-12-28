@@ -443,7 +443,7 @@ namespace SanguoshaServer
                         Room room = GetRoom(sourcer.GameRoom);
                         if (room != null)
                         {
-                            if (!room.GameStarted || !room.Setting.SpeakForbidden || data.Body.Count == 3)
+                            if (!room.GameStarted || !room.Setting.SpeakForbidden || (data.Body.Count == 3 && data.Body[1] != "Speech"))
                             {
                                 if (!room.GameStarted)
                                 {

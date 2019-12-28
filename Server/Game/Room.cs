@@ -34,7 +34,7 @@ namespace SanguoshaServer.Game
         public RoomThread RoomThread { get; private set; }
         public int RoomId { get; }
         public bool GameStarted { get; private set; }
-        public List<int> RoomCards => pile1;
+        public List<int> RoomCards => new List<int>(m_cards.Keys);
         public List<FunctionCard> AvailableFunctionCards { private set; get; } = new List<FunctionCard>();
         public GameSetting Setting { set; get; }
         public GameScenario Scenario { get; }
@@ -340,7 +340,9 @@ namespace SanguoshaServer.Game
             List<string> arg = new List<string> { winner };
             foreach (Player player in m_players)
             {
-                arg.Add(JsonUntity.Object2Json(player));
+                Player copy = new Player();
+                copy.CopyAll(player);
+                arg.Add(JsonUntity.Object2Json(copy));
                 if (player.HandcardNum > 0)
                 {
                     List<int> cards= player.GetCards("h");
@@ -1646,7 +1648,8 @@ namespace SanguoshaServer.Game
                     {
                         Card_ids = new List<int>(),
                         From_place = cards_move.From_place,
-                        To_place = cards_move.To_place == Place.PlaceUnknown ? Place.DrawPile : cards_move.To_place,
+                        //To_place = cards_move.To_place == Place.PlaceUnknown ? Place.DrawPile : cards_move.To_place,
+                        To_place = cards_move.To_place,
                         From = cards_move.From,
                         To = cards_move.To,
                         Reason = new CardMoveReasonStruct
@@ -3011,12 +3014,25 @@ namespace SanguoshaServer.Game
                     int index = m_drawPile.IndexOf(old_id);
                     m_drawPile.Remove(old_id);
                     m_drawPile.Insert(index, new_id);
-                    pile1.Remove(old_id);
-                    pile1.Add(new_id);
                     cards_replace[old_id] = new_id;
                     SetCardMapping(new_id, null, GetCardPlace(old_id));
                     SetCardMapping(old_id, null, Place.PlaceUnknown);
                     m_cards.Add(new_id, saber);
+                }
+            }
+        }
+
+        public void AddNewCard(int id)
+        {
+            if (!pile1.Contains(id))
+            {
+                WrappedCard real = Engine.GetRealCard(id);
+                if (real != null)
+                {
+                    RoomCard saber = new RoomCard(real);
+                    SetCardMapping(id, null, Place.PlaceUnknown);
+                    m_cards.Add(id, saber);
+                    AddToPile(Players[0], "#virtual_cards", id, false);
                 }
             }
         }
@@ -3311,7 +3327,7 @@ namespace SanguoshaServer.Game
                     if (cards_replace.ContainsKey(card_id))
                         card_id = cards_replace[card_id];
 
-                    if (pile1.Contains(card_id))
+                    if (m_cards.ContainsKey(card_id))
                     {
                         LogMessage log = new LogMessage
                         {
@@ -8242,7 +8258,6 @@ namespace SanguoshaServer.Game
         public string AskForGeneral(Player player, List<string> generals, string default_choice = null, bool single_result = true,
                             string skill_name = null, object data = null, bool can_convert = false, bool assign_kingdom = false)
         {
-            //tryPause();
             Thread.Sleep(300);
             NotifyMoveFocus(player, CommandType.S_COMMAND_CHOOSE_GENERAL);
 
@@ -8335,6 +8350,56 @@ namespace SanguoshaServer.Game
 
             return default_choice;
         }
+
+        public string AskforGeneral(Player player, List<string> _generals, string reason, bool option, string prompt, object data, string position = null)
+        {
+            List<string> generals = new List<string>(_generals);
+            string choice = string.Empty;
+
+            Thread.Sleep(300);
+            NotifyMoveFocus(player, CommandType.S_COMMAND_SELECT_GENERAL);
+
+            if (generals.Count == 1 && !option)
+                return generals[0];
+
+            TrustedAI ai = GetAI(player);
+            if (ai != null)
+            {
+                generals.Add("cancel");
+                string general = ai.AskForChoice(reason, string.Join("+", generals), data);
+                Thread.Sleep(400);
+                if (generals.Contains(general) && general != "cancel")
+                    choice = general;
+            }
+            else
+            {
+                List<string> options = new List<string>
+                {
+                    player.Name,
+                    reason,
+                    JsonUntity.Object2Json(generals),
+                    option.ToString(),
+                    prompt,
+                    position
+                };
+                bool success = DoRequest(player, CommandType.S_COMMAND_SELECT_GENERAL, options, true);
+
+                Interactivity client = GetInteractivity(player);
+                List<string> clientResponse = client?.ClientReply;
+                if (clientResponse != null && clientResponse.Count > 0)
+                {
+                    string answer = clientResponse[0];
+                    if (generals.Contains(answer)) choice = answer;
+                }
+            }
+            DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
+
+            if (!option && string.IsNullOrEmpty(choice))
+                choice = generals[0];
+
+            return choice;
+        }
+
         /*
         public void DoDragonPhoenix(Player player, string general1_name, string general2_name,
             bool full_state = true, string kingdom = null, bool sendLog = true, string show_flags = null, bool resetHp = false)

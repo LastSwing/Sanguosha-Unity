@@ -1018,7 +1018,7 @@ namespace SanguoshaServer.Package
         public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
         {
             if (!RoomLogic.PlayerHasSkill(room, invoker, Name) || !invoker.ContainsTag("spirit")
-                || ((List<string>)(invoker.GetTag("spirit"))).Count == 0 || reason == CardUseReason.CARD_USE_REASON_RESPONSE) return false;
+                || ((List<string>)invoker.GetTag("spirit")).Count == 0 || reason == CardUseReason.CARD_USE_REASON_RESPONSE) return false;
 
             if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == Jink.ClassName) return false;
 
