@@ -239,7 +239,7 @@ namespace SanguoshaServer.Game
         public virtual List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> skill_lists = new List<TriggerStruct>();
-            if (Name == "game_rule") return skill_lists;
+            if (Name == "gamerule") return skill_lists;
 
             TriggerStruct skill_list = Triggerable(triggerEvent, room, player, ref data, null);
             if (!string.IsNullOrEmpty(skill_list.SkillName))

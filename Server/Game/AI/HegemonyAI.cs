@@ -312,7 +312,7 @@ namespace SanguoshaServer.AI
                 else if (choices[0] == "Nullification" && self != player)
                 {
                     string trick = choices[1];
-                    Player to = room.FindPlayer(choices[3]);
+                    Player to = room.FindPlayer(choices[3], true);
                     Player from = null;
                     if (!string.IsNullOrEmpty(choices[2]))
                         from = room.FindPlayer(choices[2], true);

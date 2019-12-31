@@ -1425,6 +1425,7 @@ namespace SanguoshaServer.Package
                 {
                     if (p.ContainsTag("weilu_hp") && p.GetTag("weilu_hp") is int count)
                     {
+                        room.RemoveTag("weilu_hp");
                         int n = Math.Min(count, p.MaxHp - p.Hp);
                         if (n > 0)
                         {
@@ -1608,7 +1609,13 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && room.ContainsTag("chijie_card")
                 && room.GetTag("chijie_card") is Dictionary<WrappedCard, List<Player>> _chijie && _chijie.ContainsKey(use.Card))
-                room.RemoveTag("chijie_card");
+            {
+                _chijie.Remove(use.Card);
+                if (_chijie.Count == 0)
+                    room.RemoveTag("chijie_card");
+                else
+                    room.SetTag("chijie_card", _chijie);
+            }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -1662,15 +1669,28 @@ namespace SanguoshaServer.Package
     {
         public ChijieEffect() : base("#chijie")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.DamageInflicted, TriggerEvent.CardFinished };
+            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.Damaged, TriggerEvent.DamageInflicted, TriggerEvent.CardFinished };
             frequency = Frequency.Compulsory;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.Damaged && player.Alive && data is DamageStruct damage && damage.Card != null && !damage.Card.HasFlag("chijie")
-                && room.ContainsTag("chijie_card") && room.GetTag("chijie_card") is Dictionary<WrappedCard, List<Player>> chijie && chijie.ContainsKey(damage.Card)
-                && chijie[damage.Card].Contains(player))
-                damage.Card.SetFlags("chijie");
+
+            if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.Card != null && !damage.Card.HasFlag("chijie_damage")
+                && room.ContainsTag("chijie_card") && room.GetTag("chijie_card") is Dictionary<WrappedCard, List<Player>> chijie && chijie.ContainsKey(damage.Card))
+            {
+                damage.Card.SetFlags("chijie_damage");
+            }
+            else if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct _damage && player.Alive && _damage.Card != null && !_damage.Card.HasFlag("chijie")
+                && room.ContainsTag("chijie_card") && room.GetTag("chijie_card") is Dictionary<WrappedCard, List<Player>> _chijie && _chijie.ContainsKey(_damage.Card)
+                && _chijie[_damage.Card].Contains(player))
+            {
+                _chijie.Remove(_damage.Card);
+                if (_chijie.Count == 0)
+                    room.RemoveTag("chijie_card");
+                else
+                    room.SetTag("chijie_card", _chijie);
+                _damage.Card.SetFlags("chijie");
+            }
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -1679,7 +1699,7 @@ namespace SanguoshaServer.Package
             {
                 triggers.Add(new TriggerStruct(Name, player));
             }
-            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && room.ContainsTag("chijie_card") && !use.Card.HasFlag("chijie")
+            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && room.ContainsTag("chijie_card") && !use.Card.HasFlag("chijie_damage")
                 && room.GetTag("chijie_card") is Dictionary<WrappedCard, List<Player>> chijie && chijie.ContainsKey(use.Card) && use.Card.SubCards.Count > 0)
             {
                 List<int> ids = new List<int>(use.Card.SubCards), subs = room.GetSubCards(use.Card);
@@ -2260,6 +2280,7 @@ namespace SanguoshaServer.Package
         }
         
         public override bool IsEnabledAtPlay(Room room, Player player) => !player.HasUsed(ZhurenCard.ClassName) && !player.IsKongcheng();
+        //public override bool IsEnabledAtPlay(Room room, Player player) => !player.IsKongcheng();
 
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
@@ -2276,7 +2297,7 @@ namespace SanguoshaServer.Package
         {
             target_fixed = true;
         }
-        private Dictionary<WrappedCard.CardSuit, string> suits = new Dictionary<WrappedCard.CardSuit, string>
+        private readonly Dictionary<WrappedCard.CardSuit, string> suits = new Dictionary<WrappedCard.CardSuit, string>
         {
             { WrappedCard.CardSuit.Heart, Lance.ClassName },
             { WrappedCard.CardSuit.Diamond, QuenchedKnife.ClassName },

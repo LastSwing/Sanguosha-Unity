@@ -1372,7 +1372,7 @@ namespace SanguoshaServer.Package
         {
             bool remove = false;
             if (triggerEvent == TriggerEvent.GameStart && base.Triggerable(zuoci, room))
-                Acquiregenerals(room, zuoci, 2);
+                Acquiregenerals(room, zuoci, 3);
             else if (triggerEvent == TriggerEvent.Death && zuoci.GetSkills(true, false).Contains(Name))
             {
                 remove = true;

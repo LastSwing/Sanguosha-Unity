@@ -7,6 +7,7 @@ using System.Threading;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
 using System.Linq;
+using static CommonClass.Game.CardUseStruct;
 
 namespace SanguoshaServer.Package
 {
@@ -34,6 +35,8 @@ namespace SanguoshaServer.Package
                 new Renshi(),
                 new Wuyuan(),
                 new Huaizi(),
+                new Yizan(),
+                new Longyuan(),
 
                 new Yingjian(),
                 new Shixin(),
@@ -415,6 +418,7 @@ namespace SanguoshaServer.Package
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, "zhanyi", info.SkillPosition);
             if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use)
             {
+                room.SendCompulsoryTriggerLog(ask_who, "zhanyi");
                 room.BroadcastSkillInvoke("zhanyi", "male", 2, gsk.General, gsk.SkinId);
 
                 use.ExDamage++;
@@ -450,6 +454,7 @@ namespace SanguoshaServer.Package
             {
                 if (!player.IsNude())
                 {
+                    room.SendCompulsoryTriggerLog(ask_who, "zhanyi");
                     room.BroadcastSkillInvoke("zhanyi", "male", 2, gsk.General, gsk.SkinId);
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                     room.AskForDiscard(player, "zhanyi", 2, 2, false, true, "@zhanyi:" + ask_who.Name);
@@ -1071,6 +1076,157 @@ namespace SanguoshaServer.Package
                 return cards[0];
 
             return null;
+        }
+    }
+
+    public class Yizan : TriggerSkill
+    {
+        public Yizan() : base("yizhan")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.CardUsed, TriggerEvent.CardResponded };
+            skill_type = SkillType.Alter;
+            view_as_skill = new YizhanVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.Card.Name == Name)
+                player.AddMark(Name);
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Card.Name == Name)
+                player.AddMark(Name);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    public class YizhanVS : ViewAsSkill
+    {
+        public YizhanVS() : base("yizan")
+        {
+            response_or_use = true;
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+            if ((reason == CardUseReason.CARD_USE_REASON_PLAY || reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE) && RoomLogic.IsCardLimited(room, player, to_select, HandlingMethod.MethodUse))
+                return false;
+            else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE && RoomLogic.IsCardLimited(room, player, to_select, HandlingMethod.MethodResponse))
+                return false;
+            else if (selected.Count >= 2)
+                return false;
+
+            if (player.GetMark("longyuan") == 0)
+            {
+                if (selected.Count == 0)
+                    return true;
+                else
+                    return Engine.GetFunctionCard(selected[0].Name).TypeID == CardType.TypeBasic || Engine.GetFunctionCard(to_select.Name).TypeID == CardType.TypeBasic;
+            }
+            else
+                return selected.Count == 0 && Engine.GetFunctionCard(to_select.Name).TypeID == CardType.TypeBasic;
+        }
+
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
+        {
+            WrappedCard slash = new WrappedCard(Slash.ClassName);
+            WrappedCard jink = new WrappedCard(Jink.ClassName);
+            WrappedCard peach = new WrappedCard(Peach.ClassName);
+            WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+
+            return Engine.MatchExpPattern(room, pattern, player, slash) || Engine.MatchExpPattern(room, pattern, player, jink)
+                || Engine.MatchExpPattern(room, pattern, player, peach) || Engine.MatchExpPattern(room, pattern, player, ana);
+        }
+
+        public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player Self)
+        {
+            List<WrappedCard> all_cards = new List<WrappedCard>();
+            if (cards.Count == (Self.GetMark("longyuan") > 0 ? 1 : 2))
+            {
+                CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+                if (reason == CardUseReason.CARD_USE_REASON_PLAY)
+                {
+                    List<string> names = GetGuhuoCards(room, "b");
+                    foreach (string name in names)
+                    {
+                        if (name == Jink.ClassName) continue;
+                        WrappedCard card = new WrappedCard(name);
+                        card.AddSubCards(cards);
+                        all_cards.Add(card);
+                    }
+                }
+                else
+                {
+                    string pattern = room.GetRoomState().GetCurrentCardUsePattern(Self);
+                    WrappedCard slash = new WrappedCard(Slash.ClassName);
+                    slash.AddSubCards(cards);
+                    WrappedCard fslash = new WrappedCard(FireSlash.ClassName);
+                    fslash.AddSubCards(cards);
+                    WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName);
+                    tslash.AddSubCards(cards);
+                    WrappedCard jink = new WrappedCard(Jink.ClassName);
+                    jink.AddSubCards(cards);
+                    WrappedCard peach = new WrappedCard(Peach.ClassName);
+                    peach.AddSubCards(cards);
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    ana.AddSubCards(cards);
+
+                    if (Engine.MatchExpPattern(room, pattern, Self, slash))
+                        all_cards.Add(slash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, fslash))
+                        all_cards.Add(fslash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, tslash))
+                        all_cards.Add(tslash);
+                    if (Engine.MatchExpPattern(room, pattern, Self, jink))
+                        all_cards.Add(jink);
+                    if (Engine.MatchExpPattern(room, pattern, Self, peach))
+                        all_cards.Add(peach);
+                    if (Engine.MatchExpPattern(room, pattern, Self, ana))
+                        all_cards.Add(ana);
+                }
+            }
+
+            return all_cards;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count != 1) return null;
+            if (cards[0].IsVirtualCard())
+            {
+                WrappedCard card = RoomLogic.ParseUseCard(room, cards[0]);
+                card.Skill = Name;
+                return card;
+            }
+
+            return null;
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player) => true;
+    }
+
+    public class Longyuan : PhaseChangeSkill
+    {
+        public Longyuan() : base("longyuan")
+        {
+            frequency = Frequency.Wake;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player.Phase == PlayerPhase.Start && player.GetMark(Name) == 0 && base.Triggerable(player, room) && player.GetMark("yizan") >= 3)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
+        {
+            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            room.SetPlayerMark(player, Name, 1);
+            room.SendCompulsoryTriggerLog(player, Name);
+
+            return false;
         }
     }
 

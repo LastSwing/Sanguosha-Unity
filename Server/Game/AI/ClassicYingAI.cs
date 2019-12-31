@@ -712,6 +712,28 @@ namespace SanguoshaServer.AI
             return new List<WrappedCard>();
         }
 
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
+        {
+            if (card != null && to != null && from != null && from.HasWeapon(Spear.ClassName) && ai.HasSkill("zhenlie", to) && !ai.IsFriend(from, to))
+                return -8;
+            return 0;
+        }
+
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
+            if (damage.From != null && ai.HasSkill(Name, damage.From) && damage.From.HasWeapon(Spear.ClassName) && ai.HasSkill("fankui|fankui_jx|duodao", damage.To)
+                && damage.Damage < damage.To.Hp && !ai.IsFriend(damage.From, damage.To))
+            {
+                if (ai.IsFriend(damage.From)) score.Score = -7;
+                else if (ai.IsEnemy(damage.From)) score.Score = 7;
+            }
+            return score;
+        }
+
         public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Place place)
         {
             if (card.Name == Spear.ClassName)

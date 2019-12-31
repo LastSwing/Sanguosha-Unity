@@ -194,6 +194,7 @@ namespace CommonClass.Game
             Marks = other.Marks;
             StringMarks = other.StringMarks;
             PlayerGender = other.PlayerGender;
+            Result = other.Result;
         }
 
         //绝对不能给Player类设置class类的tag

@@ -478,8 +478,10 @@ namespace SanguoshaServer.AI
         public ZhenxingAI() : base("zhenxing") { }
         public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
         {
-            ScoreStruct score = new ScoreStruct();
-            score.Score = 0;
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
             if (ai.HasSkill(Name, damage.To) && damage.Damage == 1)
                 score.Score += ai.IsFriend(damage.To) ? 1.5 : -1.5;
             return score;
@@ -491,8 +493,10 @@ namespace SanguoshaServer.AI
         public WeiluAI() : base("weilu") { }
         public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
         {
-            ScoreStruct score = new ScoreStruct();
-            score.Score = 0;
+            ScoreStruct score = new ScoreStruct
+            {
+                Score = 0
+            };
             if (ai.HasSkill(Name, damage.To) && damage.Damage == 1 && damage.From != null && damage.From != damage.To && damage.From.Hp > 1 && damage.Damage < damage.To.Hp)
             {
                 if (ai.HasSkill("zhaxiang", damage.From))
@@ -1430,13 +1434,13 @@ namespace SanguoshaServer.AI
                 List<double> values = ai.SortByKeepValue(ref ids, false);
                 for (int i = 0; i < ids.Count; i++)
                 {
-                    if (room.GetCard(ids[i]).Number < target && (values[i] < 4 || ai.IsFriend(room.Current)))
+                    if (room.GetCard(ids[i]).Number > target && (values[i] < 4 || ai.IsFriend(room.Current) || room.Current.GetMark(Name) > 1))
                         return room.GetCard(ids[i]);
                 }
 
                 for (int i = 0; i < ids.Count; i++)
                 {
-                    if (room.GetCard(ids[i]).Number >= target)
+                    if (room.GetCard(ids[i]).Number <= target)
                         return room.GetCard(ids[i]);
                 }
             }

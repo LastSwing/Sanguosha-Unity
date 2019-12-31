@@ -411,7 +411,7 @@ namespace SanguoshaServer.AI
                 else if (choices[0] == "Nullification" && self != player)
                 {
                     string trick = choices[1];
-                    Player to = room.FindPlayer(choices[3]);
+                    Player to = room.FindPlayer(choices[3], true);
                     Player from = null;
                     if (!string.IsNullOrEmpty(choices[2]))
                         from = room.FindPlayer(choices[2], true);
@@ -2223,6 +2223,8 @@ namespace SanguoshaServer.AI
                         }
                     }
                 }
+                if (!will_slash && values[0].Score >= 0 && HasSkill("tushe", player) && (player.JudgingArea.Count > 0 || player.HasWeapon(Spear.ClassName)))
+                    will_slash = true;
 
                 //todo: adjust ai personality
                 if (!will_slash && GetOverflow(player) > 0)
@@ -2239,6 +2241,21 @@ namespace SanguoshaServer.AI
 
                 if (will_slash)
                 {
+                    if (HasSkill("wuyuan") && values[0].Score < 7 && !values[0].Card.IsVirtualCard() && GetOverflow(player) == 0 && (FriendNoSelf.Count > 0
+                        || (player.GetRoleEnum() == PlayerRole.Rebel && GetRolePitts(PlayerRole.Rebel) > 1)) && room.GetCardPlace(values[0].Card.GetEffectiveId()) == Place.PlaceHand)
+                    {
+                        bool other = false;
+                        foreach (int id in player.GetCards("h"))
+                        {
+                            if (!values[0].Card.SubCards.Contains(id) && room.GetCard(id).Name.Contains(Slash.ClassName))
+                            {
+                                other = true;
+                                break;
+                            }
+                        }
+                        if (!other) return;
+                    }
+
                     if (HasSkill("duanbing") && WillShowForAttack() && values[0].Players.Count == 1 && RoomLogic.DistanceTo(room, player, values[0].Players[0], values[0].Card) == 1
                         && values.Count > 1)
                     {
@@ -2317,7 +2334,7 @@ namespace SanguoshaServer.AI
             foreach (WrappedCard slash in cards)
             {
                 //use value的比重应减小
-                double value = (GetUseValue(slash, self) - Engine.GetCardUseValue(slash.Name)) / 2;
+                double value = HasSkill("wuyuan") ? 0 : (GetUseValue(slash, self) - Engine.GetCardUseValue(slash.Name)) / 2;
 
                 int extra = Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, player, slash);
                 Dictionary<Player, ScoreStruct> available_targets = new Dictionary<Player, ScoreStruct>();
@@ -2890,18 +2907,61 @@ namespace SanguoshaServer.AI
             result = new List<int>();
             if (optional) return result;
 
-            SortByKeepValue(ref ids, false);
+            List<double> values = SortByKeepValue(ref ids, false);
             for (int i = 0; i < min_num; i++)
                 result.Add(ids[i]);
 
             if (result.Count < discard_num)
             {
-                for (int i = result.Count - 1; i < Math.Min(result.Count, ids.Count); i++)
+                for (int i = result.Count - 1; i < Math.Min(discard_num, ids.Count); i++)
                 {
-                    if (ids[i] < 0)
+                    if (values[i] < 0)
                         result.Add(ids[i]);
                     else
                         break;
+                }
+            }
+
+            if (reason == "gamerule" && HasSkill("yinbing"))
+            {
+                bool trick = false;
+                List<int> rest = new List<int>(self.GetCards("h"));
+                rest.RemoveAll(t => result.Contains(t));
+                foreach (int id in rest)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeBasic && card.Name != Nullification.ClassName)
+                    {
+                        trick = true;
+                        break;
+                    }
+                }
+
+                if (!trick && rest.Count > 2)
+                {
+                    int keep = -1;
+                    foreach (int id in result)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeBasic)
+                        {
+                            keep = id;
+                            break;
+                        }
+                    }
+
+                    if (keep > -1)
+                    {
+                        foreach (int id in ids)
+                        {
+                            if (!rest.Contains(id))
+                            {
+                                rest.Add(id);
+                                rest.Remove(keep);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 

@@ -1165,42 +1165,46 @@ namespace SanguoshaServer.Package
         public Chenqing() : base("chenqing")
         {
             skill_type = SkillType.Recover;
-            events = new List<TriggerEvent> { TriggerEvent.AskForPeaches };
+            events = new List<TriggerEvent> { TriggerEvent.Dying };
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (base.Triggerable(player, room) && data is DyingStruct dying && room.Round > player.GetMark(Name))
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (player.Alive && player.HasFlag("Global_Dying"))
             {
-                foreach (Player p in room.GetOtherPlayers(player))
-                    if (p != dying.Who)
-                        return new TriggerStruct(Name, player);
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                    if (p != player && room.Round > p.GetMark(Name))
+                        triggers.Add(new TriggerStruct(Name, p));
             }
 
-            return new TriggerStruct();
+            return triggers;
         }
 
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player dyer, ref object data, Player player, TriggerStruct info)
         {
             if (data is DyingStruct dying && room.Round > player.GetMark(Name))
             {
                 List<Player> targets = room.GetOtherPlayers(player);
-                targets.Remove(dying.Who);
-                room.SetTag(Name, data);
-                Player target = room.AskForPlayerChosen(player, targets, Name, "@chenqing:" + dying.Who.Name, true, true, info.SkillPosition);
-                room.RemoveTag(Name);
-                if (target != null)
+                targets.Remove(dyer);
+                if (targets.Count > 0)
                 {
-                    player.SetTag(Name, target.Name);
-                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                    return info;
+                    room.SetTag(Name, data);
+                    Player target = room.AskForPlayerChosen(player, targets, Name, "@chenqing:" + dying.Who.Name, true, true, info.SkillPosition);
+                    room.RemoveTag(Name);
+                    if (target != null)
+                    {
+                        player.SetTag(Name, target.Name);
+                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        return info;
+                    }
                 }
             }
 
             return new TriggerStruct();
         }
 
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player dyer, ref object data, Player player, TriggerStruct info)
         {
             player.SetMark(Name, room.Round);
             if (data is DyingStruct dying)

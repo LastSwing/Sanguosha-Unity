@@ -65,6 +65,7 @@ namespace SanguoshaServer.AI
 
             events = new List<SkillEvent>
             {
+                new DoubleSwordSkillAI(),
                 new SpeakSKillAI(),
                 new CompanionAI(),
                 new MegatamaAI(),
@@ -3966,6 +3967,35 @@ namespace SanguoshaServer.AI
             ai.UseEquipCard(ref use, card);
         }
     }
+
+    public class DoubleSwordSkillAI : SkillEvent
+    {
+        public DoubleSwordSkillAI() : base(DoubleSword.ClassName) { }
+
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            Room room = ai.Room;
+            if (room.GetTag(Name) is CardUseStruct use && !ai.IsFriend(use.From))
+            {
+                List<int> cards = new List<int>();
+                foreach (int id in player.GetCards("h"))
+                {
+                    if (RoomLogic.CanDiscard(room, player, player, id))
+                        cards.Add(id);
+                }
+
+                if (cards.Count > 0)
+                {
+                    List<double> values = ai.SortByKeepValue(ref ids, false);
+                    if (ids.Count > 4 || values[0] < 4)
+                        return new List<int> { cards[0] };
+                }
+            }
+
+            return new List<int>();
+        }
+    }
+
     public class QinggangSwordAI : UseCard
     {
         public QinggangSwordAI() : base(QinggangSword.ClassName)
@@ -4656,7 +4686,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill("gangzhi|shixin", player)) return 10;
             List<Player> enemies = ai.GetEnemies(player);
             if (ai.GetFriends(player).Count + enemies.Count == room.AliveCount() && enemies.Count == 1 && ai.HasSkill("jueqing", enemies[0])) return 8;
-            if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx|benyu|jianxiong|jianxiong_jx", player))
+            if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx|benyu|jianxiong|jianxiong_jx|huituo|chengxiang", player))
                 value -= 10;
 
             if (ai.HasSkill("bazhen|linglong", player))

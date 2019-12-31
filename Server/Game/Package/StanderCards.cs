@@ -1453,10 +1453,16 @@ namespace SanguoshaServer.Package
                 tos.Add(to);
                 log.SetTos(tos);
                 foreach (Player p in tos)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, to.Name);
                     room.SetEmotion(p, "nullification");
+                }
             }
             else if (target != null)
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
                 room.SetEmotion(target, "nullification");
+            }
 
             room.SendLog(log);
 
@@ -2020,11 +2026,12 @@ namespace SanguoshaServer.Package
             else
             {
                 string prompt = "double-sword-card:" + ask_who.Name;
-                if (!room.AskForDiscard(skill_target, Name, 1, 1, true, false, prompt))
-                    draw_card = true;
+                room.SetTag(Name, data);
+                draw_card = !room.AskForDiscard(skill_target, Name, 1, 1, true, false, prompt);
+                room.RemoveTag(Name);
             }
-            if (draw_card)
-                room.DrawCards(ask_who, 1, Name);
+            if (draw_card) room.DrawCards(ask_who, 1, Name);
+
             return false;
         }
 

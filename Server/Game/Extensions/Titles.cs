@@ -339,8 +339,8 @@ namespace SanguoshaServer.Extensions
         public override void OnEvent(TriggerEvent triggerEvent, Room room, Player player, object data)
         {
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && player.Alive && player.ClientId > 0
-                && (!string.IsNullOrEmpty(damage.Reason) || damage.Card != null) && (damage.Card.Name == Lightning.ClassName || damage.Reason == "leiji" || damage.Reason == "leiji_jx"
-                || damage.Reason == LightningSummoner.ClassName) && !damage.Transfer && !damage.Chain)
+                && ((damage.Card != null && damage.Card.Name == Lightning.ClassName) || (!string.IsNullOrEmpty(damage.Reason) && (damage.Reason == "leiji" || damage.Reason == "leiji_jx"
+                || damage.Reason == LightningSummoner.ClassName))) && !damage.Transfer && !damage.Chain)
             {
                 player.AddMark("lightning_damaged", damage.Damage);
             }

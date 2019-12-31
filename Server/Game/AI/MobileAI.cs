@@ -18,6 +18,8 @@ namespace SanguoshaServer.AI
 
                 new YixiangAI(),
                 new YirangAI(),
+
+                new WuyuanAI(),
             };
 
             use_cards = new List<UseCard>
@@ -168,6 +170,31 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class WuyuanAI : SkillEvent
+    {
+        public WuyuanAI() : base("wuyuan") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.HasUsed(WuyuanCard.ClassName))
+                return new List<WrappedCard> { new WrappedCard(WuyuanCard.ClassName) { Skill = Name } };
+
+            return null;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (card != null && !card.IsVirtualCard() && ai.HasSkill(Name, player) && card.Name.Contains(Slash.ClassName))
+            {
+                double value = 2;
+                if (WrappedCard.IsRed(card.Suit)) value += 1;
+                if (card.Name != Slash.ClassName) value += 1.5;
+                return value;
+            }
+            return 0;
+        }
+    }
+
     public class WuyuanCardAI : UseCard
     {
         public WuyuanCardAI() : base(WuyuanCard.ClassName) { }
@@ -180,6 +207,95 @@ namespace SanguoshaServer.AI
                 if (ai.GetPlayerTendency(target) != "unknown")
                     ai.UpdatePlayerRelation(player, target, true);
             }
+        }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            List<int> slashes = new List<int>();
+            Room room = ai.Room;
+            foreach (int id in player.GetCards("h"))
+            {
+                WrappedCard wrapped = room.GetCard(id);
+                if (wrapped.Name.Contains(Slash.ClassName)) slashes.Add(id);
+            }
+
+            if (slashes.Count > 0)
+            {
+                List<Player> friends = ai.FriendNoSelf;
+                room.SortByActionOrder(ref friends);
+                foreach (int id in slashes)
+                {
+                    WrappedCard slash = room.GetCard(id);
+                    if (WrappedCard.IsRed(slash.Suit) && slash.Name != Slash.ClassName)
+                    {
+                        foreach (Player p in friends)
+                        {
+                            if (p.IsWounded() && !ai.HasSkill("zishu", p) && !ai.WillSkipPlayPhase(player))
+                            {
+                                card.AddSubCard(id);
+                                use.Card = card;
+                                use.To.Add(p);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                foreach (int id in slashes)
+                {
+                    WrappedCard slash = room.GetCard(id);
+                    if (!WrappedCard.IsRed(slash.Suit) && slash.Name != Slash.ClassName)
+                    {
+                        foreach (Player p in friends)
+                        {
+                            if (!ai.HasSkill("zishu", p) && !ai.WillSkipPlayPhase(player))
+                            {
+                                card.AddSubCard(id);
+                                use.Card = card;
+                                use.To.Add(p);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                foreach (int id in slashes)
+                {
+                    WrappedCard slash = room.GetCard(id);
+                    if (WrappedCard.IsRed(slash.Suit))
+                    {
+                        foreach (Player p in friends)
+                        {
+                            if (p.IsWounded() && !ai.HasSkill("zishu", p))
+                            {
+                                card.AddSubCard(id);
+                                use.Card = card;
+                                use.To.Add(p);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                ai.SortByUseValue(ref slashes, false);
+                {
+                    foreach (Player p in friends)
+                    {
+                        if (!ai.HasSkill("zishu", p) && !ai.WillSkipPlayPhase(player))
+                        {
+                            card.AddSubCard(slashes[0]);
+                            use.Card = card;
+                            use.To.Add(p);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 4;
         }
     }
 }
