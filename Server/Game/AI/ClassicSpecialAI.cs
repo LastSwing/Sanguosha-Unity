@@ -105,6 +105,8 @@ namespace SanguoshaServer.AI
                 new SheyanAI(),
                 new DianhuAI(),
                 new JianjiAI(),
+                new YuxuAI(),
+                new ShijianAI(),
 
                 new HongyuanAI(),
                 new HuanshiAI(),
@@ -1652,6 +1654,58 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class YuxuAI : SkillEvent
+    {
+        public YuxuAI() : base("yuxu") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return true;
+        }
+    }
+
+    public class ShijianAI : SkillEvent
+    {
+        public ShijianAI() : base("shijian")
+        {
+            key = new List<string> { "cardDiscard:shijian" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                Room room = ai.Room;
+                if (choices[1] == Name)
+                {
+                    Player target = room.Current;
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            Room room = ai.Room;
+            Player current = room.Current;
+            if (ai.IsFriend(current) && (ai.HasSkill("zhanji|zishu|chenglue|tushe", current) || (ai.HasSkill(TrustedAI.LoseEquipSkill, current) && current.HasEquip())))
+            {
+                List<int> discards = new List<int>();
+                foreach (int id in ids)
+                    if (RoomLogic.CanDiscard(room, player, player, id))
+                        discards.Add(id);
+
+                if (discards.Count > 0)
+                {
+                    ai.SortByKeepValue(ref discards, false);
+                    return new List<int> { discards[0] };
+                }
+            }
+            return new List<int>();
+        }
+    }
+
     public class XianfuAI : SkillEvent
     {
         public XianfuAI() : base("xianfu") { }
@@ -2776,15 +2830,14 @@ namespace SanguoshaServer.AI
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (ai.Self == player) return;
-            if (data is string choice)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 string[] choices = choice.Split(':');
                 Room room = ai.Room;
                 if (choices[1] == Name && room.GetTag(Name) is List<CardUseStruct> uses)
                 {
                     Player target = uses[uses.Count - 1].To[0];
-                    if (ai.GetPlayerTendency(target) != "unknown" && ai.Self != target)
+                    if (ai.GetPlayerTendency(target) != "unknown")
                         ai.UpdatePlayerRelation(player, target, true);
                 }
             }

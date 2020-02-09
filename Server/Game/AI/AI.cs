@@ -1636,7 +1636,7 @@ namespace SanguoshaServer.AI
                     FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
                     if (fcard is TrickCard) return 0;
                 }
-
+                if (from != null && from != to && HasSkill("daigong", to) && !to.HasFlag("daigong") && !to.IsKongcheng() && IsFriend(from, to)) return 0;
                 if (damage.Nature == DamageStruct.DamageNature.Fire && damage.To.GetMark("@gale") > 0) damage.Damage++;
                 if (damage.Nature != DamageStruct.DamageNature.Thunder && damage.To.GetMark("@fog") > 0) return 0;
                 if (damage.To.GetMark("@tangerine") > 0) return 0;

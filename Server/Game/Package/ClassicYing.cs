@@ -2625,13 +2625,26 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName) && player != null && player.GetRoleEnum() != PlayerRole.Lord
-                && player.Alive && player.Kingdom == "wu" && player.Phase == PlayerPhase.Play)
+                && player.Alive && player.Kingdom == "wu" && player.Phase == PlayerPhase.Play && use.Card.SubCards.Count > 0)
             {
                 Player lord = RoomLogic.FindPlayerBySkillName(room, Name);
                 if (lord != null && lord.GetRoleEnum() == PlayerRole.Lord && !lord.HasFlag(Name))
-                    foreach (int id in use.Card.SubCards)
-                        if (room.GetCardPlace(id) == Place.DiscardPile)
-                            return new TriggerStruct(Name, player);
+                {
+                    List<int> ids = new List<int>(use.Card.SubCards);
+                    if (room.GetSubCards(use.Card).SequenceEqual(ids))
+                    {
+                        bool check = true;
+                        foreach (int id in use.Card.SubCards)
+                        {
+                            if (room.GetCardPlace(id) != Place.DiscardPile)
+                            {
+                                check = false;
+                                break;
+                            }
+                        }
+                        if (check) return new TriggerStruct(Name, player);
+                    }
+                }
             }
 
             return new TriggerStruct();

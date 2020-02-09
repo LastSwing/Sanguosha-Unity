@@ -48,6 +48,7 @@ namespace SanguoshaServer.AI
                 new JieyinJXAI(),
                 new KejiJxAI(),
                 new GongxinAI(),
+                new BotuAI(),
                 new FenweiAI(),
             };
 
@@ -2756,6 +2757,13 @@ namespace SanguoshaServer.AI
         {
             return 9;
         }
+    }
+
+    public class BotuAI : SkillEvent
+    {
+        public BotuAI() : base("botu") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
     }
 
     public class FenweiAI : SkillEvent

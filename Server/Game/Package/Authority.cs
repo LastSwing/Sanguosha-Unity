@@ -377,7 +377,7 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard surrend = new WrappedCard("SurrenderCard");
+            WrappedCard surrend = new WrappedCard(SurrenderCard.ClassName);
             surrend.AddSubCard(card);
             return surrend;
         }
@@ -388,6 +388,7 @@ namespace SanguoshaServer.Package
         public static string ClassName = "SurrenderCard";
         public SurrenderCard() : base(ClassName)
         {
+            target_fixed = true;
         }
 
         public override void OnUse(Room room, CardUseStruct card_use)
@@ -586,8 +587,7 @@ namespace SanguoshaServer.Package
         public override bool Invalid(Room room, Player player, string skill)
         {
             Skill s = Engine.GetMainSkill(skill);
-            if (s == null || s.Attached_lord_skill || player.Hp != 1) return false;
-            if (player.HasEquip(skill)) return false;
+            if (s == null || s.Attached_lord_skill || player.HasEquip(skill)) return false;
             if (player.GetMark("stopfighting") > 0)
             {
                 return s != null && s.SkillFrequency != Frequency.Compulsory;
@@ -2838,7 +2838,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasUsed("HuibianCard");
+            return !player.HasUsed(HuibianCard.ClassName);
         }
         public override WrappedCard ViewAs(Room room, Player player)
         {

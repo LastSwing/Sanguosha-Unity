@@ -123,7 +123,7 @@ namespace SanguoshaServer.AI
         }
         public override double CardValue(TrustedAI ai, Player player, bool use, WrappedCard card, Player.Place place)
         {
-            return ai.AjustWeaponRangeValue(player, card);
+            return ai.AjustWeaponRangeValue(player, card) - (8 - ai.Room.AliveCount()) * 0.5;
         }
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
@@ -368,7 +368,7 @@ namespace SanguoshaServer.AI
 
                 if (ai.IsEnemy(target) && ai.IsCardEffect(use.Card, target, player))
                 {
-                    if (use.EffectCount[1].Effect2 == 1 && ai.IsLackCard(target, Jink.ClassName) && ai.HasSkill("qingguo|longdan|longdan_jx", target))
+                    if (use.EffectCount[0].Effect2 == 1 && ai.IsLackCard(target, Jink.ClassName) && ai.HasSkill("qingguo|longdan|longdan_jx", target))
                     {
                         DamageStruct damage = new DamageStruct(use.Card, player, target, 1 + use.Drank + use.EffectCount[0].Effect1);
                         if (use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;

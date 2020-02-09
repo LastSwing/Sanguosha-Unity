@@ -149,6 +149,10 @@ namespace SanguoshaServer.Game
             {
                 OnTargeted(room, player, data);
             }
+            else if (triggerEvent == TriggerEvent.TurnStart && player != null && player.Alive)
+            {
+                ChangeSkin(room, player, 10);
+            }
         }
 
         private static void OnTargeted(Room room, Player player, object data)
@@ -462,8 +466,13 @@ namespace SanguoshaServer.Game
 
         private static void OnGameStart(Room room, Player player)
         {
+            ChangeSkin(room, player, 3);
+        }
+
+        private static void ChangeSkin(Room room, Player player, int rate)
+        {
             //机器人换皮肤
-            if (player != null && player.ClientId < 0 && Shuffle.random(1, 3))
+            if (player != null && player.ClientId < 0 && Shuffle.random(1, rate))
             {
                 List<DataRow> data1 = Engine.GetGeneralSkin(player.ActualGeneral1, room.Setting.GameMode);
 

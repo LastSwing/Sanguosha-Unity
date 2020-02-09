@@ -4289,8 +4289,17 @@ namespace SanguoshaServer.AI
 
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
-            if (ai.WillSkipDrawPhase(player) || (player.GetMark(Name) > 0 && player.GetMark(Name) < 3)) return "target";
-            if (ai.WillSkipPlayPhase(player)) return "draw";
+            if (ai.WillSkipDrawPhase(player)) return "target";
+            if (ai.FriendNoSelf.Count > 0)
+            {
+                if (ai.GetKnownCardsNums(ExNihilo.ClassName, "he", player) > 0) return "target";
+                if (ai.GetKnownCardsNums(Peach.ClassName, "he", player) > 0 && player.IsWounded())
+                {
+                    foreach (Player p in ai.FriendNoSelf)
+                        if (p.IsWounded()) return "target";
+                }
+            }
+                
             return "draw";
         }
 
@@ -7538,13 +7547,24 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (player == ai.Room.Current)
+            if (data is Player target)
             {
-                if (player.IsWounded() && ai.GetKnownCardsNums(Peach.ClassName, "he", player) > 0) return false;
-                if (ai.GetKnownCardsNums(ExNihilo.ClassName, "he", player) > 0) return false;
+                DamageStruct _damage = new DamageStruct(Name, player, target);
+                ScoreStruct score = ai.GetDamageScore(_damage);
+                if (score.Score > 0) return true;
+            }
+            else
+            {
+                if (player == ai.Room.Current)
+                {
+                    if (player.IsWounded() && ai.GetKnownCardsNums(Peach.ClassName, "he", player) > 0) return false;
+                    if (ai.GetKnownCardsNums(ExNihilo.ClassName, "he", player) > 0) return false;
+                }
+
+                return true;
             }
 
-            return true;
+            return false;
         }
 
         public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> all, int min, int max, bool option)
@@ -7749,7 +7769,7 @@ namespace SanguoshaServer.AI
 
         public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
         {
-            if (ai.HasSkill(Name, damage.To) && damage.To.Chained && damage.Nature != DamageStruct.DamageNature.Normal && !damage.Chain)
+            if (ai.HasSkill(Name, damage.To) && damage.To.Chained && damage.Nature == DamageStruct.DamageNature.Fire && !damage.Chain)
                 damage.Damage++;
         }
     }

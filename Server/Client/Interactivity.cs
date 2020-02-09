@@ -26,13 +26,14 @@ namespace SanguoshaServer
         public CommandType ExpectedReplyCommand { get; set; }
         public bool IsWaitingReply { get; set; }
         public List<string> CheatArgs { get; set; }
+        public bool IntelSelect { get; set; }
         public string RoleReserved { get; set; } = string.Empty;
 
         //public int ExpectedReplySerial { get; set; }
         public Mutex mutex = new Mutex();
 
         //构造函数
-        public Interactivity(Room room, int client_id)
+        public Interactivity(Room room, int client_id, bool inter_select)
         {
             this.room = room;
             ClientId = client_id;
@@ -40,13 +41,14 @@ namespace SanguoshaServer
             discard_skill = new DiscardSkill();
             yiji_skill = new YijiViewAsSkill();
             exchange_skill = new ExchangeSkill();
+            IntelSelect = inter_select;
         }
 
         private readonly Dictionary<CommandType, Action<List<string>>> callbacks = new Dictionary<CommandType, Action<List<string>>>();
         private Dictionary<CommandType, CommandType> m_requestResponsePair = new Dictionary<CommandType, CommandType>();
         private Player requestor = null;
         private HandlingMethod method;
-        private Dictionary<Player, List<WrappedCard>> all_cards = new Dictionary<Player, List<WrappedCard>>();
+        private readonly Dictionary<Player, List<WrappedCard>> all_cards = new Dictionary<Player, List<WrappedCard>>();
         private Dictionary<Player, List<WrappedCard>> hand_cards = new Dictionary<Player, List<WrappedCard>>();
         private Dictionary<Player, List<WrappedCard>> equip_cards = new Dictionary<Player, List<WrappedCard>>();
         private Dictionary<Player, List<WrappedCard>> selected_cards = new Dictionary<Player, List<WrappedCard>>();
@@ -82,7 +84,6 @@ namespace SanguoshaServer
         private bool m_do_request;
         private PromoteStruct promote_skill = new PromoteStruct();
         private bool auto_target, first_selection, first_pending, double_click;
-        private readonly bool intel_select;
 
         private WrappedCard viewas_card;
         private DiscardSkill discard_skill;
@@ -649,7 +650,7 @@ namespace SanguoshaServer
             guanxing.Top = new List<int>();
             guanxing.Bottom = new List<int>();
             guanxing.Success = false;
-            ex_information = new List<string> { JsonUntity.Object2Json(cards) };
+            ex_information = new List<string> { JsonUntity.Object2Json(cards), string.Empty, string.Empty };
 
             Operate arg = GetPacket2Client(true);
             m_do_request = false;
@@ -877,7 +878,7 @@ namespace SanguoshaServer
                     #endregion
                 }
 
-                if (intel_select && ExpectedReplyCommand != CommandType.S_COMMAND_PLAY_CARD && available_cards.Count > 0       //auto select intel card
+                if (IntelSelect && ExpectedReplyCommand != CommandType.S_COMMAND_PLAY_CARD && available_cards.Count > 0       //auto select intel card
                         && (ExpectedReplyCommand == CommandType.S_COMMAND_RESPONSE_CARD
                             || (m_requestResponsePair.ContainsKey(ExpectedReplyCommand) && m_requestResponsePair[ExpectedReplyCommand] == CommandType.S_COMMAND_RESPONSE_CARD)))
                 {
@@ -933,7 +934,7 @@ namespace SanguoshaServer
             //if (pending_skill.Name == "huashen")
             //    return PendingHuashen(player);
 
-            if (intel_select)
+            if (IntelSelect)
                 first_pending = true;
             prepends[player.Name] = new List<string>();
             appends[player.Name] = new List<string>();
@@ -1043,7 +1044,7 @@ namespace SanguoshaServer
                 else
                     available_cards[player.Name] = available;
 
-                if (first_pending && available_cards[player.Name].Count > 0                       //auto select intel card for pending skill
+                if (first_pending && available_cards.ContainsKey(player.Name) && available_cards[player.Name].Count > 0                       //auto select intel card for pending skill
                     && (pending_skill is OneCardViewAsSkill) && (!selected_cards.ContainsKey(player) || selected_cards[player].Count == 0))
                 {
                     selecteds.Clear();
@@ -1716,7 +1717,7 @@ namespace SanguoshaServer
                             guanxing.Success = ok_enable;
                         }
 
-                        ex_information = new List<string> { JsonUntity.Object2Json(ups), JsonUntity.Object2Json(downs) };
+                        ex_information = new List<string> { JsonUntity.Object2Json(moves), JsonUntity.Object2Json(ups), JsonUntity.Object2Json(downs) };
                         GetPacket2Client(false);
                         if (move_card_visible)
                         {

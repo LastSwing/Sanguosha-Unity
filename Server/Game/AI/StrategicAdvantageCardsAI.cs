@@ -204,7 +204,7 @@ namespace SanguoshaServer.AI
                         int maxNum = 0;
                         if (big_kingdom != string.Empty)
                         {
-                            if (big_kingdom.StartsWith("sgs"))
+                            if (big_kingdom.StartsWith("SGS"))
                                 maxNum = 99;
                             else
                                 maxNum = RoomLogic.GetPlayerNumWithSameKingdom(room, player, big_kingdom);
@@ -1791,7 +1791,7 @@ namespace SanguoshaServer.AI
             foreach (string kingdom in effect_kingdoms)
             {
                 double value = 0;
-                if (kingdom.Contains("sgs"))
+                if (kingdom.Contains("SGS"))
                 {
                     value++;
                     if (ai.HasSkill(TrustedAI.CardneedSkill, player)) value += 0.5;
@@ -1894,7 +1894,7 @@ namespace SanguoshaServer.AI
             if (winner != string.Empty)
             {
                 Player target = null;
-                if (winner.StartsWith("sgs"))
+                if (winner.StartsWith("SGS"))
                     target = room.FindPlayer(winner);
                 else
                 {

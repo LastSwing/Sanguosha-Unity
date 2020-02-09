@@ -1388,9 +1388,9 @@ namespace SanguoshaServer.Package
             bool invoke = big_kingdoms.Count > 0;
             if (invoke)
             {
-                if (big_kingdoms.Count == 1 && big_kingdoms[0].StartsWith("sgs")) // for JadeSeal
+                if (big_kingdoms.Count == 1 && big_kingdoms[0].StartsWith("SGS")) // for JadeSeal
                     invoke = big_kingdoms.Contains(player.Name);
-                else if (player.GetRoleEnum() == Player.PlayerRole.Careerist)
+                else if (player.GetRoleEnum() == PlayerRole.Careerist)
                     invoke = false;
                 else
                     invoke = big_kingdoms.Contains(player.Kingdom);

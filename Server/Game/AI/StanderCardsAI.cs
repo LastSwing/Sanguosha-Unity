@@ -4010,7 +4010,7 @@ namespace SanguoshaServer.AI
             double value = ai.AjustWeaponRangeValue(player, card);
             foreach (Player p in ai.GetEnemies(player))
             {
-                if (RoomLogic.HasShownArmorEffect(ai.Room, p) && RoomLogic.DistanceTo(ai.Room, player, p, null, true) <= 2)
+                if (RoomLogic.HasShownArmorEffect(ai.Room, p))
                     value += 0.5;
             }
 

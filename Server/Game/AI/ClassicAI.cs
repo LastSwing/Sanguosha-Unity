@@ -877,6 +877,7 @@ namespace SanguoshaServer.AI
                 if (diff < -12)
                     Process += "<";
             }
+            /*
 #if DEBUG
             if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
             {
@@ -913,6 +914,7 @@ namespace SanguoshaServer.AI
             }
 
 #endif
+*/
             //根据场上形势识别敌我
             friends.Clear();
             enemies.Clear();
@@ -1344,7 +1346,7 @@ namespace SanguoshaServer.AI
                     PlayersLevel[self] = -1;
                 }
             }
-
+            /*
 #if DEBUG
             if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Renegade)
             {
@@ -1372,8 +1374,8 @@ namespace SanguoshaServer.AI
                 }
             }
 #endif
+        */
         }
-
         public override List<string> GetPossibleId(Player who)
         {
             if (id_tendency[who] != "unknown") return new List<string> { id_tendency[who] };
@@ -2272,18 +2274,6 @@ namespace SanguoshaServer.AI
                     }
                     else
                     {
-                        //ai debug log
-                        /*
-                        foreach (Player p in values[0].Players)
-                        {
-                            if (RoomLogic.IsFriendWith(room, player, p))
-                            {
-                                File.AppendAllText("ai_slash_log.txt", string.Format("{0},{1} use Slash {2} number{3} against {4},{5} {8} and value is {6} and ai judge target is my {7}\r\n",
-                                    player.ActualGeneral1, player.ActualGeneral2, WrappedCard.GetSuitString(values[0].Card.Suit), values[0].Card.Number, p.ActualGeneral1, p.ActualGeneral2,
-                                    values[0].Score, IsFriend(player, p) ? "friend" : "enemy", p.Chained ? "chained" : string.Empty));
-                            }
-                        }
-                        */
                         use.From = player;
                         use.To = values[0].Players;
                         use.Card = values[0].Card;
@@ -2954,10 +2944,10 @@ namespace SanguoshaServer.AI
                     {
                         foreach (int id in ids)
                         {
-                            if (!rest.Contains(id))
+                            if (!result.Contains(id))
                             {
-                                rest.Add(id);
-                                rest.Remove(keep);
+                                result.Add(id);
+                                result.Remove(keep);
                                 break;
                             }
                         }

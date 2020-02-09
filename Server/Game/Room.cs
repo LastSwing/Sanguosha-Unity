@@ -68,7 +68,7 @@ namespace SanguoshaServer.Game
         private int _m_lastMovementId;
         private List<Player> m_players = new List<Player>();
         private Dictionary<int, Interactivity> m_interactivities = new Dictionary<int, Interactivity>();
-        private List<Interactivity> m_watcher = new List<Interactivity>();
+        private readonly List<Interactivity> m_watcher = new List<Interactivity>();
         private List<int> pile1 = new List<int>(), table_cards = new List<int>(), m_drawPile = new List<int>(), m_discardPile = new List<int>();
         private Queue<DamageStruct> m_damageStack = new Queue<DamageStruct>();
         private bool create_new;
@@ -79,6 +79,7 @@ namespace SanguoshaServer.Game
         private List<Player> m_dyings = new List<Player>();
         private Queue<Player> m_extra_turn = new Queue<Player>();
         private Dictionary<int, int> cards_replace = new Dictionary<int, int>();
+        private readonly Dictionary<int, bool> intel_select = new Dictionary<int, bool>();
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -838,12 +839,8 @@ namespace SanguoshaServer.Game
         {
             if (string.IsNullOrEmpty(flag)) return;
 
-            if (!card.IsVirtualCard())
-            {
-                SetCardFlag(card.Id, flag);
-            }
-            else
-                card.SetFlags(flag);
+            card.SetFlags(flag);
+            if (!card.IsVirtualCard()) SetCardFlag(card.Id, flag);
         }
 
         public void SetCardFlag(int card_id, string flag)
@@ -2561,10 +2558,10 @@ namespace SanguoshaServer.Game
 
                 switch (data.Protocol)
                 {
-                    case Protocol.GameReply:
+                    case Protocol.GameReply when interactivity != null:
                         ProcessClientReply(interactivity, data);
                         break;
-                    case Protocol.GameRequest:
+                    case Protocol.GameRequest when interactivity != null:
                         {
                             if (!interactivity.ControlGame(data))
                             {
@@ -2830,6 +2827,7 @@ namespace SanguoshaServer.Game
             callbacks[CommandType.S_COMMAND_GAME_START] = new Action<Client, List<string>>(GameStart);
             callbacks[CommandType.S_COMMAND_ADD_ROBOT] = new Action<Client, List<string>>(AddRobotCommand);
             callbacks[CommandType.S_COMMAND_FILL_ROBOTS] = new Action<Client, List<string>>(FillRobotsCommand);
+            callbacks[CommandType.S_COMMAND_INTELSELECT] = new Action<Client, List<string>>(UpdateIntelSelect);
 
             // handle reply
             replies[CommandType.S_COMMAND_NULLIFICATION] = new Action<Interactivity>(OnRaceReply);
@@ -2933,7 +2931,10 @@ namespace SanguoshaServer.Game
             {
                 m_players.Add(new Player { Name = string.Format("SGS{0}", i + 1), Seat = i + 1 });
                 if (Clients[i].UserID > 0)
-                    m_interactivities.Add(Clients[i].UserID, new Interactivity(this, Clients[i].UserID));
+                {
+                    intel_select.TryGetValue(Clients[i].UserID, out bool intel);
+                    m_interactivities[Clients[i].UserID] = new Interactivity(this, Clients[i].UserID, intel);
+                }
             }
 
             //加载武将
@@ -3164,6 +3165,17 @@ namespace SanguoshaServer.Game
                         ProcessClientReply(interactivity, data);
                     }
                 }
+            }
+        }
+
+        private void UpdateIntelSelect(Client client, List<string> arg2)
+        {
+            if (client != null)
+            {
+                intel_select[client.UserID] = bool.Parse(arg2[0]);
+                Interactivity interactivity = GetInteractivity(client.UserID);
+                if (interactivity != null)
+                    interactivity.IntelSelect = intel_select[client.UserID];
             }
         }
 
@@ -3534,7 +3546,7 @@ namespace SanguoshaServer.Game
 
         public bool DoBroadcastNotify(CommandType command, List<string> message_body)
         {
-            return DoBroadcastNotify(Clients, command, message_body);
+            return DoBroadcastNotify(new List<Client>(Clients), command, message_body);
         }
 
         public bool NotifyProperty(Client clientToNotify, Player propertyOwner, string propertyName, string value = null)
@@ -3864,17 +3876,20 @@ namespace SanguoshaServer.Game
         private EventWaitHandle _waitHandle = new AutoResetEvent(false);
         public void StartWaitingReply(float time)
         {
-            timer.Enabled = true;
-            timer.Interval = time;//执行间隔时间,单位为毫秒
-            timer.AutoReset = false;    //循环执行
-            timer.Start();
+            if (timer != null)
+            {
+                timer.Enabled = true;
+                timer.Interval = time;//执行间隔时间,单位为毫秒
+                timer.AutoReset = false;    //循环执行
+                timer.Start();
+            }
         }
 
         private void Timer1_Elapsed(object sender, ElapsedEventArgs e)
         {
             System.Timers.Timer timer = (System.Timers.Timer)sender;
-            timer.Enabled = false;
-            _waitHandle.Set();
+            if (timer != null) timer.Enabled = false;
+            if (_waitHandle != null) _waitHandle.Set();
         }
         #endregion
 
@@ -5987,7 +6002,7 @@ namespace SanguoshaServer.Game
                                 Card = card,
                                 General = RoomLogic.GetGeneralSkin(this, player, card.Skill, card.SkillPosition)
                             };
-                            CardsMoveStruct this_move = new CardsMoveStruct(table_cardids, null, Place.DiscardPile, move_reason);
+                            CardsMoveStruct this_move = new CardsMoveStruct(table_cardids, player, Place.DiscardPile, move_reason);
                             MoveCardsAtomic(new List<CardsMoveStruct> { this_move }, true);
                         }
                         CardUseStruct card_use = new CardUseStruct
@@ -6023,7 +6038,7 @@ namespace SanguoshaServer.Game
                                 Card = card,
                                 General = RoomLogic.GetGeneralSkin(this, player, card.Skill, card.SkillPosition)
                             };
-                            CardsMoveStruct this_move = new CardsMoveStruct(table_cardids, null, Place.DiscardPile, move_reason);
+                            CardsMoveStruct this_move = new CardsMoveStruct(table_cardids, player, Place.DiscardPile, move_reason);
                             MoveCardsAtomic(new List<CardsMoveStruct> { this_move }, true);
                         }
                         RemoveSubCards(card);
@@ -6508,19 +6523,19 @@ namespace SanguoshaServer.Game
             NotifyMoveFocus(player, CommandType.S_COMMAND_DISCARD_CARD);
 
             List<int> dummy = new List<int>();
+            List<int> jilei_list = new List<int>();
+            foreach (int id in ids)
+            {
+                WrappedCard card = GetCard(id);
+                if (!RoomLogic.IsJilei(this, player, card))
+                    dummy.Add(card.Id);
+                else
+                    jilei_list.Add(card.Id);
+            }
+
             bool success = true;
             if (!optional)
             {
-                List<int> jilei_list = new List<int>();
-                foreach (int id in ids)
-                {
-                    WrappedCard card = GetCard(id);
-                    if (!RoomLogic.IsJilei(this, player, card))
-                        dummy.Add(card.Id);
-                    else
-                        jilei_list.Add(card.Id);
-                }
-
                 int card_num = dummy.Count;
                 if (card_num <= min_num)
                 {
@@ -6587,7 +6602,7 @@ namespace SanguoshaServer.Game
             List<int> to_discard = new List<int>();
             if (ai != null)
             {
-                to_discard = ai.AskForDiscard(ids, reason, discard_num, min_num, optional);
+                to_discard = ai.AskForDiscard(new List<int>(dummy), reason, discard_num, min_num, optional);
                 if (optional && to_discard.Count > 0)
                     Thread.Sleep(400);
             }
@@ -10138,6 +10153,8 @@ namespace SanguoshaServer.Game
                     // TODO: 释放托管状态(托管对象)。
                     timer.Dispose();
                     _waitHandle.Dispose();
+                    timer = null;
+                    _waitHandle = null;
                 }
 
                 // TODO: 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。

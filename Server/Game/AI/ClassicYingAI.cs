@@ -700,6 +700,17 @@ namespace SanguoshaServer.AI
                             return new List<WrappedCard> { lm };
                         }
 
+                        foreach (int id in ids)
+                        {
+                            if (room.GetCard(id).Name == Jink.ClassName)
+                            {
+                                WrappedCard lm = new WrappedCard(LimuCard.ClassName);
+                                lm.AddSubCard(id);
+                                lm.Skill = Name;
+                                return new List<WrappedCard> { lm };
+                            }
+                        }
+
                         ai.SortByUseValue(ref ids, false);
                         WrappedCard _lm = new WrappedCard(LimuCard.ClassName);
                         _lm.AddSubCard(ids[0]);

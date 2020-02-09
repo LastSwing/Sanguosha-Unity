@@ -1946,6 +1946,25 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class HaoshiCardAI : UseCard
+    {
+        public HaoshiCardAI() : base(HaoshiCard.ClassName)
+        {
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                Player target = use.To[0];
+                if (ai is StupidAI && ai.GetPlayerTendency(target) != "unknown")
+                {
+                    ai.UpdatePlayerRelation(player, target, true);
+                }
+                if (ai is SmartAI) ai.UpdatePlayerRelation(player, target, true);
+            }
+        }
+    }
     public class DimengAI : SkillEvent
     {
         public DimengAI() : base("dimeng")
@@ -1966,17 +1985,32 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (data is CardUseStruct use && player != ai.Self)
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
                 Player target1 = use.To[0];
                 Player target2 = use.To[1];
                 Player target = null;
+                Player enemy = null;
+                if (ai.HasSkill("zishu", target1)) enemy = target1;
+                if (ai.HasSkill("zishu", target2)) enemy = target2;
                 if (target1.HandcardNum > target2.HandcardNum)
-                    target = target2;
+                {
+                    if (enemy != target2)
+                        target = target2;
+                    if (enemy == null) enemy = target1;
+                }
                 else if (target2.HandcardNum > target1.HandcardNum)
-                    target = target1;
+                {
+                    if (enemy != target1)
+                        target = target1;
+                    if (enemy == null) enemy = target2;
+                }
 
-                if (ai is StupidAI && target != null && ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+                if (ai is StupidAI && target != null && ai.GetPlayerTendency(target) != "unknown")
+                {
+                    ai.UpdatePlayerRelation(player, target, true);
+                    if (enemy != null) ai.UpdatePlayerRelation(player, enemy, false);
+                }
                 if (ai is SmartAI && target != null) ai.UpdatePlayerRelation(player, target, true);
             }
         }
@@ -2099,21 +2133,6 @@ namespace SanguoshaServer.AI
                 card.AddSubCards(subs);
                 use.Card = card;
                 use.To = targets;
-            }
-        }
-    }
-
-    public class HaoshiCardAI : UseCard
-    {
-        public HaoshiCardAI() : base(HaoshiCard.ClassName) { }
-
-        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
-        {
-            if (data is CardUseStruct use && player != ai.Self)
-            {
-                Player target = use.To[0];
-                if (ai is StupidAI && ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
-                if (ai is SmartAI && ai.Self != target) ai.UpdatePlayerRelation(player, target, true);
             }
         }
     }

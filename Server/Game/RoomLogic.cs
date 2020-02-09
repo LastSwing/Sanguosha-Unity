@@ -1150,7 +1150,7 @@ namespace SanguoshaServer.Game
             {
                 if (!p.HasShownOneGeneral())
                     continue;
-                if (p.GetRoleEnum() == Player.PlayerRole.Careerist)
+                if (p.GetRoleEnum() == PlayerRole.Careerist)
                 {
                     kingdom_map["careerist"] = 1;
                     continue;
@@ -1190,7 +1190,7 @@ namespace SanguoshaServer.Game
             }
             if (jade_seal_owner != null)
             {
-                if (jade_seal_owner.GetRoleEnum() == Player.PlayerRole.Careerist)
+                if (jade_seal_owner.GetRoleEnum() == PlayerRole.Careerist)
                 {
                     big_kingdoms.Clear();
                     big_kingdoms.Add(jade_seal_owner.Name); // record player's objectName who has JadeSeal.

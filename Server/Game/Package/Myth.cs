@@ -1845,14 +1845,6 @@ namespace SanguoshaServer.Package
         {
             return new TriggerStruct();
         }
-    }
-
-    public class PoxiVS : ZeroCardViewAsSkill
-    {
-        public PoxiVS() : base("poxi")
-        {
-        }
-
         public override bool MoveFilter(Room room, int id, List<int> downs)
         {
             if (id != -1)
@@ -1876,6 +1868,14 @@ namespace SanguoshaServer.Package
 
             return true;
         }
+    }
+
+    public class PoxiVS : ZeroCardViewAsSkill
+    {
+        public PoxiVS() : base("poxi")
+        {
+        }
+
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
             return !player.HasUsed(PoxiCard.ClassName);

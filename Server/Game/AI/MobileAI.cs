@@ -16,6 +16,9 @@ namespace SanguoshaServer.AI
             {
                 new YingjianAI(),
 
+                new DaigongAI(),
+                new ZhaoxinAI(),
+
                 new YixiangAI(),
                 new YirangAI(),
 
@@ -46,6 +49,86 @@ namespace SanguoshaServer.AI
             }
 
             return use;
+        }
+    }
+
+    public class DaigongAI : SkillEvent
+    {
+        public DaigongAI() : base("daigong") { }
+
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct();
+            score.Score = 0;
+            if (damage.From != null && damage.From != damage.To && ai.HasSkill(Name, damage.To) && !damage.To.HasFlag(Name) && !ai.IsFriend(damage.From, damage.To) && !damage.To.IsKongcheng())
+            {
+                if (ai.IsFriend(damage.To))
+                    score.Score += 3;
+                else if (ai.IsFriend(damage.From))
+                    score.Score -= 3;
+            }
+            return score;
+        }
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            Room room = ai.Room;
+            if (room.GetTag(Name) is DamageStruct damage)
+            {
+                ScoreStruct score = ai.GetDamageScore(damage, DamageStruct.DamageStep.Done);
+                if (!ai.IsEnemy(damage.To))
+                {
+                    List<int> ids = new List<int>();
+                    foreach (int id in player.GetCards("h"))
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (Engine.MatchExpPattern(room, pattern, player, card) && (card.Name != Peach.ClassName && card.Name != Analeptic.ClassName || damage.Damage > 1))
+                            ids.Add(id);
+                    }
+                    if (ids.Count > 0)
+                    {
+                        List<double> values = ai.SortByKeepValue(ref ids, false);
+                        if (values[0] < score.Score)
+                            return new List<int> { ids[0] };
+                        if (player == room.Current)
+                        {
+                            values = ai.SortByUseValue(ref ids, false);
+                            if (values[0] < score.Score)
+                                return new List<int> { ids[0] };
+                        }
+                    }
+                }
+            }
+
+            return new List<int>();
+        }
+    }
+
+    public class ZhaoxinAI : SkillEvent
+    {
+        public ZhaoxinAI() : base("zhaoxin")
+        {
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is string str)
+            {
+                string[] strs = str.Split(':');
+                Player who = ai.Room.FindPlayer(strs[1]);
+
+                DamageStruct damage = new DamageStruct(Name, who, player);
+                if (ai.IsFriend(who) || ai.GetDamageScore(damage).Score > 0)
+                    return true;
+            }
+            else if (data is Player target)
+            {
+                DamageStruct damage = new DamageStruct(Name, player, target);
+                if (ai.GetDamageScore(damage).Score > 0)
+                    return true;
+            }
+
+            return false;
         }
     }
 

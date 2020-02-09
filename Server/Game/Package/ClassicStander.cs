@@ -64,6 +64,7 @@ namespace SanguoshaServer.Package
                 new Fenwei(),
                 new KejiJX(),
                 new Qinxue(),
+                new Botu(),
                 new Gongxin(),
                 new KurouJX(),
                 new Zhaxiang(),
@@ -2347,6 +2348,67 @@ namespace SanguoshaServer.Package
                 else
                     room.MoveCardTo(room.GetCard(result), null, Place.DrawPile, true);
             }
+        }
+    }
+
+    public class Botu : TriggerSkill
+    {
+        public Botu() : base("Botu")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.EventPhaseChanging };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (player != null && room.Current == player && triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card != null && base.Triggerable(player, room))
+            {
+                int suit = (int)RoomLogic.GetCardSuit(room, use.Card);
+                List<int> suits = player.ContainsTag(Name + "Suit") ? (List<int>)player.GetTag(Name + "Suit") : new List<int>();
+                if (suit < 4 && !suits.Contains(suit))
+                {
+                    suits.Add(suit);
+                    player.SetTag(Name + "Suit", suits);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                player.RemoveTag(Name + "Suit");
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && base.Triggerable(player, room) && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                List<int> suits = player.ContainsTag(Name + "Suit") ? (List<int>)player.GetTag(Name + "Suit") : new List<int>();
+                if (suits.Count == 4)
+                    return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(ask_who, Name, null, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            LogMessage l = new LogMessage
+            {
+                Type = "#Fangquan",
+                To = new List<string> { ask_who.Name }
+            };
+            room.SendLog(l);
+            room.GainAnExtraTurn(ask_who);
+            return false;
         }
     }
 

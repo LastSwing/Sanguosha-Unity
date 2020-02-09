@@ -6827,6 +6827,11 @@ namespace SanguoshaServer.Package
         {
             CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, card_use.From.Name,
                 card_use.To[0].Name, "haoshi", null);
+
+            ResultStruct result = card_use.From.Result;
+            result.Assist += card_use.Card.SubCards.Count;
+            card_use.From.Result = result;
+
             room.MoveCardTo(card_use.Card, card_use.To[0], Place.PlaceHand, reason);
         }
     }

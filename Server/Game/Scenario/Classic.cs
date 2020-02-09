@@ -132,6 +132,15 @@ namespace SanguoshaServer.Scenario
             AssignGeneralsForPlayers(room, out Dictionary<Player, List<string>> options);
             //主公选将
             string lord_general = room.AskForGeneral(lord, new List<string>(options[lord]), string.Empty, true, "gamerule", null, true);
+
+            LogMessage log = new LogMessage
+            {
+                Type = "#lord_selected",
+                From = lord.Name,
+                Arg = lord_general
+            };
+            room.SendLog(log);
+
             lord.General1 = lord_general;
             lord.ActualGeneral1 = lord_general;
             General lord_gen = Engine.GetGeneral(lord_general, room.Setting.GameMode);
@@ -164,14 +173,6 @@ namespace SanguoshaServer.Scenario
                 lord.Kingdom = room.AskForChoice(lord, "Kingdom", choice, prompts);
                 room.BroadcastProperty(lord, "Kingdom");
             }
-
-            LogMessage log = new LogMessage
-            {
-                Type = "#lord_selected",
-                From = lord.Name,
-                Arg = lord.General1
-            };
-            room.SendLog(log);
 
             Thread.Sleep(1000);
 
@@ -817,6 +818,8 @@ namespace SanguoshaServer.Scenario
                     value += 4;                                                                                                                 //郝昭配合给牌
                 if ((general_name == "liubei" || general_name == "caorui" || general_name == "liuxie") && lord.General1 == "haozhao")
                     value += 4;
+                if (general_name == "xujing" && (lord.General1 == "lingtong" || lord.General1 == "sunshangxiang" || lord.General1 == "maliang" || lord.General1 == "pangtong_sp"))
+                    value += 4;                                                                                                                 //许靖做配合
             }
             else if (role == PlayerRole.Rebel)
             {

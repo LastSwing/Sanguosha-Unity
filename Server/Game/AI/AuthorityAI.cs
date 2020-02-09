@@ -1490,8 +1490,8 @@ namespace SanguoshaServer.AI
         public HuibianAI() : base("huibian") { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (!player.HasUsed("HuibianCard"))
-                return new List<WrappedCard> { new WrappedCard("HuibianCard") { Skill = Name, ShowSkill = Name } };
+            if (!player.HasUsed(HuibianCard.ClassName))
+                return new List<WrappedCard> { new WrappedCard(HuibianCard.ClassName) { Skill = Name, ShowSkill = Name } };
 
             return new List<WrappedCard>();
         }
