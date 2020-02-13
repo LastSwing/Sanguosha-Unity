@@ -2965,27 +2965,19 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(player, Name);
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-            List<Player> targets = new List<Player>();
-            int min = 1000, count = 0;
+            int min = 1000;
             foreach (Player p in room.GetAlivePlayers())
                 if (p.HandcardNum < min) min = p.HandcardNum;
 
-            foreach (Player p in room.GetAlivePlayers())
-                if (p.HandcardNum == min) count++;
-
-            foreach (Player p in room.GetOtherPlayers(player))
+            if (min > 0)
             {
-                if (!p.IsKongcheng()) targets.Add(p);
-            }
-
-            if (targets.Count > 0)
-            {
+                List<Player> targets = room.GetOtherPlayers(player);
                 Shuffle.shuffle(ref targets);
                 Player target = targets[0];
 
                 List<int> ids = target.GetCards("h"), views = new List<int>(); ;
                 Shuffle.shuffle(ref ids);
-                for (int i = 0; i < Math.Min(count, ids.Count); i++)
+                for (int i = 0; i < Math.Min(min, ids.Count); i++)
                     views.Add(ids[i]);
 
                 room.DoGongxin(player, target, views, new List<int>(), Name, "@to-player:" + target.Name, info.SkillPosition);
@@ -9278,7 +9270,7 @@ namespace SanguoshaServer.Package
                         room.DetachSkillFromPlayer(player, skill, false, player.GetAcquiredSkills().Contains(skill), true);
                 }
 
-                foreach (string skill in Engine.GetGeneralRelatedSkills("guansuo", room.Setting.GameMode))
+                foreach (string skill in Engine.GetGeneralRelatedSkills(general_name, room.Setting.GameMode))
                 {
                     if (!room.Skills.Contains(skill))
                     {

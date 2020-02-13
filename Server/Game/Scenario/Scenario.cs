@@ -158,6 +158,9 @@ namespace SanguoshaServer.Scenario
 
             return _player;
         }
+
+        public abstract List<Client> CheckSurrendAvailable(Room room);
+        public abstract string GetPreWinner(Room room, Client surrender_client);
     }
 
     public abstract class GameRule : TriggerSkill
@@ -257,7 +260,7 @@ namespace SanguoshaServer.Scenario
                 case PlayerPhase.Play:
                     {
                         bool add_index = true;
-                        while (player.Alive)
+                        while (player.Alive && string.IsNullOrEmpty(room.PreWinner))
                         {
                             room.Activate(player, out CardUseStruct card_use, add_index);
                             if (card_use.Card != null)
@@ -483,46 +486,7 @@ namespace SanguoshaServer.Scenario
         {
             CheckBigKingdoms(room);
         }
-        protected virtual void OnBuryVictim(Room room, Player player, ref object data)
-        {
-            DeathStruct death = (DeathStruct)data;
-            room.BuryPlayer(player);
-
-            if (room.ContainsTag("SkipNormalDeathProcess") && (bool)room.GetTag("SkipNormalDeathProcess"))
-                return;
-
-            Player killer = death.Damage.From ?? null;
-            if (killer != null)
-            {
-                killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);
-                int kill_count = killer.GetMark("multi_kill_count");
-                if (kill_count > 1 && kill_count < 8)
-                    room.SetEmotion(killer, string.Format("kill{0}", kill_count));
-                else if (kill_count > 7)
-                    room.SetEmotion(killer, "zylove");
-                RewardAndPunish(room, killer, player);
-            }
-
-            if (Engine.GetGeneral(player.General1, room.Setting.GameMode).IsLord() && player == death.Who)
-            {
-                foreach (Player p in room.GetOtherPlayers(player, true)) {
-                    if (p.Kingdom == player.Kingdom)
-                    {
-                        p.Role = "careerist";
-                        if (p.HasShownOneGeneral())
-                        {
-                            room.BroadcastProperty(p, "Role");
-                        }
-                        else
-                        {
-                            room.NotifyProperty(room.GetClient(p), p, "Role");
-                        }
-                    }
-                }
-                CheckBigKingdoms(room);
-            }
-        }
-
+        protected abstract void OnBuryVictim(Room room, Player player, ref object data);
         protected virtual void RewardAndPunish(Room room, Player killer, Player victim)
         {
             if (!killer.Alive || !killer.HasShownOneGeneral())

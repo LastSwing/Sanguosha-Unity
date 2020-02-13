@@ -11363,7 +11363,7 @@ namespace SanguoshaServer.Package
                 {
                     foreach (int id in player.GetCards("he"))
                     {
-                        if (RoomLogic.CanDiscard(room, target, target, id))
+                        if (!RoomLogic.CanDiscard(room, target, target, id))
                         {
                             invalid = false;
                             break;

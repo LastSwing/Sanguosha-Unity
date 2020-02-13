@@ -458,6 +458,72 @@ namespace SanguoshaServer.Scenario
             if (!string.IsNullOrEmpty(player.General2))
                 room.NotifyProperty(room.GetClient(player), player, "ActualGeneral2", player.General2);
         }
+
+        public override string GetPreWinner(Room room, Client client)
+        {
+            Player surrender = room.GetPlayers(client.UserID)[0];
+            List<string> winners = new List<string>();
+            string winner_kingdom = string.Empty;
+            List<Player> players = room.GetAlivePlayers();
+            foreach (Player p in players)
+            {
+                if (p == surrender) continue;
+                if (p.GetRoleEnum() == PlayerRole.Careerist)
+                    return p.Name;
+                else
+                {
+                    winner_kingdom = p.Kingdom;
+                    break;
+                }
+            }
+
+            foreach (Player p in room.Players)
+            {
+                if (p.Kingdom == winner_kingdom)
+                    winners.Add(p.Name);
+            }
+
+            return string.Join("+", winners);
+        }
+
+        public override List<Client> CheckSurrendAvailable(Room room)
+        {
+            List<Client> clients = new List<Client>();
+            bool check = true;
+            Dictionary<string, int> kingdoms = new Dictionary<string, int>();
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (!p.HasShownOneGeneral())
+                {
+                    check = false;
+                    break;
+                }
+                if (p.GetRoleEnum() == PlayerRole.Careerist)
+                    kingdoms.Add(p.Name, 1);
+                else if (!kingdoms.ContainsKey(p.Kingdom))
+                    kingdoms.Add(p.Kingdom, 1);
+                else
+                    kingdoms[p.Kingdom]++;
+            }
+
+            if (check && kingdoms.Keys.Count == 2)
+            {
+                List<string> lest_kingdom = new List<string>(kingdoms.Keys);
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (lest_kingdom.Contains(p.Name) && p.ClientId > 0)
+                    {
+                        clients.Add(room.GetClient(p.ClientId));
+                    }
+                    else if (kingdoms[p.Kingdom] == 1 && p.ClientId > 0)
+                    {
+                        clients.Add(room.GetClient(p.ClientId));
+                    }
+                }
+            }
+
+            return clients;
+        }
     }
 
     public class GeneralSelctor
@@ -701,107 +767,116 @@ namespace SanguoshaServer.Scenario
 
         public override string GetWinner(Room room)
         {
+            if (!string.IsNullOrEmpty(room.PreWinner)) return room.PreWinner;
+
             List<string> winners = new List<string>();
-                List<Player> players = room.GetAlivePlayers();
-                Player win_player = players[0];
-                if (players.Count == 1)
+            List<Player> players = room.GetAlivePlayers();
+            Player win_player = players[0];
+            if (players.Count == 1)
+            {
+                if (!win_player.General1Showed)
+                    room.ShowGeneral(win_player, true, false, false);
+                if (!win_player.General2Showed)
+                    room.ShowGeneral(win_player, false, false, false);
+                foreach (Player p in room.Players)
                 {
-                    if (!win_player.General1Showed)
-                        room.ShowGeneral(win_player, true, false, false);
-                    if (!win_player.General2Showed)
-                        room.ShowGeneral(win_player, false, false, false);
-                    foreach (Player p in room.Players) {
-                        if (RoomLogic.IsFriendWith(room, win_player, p))
-                            winners.Add(p.Name);
+                    if (RoomLogic.IsFriendWith(room, win_player, p))
+                        winners.Add(p.Name);
+                }
+            }
+            else
+            {
+                bool has_diff_kingdoms = false;
+                string left_kingdom = null;
+                foreach (Player p in players)
+                {
+                    left_kingdom = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom;
+                    foreach (Player p2 in players)
+                    {
+                        if (p == p2) continue;
+                        if (p.HasShownOneGeneral() && p2.HasShownOneGeneral() && !RoomLogic.IsFriendWith(room, p, p2))
+                        {
+                            has_diff_kingdoms = true;
+                            break;// if both shown but not friend, hehe.
+                        }
+                        if ((p.HasShownOneGeneral() && !p2.HasShownOneGeneral() && !RoomLogic.WillBeFriendWith(room, p2, p))
+                            || (!p.HasShownOneGeneral() && p2.HasShownOneGeneral() && !RoomLogic.WillBeFriendWith(room, p, p2)))
+                        {
+                            has_diff_kingdoms = true;
+                            break;// if either shown but not friend, hehe.
+                        }
+                        if (!p.HasShownOneGeneral() && !p2.HasShownOneGeneral())
+                        {
+                            if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom
+                            != Engine.GetGeneral(p2.ActualGeneral1, room.Setting.GameMode).Kingdom)
+                            {
+                                has_diff_kingdoms = true;
+                                break;  // if neither shown and not friend, hehe.
+                            }
+                        }
+                    }
+                    if (has_diff_kingdoms)
+                        break;
+                }
+
+                bool all_live_shown = true;
+                if (!has_diff_kingdoms)
+                {                      //check all shown before judging careerist, cos same skills could change kindom such as dragonphoenix
+                    foreach (Player p in players)
+                    {
+                        if (!p.HasShownOneGeneral())
+                            all_live_shown = false;
                     }
                 }
-                else
-                {
-                    bool has_diff_kingdoms = false;
-                    string left_kingdom = null;
-                    foreach (Player p in players) {
-                        left_kingdom = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom;
-                        foreach (Player p2 in players)
+
+                if (!has_diff_kingdoms && !all_live_shown)
+                { // judge careerist
+                    List<string> lords = new List<string>();
+                    int all = 0;
+                    foreach (Player p in room.Players)
                     {
-                            if (p == p2) continue;
-                            if (p.HasShownOneGeneral() && p2.HasShownOneGeneral() && !RoomLogic.IsFriendWith(room, p, p2))
-                            {
-                                has_diff_kingdoms = true;
-                                break;// if both shown but not friend, hehe.
-                            }
-                            if ((p.HasShownOneGeneral() && !p2.HasShownOneGeneral() && !RoomLogic.WillBeFriendWith(room, p2, p))
-                                || (!p.HasShownOneGeneral() && p2.HasShownOneGeneral() && !RoomLogic.WillBeFriendWith(room, p, p2)))
-                            {
-                                has_diff_kingdoms = true;
-                                break;// if either shown but not friend, hehe.
-                            }
-                            if (!p.HasShownOneGeneral() && !p2.HasShownOneGeneral())
-                            {
-                                if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom
-                                != Engine.GetGeneral(p2.ActualGeneral1, room.Setting.GameMode).Kingdom)
-                                {
-                                    has_diff_kingdoms = true;
-                                    break;  // if neither shown and not friend, hehe.
-                                }
-                            }
-                        }
-                        if (has_diff_kingdoms)
-                            break;
-                    }
-
-                    bool all_live_shown = true;
-                    if (!has_diff_kingdoms)
-                    {                      //check all shown before judging careerist, cos same skills could change kindom such as dragonphoenix
-                        foreach (Player p in players) {
-                            if (!p.HasShownOneGeneral())
-                                all_live_shown = false;
-                        }
-                    }
-
-                    if (!has_diff_kingdoms && !all_live_shown)
-                    { // judge careerist
-                        List<string> lords = new List<string>();
-                        int all = 0;
-                        foreach (Player p in room.Players) {
-                            if (p.HasShownOneGeneral())
-                            {
-                                if (p.Kingdom == left_kingdom && p.Role != "careerist")
-                                    all++;
-                            }
-                            else if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom == left_kingdom)
+                        if (p.HasShownOneGeneral())
+                        {
+                            if (p.Kingdom == left_kingdom && p.Role != "careerist")
                                 all++;
                         }
+                        else if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom == left_kingdom)
+                            all++;
+                    }
 
-                        foreach (Player p in room.Players) {
-                            if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
-                            {
-                                if (p.Alive && p.General1Showed)                //the lord has shown
-                                    lords.Add(Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom);
-                                else if (!p.Alive && p.Kingdom == left_kingdom)   //the lord is dead, all careerist
-                                    return null;
-                                else if (p.Alive && !p.HasShownOneGeneral() && all > room.Players.Count / 2) //the lord not yet shown
-                                    return null;
-                            }
+                    foreach (Player p in room.Players)
+                    {
+                        if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
+                        {
+                            if (p.Alive && p.General1Showed)                //the lord has shown
+                                lords.Add(Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom);
+                            else if (!p.Alive && p.Kingdom == left_kingdom)   //the lord is dead, all careerist
+                                return null;
+                            else if (p.Alive && !p.HasShownOneGeneral() && all > room.Players.Count / 2) //the lord not yet shown
+                                return null;
                         }
-                        if (lords.Count == 0 && all > room.Players.Count / 2)       //careerist exists
-                            has_diff_kingdoms = true;
                     }
-
-                    if (has_diff_kingdoms) return null;    //if has enemy, hehe
-
-                    // if run here, all are friend.
-                    foreach (Player p in players) {
-                        if (!p.General1Showed)
-                            room.ShowGeneral(p, true, false, false); // dont trigger event
-                        if (!p.General2Showed)
-                            room.ShowGeneral(p, false, false, false);
-                    }
-
-                    foreach (Player p in room.Players) {
-                        if (RoomLogic.IsFriendWith(room, win_player, p))
-                            winners.Add(p.Name);
-                    }
+                    if (lords.Count == 0 && all > room.Players.Count / 2)       //careerist exists
+                        has_diff_kingdoms = true;
                 }
+
+                if (has_diff_kingdoms) return null;    //if has enemy, hehe
+
+                // if run here, all are friend.
+                foreach (Player p in players)
+                {
+                    if (!p.General1Showed)
+                        room.ShowGeneral(p, true, false, false); // dont trigger event
+                    if (!p.General2Showed)
+                        room.ShowGeneral(p, false, false, false);
+                }
+
+                foreach (Player p in room.Players)
+                {
+                    if (RoomLogic.IsFriendWith(room, win_player, p))
+                        winners.Add(p.Name);
+                }
+            }
 
             return string.Join("+", winners);
         }
@@ -828,6 +903,47 @@ namespace SanguoshaServer.Scenario
             }
             else
                 room.ThrowAllHandCardsAndEquips(killer);
+        }
+
+        protected override void OnBuryVictim(Room room, Player player, ref object data)
+        {
+            DeathStruct death = (DeathStruct)data;
+            room.BuryPlayer(player);
+
+            if (room.ContainsTag("SkipNormalDeathProcess") && (bool)room.GetTag("SkipNormalDeathProcess"))
+                return;
+
+            Player killer = death.Damage.From ?? null;
+            if (killer != null)
+            {
+                killer.SetMark("multi_kill_count", killer.GetMark("multi_kill_count") + 1);
+                int kill_count = killer.GetMark("multi_kill_count");
+                if (kill_count > 1 && kill_count < 8)
+                    room.SetEmotion(killer, string.Format("kill{0}", kill_count));
+                else if (kill_count > 7)
+                    room.SetEmotion(killer, "zylove");
+                RewardAndPunish(room, killer, player);
+            }
+
+            if (Engine.GetGeneral(player.General1, room.Setting.GameMode).IsLord() && player == death.Who)
+            {
+                foreach (Player p in room.GetOtherPlayers(player, true))
+                {
+                    if (p.Kingdom == player.Kingdom)
+                    {
+                        p.Role = "careerist";
+                        if (p.HasShownOneGeneral())
+                        {
+                            room.BroadcastProperty(p, "Role");
+                        }
+                        else
+                        {
+                            room.NotifyProperty(room.GetClient(p), p, "Role");
+                        }
+                    }
+                }
+                CheckBigKingdoms(room);
+            }
         }
     }
 }

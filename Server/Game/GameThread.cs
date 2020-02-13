@@ -108,7 +108,7 @@ namespace SanguoshaServer.Game
 
                 object data = room.Round;
                 Trigger(TriggerEvent.TurnStart, room, room.Current, ref data);
-                if (room.Finished) break;
+                if (room.Finished || !string.IsNullOrEmpty(room.PreWinner)) break;
 
                 Player regular_next = room.Current;
                 while (regular_next == room.Current || !regular_next.Alive)
@@ -123,19 +123,23 @@ namespace SanguoshaServer.Game
                 {
                     room.SetCurrent(next);
                     Trigger(TriggerEvent.TurnStart, room, next, ref data);
-                    if (room.Finished) break;
+                    if (room.Finished || !string.IsNullOrEmpty(room.PreWinner)) break;
 
                     next = room.GetExtraTurn();
                 }
-                if (room.Finished) break;
+                if (room.Finished || !string.IsNullOrEmpty(room.PreWinner)) break;
                 room.SetCurrent(regular_next);
             }
+
+            if (!string.IsNullOrEmpty(room.PreWinner))
+                room.GameOver(room.PreWinner);
         }
 
 
         public bool Trigger(TriggerEvent triggerEvent, Room room, Player target, ref object data)
         {
             // push it to event stack
+            if (!string.IsNullOrEmpty(room.PreWinner)) return true;
 
             _m_trigger_id++;
             int trigger_id = _m_trigger_id;
@@ -448,7 +452,7 @@ namespace SanguoshaServer.Game
                 if (broken)
                     break;
 
-            } while (skill_table.ContainsKey(triggerEvent) && skill_table[triggerEvent].Count != triggerable_tested.Count);
+            } while (skill_table.ContainsKey(triggerEvent) && skill_table[triggerEvent].Count != triggerable_tested.Count && string.IsNullOrEmpty(room.PreWinner));
 
             // @todo_Slob: for drawing cards when game starts -- stupid design of triggering no player!
             if (!broken && trigger_who.ContainsKey(rule_player) && trigger_who[rule_player].Count > 0)
@@ -456,6 +460,8 @@ namespace SanguoshaServer.Game
                 List<TriggerStruct> triggers = new List<TriggerStruct>(trigger_who[rule_player]);
                 foreach (TriggerStruct s in triggers)
                 {
+                    if (!string.IsNullOrEmpty(room.PreWinner)) break;
+
                     TriggerSkill skill = null;
                     foreach (TriggerSkill rule in rules)
                     {                      // because we cannot get a GameRule with Engine::getTriggerSkill()

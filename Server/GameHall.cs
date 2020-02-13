@@ -229,17 +229,25 @@ namespace SanguoshaServer
         #region 处理客户端请求
         public void OnRequesting(MsgPackSession session, BinaryRequestInfo requestInfo)
         {
-            Client client = Session2ClientTable[session];
             MyData data = null;
-            try
+            if (Session2ClientTable.TryGetValue(session, out Client client))
             {
-                data = PacketTranslator.Unpack(requestInfo.Body);
+                try
+                {
+                    data = PacketTranslator.Unpack(requestInfo.Body);
+                }
+                catch (Exception e)
+                {
+                    LogHelper.WriteLog(null, e);
+                    Debug(string.Format("error at parse client request {0} {1}", e.Message, e.TargetSite));
+                    Debug(string.Format("error messsage {0} {1}", requestInfo?.ToString(), requestInfo.Body?.ToString()));
+                    session.Close();
+                    return;
+                }
             }
-            catch (Exception e)
+            else
             {
-                LogHelper.WriteLog(null, e);
-                Debug(string.Format("error at parse client request {0} {1}", e.Message, e.TargetSite));
-                Debug(string.Format("error messsage {0} {1}", requestInfo?.ToString(), requestInfo.Body?.ToString()));
+                Debug(string.Format("found no client {0}", session.SessionID));
                 session.Close();
                 return;
             }

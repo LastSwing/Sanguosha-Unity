@@ -355,6 +355,51 @@ namespace SanguoshaServer.Scenario
                 room.BroadcastProperty(player, "Role");
             }
         }
+
+
+        public override string GetPreWinner(Room room, Client client)
+        {
+            Player surrender = room.GetPlayers(client.UserID)[0];
+            List<string> winners = new List<string>();
+            Game3v3Camp dead_camp = surrender.Camp;
+            foreach (Player p in room.Players)
+            {
+                if (p.Camp != dead_camp)
+                    winners.Add(p.Name);
+            }
+
+            return string.Join("+", winners);
+        }
+
+        public override List<Client> CheckSurrendAvailable(Room room)
+        {
+            List<Client> clients = new List<Client>();
+            int cool = 0, warm = 0;
+            Client cool_lord = null;
+            Client warm_lord = null;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p.Camp == Game3v3Camp.S_CAMP_COOL)
+                {
+                    if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
+                        cool_lord = room.GetClient(p.ClientId);
+                    cool++;
+                }
+                else
+                {
+                    if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
+                        warm_lord = room.GetClient(p.ClientId);
+                    warm++;
+                }
+            }
+
+            if (warm == 1 && warm_lord != null)
+                clients.Add(warm_lord);
+            if (cool == 1 && cool_lord != null)
+                clients.Add(cool_lord);
+
+            return clients;
+        }
     }
 
     public class GuanduWarfareRule : GameRule
@@ -386,6 +431,8 @@ namespace SanguoshaServer.Scenario
         //胜利条件
         public override string GetWinner(Room room)
         {
+            if (!string.IsNullOrEmpty(room.PreWinner)) return room.PreWinner;
+
             List<string> winners = new List<string>();
             List<Player> players = room.GetAlivePlayers();
             Game3v3Camp dead_camp = Game3v3Camp.S_CAMP_NONE;
@@ -413,7 +460,7 @@ namespace SanguoshaServer.Scenario
 
             return string.Join("+", winners);
         }
-        
+
         public override void CheckBigKingdoms(Room room)
         {
         }

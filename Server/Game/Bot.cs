@@ -481,10 +481,13 @@ namespace SanguoshaServer.Game
                 {
                     string name = player.ActualGeneral1;
                     Random ra = new Random();
-                    int result = ra.Next(1, data1.Count);
-                    player.HeadSkinId = result;
-                    if (player.General1Showed)
-                        room.BroadcastProperty(player, "HeadSkinId");
+                    int result = ra.Next(0, data1.Count);
+                    if (result != player.HeadSkinId)
+                    {
+                        player.HeadSkinId = result;
+                        if (player.General1Showed)
+                            room.BroadcastProperty(player, "HeadSkinId");
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(player.ActualGeneral2) && (!head || Shuffle.random(1, 2)))
@@ -493,10 +496,13 @@ namespace SanguoshaServer.Game
                     if (data2.Count > 1)
                     {
                         Random ra = new Random();
-                        int result = ra.Next(1, data2.Count);
-                        player.DeputySkinId = result;
-                        if (player.General2Showed)
-                            room.BroadcastProperty(player, "DeputySkinId");
+                        int result = ra.Next(0, data2.Count);
+                        if (result != player.DeputySkinId)
+                        {
+                            player.DeputySkinId = result;
+                            if (player.General2Showed)
+                                room.BroadcastProperty(player, "DeputySkinId");
+                        }
                     }
                 }
             }

@@ -5,6 +5,7 @@ using SanguoshaServer.AI;
 using SanguoshaServer.Package;
 using SanguoshaServer.Scenario;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -53,6 +54,7 @@ namespace SanguoshaServer.Game
         public bool RoomTerminated { get; private set; } = false;
         public int SwapTime { get; private set; } = 0;
         public bool SkipGameRule { set; get; } = false;
+        public string PreWinner { private set; get; }
         public GameHall Hall { get; private set; }
 
         private Thread thread;
@@ -80,6 +82,7 @@ namespace SanguoshaServer.Game
         private Queue<Player> m_extra_turn = new Queue<Player>();
         private Dictionary<int, int> cards_replace = new Dictionary<int, int>();
         private readonly Dictionary<int, bool> intel_select = new Dictionary<int, bool>();
+        private ConcurrentDictionary<Client, bool> surrender = new ConcurrentDictionary<Client, bool>();
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -338,6 +341,8 @@ namespace SanguoshaServer.Game
         }
         public void GameOver(string winner)
         {
+            PreWinner = string.Empty;
+
             List<string> arg = new List<string> { winner };
             foreach (Player player in m_players)
             {
@@ -3357,9 +3362,34 @@ namespace SanguoshaServer.Game
             return false;
         }
 
-        private void ProcessRequestSurrender(Client client, List<string> data)
+        private void ProcessRequestSurrender(Client client, List<string> obj)
         {
-            throw new NotImplementedException();
+            lock (surrender)
+            {
+                bool success = surrender.TryGetValue(client, out bool available);
+                if (client.UserID > 0 && string.IsNullOrEmpty(PreWinner) && available)
+                {
+                    List<Client> clients = new List<Client>(surrender.Keys);
+                    surrender.Clear();
+                    foreach (Client to_notify in clients)
+                        DoNotify(to_notify, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { false.ToString() });
+
+                    PreWinner = Scenario.GetPreWinner(this, client);
+
+                    foreach (Interactivity interactivity in m_interactivities.Values)
+                    {
+                        if (interactivity.IsWaitingReply)
+                        {
+                            MyData data = new MyData
+                            {
+                                Body = new List<string> { interactivity.ExpectedReplyCommand.ToString() }
+                            };
+
+                            ProcessClientReply(interactivity, data);
+                        }
+                    }
+                }
+            }
         }
 
         #endregion
@@ -3450,6 +3480,11 @@ namespace SanguoshaServer.Game
             {
                 p.Status = "online";
                 BroadcastProperty(p, "Status");
+            }
+
+            if (surrender.TryGetValue(client, out bool enable) && enable)
+            {
+                DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
             }
         }
         #endregion
@@ -3888,8 +3923,8 @@ namespace SanguoshaServer.Game
         private void Timer1_Elapsed(object sender, ElapsedEventArgs e)
         {
             System.Timers.Timer timer = (System.Timers.Timer)sender;
-            if (timer != null) timer.Enabled = false;
-            if (_waitHandle != null) _waitHandle.Set();
+            timer.Enabled = false;
+            _waitHandle.Set();
         }
         #endregion
 
@@ -5402,6 +5437,14 @@ namespace SanguoshaServer.Game
                 }
             }
             */
+
+            List<Client> availables = Scenario.CheckSurrendAvailable(this);
+            surrender.Clear();
+            foreach (Client client in availables)
+            {
+                surrender.TryAdd(client, true);
+                DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
+            }
         }
 
         public void SendDamageLog(DamageStruct data)
@@ -6425,9 +6468,12 @@ namespace SanguoshaServer.Game
                         BroadcastProperty(player, "Phase");
                         Thread.Sleep(200);
 
+                        if (!string.IsNullOrEmpty(PreWinner)) break;
 
                         if (!RoomThread.Trigger(TriggerEvent.EventPhaseStart, this, player))
                         {
+                            if (!string.IsNullOrEmpty(PreWinner)) break;
+                            
                             if (player.Phase != PlayerPhase.NotActive)                                                                          //回合结束没有执行和结束时机
                             {
                                 if (player.Phase == PlayerPhase.Draw)
@@ -6444,6 +6490,9 @@ namespace SanguoshaServer.Game
                                 break;
                             }
                         }
+
+                        if (!string.IsNullOrEmpty(PreWinner)) break;
+
                         RoomThread.Trigger(TriggerEvent.EventPhaseEnd, this, player);
                     }
                     else
@@ -6471,7 +6520,7 @@ namespace SanguoshaServer.Game
                 }
                 if (!proceed) break;                            //当没有任何一个阶段被执行，或是进入了回合结束，则结束循环检查
             }
-            while (true);
+            while (string.IsNullOrEmpty(PreWinner));
         }
 
         private readonly List<string> phase_strings = new List<string> {"round_start", "start" , "judge" , "draw"
@@ -6881,7 +6930,7 @@ namespace SanguoshaServer.Game
                 if (client == null) return;
                 if (MakeCheat(player) && client != null && client.UserRight >= 3)
                 {
-                    if (player.Alive)
+                    if (player.Alive && string.IsNullOrEmpty(PreWinner))
                     {
                         DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
                         Activate(player, out card_use, false);
@@ -10151,10 +10200,8 @@ namespace SanguoshaServer.Game
                 if (disposing)
                 {
                     // TODO: 释放托管状态(托管对象)。
-                    timer.Dispose();
-                    _waitHandle.Dispose();
-                    timer = null;
-                    _waitHandle = null;
+                    _waitHandle.Close();
+                    timer.Close();
                 }
 
                 // TODO: 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。

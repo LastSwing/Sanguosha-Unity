@@ -5877,39 +5877,47 @@ namespace SanguoshaServer.Package
 
             CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, source.Name, target.Name, "fanjian", null);
             room.MoveCardTo(card, target, Place.PlaceHand, reason, false);
-            List<string> choices = new List<string> { "show" };
-            List<string> promopts = new List<string> { "fanjian", string.Format("@fanjian-show:::{0}", WrappedCard.GetSuitIcon(card.Suit)) };
+            List<string> choices = new List<string>(), promopts = new List<string> { "fanjian" };
+            if (!target.IsKongcheng())
+            {
+                choices.Add("show");
+                promopts.Add(string.Format("@fanjian-show:::{0}", WrappedCard.GetSuitIcon(card.Suit)));
+            }
+
             if (target.Hp > 0)
                 choices.Add("losehp");
 
-            string choice = room.AskForChoice(target, "fanjian", string.Join("+", choices), promopts);
-            target.RemoveTag("fanjian");
-            if (choice.Contains("show"))
+            if (choices.Count > 0)
             {
-                room.ShowAllCards(target);
+                string choice = room.AskForChoice(target, "fanjian", string.Join("+", choices), promopts);
+                target.RemoveTag("fanjian");
+                if (choice.Contains("show"))
+                {
+                    room.ShowAllCards(target);
 
-                List<int> slash = new List<int>();
-                foreach (int id in target.GetCards("he"))
-                    if (room.GetCard(id).Suit == suit)
-                        slash.Add(id);
+                    List<int> slash = new List<int>();
+                    foreach (int id in target.GetCards("he"))
+                        if (room.GetCard(id).Suit == suit)
+                            slash.Add(id);
 
-                if (slash.Count > 0)
-                    room.ThrowCard(ref slash, target);
+                    if (slash.Count > 0)
+                        room.ThrowCard(ref slash, target);
+                    else
+                    {
+                        LogMessage ll = new LogMessage
+                        {
+                            Type = "#fanjiannodis",
+                            From = target.Name,
+                            Arg = WrappedCard.GetSuitString(card.Suit)
+                        };
+                        room.SendLog(ll);
+                        room.LoseHp(target);
+                    }
+                }
                 else
                 {
-                    LogMessage ll = new LogMessage
-                    {
-                        Type = "#fanjiannodis",
-                        From = target.Name,
-                        Arg = WrappedCard.GetSuitString(card.Suit)
-                    };
-                    room.SendLog(ll);
                     room.LoseHp(target);
                 }
-            }
-            else
-            {
-                room.LoseHp(target);
             }
         }
     }

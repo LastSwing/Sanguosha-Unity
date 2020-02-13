@@ -130,7 +130,7 @@ namespace SanguoshaServer.AI
                                     {
                                         foreach (int id in p.GetEquips())
                                         {
-                                            if (ai.GetKeepValue(id, p, Player.Place.PlaceEquip) < 0)
+                                            if (ai.GetKeepValue(id, p, Place.PlaceEquip) < 0)
                                             {
                                                 good = true;
                                                 break;

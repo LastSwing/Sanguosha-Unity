@@ -584,8 +584,97 @@ namespace SanguoshaServer.Scenario
                 room.BroadcastProperty(player, "Hp");
             }
         }
+
+        public override string GetPreWinner(Room room, Client client)
+        {
+            Player surrender = room.GetPlayers(client.UserID)[0];
+            List<string> winners = new List<string>();
+            List<Player> players = room.GetAlivePlayers();
+            bool lord_dead = false;
+            foreach (Player p in room.Players)
+            {
+                if (p.GetRoleEnum() == PlayerRole.Lord && (!p.Alive || surrender == p))
+                {
+                    players.Remove(p);
+                    lord_dead = true;
+                    break;
+                }
+            }
+            if (lord_dead)
+            {
+                if (players.Count == 1 && players[0].GetRoleEnum() == PlayerRole.Renegade)
+                    winners.Add(players[0].Name);
+                else
+                {
+                    foreach (Player p in room.Players)
+                        if (p.GetRoleEnum() == PlayerRole.Rebel)
+                            winners.Add(p.Name);
+                }
+            }
+            else
+            {
+                bool check = true;
+                foreach (Player p in players)
+                {
+                    if (p == surrender) continue;
+                    if (p.GetRoleEnum() == PlayerRole.Rebel || p.GetRoleEnum() == PlayerRole.Renegade)
+                    {
+                        check = false;
+                        break;
+                    }
+                }
+                if (check)
+                {
+                    foreach (Player p in room.Players)
+                        if (p.GetRoleEnum() == PlayerRole.Lord || p.GetRoleEnum() == PlayerRole.Loyalist)
+                            winners.Add(p.Name);
+                }
+            }
+
+            return string.Join("+", winners);
+        }
+
+        public override List<Client> CheckSurrendAvailable(Room room)
+        {
+            List<Client> clients = new List<Client>();
+            int loyalist = 0;
+            List<Player> rebel = new List<Player>(), rena = new List<Player>();
+            Player lord = null;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                switch (p.GetRoleEnum())
+                {
+                    case PlayerRole.Lord:
+                        lord = p;
+                        break;
+                    case PlayerRole.Loyalist:
+                        loyalist++;
+                        break;
+                    case PlayerRole.Rebel:
+                        rebel.Add(p);
+                        break;
+                    case PlayerRole.Renegade:
+                        rena.Add(p);
+                        break;
+                }
+            }
+
+            if (loyalist == 0 && (rebel.Count == 0 || rena.Count == 0) && lord.ClientId > 0)
+            {
+                clients.Add(room.GetClient(lord.ClientId));
+            }
+            if (rebel.Count == 1 && rena.Count == 0 && rebel[0].ClientId > 0)
+            {
+                clients.Add(room.GetClient(rebel[0].ClientId));
+            }
+            if (rebel.Count == 0 && rena.Count == 1 && rena[0].ClientId > 0)
+            {
+                clients.Add(room.GetClient(rena[0].ClientId));
+            }
+
+            return clients;
+        }
     }
- 
 
     public class ClassicRule : GameRule
     {
@@ -597,7 +686,8 @@ namespace SanguoshaServer.Scenario
 
             foreach (Player player in room.Players)
             {
-                foreach (string skill_name in player.HeadSkills.Keys)
+                List<string> skills = new List<string>(player.HeadSkills.Keys);
+                foreach (string skill_name in skills)
                 {
                     Skill skill = Engine.GetSkill(skill_name);
                     if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
@@ -606,7 +696,8 @@ namespace SanguoshaServer.Scenario
                         room.SetTurnSkillState(player, skill_name, false, "head");
                 }
 
-                foreach (string skill_name in player.DeputySkills.Keys)
+                List<string> d_skills = new List<string>(player.DeputySkills.Keys);
+                foreach (string skill_name in d_skills)
                 {
                     Skill skill = Engine.GetSkill(skill_name);
                     if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
@@ -628,6 +719,8 @@ namespace SanguoshaServer.Scenario
 
         public override string GetWinner(Room room)
         {
+            if (!string.IsNullOrEmpty(room.PreWinner)) return room.PreWinner;
+
             List<string> winners = new List<string>();
             List<Player> players = room.GetAlivePlayers();
             bool lord_dead = false;
@@ -671,7 +764,7 @@ namespace SanguoshaServer.Scenario
 
             return string.Join("+", winners);
         }
-
+        
         public override void CheckBigKingdoms(Room room)
         {
         }
