@@ -7077,7 +7077,7 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player player = card_use.From, target = card_use.To[0];
-
+            target.SetFlags("jiyu");
             if (room.AskForDiscard(target, "jiyu", 1, 1, false, false, "@jiyu:" + player.Name) && player.Alive)
             {
                 WrappedCard.CardSuit suit = (WrappedCard.CardSuit)target.GetTag("jiyu");

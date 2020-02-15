@@ -458,7 +458,7 @@ namespace SanguoshaServer.Package
         {
             List <Player> caohongs = new List<Player>();
             List<Player> sib = room.GetAlivePlayers();
-            if (sib.Count < 3) return false;
+            if (sib.Count <= 3) return false;
 
             foreach (Player p in sib)
             if (RoomLogic.PlayerHasShownSkill(room, p, "heyi"))

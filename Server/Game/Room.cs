@@ -2623,7 +2623,8 @@ namespace SanguoshaServer.Game
                             if (!m_broadcardrequest || m_broadcardrequest_result <= 0)
                             {
                                 timer.Enabled = false;
-                                _waitHandle.Set();
+                                if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                                    _waitHandle.Set();
                             }
                             else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL)
                                 OnChooseGeneralReply(player);
@@ -2673,7 +2674,8 @@ namespace SanguoshaServer.Game
                 if (check || m_broadcardrequest_result <= 0)
                 {
                     timer.Enabled = false;
-                    _waitHandle.Set();
+                    if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                        _waitHandle.Set();
                 }
             }
             client.mutex.ReleaseMutex();
@@ -2798,7 +2800,8 @@ namespace SanguoshaServer.Game
             if (!m_broadcardrequest || m_broadcardrequest_result <= 0)
             {
                 timer.Enabled = false;
-                _waitHandle.Set();
+                if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                    _waitHandle.Set();
             }
         }
 
@@ -3286,7 +3289,8 @@ namespace SanguoshaServer.Game
                 && _m_roomState.GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_PLAY)
             {
                 timer.Enabled = false;
-                _waitHandle.Set();
+                if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                    _waitHandle.Set();
             }
         }
 
@@ -3733,7 +3737,7 @@ namespace SanguoshaServer.Game
             {
                 StartWaitingReply(timeOut);
             }
-            _waitHandle.WaitOne();
+            if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed) _waitHandle.WaitOne();
             m_broadcardrequest = false;
             sw.Stop();
             remainTime -= sw.ElapsedMilliseconds;
@@ -3808,7 +3812,8 @@ namespace SanguoshaServer.Game
             {
                 StartWaitingReply(timeOut);
             }
-            _waitHandle.WaitOne();
+            if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                _waitHandle.WaitOne();
             _m_raceStarted = false;
 
             lock (this)
@@ -3888,7 +3893,8 @@ namespace SanguoshaServer.Game
                 {
                     StartWaitingReply(timeOut);
                 }
-                _waitHandle.WaitOne();
+                if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                    _waitHandle.WaitOne();
 
                 // Note that we rely on processResponse to filter out all unrelevant packet.
                 // By the time the lock is released, m_clientResponse must be the right message
@@ -3924,7 +3930,8 @@ namespace SanguoshaServer.Game
         {
             System.Timers.Timer timer = (System.Timers.Timer)sender;
             timer.Enabled = false;
-            _waitHandle.Set();
+            if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
+                _waitHandle.Set();
         }
         #endregion
 

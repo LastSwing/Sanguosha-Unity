@@ -149,6 +149,9 @@ namespace SanguoshaServer.Package
                 new Lianzhu(),
                 new Xiahui(),
                 new XiahuiMax(),
+                new Neifa(),
+                new NeifaTar(),
+                new NeifaPro(),
 
                 new Shenxian(),
                 new Qiangwu(),
@@ -309,6 +312,7 @@ namespace SanguoshaServer.Package
                 { "wenji", new List<string>{ "#wenji" } },
                 { "zhenlue", new List<string>{ "#zhenlue" } },
                 { "yuxu", new List<string>{ "#yuxu" } },
+                { "neifa", new List<string>{ "#neifa-tar", "#neifa-pro" } },
             };
         }
     }
@@ -623,7 +627,7 @@ namespace SanguoshaServer.Package
         public override bool Triggerable(Player player, Room room)
         {
             foreach (Player p in room.GetAlivePlayers())
-                if (p.GetRoleEnum() == PlayerRole.Lord && p.Name.Contains("liubei")) return false;
+                if (p.GetRoleEnum() == PlayerRole.Lord && p.General1.Contains("liubei")) return false;
 
             return base.Triggerable(player, room) && player.Phase == PlayerPhase.Start
                     && player.HandcardNum > player.Hp && player.GetMark(Name) == 0;
@@ -8078,6 +8082,130 @@ namespace SanguoshaServer.Package
         public XiahuiMax() : base("#xiahui-max") { }
 
         public override bool Ingnore(Room room, Player player, int card_id) => RoomLogic.PlayerHasSkill(room, player, "xiahui") && WrappedCard.IsBlack(room.GetCard(card_id).Suit);
+    }
+
+    public class Neifa : TriggerSkill
+    {
+        public Neifa() : base("neifa")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed };
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
+            {
+                return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.CardUsed && player.HasFlag("neifa_not_basic") && data is CardUseStruct use && Engine.GetFunctionCard(use.Card.Name) is EquipCard
+                && player.Alive)
+            {
+                return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+            else if (triggerEvent == TriggerEvent.CardUsed)
+                return info;
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart)
+            {
+                room.DrawCards(player, 1, Name);
+                if (RoomLogic.CanDiscard(room, player, player, "he"))
+                {
+                    List<int> ids = room.AskForExchange(player, Name, 1, 1, "@neifa", string.Empty, "..!", info.SkillPosition);
+                    if (ids.Count > 0)
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(ids[0]).Name);
+                        if (fcard is BasicCard)
+                            player.SetFlags("neifa_basic");
+                        else
+                            player.SetFlags("neifa_not_basic");
+
+                        room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, player.Name, Name, string.Empty), player);
+                    }
+                }
+            }
+            else
+            {
+                int count = 0;
+                foreach (int id in player.GetCards("h"))
+                {
+                    if (Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard)
+                        count++;
+                }
+
+                count = Math.Min(5, count);
+                if (count > 0)
+                    room.DrawCards(player, count, Name);
+            }
+
+            return false;
+        }
+    }
+
+    public class NeifaTar : TargetModSkill
+    {
+        public NeifaTar() : base("#neifa-tar", false)
+        {
+            pattern = "Slash#TrickCard";
+        }
+
+        public override int GetExtraTargetNum(Room room, Player from, WrappedCard card)
+        {
+            if ((card.Name.Contains(Slash.ClassName) && from.HasFlag("neifa_basic"))
+                || (Engine.GetFunctionCard(card.Name) is TrickCard && from.HasFlag("neifa_not_basic")))
+                return 1;
+            return 0;
+        }
+
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
+        {
+            int count = 0;
+            if (card.Name.Contains(Slash.ClassName) && from.HasFlag("neifa_basic"))
+            {
+                foreach (int id in from.GetCards("h"))
+                {
+                    if (!(Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard))
+                        count++;
+                }
+            }
+            count = Math.Min(5, count);
+            return count;
+        }
+    }
+
+    public class NeifaPro : ProhibitSkill
+    {
+        public NeifaPro() : base("#neifa-pro")
+        {
+        }
+
+        public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
+        {
+            if (from != null && card != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                bool basic = fcard is BasicCard;
+                if ((from.HasFlag("neifa_basic") && !basic) || (from.HasFlag("neifa_not_basic") && basic))
+                    return true;
+            }
+
+            return false;
+        }
     }
 
     public class Qiangwu : TriggerSkill

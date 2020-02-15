@@ -515,7 +515,7 @@ namespace SanguoshaServer.Scenario
                     {
                         clients.Add(room.GetClient(p.ClientId));
                     }
-                    else if (kingdoms[p.Kingdom] == 1 && p.ClientId > 0)
+                    else if (kingdoms.ContainsKey(p.Kingdom) && kingdoms[p.Kingdom] == 1 && p.ClientId > 0)
                     {
                         clients.Add(room.GetClient(p.ClientId));
                     }

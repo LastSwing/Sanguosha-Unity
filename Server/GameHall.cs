@@ -247,7 +247,7 @@ namespace SanguoshaServer
             }
             else
             {
-                Debug(string.Format("found no client {0}", session.SessionID));
+                Debug(string.Format("found no client {0}", session.LocalEndPoint.ToString()));
                 session.Close();
                 return;
             }
