@@ -159,7 +159,7 @@ namespace SanguoshaServer.Scenario
             return _player;
         }
 
-        public abstract List<Client> CheckSurrendAvailable(Room room);
+        public abstract List<Interactivity> CheckSurrendAvailable(Room room);
         public abstract string GetPreWinner(Room room, Client surrender_client);
     }
 

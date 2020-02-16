@@ -486,9 +486,9 @@ namespace SanguoshaServer.Scenario
             return string.Join("+", winners);
         }
 
-        public override List<Client> CheckSurrendAvailable(Room room)
+        public override List<Interactivity> CheckSurrendAvailable(Room room)
         {
-            List<Client> clients = new List<Client>();
+            List<Interactivity > clients = new List<Interactivity>();
             bool check = true;
             Dictionary<string, int> kingdoms = new Dictionary<string, int>();
             foreach (Player p in room.GetAlivePlayers())
@@ -513,11 +513,11 @@ namespace SanguoshaServer.Scenario
                 {
                     if (lest_kingdom.Contains(p.Name) && p.ClientId > 0)
                     {
-                        clients.Add(room.GetClient(p.ClientId));
+                        clients.Add(room.GetInteractivity(p.ClientId));
                     }
                     else if (kingdoms.ContainsKey(p.Kingdom) && kingdoms[p.Kingdom] == 1 && p.ClientId > 0)
                     {
-                        clients.Add(room.GetClient(p.ClientId));
+                        clients.Add(room.GetInteractivity(p.ClientId));
                     }
                 }
             }

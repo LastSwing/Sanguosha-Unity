@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using CommonClass;
 using CommonClass.Game;
@@ -355,7 +356,7 @@ namespace SanguoshaServer.Scenario
             options = new Dictionary<Player, List<string>>();
 
             int max_choice = room.Setting.GeneralCount;
-            List<string> generals = new List<string>(room.Generals);
+            List<string> generals = new List<string>(room.Generals), reserved = new List<string>(), lord_generals = new List<string>();
             if (generals.Count < max_choice * room.Players.Count)
                 max_choice = (generals.Count - 1) / room.Players.Count;
 
@@ -365,24 +366,96 @@ namespace SanguoshaServer.Scenario
                 if (client.UserID < 0) continue;
                 List<string> reserved_generals = new List<string>(client.GeneralReserved);
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
+                reserved.AddRange(reserved_generals);
+            }
 
-                foreach (string general in reserved_generals)
+            List<string> duplicated = reserved.GroupBy(x => x).Where(x => x.Count() > 1).Select(x => x.Key).ToList();
+            for (int i = 0; i < room.Clients.Count; i++)
+            {
+                Client client = room.Clients[i];
+                if (client.UserID < 0) continue;
+                if (client.GeneralReserved == null || client.GeneralReserved.Count == 0) continue;
+                client.GeneralReserved.RemoveAll(t => duplicated.Contains(t));
+            }
+
+            //优先给主公找出3张主公武将
+            Player lord = null;
+            Client lord_client = null;
+            foreach (Player player in room.Players)
+            {
+                if (player.GetRoleEnum() == PlayerRole.Lord)
                 {
-                    for (int y = i + 1; y < room.Clients.Count; y++)
-                    {
-                        Client client2 = room.Clients[y];
-                        if (client == client2 || client2.UserID < 0 || client2.GeneralReserved == null || client2.GeneralReserved.Count == 0) continue;
-                        if (client2.GeneralReserved.Contains(general))
-                        {
-                            client.GeneralReserved.RemoveAll(t => t == general);
-                            client2.GeneralReserved.RemoveAll(t => t == general);
-                        }
-                    }
+                    lord = player;
+                    break;
                 }
             }
+
             foreach (Client client in room.Clients)
             {
-                if (client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
+                if (client.UserID == lord.ClientId)
+                {
+                    lord_client = client;
+                    if (client.UserID >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
+                    {
+                        options[lord] = new List<string>();
+                        foreach (string general in client.GeneralReserved)
+                        {
+                            if (generals.Contains(general))
+                            {
+                                options[lord].Add(general);
+                                generals.Remove(general);
+                            }
+                        }
+                    }
+
+                    client.GeneralReserved = null;
+                    break;
+                }
+            }
+
+            int lord_adjust = options.ContainsKey(lord) ? options[lord].Count : 0;
+            //应该为主公配的主公武将数
+            int lest = max_choice + 1 - lord_adjust;
+            int lord_count = Math.Min(3, lest);
+
+            List<string> lord_choices = new List<string>();
+            Shuffle.shuffle(ref generals);
+            foreach (string general_name in generals)
+            {
+                if (lord.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
+                if (Engine.GetGeneral(general_name, room.Setting.GameMode).IsLord())
+                    lord_choices.Add(general_name);
+
+                if (lord_choices.Count >= lord_count) break;
+            }
+
+            if (lord_choices.Count < lord_count)
+            {
+                foreach (Client client in room.Clients)
+                {
+                    if (client.UserID == lord.ClientId || client.UserID < 0 || client.GeneralReserved == null && client.GeneralReserved.Count == 0) continue;
+                    List<string> reserver_p = new List<string>(client.GeneralReserved);
+                    foreach (string general in reserver_p)
+                    {
+                        if (lord.ClientId < 0 && !Engine.IsAISelectable(general, room.Setting.GameMode)) continue;
+                        if (generals.Contains(general) && Engine.GetGeneral(general, room.Setting.GameMode).IsLord())
+                        {
+                            client.GeneralReserved.Remove(general);
+                            lord_choices.Add(general);
+                        }
+
+                        if (lord_choices.Count >= lord_count) break;
+                    }
+
+                    if (lord_choices.Count >= lord_count) break;
+                }
+            }
+            generals.RemoveAll(t => lord_choices.Contains(t));
+
+            foreach (Client client in room.Clients)
+            {
+                if (client == lord_client) continue;
+                if (client.UserID >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
                 {
                     foreach (Player p in room.Players)
                     {
@@ -405,45 +478,24 @@ namespace SanguoshaServer.Scenario
 
                 client.GeneralReserved = null;
             }
-
-
-            foreach (Player player in room.Players)
+            
+            for (int i = lord_choices.Count; i < max_choice + 1 - lord_adjust; i++)
             {
-                if (player.GetRoleEnum() == PlayerRole.Lord)
+                Shuffle.shuffle(ref generals);
+                string choice = string.Empty;
+                foreach (string general_name in generals)
                 {
-                    List<string> choices = new List<string>();
-                    Shuffle.shuffle(ref generals);
-                    foreach (string general_name in generals)
-                    {
-                        if (player.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
-                        if (Engine.GetGeneral(general_name, room.Setting.GameMode).IsLord())
-                            choices.Add(general_name);
-
-                        if (choices.Count >= 3) break;
-                    }
-                    generals.RemoveAll(t => choices.Contains(t));
-
-                    int adjust = options.ContainsKey(player) ? options[player].Count : 0;
-                    for (int i = choices.Count; i < max_choice + 1 - adjust; i++)
-                    {
-                        Shuffle.shuffle(ref generals);
-                        string choice = string.Empty;
-                        foreach (string general_name in generals)
-                        {
-                            if (player.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
-                            choice = general_name;
-                            break;
-                        }
-                        choices.Add(choice);
-                        generals.Remove(choice);
-                    }
-                    if (options.ContainsKey(player))
-                        options[player].AddRange(choices);
-                    else
-                        options.Add(player, choices);
+                    if (lord.ClientId < 0 && !Engine.IsAISelectable(general_name, room.Setting.GameMode)) continue;
+                    choice = general_name;
                     break;
                 }
+                lord_choices.Add(choice);
+                generals.Remove(choice);
             }
+            if (options.ContainsKey(lord))
+                options[lord].AddRange(lord_choices);
+            else
+                options.Add(lord, lord_choices);
 
             foreach (Player player in room.Players)
             {
@@ -634,9 +686,9 @@ namespace SanguoshaServer.Scenario
             return string.Join("+", winners);
         }
 
-        public override List<Client> CheckSurrendAvailable(Room room)
+        public override List<Interactivity> CheckSurrendAvailable(Room room)
         {
-            List<Client> clients = new List<Client>();
+            List<Interactivity> clients = new List<Interactivity>();
             int loyalist = 0;
             List<Player> rebel = new List<Player>(), rena = new List<Player>();
             Player lord = null;
@@ -661,15 +713,15 @@ namespace SanguoshaServer.Scenario
 
             if (loyalist == 0 && (rebel.Count == 0 || rena.Count == 0) && lord.ClientId > 0)
             {
-                clients.Add(room.GetClient(lord.ClientId));
+                clients.Add(room.GetInteractivity(lord.ClientId));
             }
             if (rebel.Count == 1 && rena.Count == 0 && rebel[0].ClientId > 0)
             {
-                clients.Add(room.GetClient(rebel[0].ClientId));
+                clients.Add(room.GetInteractivity(rebel[0].ClientId));
             }
             if (rebel.Count == 0 && rena.Count == 1 && rena[0].ClientId > 0)
             {
-                clients.Add(room.GetClient(rena[0].ClientId));
+                clients.Add(room.GetInteractivity(rena[0].ClientId));
             }
 
             return clients;

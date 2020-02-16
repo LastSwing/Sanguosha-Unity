@@ -371,24 +371,24 @@ namespace SanguoshaServer.Scenario
             return string.Join("+", winners);
         }
 
-        public override List<Client> CheckSurrendAvailable(Room room)
+        public override List<Interactivity> CheckSurrendAvailable(Room room)
         {
-            List<Client> clients = new List<Client>();
+            List<Interactivity> clients = new List<Interactivity>();
             int cool = 0, warm = 0;
-            Client cool_lord = null;
-            Client warm_lord = null;
+            Interactivity cool_lord = null;
+            Interactivity warm_lord = null;
             foreach (Player p in room.GetAlivePlayers())
             {
                 if (p.Camp == Game3v3Camp.S_CAMP_COOL)
                 {
                     if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
-                        cool_lord = room.GetClient(p.ClientId);
+                        cool_lord = room.GetInteractivity(p.ClientId);
                     cool++;
                 }
                 else
                 {
                     if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
-                        warm_lord = room.GetClient(p.ClientId);
+                        warm_lord = room.GetInteractivity(p.ClientId);
                     warm++;
                 }
             }

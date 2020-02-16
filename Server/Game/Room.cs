@@ -82,7 +82,7 @@ namespace SanguoshaServer.Game
         private Queue<Player> m_extra_turn = new Queue<Player>();
         private Dictionary<int, int> cards_replace = new Dictionary<int, int>();
         private readonly Dictionary<int, bool> intel_select = new Dictionary<int, bool>();
-        private ConcurrentDictionary<Client, bool> surrender = new ConcurrentDictionary<Client, bool>();
+        private ConcurrentDictionary<Interactivity, bool> surrender = new ConcurrentDictionary<Interactivity, bool>();
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -3370,13 +3370,17 @@ namespace SanguoshaServer.Game
         {
             lock (surrender)
             {
-                bool success = surrender.TryGetValue(client, out bool available);
+                Interactivity inter = GetInteractivity(client.UserID);
+                bool success = surrender.TryGetValue(inter, out bool available);
                 if (client.UserID > 0 && string.IsNullOrEmpty(PreWinner) && available)
                 {
-                    List<Client> clients = new List<Client>(surrender.Keys);
+                    List<Interactivity> clients = new List<Interactivity>(surrender.Keys);
                     surrender.Clear();
-                    foreach (Client to_notify in clients)
+                    foreach (Interactivity _inter in clients)
+                    {
+                        Client to_notify = GetClient(_inter.ClientId);
                         DoNotify(to_notify, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { false.ToString() });
+                    }
 
                     PreWinner = Scenario.GetPreWinner(this, client);
 
@@ -3486,7 +3490,8 @@ namespace SanguoshaServer.Game
                 BroadcastProperty(p, "Status");
             }
 
-            if (surrender.TryGetValue(client, out bool enable) && enable)
+            Interactivity inter = GetInteractivity(client.UserID);
+            if (inter != null && surrender.TryGetValue(inter, out bool enable) && enable)
             {
                 DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
             }
@@ -5445,11 +5450,12 @@ namespace SanguoshaServer.Game
             }
             */
 
-            List<Client> availables = Scenario.CheckSurrendAvailable(this);
+            List<Interactivity> availables = Scenario.CheckSurrendAvailable(this);
             surrender.Clear();
-            foreach (Client client in availables)
+            foreach (Interactivity inter in availables)
             {
-                surrender.TryAdd(client, true);
+                surrender.TryAdd(inter, true);
+                Client client = GetClient(inter.ClientId);
                 DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
             }
         }
