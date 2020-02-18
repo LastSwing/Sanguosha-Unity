@@ -8406,12 +8406,20 @@ namespace SanguoshaServer.Game
                 {
                     List<string> answer = new List<string>(clientResponse[0].Split('+'));
                     bool valid = true;
+                    bool cheat = false;
                     foreach (string name in answer)
                     {
-                        if (skill_name == "gamerule" && !generals.Contains(name) && GetClient(player).UserRight < 3)
+                        if (skill_name == "gamerule" && !generals.Contains(name))
                         {
-                            valid = false;
-                            break;
+                            if (GetClient(player).UserRight < 3)
+                            {
+                                valid = false;
+                                break;
+                            }
+                            else
+                            {
+                                cheat = true;
+                            }
                         }
                         else if (skill_name != "gamerule" && !generals.Contains(name))
                         {
@@ -8419,6 +8427,15 @@ namespace SanguoshaServer.Game
                             break;
                         }
                     }
+
+                    if (cheat)
+                    {
+                        LogMessage log = new LogMessage();
+                        log.Type = "#cheat_pick";
+                        log.From = player.Name;
+                        SendLog(log);
+                    }
+
                     if (success && valid)
                         default_choice = clientResponse[0];
                 }
@@ -9546,15 +9563,10 @@ namespace SanguoshaServer.Game
 
                 foreach (int id in downcards)
                 {
-                    if (notify_visible_list.Count == 0)
+                    if (notify_visible_list.Contains(id))
                         notify_down.Add(id);
                     else
-                    {
-                        if (notify_visible_list.Contains(id))
-                            notify_down.Add(id);
-                        else
-                            notify_down.Add(-1);
-                    }
+                        notify_down.Add(-1);
                 }
                 stepArgs[3] = JsonUntity.Object2Json(notify_up);
                 stepArgs[4] = JsonUntity.Object2Json(notify_down);

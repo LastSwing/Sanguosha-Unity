@@ -24,6 +24,7 @@ namespace SanguoshaServer.Scenario
         protected GameRule rule;
         protected bool random_seat;
         protected List<Skill> skills = new List<Skill>();
+        protected Dictionary<Player, List<string>> reserved = new Dictionary<Player, List<string>>();
         public abstract void Assign(Room room);
         public abstract void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile);
         public abstract void PrepareForPlayers(Room room);

@@ -65,6 +65,7 @@ namespace SanguoshaServer.Package
                 new KejiJX(),
                 new Qinxue(),
                 new Botu(),
+                new BotuClear(),
                 new Gongxin(),
                 new KurouJX(),
                 new Zhaxiang(),
@@ -98,6 +99,7 @@ namespace SanguoshaServer.Package
                 { "tishen", new List<string> { "#tishen-get" } },
                 { "zhaxiang", new List<string> { "#zhaxiang-tm" } },
                 { "qianxun_jx", new List<string> { "#qianxun_jx-clear" } },
+                { "botu", new List<string> { "#botu" } },
             };
         }
     }
@@ -2283,8 +2285,8 @@ namespace SanguoshaServer.Package
 
         public override bool Triggerable(Player target, Room room)
         {
-            int count = 3 + target.MaxHp;
-            if (room.Players.Count >= 7) count = 2 + target.MaxHp;
+            int count = 3 + target.Hp;
+            if (room.Players.Count >= 7) count = 2 + target.Hp;
             return target.GetMark(Name) == 0 && base.Triggerable(target, room) && target.Phase == PlayerPhase.Start && target.HandcardNum >= count;
         }
 
@@ -2353,7 +2355,7 @@ namespace SanguoshaServer.Package
 
     public class Botu : TriggerSkill
     {
-        public Botu() : base("Botu")
+        public Botu() : base("botu")
         {
             events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.EventPhaseChanging };
         }
@@ -2369,10 +2371,6 @@ namespace SanguoshaServer.Package
                     suits.Add(suit);
                     player.SetTag(Name + "Suit", suits);
                 }
-            }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
-            {
-                player.RemoveTag(Name + "Suit");
             }
         }
 
@@ -2409,6 +2407,27 @@ namespace SanguoshaServer.Package
             room.SendLog(l);
             room.GainAnExtraTurn(ask_who);
             return false;
+        }
+    }
+
+    public class BotuClear : TriggerSkill
+    {
+        public BotuClear() : base("#botu")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging };
+        }
+
+        public override int GetPriority() => 2;
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.ContainsTag("botuSuit"))
+                player.RemoveTag("botuSuit");
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
         }
     }
 

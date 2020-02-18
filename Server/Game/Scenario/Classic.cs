@@ -142,6 +142,15 @@ namespace SanguoshaServer.Scenario
             };
             room.SendLog(log);
 
+            //通知
+            if (reserved.TryGetValue(lord, out List<string> lord_reserved) && lord_reserved.Contains(lord_general))
+            {
+                LogMessage reserved_log = new LogMessage();
+                reserved_log.Type = "#reserved_pick";
+                reserved_log.From = lord.Name;
+                room.SendLog(reserved_log);
+            }
+
             lord.General1 = lord_general;
             lord.ActualGeneral1 = lord_general;
             General lord_gen = Engine.GetGeneral(lord_general, room.Setting.GameMode);
@@ -215,6 +224,7 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in options.Keys)
             {
                 player.RemoveTag("generals");
+                if (player == lord) continue;
                 if (string.IsNullOrEmpty(player.General1))
                 {
                     string generalName = string.Empty;
@@ -255,6 +265,23 @@ namespace SanguoshaServer.Scenario
                 List<string> names = new List<string> { player.General1 };
                 room.SetTag(player.Name, names);
                 room.HandleUsedGeneral(player.General1);
+
+                //通知
+                if (reserved.TryGetValue(player, out List<string> p_reserved) && p_reserved.Contains(player.General1))
+                {
+                    LogMessage reserved_log = new LogMessage();
+                    reserved_log.Type = "#reserved_pick";
+                    reserved_log.From = player.Name;
+                    room.SendLog(reserved_log);
+                }
+
+                if (!options[player].Contains(player.General1))
+                {
+                    LogMessage cheat_log = new LogMessage();
+                    cheat_log.Type = "#cheat_pick";
+                    cheat_log.From = player.Name;
+                    room.SendLog(cheat_log);
+                }
             }
 
             //非主公神将选国籍
@@ -406,6 +433,7 @@ namespace SanguoshaServer.Scenario
                                 generals.Remove(general);
                             }
                         }
+                        this.reserved[lord] = new List<string>(options[lord]);
                     }
 
                     client.GeneralReserved = null;
@@ -470,6 +498,7 @@ namespace SanguoshaServer.Scenario
                                     generals.Remove(general);
                                 }
                             }
+                            this.reserved[p] = new List<string>(options[p]);
 
                             break;
                         }

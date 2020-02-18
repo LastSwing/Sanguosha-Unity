@@ -2769,9 +2769,7 @@ namespace SanguoshaServer.AI
             {
                 List<string> choices = new List<string>(choice.Split('+'));
                 choices.Remove("cancel");
-                for (int i = choices.Count - 1; i >= 0; i--)
-                    if (use.From.HasEquip(choices[i]))
-                        return choices[i];
+                return choices[choices.Count - 1];
             }
 
             return "cancel";

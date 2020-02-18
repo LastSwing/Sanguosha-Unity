@@ -7271,12 +7271,12 @@ namespace SanguoshaServer.Package
         {
             List<string> cards = new List<string>();
             List<string> used = player.ContainsTag(Name) ? (List<string>)player.GetTag(Name) : new List<string>();
-            foreach (FunctionCard fcard in room.AvailableFunctionCards)
+            foreach (string card_name in ViewAsSkill.GetGuhuoCards(room, "btd"))
             {
-                string card_name = fcard.Name;
-                if (card_name.Contains(Slash.ClassName)) card_name = Slash.ClassName;
-                if (!used.Contains(card_name) && !cards.Contains(card_name))
-                    cards.Add(card_name);
+                string _card_name = card_name;
+                if (card_name.Contains(Slash.ClassName)) _card_name = Slash.ClassName;
+                if (!used.Contains(_card_name) && !cards.Contains(_card_name))
+                    cards.Add(_card_name);
             }
 
             return cards;

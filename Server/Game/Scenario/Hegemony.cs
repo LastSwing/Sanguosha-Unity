@@ -60,7 +60,8 @@ namespace SanguoshaServer.Scenario
             room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_CHOOSE_GENERAL);
             room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
-            foreach (Player player in options.Keys) {
+            foreach (Player player in options.Keys)
+            {
                 player.RemoveTag("generals");
                 if (!string.IsNullOrEmpty(player.General1)) continue;
                 bool success = true;
@@ -88,7 +89,8 @@ namespace SanguoshaServer.Scenario
                 }
             }
 
-            foreach (Player player in players) {
+            foreach (Player player in players)
+            {
                 List<string> names = new List<string>(); 
                 if (!string.IsNullOrEmpty(player.General1))
                 {
@@ -109,6 +111,7 @@ namespace SanguoshaServer.Scenario
                     room.NotifyProperty(room.GetClient(player), player, "ActualGeneral1");
                     room.NotifyProperty(room.GetClient(player), player, "Kingdom");
                 }
+
                 if (!string.IsNullOrEmpty(player.General2))
                 {
                     string name = player.General2;
@@ -121,10 +124,22 @@ namespace SanguoshaServer.Scenario
                 
                 room.HandleUsedGeneral(names[0]);
                 room.HandleUsedGeneral(names[1]);
-                // setup AI
-                //AI* ai = cloneAI(player);
-                //ais << ai;
-                //player->setAI(ai);
+
+                if (reserved.TryGetValue(player, out List<string> p_reserved) && (p_reserved.Contains(names[0]) || p_reserved.Contains(names[1])))
+                {
+                    LogMessage reserved_log = new LogMessage();
+                    reserved_log.Type = "#reserved_pick";
+                    reserved_log.From = player.Name;
+                    room.SendLog(reserved_log);
+                }
+
+                if (!options[player].Contains(names[0]) || !options[player].Contains(names[1]))
+                {
+                    LogMessage log = new LogMessage();
+                    log.Type = "#cheat_pick";
+                    log.From = player.Name;
+                    room.SendLog(log);
+                }
             }
 
             //君主转换
@@ -224,6 +239,7 @@ namespace SanguoshaServer.Scenario
                                     generals.Remove(general);
                                 }
                             }
+                            reserved[p] = new List<string>(options[p]);
 
                             break;
                         }

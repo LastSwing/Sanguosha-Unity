@@ -1060,7 +1060,7 @@ namespace SanguoshaServer.Package
 
         public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
         {
-            if (from != null && to != null && RoomLogic.PlayerHasShownSkill(room, from, "limu") && RoomLogic.InMyAttackRange(room, from, to, card)
+            if (from != null && to != null && RoomLogic.PlayerHasShownSkill(room, from, "limu") && RoomLogic.InMyAttackRange(room, from, to, card) && from != to
                 && from.JudgingArea.Count > 0)
                 return true;
 
