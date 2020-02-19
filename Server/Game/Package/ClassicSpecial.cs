@@ -1134,7 +1134,7 @@ namespace SanguoshaServer.Package
             };
             room.Judge(ref judge);
 
-            if (WrappedCard.IsBlack(judge.Card.Suit))
+            if (WrappedCard.IsBlack(judge.JudgeSuit))
             {
                 List<Player> targets = new List<Player>();
                 foreach (Player p in room.GetAlivePlayers())
@@ -8272,8 +8272,8 @@ namespace SanguoshaServer.Package
 
             room.Judge(ref judge);
 
-            player.SetMark("qiangwu", judge.Card.Number);
-            room.SetPlayerStringMark(player, "qiangwu", judge.Card.Number.ToString());
+            player.SetMark("qiangwu", judge.JudgeNumber);
+            room.SetPlayerStringMark(player, "qiangwu", judge.JudgeNumber.ToString());
         }
     }
 

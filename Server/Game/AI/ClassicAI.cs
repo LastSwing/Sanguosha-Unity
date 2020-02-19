@@ -1615,6 +1615,7 @@ namespace SanguoshaServer.AI
                         save = false;
                         break;
                     }
+                    next = room.GetNextAlive(next, 1, false);
                 }
 
                 if (!save) return false;

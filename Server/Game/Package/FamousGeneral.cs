@@ -5175,7 +5175,7 @@ namespace SanguoshaServer.Package
 
             if (target.Alive)
             {
-                if (WrappedCard.IsBlack(judge.Card.Suit))
+                if (WrappedCard.IsBlack(judge.JudgeSuit))
                 {
                     room.DrawCards(target, new DrawCardStruct(((DamageStruct)data).Damage, player, Name));
                 }

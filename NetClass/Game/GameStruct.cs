@@ -746,6 +746,8 @@ namespace CommonClass.Game
         public bool Time_consuming { set; get; }
         public bool Negative { set; get; }
         public bool PlayAnimation { set; get; }
+        public int JudgeNumber { set; get; }
+        public WrappedCard.CardSuit JudgeSuit { set; get; }
 
         private enum TrialResult
         {

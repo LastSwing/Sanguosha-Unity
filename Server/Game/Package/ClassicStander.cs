@@ -814,20 +814,20 @@ namespace SanguoshaServer.Package
 
             Thread.Sleep(400);
 
-            string suit = WrappedCard.GetSuitString(judge.Card.Suit);
+            string suit = WrappedCard.GetSuitString(judge.JudgeSuit);
             LogMessage l = new LogMessage
             {
                 Type = "#tieqijudge",
                 From = source.Name,
                 Arg = Name,
-                Arg2 = WrappedCard.GetSuitString(judge.Card.Suit)
+                Arg2 = WrappedCard.GetSuitString(judge.JudgeSuit)
             };
             room.SendLog(l);
             target.SetTag("tieqi_judge", judge.Card.Id);
 
             if (room.AskForCard(target, "tieqi",
                 string.Format("..{0}", suit.Substring(0, 1).ToUpper()),
-                string.Format("@tieqi-discard:::{0}", string.Format("<color={0}>{1}</color>", WrappedCard.IsBlack(judge.Card.Suit) ? "black" : "red", WrappedCard.GetSuitIcon(judge.Card.Suit))),
+                string.Format("@tieqi-discard:::{0}", string.Format("<color={0}>{1}</color>", WrappedCard.IsBlack(judge.JudgeSuit) ? "black" : "red", WrappedCard.GetSuitIcon(judge.JudgeSuit))),
                 judge.Card) == null)
             {
                 LogMessage log = new LogMessage
@@ -1533,7 +1533,7 @@ namespace SanguoshaServer.Package
             room.Judge(ref judge);
             if (from != null && from.Alive)
             {
-                bool red = WrappedCard.IsRed(judge.Card.Suit);
+                bool red = WrappedCard.IsRed(judge.JudgeSuit);
                 if (red)
                     room.Damage(new DamageStruct(Name, xiahou, from));
                 else if (!from.IsNude())

@@ -1288,7 +1288,7 @@ namespace SanguoshaServer
                     {
                         foreach (Player p in available_targets)
                         {
-                            if (p.HasFlag("SlashAssignee"))
+                            if (p.HasFlag("slashTargetFixToOne"))
                             {
                                 selected_targets.Add(p);
                                 targets.Add(p);

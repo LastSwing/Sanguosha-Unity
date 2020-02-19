@@ -4046,7 +4046,7 @@ namespace SanguoshaServer.Package
                 };
 
                 room.Judge(ref judge);
-                shuangxiong.SetMark("shuangxiong", judge.Pattern == "red" ? 1 : 2);
+                shuangxiong.SetMark("shuangxiong", WrappedCard.IsRed(judge.JudgeSuit) ? 1 : 2);
 
                 return true;
             }
@@ -4102,8 +4102,6 @@ namespace SanguoshaServer.Package
         {
             JudgeStruct judge = (JudgeStruct)data;
             room.ObtainCard(judge.Who, judge.Card);
-            judge.Pattern = WrappedCard.IsRed(judge.Card.Suit) ? "red" : "black";
-            data = judge;
 
             return false;
         }
@@ -4518,7 +4516,7 @@ namespace SanguoshaServer.Package
     {
         public Beige() : base("beige")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.FinishJudge };
+            events = new List<TriggerEvent> { TriggerEvent.Damaged };
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -4536,14 +4534,7 @@ namespace SanguoshaServer.Package
                 }
 
             }
-            else if (triggerEvent == TriggerEvent.FinishJudge && data is JudgeStruct judge)
-            {
-                if (judge.Reason == Name)
-                {
-                    judge.Pattern = ((int)(judge.Card.Suit)).ToString();
-                    data = judge;
-                }
-            }
+
             return skill_list;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player caiwenji, TriggerStruct info)
@@ -4577,7 +4568,7 @@ namespace SanguoshaServer.Package
 
             room.Judge(ref judge);
 
-            WrappedCard.CardSuit suit = (WrappedCard.CardSuit)(int.Parse(judge.Pattern));
+            WrappedCard.CardSuit suit = judge.JudgeSuit;
             switch (suit)
             {
                 case WrappedCard.CardSuit.Heart:

@@ -4673,6 +4673,11 @@ namespace SanguoshaServer.Game
             RoomThread.Trigger(TriggerEvent.FinishRetrial, this, judge_star.Who, ref data);
             RoomThread.Trigger(TriggerEvent.JudgeResult, this, judge_star.Who, ref data);
 
+            JudgeStruct judge = (JudgeStruct)data;
+            judge.JudgeNumber = judge.Card.Number;
+            judge.JudgeSuit = judge.Card.Suit;
+            data = judge;
+
             SetTag("judge", (int)GetTag("judge") - 1);
             m_judge_list.RemoveAt(m_judge_list.Count - 1);
 
