@@ -1932,7 +1932,7 @@ namespace SanguoshaServer.AI
             ai.SortByKeepValue(ref ids, false);
 
             List<int> worst = new List<int>(), club = new List<int>(), spade = new List<int>(), heart = new List<int>(), diamond = new List<int>();
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Math.Min(4, ids.Count); i++)
                 worst.Add(ids[i]);
 
             if (ai.IsFriend(target))

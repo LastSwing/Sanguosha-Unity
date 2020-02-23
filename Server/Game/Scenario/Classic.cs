@@ -384,7 +384,7 @@ namespace SanguoshaServer.Scenario
 
             int max_choice = room.Setting.GeneralCount;
             List<string> generals = new List<string>(room.Generals), reserved = new List<string>(), lord_generals = new List<string>();
-            if (generals.Count < max_choice * room.Players.Count)
+            if (generals.Count - 1 < max_choice * room.Players.Count)
                 max_choice = (generals.Count - 1) / room.Players.Count;
 
             for (int i = 0; i < room.Clients.Count; i++)

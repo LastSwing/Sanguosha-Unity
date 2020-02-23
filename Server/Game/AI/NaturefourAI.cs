@@ -652,9 +652,70 @@ namespace SanguoshaServer.AI
     {
         public ZhibaAI() : base("zhiba")
         {
-            key = new List<string> { "pindian:zhiba" };
+        }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            if (!player.HasUsed(ZhibaCard.ClassName) && !player.IsKongcheng())
+                return new List<WrappedCard> { new WrappedCard(ZhibaCard.ClassName) { Skill = Name } };
+
+            return new List<WrappedCard>();
         }
 
+        public override WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> players)
+        {
+            Room room = ai.Room;
+            if (ai.Self == requestor)
+            {
+                if (ai.Number[Name] >= 0)
+                    return ai.GetMaxCard();
+
+                return ai.GetMaxCard();
+            }
+            else
+            {
+                if (ai.IsFriend(requestor))
+                    return ai.GetMinCard();
+                else
+                    return ai.GetMaxCard();
+            }
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is string str)
+            {
+                if (str != "@zhiba")
+                {
+                    Room room = ai.Room;
+                    string[] strs = str.Split(':');
+                    Player target = room.FindPlayer(strs[1]);
+                    if (!ai.IsFriend(target) && ai.GetMaxCard(player).Number < 12)
+                        return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    public class ZhibaVSAI : SkillEvent
+    {
+        public ZhibaVSAI() : base("zhibavs")
+        {
+            key = new List<string> { "pindian:zhibavs" };
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            Player lord = RoomLogic.FindPlayerBySkillName(room, "zhiba");
+            if (lord != null && player.Kingdom == "wu" && !player.HasUsed(ZhibaCard.ClassName) && !player.IsKongcheng()
+                && RoomLogic.CanBePindianBy(room, lord, player) && (ai.IsFriend(lord) || ai.IsEnemy(lord)))
+                return new List<WrappedCard> { new WrappedCard(ZhibaCard.ClassName) { Skill = Name } };
+
+            return new List<WrappedCard>();
+        }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (data is string str && ai.Self != player)
@@ -688,41 +749,6 @@ namespace SanguoshaServer.AI
             else
                 return ai.GetMaxCard();
         }
-
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
-        {
-            if (data is string str)
-            {
-                if (str != "@zhiba")
-                {
-                    Room room = ai.Room;
-                    string[] strs = str.Split(':');
-                    Player target = room.FindPlayer(strs[1]);
-                    if (!ai.IsFriend(target) && ai.GetMaxCard(player).Number < 12)
-                        return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
-    public class ZhibaVSAI : SkillEvent
-    {
-        public ZhibaVSAI() : base("zhibavs")
-        {
-        }
-
-        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
-        {
-            Room room = ai.Room;
-            Player lord = RoomLogic.FindPlayerBySkillName(room, "zhiba");
-            if (lord != null && player.Kingdom == "wu" && !player.HasUsed(ZhibaCard.ClassName) && !player.IsKongcheng()
-                && RoomLogic.CanBePindianBy(room, lord, player) && (ai.IsFriend(lord) || ai.IsEnemy(lord)))
-                return new List<WrappedCard> { new WrappedCard(ZhibaCard.ClassName) };
-
-            return new List<WrappedCard>();
-        }
     }
 
     public class ZhibaCardAI : UseCard
@@ -734,56 +760,107 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            Player lord = RoomLogic.FindPlayerBySkillName(room, "zhiba");
-            ai.Number["zhiba"] = -1;
-            ai.Number[Name] = 1;
-
-            int max = 7;
-            if (ai.IsFriend(lord))
+            if (card.Skill == "zhibavs")
             {
-                if (lord.HandcardNum == 1)
-                    max = 5;
-            }
-            else
-                max = 11;
+                Player lord = RoomLogic.FindPlayerBySkillName(room, "zhiba");
+                ai.Number["zhibavs"] = -1;
+                ai.Number[Name] = 1;
 
-            List<int> knowns = ai.GetKnownCards(lord);
-            if (knowns.Count == lord.HandcardNum) max = 0;
-            foreach (int id in knowns)
-            {
-                WrappedCard wrapped = room.GetCard(id);
-                if (wrapped.Number > max)
-                    max = wrapped.Number;
-            }
-
-            if (ai.IsFriend(lord))
-            {
-                KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(null, new List<Player> { lord }, Player.Place.PlaceHand);
-                if (pair.Key != null && room.GetCard(pair.Value).Number <= max)
+                int max = 7;
+                if (ai.IsFriend(lord))
                 {
-                    use.Card = card;
-                    ai.Number["zhiba"] = pair.Value;
+                    if (lord.HandcardNum == 1)
+                        max = 5;
+                }
+                else
+                    max = 11;
+
+                List<int> knowns = ai.GetKnownCards(lord);
+                if (knowns.Count == lord.HandcardNum) max = 0;
+                foreach (int id in knowns)
+                {
+                    WrappedCard wrapped = room.GetCard(id);
+                    if (wrapped.Number > max)
+                        max = wrapped.Number;
                 }
 
-                if (ai.GetOverflow(player) > 0)
+                if (ai.IsFriend(lord))
                 {
-                    WrappedCard min = ai.GetMinCard();
-                    if (min.Number <= max)
+                    KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(null, new List<Player> { lord }, Player.Place.PlaceHand);
+                    if (pair.Key != null && room.GetCard(pair.Value).Number <= max)
                     {
                         use.Card = card;
-                        ai.Number["zhiba"] = min.GetEffectiveId();
+                        ai.Number["zhibavs"] = pair.Value;
+                    }
+
+                    if (ai.GetOverflow(player) > 0)
+                    {
+                        WrappedCard min = ai.GetMinCard();
+                        if (min.Number <= max)
+                        {
+                            use.Card = card;
+                            ai.Number["zhibavs"] = min.GetEffectiveId();
+                        }
+                    }
+                }
+                else
+                {
+                    WrappedCard max_self = ai.GetMaxCard();
+                    if (max_self.Number > max)
+                    {
+                        use.Card = card;
+                        ai.Number["zhibavs"] = max_self.GetEffectiveId();
+                        if (ai.GetOverflow(player) > 0)
+                            ai.Number[Name] = 3;
                     }
                 }
             }
             else
             {
+                List<Player> enemies = ai.GetEnemies(player);
+                ai.SortByDefense(ref enemies, false);
                 WrappedCard max_self = ai.GetMaxCard();
-                if (max_self.Number > max)
+                foreach (Player p in enemies)
                 {
-                    use.Card = card;
-                    ai.Number["zhiba"] = max_self.GetEffectiveId();
-                    if (ai.GetOverflow(player) > 0)
-                        ai.Number[Name] = 3;
+                    if (p.Kingdom == "wu" && RoomLogic.CanBePindianBy(room, p, player))
+                    {
+                        int max = 11;
+
+                        List<int> knowns = ai.GetKnownCards(p);
+                        if (knowns.Count == p.HandcardNum) max = 0;
+                        foreach (int id in knowns)
+                        {
+                            WrappedCard wrapped = room.GetCard(id);
+                            if (wrapped.Number > max)
+                                max = wrapped.Number;
+                        }
+
+                        if (max_self.Number >= max)
+                        {
+                            ai.Number[Name] = 3;
+                            ai.Number["zhiba"] = max_self.GetEffectiveId();
+                            use.Card = card;
+                            use.To = new List<Player> { p };
+                            return;
+                        }
+                    }
+                }
+
+                if (ai.GetOverflow(player) > 1)
+                {
+                    List<int> ids = player.GetCards("h");
+                    ai.SortByKeepValue(ref ids, false);
+                    foreach (Player p in enemies)
+                    {
+                        if (p.Kingdom == "wu" && RoomLogic.CanBePindianBy(room, p, player))
+                        {
+                            ai.Number[Name] = 0;
+                            ai.Number["zhiba"] = ids[0];
+                            use.Card = card;
+                            use.To = new List<Player> { p };
+                            return;
+                        }
+                    }
                 }
             }
         }

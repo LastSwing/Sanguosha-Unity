@@ -2333,7 +2333,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.MaxHp > room.Players.Count && player.IsWounded())
+            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.MaxHp > room.AliveCount() && player.IsWounded())
             {
                 return new TriggerStruct(Name, player);
             }
@@ -6921,7 +6921,7 @@ namespace SanguoshaServer.Package
             {
                 WrappedCard snatch = new WrappedCard(Snatch.ClassName);
                 snatch.AddSubCard(card);
-                return names.Contains(to_select.Name) && base.TargetFilter(room, targets, to_select, Self, snatch);
+                return names.Contains(to_select.Name) && Snatch.Instance.TargetFilter(room, targets, to_select, Self, snatch);
             }
             return false;
         }
@@ -6930,7 +6930,7 @@ namespace SanguoshaServer.Package
         {
             WrappedCard snatch = new WrappedCard(Snatch.ClassName);
             snatch.AddSubCard(card);
-            return base.TargetsFeasible(room, targets, Self, snatch);
+            return Snatch.Instance.TargetsFeasible(room, targets, Self, snatch);
         }
 
         public override WrappedCard Validate(Room room, CardUseStruct use)

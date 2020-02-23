@@ -13,6 +13,7 @@ namespace SanguoshaServer.AI
             events = new List<SkillEvent>
             {
                 new LuanjiJXAI(),
+                new XueyiAI(),
                 new ShicaiAI(),
                 new ChenggongAI(),
                 new ZhezhuAI(),
@@ -108,6 +109,68 @@ namespace SanguoshaServer.AI
             }
 
             return result;
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice && room.GetTag(Name) is CardUseStruct use)
+            {
+                string[] choices = choice.Split(':');
+                Player target = room.FindPlayer(choices[2]);
+                if (target != player && ai.GetPlayerTendency(target) != "unknown")
+                {
+                    if (use.Card.Name == ArcheryAttack.ClassName && ai.HasSkill("leiji|leiji_jx", target)) return;
+                    ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            Room room = ai.Room;
+            if (room.GetTag(Name) is CardUseStruct use)
+            {
+                if (use.Card.Name == ArcheryAttack.ClassName)
+                    foreach (Player p in targets)
+                        if (!ai.IsFriend(p) && ai.NotSlashJiaozhu(use.From, p, use.Card)) return new List<Player> { p };
+
+                ai.SortByDefense(ref targets, false);
+                List<ScoreStruct> scores = new List<ScoreStruct>();
+                foreach (Player p in targets)
+                {
+                    if (ai.IsFriend(p) && use.Card.Name == ArcheryAttack.ClassName && ai.JiaozhuneedSlash(use.From, p, use.Card)) continue;
+                    if (ai.IsCardEffect(use.Card, p, use.From) && !ai.IsCancelTarget(use.Card, p, use.From))
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, p, 1 + use.ExDamage);
+                        ScoreStruct score = ai.GetDamageScore(damage);
+                        score.Players = new List<Player> { p };
+                        scores.Add(score);
+                    }
+                }
+
+                if (scores.Count > 0)
+                {
+                    scores.Sort((x, y) => { return x.Score < y.Score ? -1 : 1; });
+                    if (scores[0].Score < 0)
+                        return scores[0].Players;
+                }
+            }
+
+            return new List<Player>();
+        }
+    }
+
+    public class XueyiAI : SkillEvent
+    {
+        public XueyiAI() : base("xueyi") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (!ai.WillSkipPlayPhase(player) && player.HandcardNum < 5)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 

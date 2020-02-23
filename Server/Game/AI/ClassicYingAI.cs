@@ -86,6 +86,21 @@ namespace SanguoshaServer.AI
 
             return true;
         }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> result = new List<Player>();
+            ai.SortByDefense(ref targets, false);
+            foreach (Player p in targets)
+                if (ai.IsEnemy(p))
+                    return new List<Player> { p };
+
+            foreach (Player p in targets)
+                if (!ai.IsFriend(p))
+                    return new List<Player> { p };
+
+            return result;
+        }
     }
 
     public class HongjuAI : SkillEvent

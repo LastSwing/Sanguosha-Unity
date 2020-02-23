@@ -2419,14 +2419,21 @@ namespace SanguoshaServer.Package
                 Arg2 = use.Card.Name
             };
 
+            List<int> ids = room.GetSubCards(use.Card);
+            WrappedCard card = use.Card;
             use.Card.ChangeName(FireSlash.ClassName);
+            bool same = card == use.Card;
+            ids = room.GetSubCards(use.Card);
             if (!use.Card.IsVirtualCard())
                 room.GetCard(use.Card.GetEffectiveId()).ChangeName(FireSlash.ClassName);
+
+            ids = room.GetSubCards(use.Card);
 
             log.Card_str = RoomLogic.CardToString(room, use.Card);
             room.SendLog(log);
 
-            data = use;
+
+            //data = use;
             room.SetEmotion(player, "fan");
             Thread.Sleep(400);
 

@@ -8551,15 +8551,25 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            List<Player> targets = room.GetOtherPlayers(player);
-            if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.From == player)
-                targets.Add(player);
-            Player target = room.AskForPlayerChosen(player, targets, Name, "@qingxian", true, true, info.SkillPosition);
-            if (target != null)
+            if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.From != null && damage.From.Alive)
             {
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                room.SetTag(Name, target);
-                return info;
+                if (room.AskForSkillInvoke(player, Name, damage.From, info.SkillPosition))
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.From.Name);
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    return info;
+                }
+            }
+            else if (triggerEvent == TriggerEvent.HpRecover)
+            {
+                List<Player> targets = room.GetOtherPlayers(player);
+                Player target = room.AskForPlayerChosen(player, targets, Name, "@qingxian", true, true, info.SkillPosition);
+                if (target != null)
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.SetTag(Name, target);
+                    return info;
+                }
             }
 
             return new TriggerStruct();
@@ -8568,8 +8578,14 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             WrappedCard.CardSuit suit = WrappedCard.CardSuit.NoSuit;
-            Player target = (Player)room.GetTag(Name);
-            room.RemoveTag(Name);
+            Player target = null;
+            if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage)
+                target = damage.From;
+            else
+            {
+                target = (Player)room.GetTag(Name);
+                room.RemoveTag(Name);
+            }
 
             List<string> choices = new List<string> { "losehp" };
             if (target.IsWounded()) choices.Add("recover");

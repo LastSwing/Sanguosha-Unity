@@ -123,11 +123,9 @@ namespace CommonClass.Game
 
             return false;
         }
-
         public override int GetHashCode()
         {
-            return Name.GetHashCode() * Id.GetHashCode() * Suit.GetHashCode() * Number.GetHashCode()
-                * SubCards.GetHashCode() * Skill.GetHashCode() * ShowSkill.GetHashCode() * UserString.GetHashCode();
+            return base.GetHashCode();
         }
         public virtual WrappedCard GetUsedCard()
         {

@@ -1726,6 +1726,39 @@ namespace SanguoshaServer.AI
             }
         }
 
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player p)
+            {
+                if (ai.IsEnemy(p) && p.Hp == 1)
+                    return true;
+
+                if (ai.IsFriend(p) && p.IsWounded())
+                {
+                    foreach (int id in p.GetEquips())
+                        if (ai.GetKeepValue(id, p, Place.PlaceEquip) < 0)
+                            return true;
+                }
+
+                if (ai.IsFriend(p) && ai.HasSkill("zhaxiang", p) && ((p.Hp > 1 && p.Phase == PlayerPhase.Play) || (p.Hp > 2 && !ai.WillSkipPlayPhase(p))))
+                    return true;
+
+                if (ai.IsEnemy(p) && ai.IsWeak(p) && !ai.HasSkill("zhaxiang", p))
+                    return true;
+
+                if (ai.IsEnemy(p) && !ai.HasSkill("zhaxiang", p) && !ai.HasSkill(TrustedAI.LoseEquipSkill, p) && !ai.HasSkill(TrustedAI.NeedEquipSkill, p))
+                    return true;
+
+                if (player.GetRoleEnum() == PlayerRole.Renegade && ai is StupidAI _ai && _ai.GetRolePitts(PlayerRole.Rebel) > 0
+                    && p.GetRoleEnum() == PlayerRole.Lord && p.Hp == 1 && !ai.IsEnemy(p) && p.IsWounded())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
         {
             if (targets.Contains(player)) return new List<Player> { player };
@@ -1776,7 +1809,7 @@ namespace SanguoshaServer.AI
                 if (ai.IsEnemy(p) && !ai.HasSkill("zhaxiang", p) && !ai.HasSkill(TrustedAI.LoseEquipSkill, p) && !ai.HasSkill(TrustedAI.NeedEquipSkill, p))
                     return new List<Player> { p };
             
-            if (player.GetRoleEnum() == PlayerRole.Renegade)
+            if (player.GetRoleEnum() == PlayerRole.Renegade && ai is StupidAI _ai && _ai.GetRolePitts(PlayerRole.Rebel) > 0)
             {
                 foreach (Player p in targets)
                 {

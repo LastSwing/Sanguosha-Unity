@@ -605,7 +605,6 @@ namespace SanguoshaServer
                 Debug(string.Format("error on switch room {0} {1}", e.Message, e.TargetSite));
             }
         }
-
         private void CreateRoom(Client client, GameSetting setting)
         {
             //检查游戏设置是否正常
@@ -634,8 +633,7 @@ namespace SanguoshaServer
                 }
 
                 //Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
-
-                int room_id = ++room_serial;
+                int room_id = Interlocked.Increment(ref room_serial);
                 Room room = new Room(this, room_id, client, setting);
                 RId2Room.TryAdd(room_id, room);
             }

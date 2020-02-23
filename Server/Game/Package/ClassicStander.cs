@@ -2165,7 +2165,7 @@ namespace SanguoshaServer.Package
             }
         }
         */
-        public class Fenwei : TriggerSkill
+    public class Fenwei : TriggerSkill
     {
         public Fenwei() : base("fenwei")
         {
