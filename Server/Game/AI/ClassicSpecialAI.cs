@@ -5140,8 +5140,8 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill(Name, player) && !card.IsVirtualCard())
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard is OffensiveHorse && ((isUse && !player.GetOffensiveHorse()) || (!isUse && place == Place.PlaceEquip)))
-                    return 4;
+                if (fcard is DefensiveHorse && ((isUse && !player.GetOffensiveHorse()) || (!isUse && place == Place.PlaceEquip)))
+                    return -1;
             }
 
             return 0;

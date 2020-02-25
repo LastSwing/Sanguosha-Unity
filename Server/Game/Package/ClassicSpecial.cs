@@ -4619,17 +4619,17 @@ namespace SanguoshaServer.Package
                 if (use.Card.Name.Contains(Slash.ClassName))
                 {
                     foreach (Player p in use.To)
-                        if (p != player && RoomLogic.DistanceTo(room, player, p, null, true) == 1)
+                        if (p != player && RoomLogic.DistanceTo(room, p, player, null, true) == 1)
                             return new TriggerStruct(Name, player);
 
                 }
                 if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (RoomLogic.DistanceTo(room, player, p, null, true) == 1)
+                        if (RoomLogic.DistanceTo(room, p, player, null, true) == 1)
                             return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.TrickCardCanceling && data is CardEffectStruct effect && base.Triggerable(effect.From, room) && player != effect.From
-                && RoomLogic.DistanceTo(room, effect.From, player, null, true) == 1)
+                && RoomLogic.DistanceTo(room, player, effect.From, null, true) == 1)
             {
                 return new TriggerStruct(Name, effect.From);
             }
@@ -4648,7 +4648,7 @@ namespace SanguoshaServer.Package
                     for (int i = 0; i < use.EffectCount.Count; i++)
                     {
                         CardBasicEffect effect = use.EffectCount[i];
-                        if (RoomLogic.DistanceTo(room, player, effect.To) == 1)
+                        if (RoomLogic.DistanceTo(room, effect.To, player) == 1)
                         {
                             effect.Effect2 = 0;
                             if (!targets.Contains(effect.To))
@@ -4659,7 +4659,7 @@ namespace SanguoshaServer.Package
 
                 if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (RoomLogic.DistanceTo(room, player, p, null, true) == 1 && !targets.Contains(p))
+                        if (RoomLogic.DistanceTo(room, p, player, null, true) == 1 && !targets.Contains(p))
                             targets.Add(p);
 
                 if (targets.Count > 0)

@@ -106,7 +106,7 @@ namespace SanguoshaServer.Package
     {
         public LuanjiJX() : base("luanji_jx")
         {
-            events.Add(TriggerEvent.TargetChosen);
+            events.Add(TriggerEvent.TargetChoosing);
             frequency = Frequency.Limited;
             skill_type = SkillType.Alter;
             view_as_skill = new LuanjiJXVS();
@@ -143,18 +143,13 @@ namespace SanguoshaServer.Package
         {
             Player target = (Player)room.GetTag(Name);
             room.RemoveTag(Name);
-            if (data is CardUseStruct use)
+            if (data is CardUseStruct use && use.To.Contains(target))
             {
-                for (int i = 0; i < use.EffectCount.Count; i++)
-                {
-                    CardBasicEffect effect = use.EffectCount[i];
-                    if (effect.To == target)
-                    {
-                        effect.Nullified = true;
-                        use.EffectCount[i] = effect;
-                    }
-                }
+                ResultStruct result = player.Result;
+                result.Assist++;
+                player.Result = result;
 
+                room.CancelTarget(ref use, target);
                 data = use;
             }
 
