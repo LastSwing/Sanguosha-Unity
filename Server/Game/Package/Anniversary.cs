@@ -71,6 +71,7 @@ namespace SanguoshaServer.Package
                 new Fangtong(),
                 new Lixun(),
                 new KuizhuLS(),
+                new Fenyue(),
 
                 new Guolun(),
                 new Songsang(),
@@ -113,6 +114,7 @@ namespace SanguoshaServer.Package
                 new ZhurenCard(),
                 new YinjuCard(),
                 new SongshuCard(),
+                new FenyueCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -3415,6 +3417,95 @@ namespace SanguoshaServer.Package
             }
 
             return false;
+        }
+    }
+    
+    public class Fenyue : ZeroCardViewAsSkill
+    {
+        public Fenyue() : base("fenyue") { skill_type = SkillType.Alter; }
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            if (!player.IsKongcheng())
+            {
+                int count = 0;
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    PlayerRole role = p.GetRoleEnum();
+                    if (role == PlayerRole.Lord || role == PlayerRole.Loyalist)
+                    {
+                        if (player.GetRoleEnum() != PlayerRole.Lord && player.GetRoleEnum() != PlayerRole.Loyalist)
+                            count++;
+                    }
+                    else if (player.GetRoleEnum() != p.GetRoleEnum())
+                        count++;
+                }
+                return player.UsedTimes(FenyueCard.ClassName) < count;
+            }
+
+            return false;
+        }
+
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            return new WrappedCard(FenyueCard.ClassName) { Skill = Name };
+        }
+    }
+
+    public class FenyueCard : SkillCard
+    {
+        public static string ClassName = "FenyueCard";
+        public FenyueCard() : base(ClassName)
+        {
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && to_select != Self && RoomLogic.CanBePindianBy(room, to_select, Self);
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From, target = card_use.To[0];
+            PindianStruct pd = room.PindianSelect(card_use.From, target, "fenyue");
+
+            room.Pindian(ref pd);
+            if (pd.Success)
+            {
+                int number = Engine.GetRealCard(pd.From_card.Id).Number;
+                if (number <= 5 && player.Alive && target.Alive && !target.IsNude() && RoomLogic.CanGetCard(room, player, target, "he"))
+                {
+                    int card_id = room.AskForCardChosen(player, target, "he", "fenyue", false, HandlingMethod.MethodGet);
+                    CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "fenyue", string.Empty);
+                    room.ObtainCard(player, room.GetCard(card_id), reason, false);
+                }
+
+                if (number <= 9 && player.Alive)
+                {
+                    List<int> ids = new List<int>();
+                    foreach (int id in room.DrawPile)
+                    {
+                        if (room.GetCard(id).Name.Contains(Slash.ClassName))
+                        {
+                            ids.Add(id);
+                            break;
+                        }
+                    }
+
+                    if (ids.Count > 0)
+                    {
+                        CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GOTBACK, player.Name, "fenyue", string.Empty);
+                        room.ObtainCard(player, ref ids, reason, true);
+                    }
+                }
+
+                if (player.Alive && target.Alive)
+                {
+                    WrappedCard slash = new WrappedCard(ThunderSlash.ClassName);
+                    slash.DistanceLimited = false;
+                    if (RoomLogic.IsProhibited(room, player, target, slash) == null)
+                        room.UseCard(new CardUseStruct(slash, player, target, false));
+                }
+            }
         }
     }
 

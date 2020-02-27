@@ -210,7 +210,7 @@ namespace SanguoshaServer.Package
 
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage)
             {
-                room.AddPlayerMark(damage.From, "@night");
+                room.AddPlayerMark(damage.From, "@night", damage.Damage);
             }
             else if (triggerEvent == TriggerEvent.Death)
             {
@@ -914,13 +914,13 @@ namespace SanguoshaServer.Package
     {
         public Juejing() : base("juejing")
         {
-            events = new List<TriggerEvent> { TriggerEvent.AskForPeaches, TriggerEvent.QuitDying };
+            events = new List<TriggerEvent> { TriggerEvent.Dying, TriggerEvent.QuitDying };
             frequency = Frequency.Compulsory;
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.AskForPeaches && data is DyingStruct dying && dying.Who == player && base.Triggerable(player, room))
+            if (triggerEvent == TriggerEvent.Dying && data is DyingStruct dying && dying.Who == player && base.Triggerable(player, room))
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.QuitDying && base.Triggerable(player, room))
                 return new TriggerStruct(Name, player);

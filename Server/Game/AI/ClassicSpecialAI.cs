@@ -48,6 +48,7 @@ namespace SanguoshaServer.AI
                 new LihunAI(),
                 new ZongkuiAI(),
                 new CanshiAI(),
+                new BingzhaoAI(),
                 new ShichouAI(),
                 new QiaomengAI(),
                 new JiqiaoAI(),
@@ -81,6 +82,7 @@ namespace SanguoshaServer.AI
                 new LianjiAI(),
                 new LianzhuAI(),
                 new ZhoufuAI(),
+                new NeifaAI(),
 
                 new XuejiAI(),
                 new LiangzhuAI(),
@@ -4037,6 +4039,50 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class BingzhaoAI : SkillEvent
+    {
+        public BingzhaoAI() : base("bingzhao")
+        {
+            key = new List<string> { "skillInvoke:bingzhao" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name)
+                {
+                    Player lord = null;
+                    bool friend = strs[2] == "yes";
+                    foreach (Player p in ai.Room.GetAlivePlayers())
+                    {
+                        if (p.GetRoleEnum() == PlayerRole.Lord)
+                        {
+                            lord = p;
+                            break;
+                        }
+                    }
+
+                    ai.UpdatePlayerRelation(player, lord, friend);
+                }
+            }
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is string str)
+            {
+                string[] strs = str.Split(':');
+                Player lord = ai.Room.FindPlayer(strs[1]);
+                return ai.IsFriend(lord);
+            }
+
+            return false;
+        }
+    }
+
     public class ShichouAI : SkillEvent
     {
         public ShichouAI() : base("shichou") { }
@@ -5140,8 +5186,8 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill(Name, player) && !card.IsVirtualCard())
             {
                 FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard is DefensiveHorse && ((isUse && !player.GetOffensiveHorse()) || (!isUse && place == Place.PlaceEquip)))
-                    return -1;
+                if (fcard is OffensiveHorse && ((isUse && !player.GetOffensiveHorse()) || (!isUse && place == Place.PlaceEquip)))
+                    return 4;
             }
 
             return 0;
@@ -6280,6 +6326,87 @@ namespace SanguoshaServer.AI
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 4;
+        }
+    }
+
+    public class NeifaAI : SkillEvent
+    {
+        public NeifaAI() : base("neifa") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            List<int> ids = player.GetCards("he");
+            List<double> values = ai.SortByKeepValue(ref ids, false);
+            ai.Number[Name] = -1;
+            if (values[0] < 0)
+            {
+                ai.Number[Name] = ids[0];
+                return true;
+            }
+
+            Room room = ai.Room;
+            List<WrappedCard> slashes = ai.GetCards(Slash.ClassName, player, true);
+            if (slashes.Count > 1)
+            {
+                int count = 0;
+                int discard = -1;
+                foreach (int id in player.GetCards("h"))
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard))
+                    {
+                        count++;
+                    }
+                    else
+                    {
+                        if (card.Name == Jink.ClassName || (card.Name == Peach.ClassName && !player.IsWounded()))
+                            discard = id;
+                    }
+                }
+
+                int max = Math.Max(5, slashes.Count);
+                if (count > 0 && count >= max - 2)
+                {
+                    ai.Number[Name] = discard;
+                    return true;
+                }
+            }
+            else
+            {
+                int count = 0;
+                ids.Clear();
+                foreach (int id in player.GetHandPile())
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard))
+                    {
+                        count++;
+                    }
+                }
+
+                foreach (int id in player.GetCards("he"))
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard) && RoomLogic.CanDiscard(room, player, player, id))
+                    {
+                        ids.Add(id);
+                    }
+                }
+
+                if (ids.Count > 0 && count > 1)
+                {
+                    ai.SortByUseValue(ref ids, false);
+                    ai.Number[Name] = ids[0];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            return new List<int> { (int)ai.Number[Name] };
         }
     }
 

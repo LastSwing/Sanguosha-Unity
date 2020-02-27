@@ -9,6 +9,7 @@ using static SanguoshaServer.Package.FunctionCard;
 using System.Linq;
 using static CommonClass.Game.CardUseStruct;
 using System.Text;
+using CommonClass;
 
 namespace SanguoshaServer.Package
 {
@@ -35,6 +36,9 @@ namespace SanguoshaServer.Package
                 new KuangcaiDraw(),
                 new KuangcaiTar(),
                 new Shejian(),
+                new ChijieNSM(),
+                new Waishi(),
+                new Renshe(),
 
                 new Renshi(),
                 new Wuyuan(),
@@ -53,6 +57,7 @@ namespace SanguoshaServer.Package
                 new ZhanyiCard(),
                 new WuyuanCard(),
                 new ZhaoxinCard(),
+                new WaishiCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -1135,6 +1140,227 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class ChijieNSM : TriggerSkill
+    {
+        public ChijieNSM() : base("chijie_nsm")
+        {
+            events.Add(TriggerEvent.GameStart);
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<string> kingdoms = new List<string>();
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p.Kingdom != player.Kingdom && !kingdoms.Contains(p.Kingdom))
+                    kingdoms.Add(p.Kingdom);
+            }
+            if (kingdoms.Count > 0)
+            {
+                kingdoms.Add("cancel");
+                string choice = room.AskForChoice(player, Name, string.Join("+", kingdoms));
+                if (choice != "cancel")
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.NotifySkillInvoked(player, Name);
+                    player.SetTag(Name, choice);
+                    return info;
+                }
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.ContainsTag(Name) && player.GetTag(Name) is string kingdom)
+            {
+                player.Kingdom = kingdom;
+                room.BroadcastProperty(player, "Kingdom");
+
+                LogMessage log = new LogMessage
+                {
+                    Type = "#change_kingdom",
+                    From = player.Name,
+                    Arg = kingdom
+                };
+                room.SendLog(log);
+            }
+
+            return false;
+        }
+    }
+
+    public class Waishi : ViewAsSkill
+    {
+        public Waishi() : base("waishi")
+        {
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            List<string> kingdoms = new List<string>();
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (!kingdoms.Contains(p.Kingdom))
+                    kingdoms.Add(p.Kingdom);
+            }
+            return selected.Count < kingdoms.Count;
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return !player.IsNude() && player.UsedTimes(WaishiCard.ClassName) < 1 + player.GetMark("renshe");
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count > 0)
+            {
+                WrappedCard ws = new WrappedCard(WaishiCard.ClassName) { Skill = Name };
+                ws.AddSubCards(cards);
+                return ws;
+            }
+
+            return null;
+        }
+    }
+
+    public class WaishiCard : SkillCard
+    {
+        public static string ClassName = "WaishiCard";
+        public WaishiCard() : base(ClassName)
+        {
+            will_throw = false;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && card.SubCards.Count <= to_select.HandcardNum && to_select != Self;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player a = card_use.From;
+            Player b = card_use.To[0];
+
+            List<int> from = new List<int>(card_use.Card.SubCards);
+            List<int> tos = new List<int>(b.GetCards("h")), to = new List<int>();
+            Shuffle.shuffle(ref tos);
+            for (int i = 0; i < from.Count; i++)
+                to.Add(tos[i]);
+
+            CardsMoveStruct move1 = new CardsMoveStruct(from, b, Place.PlaceHand,
+                new CardMoveReason(MoveReason.S_REASON_SWAP, a.Name, b.Name, "waishi", null));
+            CardsMoveStruct move2 = new CardsMoveStruct(to, a, Place.PlaceHand,
+                new CardMoveReason(MoveReason.S_REASON_SWAP, b.Name, a.Name, "waishi", null));
+            List<CardsMoveStruct> exchangeMove = new List<CardsMoveStruct> { move1, move2 };
+            room.MoveCards(exchangeMove, false);
+
+            if (b.Kingdom == a.Kingdom || b.HandcardNum > a.HandcardNum)
+                room.DrawCards(a, 1, "waishi");
+        }
+    }
+
+    public class Renshe : TriggerSkill
+    {
+        public Renshe() : base("renshe")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.EventPhaseChanging };
+            skill_type = SkillType.Masochism;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && player.GetMark(Name) > 0)
+            {
+                if (change.To == PlayerPhase.Play)
+                    player.SetFlags(Name);
+                if (change.From == PlayerPhase.Play && player.HasFlag(Name))
+                {
+                    player.SetFlags("-renshe");
+                    player.SetMark(Name, 0);
+                }
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.Damaged && base.Triggerable(player, room))
+            {
+                return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<string> choices = new List<string> { "more", "draw" };
+            List<string> kingdoms = new List<string>();
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p.Kingdom != player.Kingdom && !kingdoms.Contains(p.Kingdom))
+                    kingdoms.Add(p.Kingdom);
+            }
+            if (kingdoms.Count > 0)
+                choices.Add("change");
+
+            choices.Add("cancel");
+            string choice = room.AskForChoice(player, Name, string.Join("+", choices));
+            if (choice != "cancel")
+            {
+                player.SetTag(Name, choice);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.NotifySkillInvoked(player, Name);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.GetTag(Name) is string choice)
+            {
+                player.RemoveTag(Name);
+                switch (choice)
+                {
+                    case "more":
+                        player.AddMark(Name);
+                        break;
+                    case "draw":
+                        Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@renshe", false, true, info.SkillPosition);
+                        List<Player> targets = new List<Player> { player, target };
+                        room.SortByActionOrder(ref targets);
+                        foreach (Player p in targets)
+                            room.DrawCards(p, new DrawCardStruct(1, player, Name));
+                        break;
+                    case "change":
+                        List<string> kingdoms = new List<string>();
+                        foreach (Player p in room.GetAlivePlayers())
+                        {
+                            if (p.Kingdom != player.Kingdom && !kingdoms.Contains(p.Kingdom))
+                                kingdoms.Add(p.Kingdom);
+                        }
+                        string kingdom = room.AskForChoice(player, Name, string.Join("+", kingdoms));
+                        player.Kingdom = kingdom;
+                        room.BroadcastProperty(player, "Kingdom");
+
+                        LogMessage log = new LogMessage
+                        {
+                            Type = "#change_kingdom",
+                            From = player.Name,
+                            Arg = kingdom
+                        };
+                        room.SendLog(log);
+                        break;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public class Renshi : TriggerSkill
     {
         public Renshi() : base("renshi")
@@ -1451,6 +1677,7 @@ namespace SanguoshaServer.Package
         public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
         {
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            room.DoSuperLightbox(player, info.SkillPosition, Name);
             room.SetPlayerMark(player, Name, 1);
             room.SendCompulsoryTriggerLog(player, Name);
 

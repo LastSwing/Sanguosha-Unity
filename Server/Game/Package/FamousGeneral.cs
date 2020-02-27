@@ -1775,7 +1775,7 @@ namespace SanguoshaServer.Package
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
                     if ((fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, _use.Card))
+                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && !Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, _use.Card))
                         || (fcard is Dismantlement && !RoomLogic.CanDiscard(room, player, p, "hej"))) continue;
 
                     if (!_use.To.Contains(p) && RoomLogic.IsProhibited(room, player, p, _use.Card) == null)

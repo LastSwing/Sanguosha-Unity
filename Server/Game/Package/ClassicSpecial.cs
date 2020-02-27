@@ -83,6 +83,7 @@ namespace SanguoshaServer.Package
                 new Guqu(),
                 new Baijia(),
                 new Canshi(),
+                new Bingzhao(),
                 new Qiaomeng(),
                 new Yicong(),
                 new YicongDis(),
@@ -4085,7 +4086,12 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(ask_who, Name);
             room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-            room.DrawCards(ask_who, 1, Name);
+            int count = 1;
+
+            if (ask_who.ContainsTag("bingzhao") && ask_who.GetTag("bingzhao") is string kingdom && kingdom == player.Kingdom && room.AskForSkillInvoke(player, "bingzhao", "@bingzhao:" + ask_who.Name))
+                count++;
+
+            room.DrawCards(ask_who, count, Name);
             return false;
         }
     }
@@ -4100,8 +4106,8 @@ namespace SanguoshaServer.Package
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.Reason.Reason == MoveReason.S_REASON_DRAW
-                && move.Reason.SkillName == "guqu")
-                move.To.AddMark("baijia_got");
+                && move.Reason.SkillName == "guqu" && move.To.GetMark(Name) == 0)
+                move.To.AddMark("baijia_got", move.Card_ids.Count);
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -4170,7 +4176,7 @@ namespace SanguoshaServer.Package
             else if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct _use && base.Triggerable(player, room) && _use.Card.ExtraTarget)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(_use.Card.Name);
-                if (fcard is BasicCard || (fcard.IsNDTrick() && _use.Card.Name != Collateral.ClassName))
+                if (fcard is BasicCard || (fcard.IsNDTrick() && _use.Card.Name != Collateral.ClassName && !_use.Card.Name.Contains(Nullification.ClassName)))
                     foreach (Player p in room.GetOtherPlayers(player))
                         if (p.GetMark("@kui") > 0 && !_use.To.Contains(p))
                             return new TriggerStruct(Name, player);
@@ -4264,6 +4270,45 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class Bingzhao : TriggerSkill
+    {
+        public Bingzhao() : base("bingzhao")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.GameStart };
+            lord_skill = true;
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room))
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(player, Name, true);
+            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+
+            List<string> kingdoms = new List<string>();
+            foreach (Player p in room.GetAlivePlayers())
+                if (!kingdoms.Contains(p.Kingdom))
+                    kingdoms.Add(p.Kingdom);
+
+            string choice = room.AskForChoice(player, Name, string.Join("+", kingdoms));
+            room.SetPlayerStringMark(player, Name, choice);
+            player.SetTag(Name, choice);
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.Kingdom == choice)
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, p.Name);
+
+            return false;
+        }
+    }
+    
 
     public class Qiaomeng : TriggerSkill
     {
@@ -4619,17 +4664,17 @@ namespace SanguoshaServer.Package
                 if (use.Card.Name.Contains(Slash.ClassName))
                 {
                     foreach (Player p in use.To)
-                        if (p != player && RoomLogic.DistanceTo(room, p, player, null, true) == 1)
+                        if (p != player && RoomLogic.DistanceTo(room, player, p, null, true) == 1)
                             return new TriggerStruct(Name, player);
 
                 }
                 if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (RoomLogic.DistanceTo(room, p, player, null, true) == 1)
+                        if (RoomLogic.DistanceTo(room, player, p, null, true) == 1)
                             return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.TrickCardCanceling && data is CardEffectStruct effect && base.Triggerable(effect.From, room) && player != effect.From
-                && RoomLogic.DistanceTo(room, player, effect.From, null, true) == 1)
+                && RoomLogic.DistanceTo(room, effect.From, player, null, true) == 1)
             {
                 return new TriggerStruct(Name, effect.From);
             }
@@ -4648,7 +4693,7 @@ namespace SanguoshaServer.Package
                     for (int i = 0; i < use.EffectCount.Count; i++)
                     {
                         CardBasicEffect effect = use.EffectCount[i];
-                        if (RoomLogic.DistanceTo(room, effect.To, player) == 1)
+                        if (RoomLogic.DistanceTo(room, player, effect.To) == 1)
                         {
                             effect.Effect2 = 0;
                             if (!targets.Contains(effect.To))
@@ -4659,7 +4704,7 @@ namespace SanguoshaServer.Package
 
                 if (Engine.GetFunctionCard(use.Card.Name).IsNDTrick())
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (RoomLogic.DistanceTo(room, p, player, null, true) == 1 && !targets.Contains(p))
+                        if (RoomLogic.DistanceTo(room, player, p, null, true) == 1 && !targets.Contains(p))
                             targets.Add(p);
 
                 if (targets.Count > 0)
@@ -8088,7 +8133,16 @@ namespace SanguoshaServer.Package
     {
         public Neifa() : base("neifa")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed, TriggerEvent.EventPhaseChanging };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                if (player.GetMark(Name) > 0)
+                    player.SetMark(Name, 0);
+            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -8098,7 +8152,7 @@ namespace SanguoshaServer.Package
                 return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.CardUsed && player.HasFlag("neifa_not_basic") && data is CardUseStruct use && Engine.GetFunctionCard(use.Card.Name) is EquipCard
-                && player.Alive)
+                && player.Alive && player.GetMark(Name) > 0 && player.GetMark("neifa_draw") < 2)
             {
                 return new TriggerStruct(Name, player);
             }
@@ -8131,9 +8185,30 @@ namespace SanguoshaServer.Package
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(ids[0]).Name);
                         if (fcard is BasicCard)
+                        {
                             player.SetFlags("neifa_basic");
+                            int count = 0;
+                            foreach (int id in player.GetCards("h"))
+                            {
+                                if (!(Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard))
+                                    count++;
+                            }
+                            count = Math.Min(5, count);
+                            player.SetMark(Name, count);
+                        }
                         else
+                        {
                             player.SetFlags("neifa_not_basic");
+                            int count = 0;
+                            foreach (int id in player.GetCards("h"))
+                            {
+                                if (Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard)
+                                    count++;
+                            }
+                            count = Math.Min(5, count);
+                            player.SetMark(Name, count);
+                            player.SetMark("neifa_draw", 0);
+                        }
 
                         room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, player.Name, Name, string.Empty), player);
                     }
@@ -8141,16 +8216,8 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                int count = 0;
-                foreach (int id in player.GetCards("h"))
-                {
-                    if (Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard)
-                        count++;
-                }
-
-                count = Math.Min(5, count);
-                if (count > 0)
-                    room.DrawCards(player, count, Name);
+                player.AddMark("neifa_draw");
+                room.DrawCards(player, player.GetMark(Name), Name);
             }
 
             return false;
@@ -8175,15 +8242,10 @@ namespace SanguoshaServer.Package
         public override int GetResidueNum(Room room, Player from, WrappedCard card)
         {
             int count = 0;
-            if (card.Name.Contains(Slash.ClassName) && from.HasFlag("neifa_basic"))
+            if (from.HasFlag("neifa_basic") && card.Name.Contains(Slash.ClassName))
             {
-                foreach (int id in from.GetCards("h"))
-                {
-                    if (!(Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard))
-                        count++;
-                }
+                count = from.GetMark("neifa");
             }
-            count = Math.Min(5, count);
             return count;
         }
     }

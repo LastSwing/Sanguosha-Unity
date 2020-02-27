@@ -49,6 +49,7 @@ namespace SanguoshaServer.AI
                 new JiedaoAI(),
                 new JixuAI(),
                 new KuizhuLSAI(),
+                new FenyueAI(),
             };
 
             use_cards = new List<UseCard>
@@ -61,6 +62,7 @@ namespace SanguoshaServer.AI
                 new ZengdaoCardAI(),
                 new ZhafuCardAI(),
                 new SongshuCardAI(),
+                new FenyueCardAI(),
             };
         }
     }
@@ -1828,6 +1830,92 @@ namespace SanguoshaServer.AI
             ups.RemoveAll(t => move.Bottom.Contains(t));
             move.Top = ups;
             return move;
+        }
+    }
+
+    public class FenyueAI : SkillEvent
+    {
+        public FenyueAI() : base("fenyue") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.IsKongcheng())
+            {
+                Room room = ai.Room;
+                int count = 0;
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    PlayerRole role = p.GetRoleEnum();
+                    if (role == PlayerRole.Lord || role == PlayerRole.Loyalist)
+                    {
+                        if (player.GetRoleEnum() != PlayerRole.Lord && player.GetRoleEnum() != PlayerRole.Loyalist)
+                            count++;
+                    }
+                    else if (player.GetRoleEnum() != p.GetRoleEnum())
+                        count++;
+                }
+                if (player.UsedTimes(FenyueCard.ClassName) < count)
+                {
+                    WrappedCard card = new WrappedCard(FenyueCard.ClassName) { Skill = Name };
+                    return new List<WrappedCard> { card };
+                }
+            }
+
+            return null;
+        }
+
+        public override WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> players)
+        {
+            if (ai.Self == requestor)
+            {
+                List<int> ids = requestor.GetCards("h");
+                ai.SortByUseValue(ref ids, false);
+                return ai.Room.GetCard(ids[0]);
+            }
+            else
+            {
+                return ai.GetMaxCard();
+            }
+        }
+    }
+
+    public class FenyueCardAI : UseCard
+    {
+        public FenyueCardAI() : base(FenyueCard.ClassName)
+        {
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                Player target = use.To[0];
+                if (ai.GetPlayerTendency(target) != "unknown")
+                    ai.UpdatePlayerRelation(player, target, false);
+            }
+        }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            List<Player> enemies = ai.GetEnemies(player);
+            if (enemies.Count > 0)
+            {
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                {
+                    if (RoomLogic.CanBePindianBy(ai.Room, p, player))
+                    {
+                        use.Card = card;
+                        use.To.Add(p);
+                        return;
+                    }
+                }
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 4;
         }
     }
 }
