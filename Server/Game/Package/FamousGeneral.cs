@@ -10543,7 +10543,7 @@ namespace SanguoshaServer.Package
             room.RemoveTag(Name);
             machao.RemoveTag(Name);
 
-            room.AddToPile(skill_target, Name, cards);
+            room.AddToPile(skill_target, Name, cards, false);
 
             return false;
         }

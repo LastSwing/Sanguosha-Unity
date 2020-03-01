@@ -1157,11 +1157,9 @@ namespace SanguoshaServer.Package
         public override bool Invalid(Room room, Player player, string skill)
         {
             Skill s = Engine.GetSkill(skill);
-            if (s == null || s.Attached_lord_skill || player.Hp != 1) return false;
+            if (s == null || s.Attached_lord_skill || player.Hp != 1 || skill == "canyuan") return false;
             if (player.HasEquip(skill)) return false;
-            if (player.GetAcquiredSkills().Contains("canyuan") && skill != Name)
-                return true;
-
+            if (player.GetAcquiredSkills().Contains("canyuan")) return true;
             return false;
         }
     }

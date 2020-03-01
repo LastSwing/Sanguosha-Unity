@@ -1006,7 +1006,9 @@ namespace SanguoshaServer.Package
             {
                 int id = ids[i];
                 room.SetCardMapping(id, null, Place.DrawPile);
-                room.DrawPile.Insert(room.AliveCount() * (i + 1) - 1, id);
+                int index = room.AliveCount() * (i + 1) - 1;
+                index = Math.Min(index, room.DrawPile.Count);
+                room.DrawPile.Insert(index, id);
             }
 
             object data = room.DrawPile.Count;

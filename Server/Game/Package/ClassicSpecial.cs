@@ -792,7 +792,7 @@ namespace SanguoshaServer.Package
                         Player to_dismantle = room.AskForPlayerChosen(caohong, targets, Name, "@huyuan-discard:" + target.Name, true, false, info.SkillPosition);
                         if (to_dismantle != null)
                         {
-                            int card_id = room.AskForCardChosen(caohong, to_dismantle, "he", Name, false, FunctionCard.HandlingMethod.MethodDiscard);
+                            int card_id = room.AskForCardChosen(caohong, to_dismantle, "hej", Name, false, FunctionCard.HandlingMethod.MethodDiscard);
                             room.ThrowCard(card_id, to_dismantle, caohong);
                         }
                     }
@@ -2824,7 +2824,7 @@ namespace SanguoshaServer.Package
     {
         public Lingren() : base("lingren")
         {
-            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Wizzard;
         }
 
@@ -2835,6 +2835,8 @@ namespace SanguoshaServer.Package
                 player.SetMark(Name, 0);
                 room.HandleAcquireDetachSkills(player, "-jianxiong_jx|-xingshang", true);
             }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
+                player.SetFlags("-lingren");
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)

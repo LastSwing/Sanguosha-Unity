@@ -21,6 +21,7 @@ namespace SanguoshaServer.AI
 
                 new YixiangAI(),
                 new YirangAI(),
+                new RensheAI(),
 
                 new WuyuanAI(),
             };
@@ -151,7 +152,7 @@ namespace SanguoshaServer.AI
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
             if (ai.Self == player) return;
-            if (data is string choice && ai.Self != player)
+            if (data is string choice)
             {
                 string[] choices = choice.Split(':');
                 if (choices[1] == Name)
@@ -250,6 +251,30 @@ namespace SanguoshaServer.AI
             }
 
             return new List<Player>();
+        }
+    }
+
+    public class RensheAI : SkillEvent
+    {
+        public RensheAI() : base("renshe")
+        {
+            key = new List<string> { "playerChosen:renshe" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (ai.Self == player) return;
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
         }
     }
 

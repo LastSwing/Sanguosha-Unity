@@ -752,7 +752,8 @@ namespace SanguoshaServer.Game
         public void SetPlayerStringMark(Player player, string mark, string value, Client except = null)
         {
             player.SetStringMark(mark, value);
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
                 if (client != except)
                     DoNotify(client, CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark, value });
         }
@@ -760,7 +761,8 @@ namespace SanguoshaServer.Game
         public void RemovePlayerStringMark(Player player, string mark, Client except = null)
         {
             player.RemoveStringMark(mark);
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
                 if (client != except)
                     DoNotify(client, CommandType.S_COMMAND_SET_STRINGMARK, new List<string> { player.Name, mark });
         }
@@ -2203,7 +2205,8 @@ namespace SanguoshaServer.Game
         private void UpdateClientsInfo()
         {
             List<string> info = new List<string> { Host.UserID.ToString() };
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
             {
                 //OutPut(string.Format("{0} 是 第{1}位", client.UserID, GetClientIndex(client)));
                 info.Add(GetClientIndex(client).ToString());
@@ -2218,7 +2221,7 @@ namespace SanguoshaServer.Game
                 Body = info,
             };
 
-            foreach (Client client in Clients)
+            foreach (Client client in clients)
             {
                 client.SendSwitchReply(data);
             }
@@ -2253,7 +2256,8 @@ namespace SanguoshaServer.Game
                 client.Status = Client.GameStatus.offline;
 
                 bool human_stay = false;
-                foreach (Client other in Clients)
+                List<Client> clients = new List<Client>(Clients);
+                foreach (Client other in clients)
                 {
                     if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
@@ -2309,7 +2313,8 @@ namespace SanguoshaServer.Game
                 lock (this)
                 {
                     bool human_stay = false;
-                    foreach (Client other in Clients)
+                    List<Client> clients = new List<Client>(Clients);
+                    foreach (Client other in clients)
                     {
                         if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                         {
@@ -2417,10 +2422,10 @@ namespace SanguoshaServer.Game
             client.LeaveRoom -= OnClientLeave;
             client.GetReady -= OnClientReady;
             //client.GameControl -= ProcessClientPacket;
-
+            List<Client> clients = new List<Client>(Clients);
             if (client == Host)
             {
-                foreach (Client other in Clients)
+                foreach (Client other in clients)
                 {
                     if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
@@ -2437,8 +2442,8 @@ namespace SanguoshaServer.Game
             RoomTerminated = true;
 
             //Debug("stop game2 " + Thread.CurrentThread.ManagedThreadId.ToString());
-
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
             {
                 if (client.GameRoom == RoomId)
                     client.GameRoom = -1;
@@ -2489,7 +2494,8 @@ namespace SanguoshaServer.Game
                 if (!GameStarted)
                 {
                     List<Client> ais = new List<Client>();
-                    foreach (Client client in Clients)
+                    List<Client> clients = new List<Client>(Clients);
+                    foreach (Client client in clients)
                     {
                         if (client.UserID < 0)
                             ais.Add(client);
@@ -2546,7 +2552,8 @@ namespace SanguoshaServer.Game
                 Protocol = Protocol.ConfigChange,
                 Body = new List<string> { JsonUntity.Object2Json(setting) }
             };
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
                 client.SendSwitchReply(data);
         }
         #endregion
@@ -2856,7 +2863,8 @@ namespace SanguoshaServer.Game
             bool check = true;
             if (Scenario.IsFull(this) && Host == client)
             {
-                foreach (Client c in Clients)
+                List<Client> clients = new List<Client>(Clients);
+                foreach (Client c in clients)
                 {
                     if (c != Host && c.Status != Client.GameStatus.bot && c.Status != Client.GameStatus.ready)
                     {
@@ -3123,8 +3131,8 @@ namespace SanguoshaServer.Game
             }
 
             bool show = is_head ? who.General1Showed : who.General2Showed;
-
-            foreach (Client target in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client target in clients)
             {
                 if (client != target && !show) continue;
                 NotifyProperty(target, who, propertyName);
@@ -3241,8 +3249,8 @@ namespace SanguoshaServer.Game
                 Protocol = Protocol.Message2Room,
                 Body = new List<string> { client.UserID.ToString(), message }
             };
-
-            foreach (Client dest in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client dest in clients)
                 if (dest.GameRoom == RoomId)
                     dest.SendMessage(data);
         }
@@ -3255,8 +3263,8 @@ namespace SanguoshaServer.Game
                 Protocol = Protocol.Message2Room,
                 Body = new List<string> { client.UserID.ToString(), group, message }
             };
-
-            foreach (Client dest in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client dest in clients)
                 if (dest.GameRoom == RoomId)
                     dest.SendMessage(data);
         }
@@ -3535,7 +3543,8 @@ namespace SanguoshaServer.Game
 
         public Client GetClient(int client_id)
         {
-            foreach (Client client in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client client in clients)
                 if (client.UserID == client_id)
                     return client;
 
@@ -3574,7 +3583,8 @@ namespace SanguoshaServer.Game
 
         public bool DoBroadcastNotify(CommandType command, List<string> message_body, Client except = null)
         {
-            foreach (Client player in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client player in clients)
                 if (except == null || player != except)
                     DoNotify(player, command, message_body);
 
@@ -4071,9 +4081,10 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
+                List<Client> clients = new List<Client>(Clients);
                 if (player.HeadSkinId > 0)
                 {
-                    foreach (Client p in Clients)
+                    foreach (Client p in clients)
                         if (p != GetClient(player))
                             NotifyProperty(p, player, "HeadSkinId");
                 }
@@ -4142,9 +4153,10 @@ namespace SanguoshaServer.Game
                         }
                     }
                 }
+                List<Client> clients = new List<Client>(Clients);
                 if (player.DeputySkinId > 0)
                 {
-                    foreach (Client p in Clients)
+                    foreach (Client p in clients)
                         if (p != GetClient(player))
                             NotifyProperty(p, player, "DeputySkinId");
                 }
@@ -4194,7 +4206,8 @@ namespace SanguoshaServer.Game
 
             //QVariant arg = log.toVariant(this);
             List<string> message = new List<string> { JsonUntity.Object2Json(log) };
-            foreach (Client p in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client p in clients)
                 if (!except_client.Contains(p))
                     DoNotify(p, CommandType.S_COMMAND_LOG_SKILL, message);
         }
@@ -4226,10 +4239,11 @@ namespace SanguoshaServer.Game
         public void SendPlayerSkillsToOthers(Player player, bool head_skill = true)
         {
             List<string> skills = head_skill ? player.GetHeadSkillList() : player.GetDeputySkillList();
+            List<Client> clients = new List<Client>(Clients);
             foreach (string skill in skills)
             {
                 List<string> args = new List<string> { GameEventType.S_GAME_EVENT_ADD_SKILL.ToString(), player.Name, skill, head_skill.ToString() };
-                foreach (Client p in Clients)
+                foreach (Client p in clients)
                     if (p != GetClient(player))
                         DoNotify(p, CommandType.S_COMMAND_LOG_EVENT, args);
 
@@ -4898,7 +4912,8 @@ namespace SanguoshaServer.Game
 
                 bool solo = true;
                 int human = 0;
-                foreach (Client client in Clients)
+                List<Client> clients = new List<Client>(Clients);
+                foreach (Client client in clients)
                 {
                     if (GetPlayers(client.UserID)[0].Status != "bot")
                         human++;
@@ -5116,7 +5131,8 @@ namespace SanguoshaServer.Game
             if (count <= 0) return;
             player_luckcard.Clear();
             List<Interactivity> players = new List<Interactivity>();
-            foreach (Client player in Clients)
+            List<Client> clients = new List<Client>(Clients);
+            foreach (Client player in clients)
             {
                 Interactivity interactivity = GetInteractivity(player.UserID);
                 if (interactivity != null && GetAI(GetPlayers(player.UserID)[0]) == null)
@@ -8763,13 +8779,14 @@ namespace SanguoshaServer.Game
         public void DisconnectSkillsFromOthers(Player player, bool head_skill = true, bool trigger = true)
         {
             List<string> skills = head_skill ? new List<string>(player.HeadSkills.Keys) : new List<string>(player.DeputySkills.Keys);
+            List<Client> clients = new List<Client>(Clients);
             foreach (string skill in skills)
             {
                 object _skill = new InfoStruct { Info = skill, Head = head_skill };
                 if (trigger)
                     RoomThread.Trigger(TriggerEvent.EventLoseSkill, this, player, ref _skill);
                 List<string> args = new List<string> { GameEventType.S_GAME_EVENT_DETACH_SKILL.ToString(), player.Name, skill, head_skill.ToString() };
-                foreach (Client p in Clients)
+                foreach (Client p in clients)
                     if (p != GetClient(player))
                         DoNotify(p, CommandType.S_COMMAND_LOG_EVENT, args);
             }
