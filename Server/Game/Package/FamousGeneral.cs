@@ -6425,7 +6425,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && !to_select.HasFlag("pindi");
+            return targets.Count == 0 && !to_select.HasFlag("pindi") && to_select != Self;
         }
         public override void OnUse(Room room, CardUseStruct card_use)
         {

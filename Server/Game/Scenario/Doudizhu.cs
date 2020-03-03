@@ -43,7 +43,7 @@ namespace SanguoshaServer.Scenario
                     receivers.Add(inter);
                 }
             }
-            room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_INVOKE_SKILL, 5000);
+            room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_INVOKE_SKILL);
             room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             foreach (Player player in room.Players)
@@ -528,7 +528,7 @@ namespace SanguoshaServer.Scenario
 
         private async void SurrenderAfterStart(Room room)
         {
-            int time = 60000;
+            int time = 300000;
             await System.Threading.Tasks.Task.Delay(time);
 
             if (room.Surrender.Count == 0)

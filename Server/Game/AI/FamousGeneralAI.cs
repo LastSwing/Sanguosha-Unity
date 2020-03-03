@@ -1079,7 +1079,7 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             int count = player.GetMark("pindi") + 1;
-            List<Player> friends = ai.GetFriends(player);
+            List<Player> friends = ai.FriendNoSelf;
             ai.SortByDefense(ref friends, false);
             foreach (Player p in friends)
             {
