@@ -1007,6 +1007,7 @@ namespace SanguoshaServer.Package
     {
         public LonghunVS() : base("longhun")
         {
+            response_or_use = true;
         }
 
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)

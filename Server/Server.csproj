@@ -182,6 +182,7 @@
     <Compile Include="Game\RoomCard.cs" />
     <Compile Include="Game\RoomLogic.cs" />
     <Compile Include="Game\RoomMessage.cs" />
+    <Compile Include="Game\Scenario\Doudizhu.cs" />
     <Compile Include="Game\Scenario\Classic.cs" />
     <Compile Include="Game\Scenario\GuanduWarfare.cs" />
     <Compile Include="Game\Scenario\Hegemony.cs" />

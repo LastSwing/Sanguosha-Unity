@@ -132,7 +132,23 @@ namespace SanguoshaServer.Game
             }
 
             if (!string.IsNullOrEmpty(room.PreWinner))
+            {
+                Player surrend = null;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (!room.PreWinner.Contains(p.Name))
+                    {
+                        surrend = p;
+                        break;
+                    }
+                }
+                if (surrend != null)
+                {
+                    room.DoBroadcastNotify(CommonClassLibrary.CommandType.S_COMMAND_SURRENDER, new List<string> { surrend.Name });
+                    System.Threading.Thread.Sleep(3000);
+                }
                 room.GameOver(room.PreWinner);
+            }
         }
 
 

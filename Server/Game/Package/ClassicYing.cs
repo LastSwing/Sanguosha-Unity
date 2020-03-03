@@ -501,8 +501,11 @@ namespace SanguoshaServer.Package
             if (target.HandcardNum > target_num)
                 room.AskForDiscard(target, "zhengu", target.HandcardNum - target_num, target.HandcardNum - target_num, false, false,
                     string.Format("@zhengu-discard:{0}::{1}", ask_who.Name, target_num), false);
-            else if (target.HandcardNum < target_num)
-                room.DrawCards(target, new DrawCardStruct(Math.Min(5, target_num - target.HandcardNum), ask_who, "zhengu"));
+            else if (target.HandcardNum < target_num && target.HandcardNum < 5)
+            {
+                int count = Math.Min(5, target_num);
+                room.DrawCards(target, new DrawCardStruct(count - target.HandcardNum, ask_who, "zhengu"));
+            }
 
             return false;
         }
@@ -2162,8 +2165,7 @@ namespace SanguoshaServer.Package
                 }
                 else
                 {
-                    int id = room.AskForCardChosen(ask_who, target, "he", Name, false, FunctionCard.HandlingMethod.MethodDiscard);
-                    room.ThrowCard(id, target, ask_who);
+                    room.AskForDiscard(target, Name, 1, 1, false, true, "@liangyin-discard-self:" + ask_who.Name);
                 }
             }
 

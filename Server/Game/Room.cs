@@ -56,6 +56,7 @@ namespace SanguoshaServer.Game
         public bool SkipGameRule { set; get; } = false;
         public string PreWinner { private set; get; }
         public GameHall Hall { get; private set; }
+        public ConcurrentDictionary<Interactivity, bool> Surrender = new ConcurrentDictionary<Interactivity, bool>();
 
         private Thread thread;
         private Dictionary<Player, Client> player_client = new Dictionary<Player, Client>();
@@ -82,7 +83,6 @@ namespace SanguoshaServer.Game
         private Queue<Player> m_extra_turn = new Queue<Player>();
         private Dictionary<int, int> cards_replace = new Dictionary<int, int>();
         private readonly Dictionary<int, bool> intel_select = new Dictionary<int, bool>();
-        private ConcurrentDictionary<Interactivity, bool> surrender = new ConcurrentDictionary<Interactivity, bool>();
 
         private System.Timers.Timer timer = new System.Timers.Timer();
         //helper variables for race request function
@@ -2997,6 +2997,7 @@ namespace SanguoshaServer.Game
             //玩家选将由剧本函数完成，相关客户端通知也由此函数完成
             _alivePlayers = new List<Player>(m_players);
             Scenario.Assign(this);
+            Scenario.SeatReAdjust(this, ref m_players);
         }
 
         //准备游戏卡牌
@@ -3376,14 +3377,14 @@ namespace SanguoshaServer.Game
 
         private void ProcessRequestSurrender(Client client, List<string> obj)
         {
-            lock (surrender)
+            lock (Surrender)
             {
                 Interactivity inter = GetInteractivity(client.UserID);
-                bool success = surrender.TryGetValue(inter, out bool available);
+                bool success = Surrender.TryGetValue(inter, out bool available);
                 if (client.UserID > 0 && string.IsNullOrEmpty(PreWinner) && available)
                 {
-                    List<Interactivity> clients = new List<Interactivity>(surrender.Keys);
-                    surrender.Clear();
+                    List<Interactivity> clients = new List<Interactivity>(Surrender.Keys);
+                    Surrender.Clear();
                     foreach (Interactivity _inter in clients)
                     {
                         Client to_notify = GetClient(_inter.ClientId);
@@ -3499,7 +3500,7 @@ namespace SanguoshaServer.Game
             }
 
             Interactivity inter = GetInteractivity(client.UserID);
-            if (inter != null && surrender.TryGetValue(inter, out bool enable) && enable)
+            if (inter != null && Surrender.TryGetValue(inter, out bool enable) && enable)
             {
                 DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
             }
@@ -5470,12 +5471,16 @@ namespace SanguoshaServer.Game
                 }
             }
             */
+            CheckSurrend();
+        }
 
+        public void CheckSurrend()
+        {
             List<Interactivity> availables = Scenario.CheckSurrendAvailable(this);
-            surrender.Clear();
+            Surrender.Clear();
             foreach (Interactivity inter in availables)
             {
-                surrender.TryAdd(inter, true);
+                Surrender.TryAdd(inter, true);
                 Client client = GetClient(inter.ClientId);
                 DoNotify(client, CommandType.S_COMMAND_ENABLE_SURRENDER, new List<string> { true.ToString() });
             }

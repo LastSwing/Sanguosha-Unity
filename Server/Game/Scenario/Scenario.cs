@@ -33,6 +33,9 @@ namespace SanguoshaServer.Scenario
         {
             return new RoomThread(room, rule);
         }
+        public virtual void SeatReAdjust(Room room, ref List<Player> players)
+        {
+        }
         public List<Skill> Skills => skills;
         public abstract bool IsFriendWith(Room room, Player player, Player other);
         public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
