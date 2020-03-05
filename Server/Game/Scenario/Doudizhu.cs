@@ -651,25 +651,23 @@ namespace SanguoshaServer.Package
     {
         public LandLord() : base("landlord")
         {
-            events = new List<TriggerEvent> { TriggerEvent.TurnStart, TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
             frequency = Frequency.Compulsory;
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (room.Setting.GameMode == "Doudizhu" && player.Alive && player.GetRoleEnum() == PlayerRole.Lord)
-            {
-                if (triggerEvent == TriggerEvent.TurnStart)
+            if (room.Setting.GameMode == "Doudizhu" && player.Alive && player.GetRoleEnum() == PlayerRole.Lord
+                && (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Start && player.JudgingArea.Count > 0 && player.GetCardCount(true) > 1
+                || player.Phase == PlayerPhase.RoundStart))
                     return new TriggerStruct(Name, player);
-                else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Start && player.JudgingArea.Count > 0 && player.GetCardCount(true) > 1)
-                    return new TriggerStruct(Name, player);
-            }
+
             return new TriggerStruct();
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (triggerEvent == TriggerEvent.TurnStart)
+            if (player.Phase == PlayerPhase.RoundStart)
             {
                 room.SendCompulsoryTriggerLog(player, Name, true);
                 room.DrawCards(player, 1, Name);
