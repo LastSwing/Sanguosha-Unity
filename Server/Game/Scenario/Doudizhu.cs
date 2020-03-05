@@ -31,6 +31,16 @@ namespace SanguoshaServer.Scenario
         public override void Assign(Room room)
         {
             Thread.Sleep(1000);
+
+            //分配武将
+            AssignGeneralsForPlayers(room, out Dictionary<Player, List<string>> options);
+            //武将预览
+            foreach (Player p in room.Players)
+            {
+                List<string> gongxinArgs = new List<string> { string.Empty, JsonUntity.Object2Json(options[p]), string.Empty, string.Empty };
+                room.DoNotify(room.GetClient(p), CommandType.S_COMMAND_VIEW_GENERALS, gongxinArgs);
+            }
+
             List<Interactivity> receivers = new List<Interactivity>();
             List<Player> lords = new List<Player>();
             foreach (Client client in room.Clients)
@@ -94,18 +104,23 @@ namespace SanguoshaServer.Scenario
                 {
                     p.Camp = Game3v3Camp.S_CAMP_COOL;
                     p.Role = "lord";
+                    room.BroadcastProperty(p, "Camp");
                 }
                 else
                 {
-                    p.Camp = Game3v3Camp.S_CAMP_WARM;
                     p.Role = "rebel";
                 }
-                room.BroadcastProperty(p, "Camp");
                 room.BroadcastProperty(p, "Role");
             }
 
-            //分配武将
-            AssignGeneralsForPlayers(room, out Dictionary<Player, List<string>> options);
+            //地主增加2框
+            List<string> generals = (List<string>)room.GetTag(Name);
+            for (int i = 0; i < 2; i++)
+            {
+                Shuffle.shuffle(ref generals);
+                options[lord].Add(generals[0]);
+                generals.RemoveAt(0);
+            }
 
             //选将      
             receivers.Clear();
@@ -271,7 +286,7 @@ namespace SanguoshaServer.Scenario
             {
                 foreach (Player p in room.Players)
                 {
-                    if (p != player && p.IsSameCamp(player))
+                    if (p != player && p.GetRoleEnum() == player.GetRoleEnum())
                     {
                         room.NotifyProperty(room.GetClient(p), player, "General1");
                         room.NotifyProperty(room.GetClient(p), player, "Kingdom");
@@ -300,7 +315,6 @@ namespace SanguoshaServer.Scenario
             foreach (Player player in room.Players)
             {
                 int max = max_choice;
-                if (player.GetRoleEnum() == PlayerRole.Lord) max += 3;
                 List<string> choices = new List<string>();
                 
                 for (int i = 0; i < max; i++)
@@ -322,6 +336,7 @@ namespace SanguoshaServer.Scenario
                             options[player].Add(g.Name);
                 }
             }
+            room.SetTag(Name, generals);
         }
 
         public override void PrepareForStart(Room room, ref List<Player> room_players, ref List<int> game_cards, ref List<int> m_drawPile)
@@ -360,12 +375,12 @@ namespace SanguoshaServer.Scenario
 
         public override bool IsFriendWith(Room room, Player player, Player other)
         {
-            return player.IsSameCamp(other);
+            return player.GetRoleEnum() == other.GetRoleEnum();
         }
 
         public override bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null)
         {
-            return player.IsSameCamp(other);
+            return player.GetRoleEnum() == other.GetRoleEnum();
         }
 
         public override void PrepareForPlayers(Room room)

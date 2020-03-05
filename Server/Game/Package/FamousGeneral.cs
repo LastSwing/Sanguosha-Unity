@@ -11328,7 +11328,7 @@ namespace SanguoshaServer.Package
             }
 
             List<Player> targets = new List<Player>();
-            foreach (Player p in room.GetAlivePlayers())
+            foreach (Player p in room.GetOtherPlayers(player))
             {
                 if (count > 0 || (discard > 0 && !p.IsNude() && RoomLogic.CanDiscard(room, p, p, "he")))
                     targets.Add(p);
