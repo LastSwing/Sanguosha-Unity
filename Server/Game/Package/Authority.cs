@@ -483,6 +483,17 @@ namespace SanguoshaServer.Package
 
                 target.SetMark("stopfighting", 1);
                 room.SetPlayerStringMark(target, "non_compulsory", "skill invalid");
+
+                if (target.IsWounded())
+                {
+                    RecoverStruct recover = new RecoverStruct
+                    {
+                        Who = player,
+                        Recover = 1
+                    };
+                    room.Recover(target, recover, true);
+                }
+
                 return true;
             }
         }
