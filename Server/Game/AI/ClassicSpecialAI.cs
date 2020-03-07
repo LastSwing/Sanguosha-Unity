@@ -6365,7 +6365,7 @@ namespace SanguoshaServer.AI
                 }
 
                 int max = Math.Max(5, slashes.Count);
-                if (count > 0 && count >= max - 2)
+                if (count > 0 && count >= max - 2 && discard > -1)
                 {
                     ai.Number[Name] = discard;
                     return true;
@@ -6406,7 +6406,11 @@ namespace SanguoshaServer.AI
 
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
-            return new List<int> { (int)ai.Number[Name] };
+            int id = (int)ai.Number[Name];
+            if (id > -1)
+                return new List<int> { id };
+
+            return new List<int>();
         }
     }
 

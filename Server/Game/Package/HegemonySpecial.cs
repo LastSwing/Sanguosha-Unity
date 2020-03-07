@@ -397,6 +397,7 @@ namespace SanguoshaServer.Package
                             Skill = Name,
                             ShowSkill = Name,
                         };
+                        kb.AddSubCards(cards);
                         result.Add(kb);
                     }
                 }

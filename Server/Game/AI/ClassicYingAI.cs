@@ -1504,7 +1504,7 @@ namespace SanguoshaServer.AI
     {
         public LiangyinAI() : base("liangyin")
         {
-            key = new List<string> { "playerChosen:liangyin", "cardChosen:liangyin" };
+            key = new List<string> { "playerChosen:liangyin" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
@@ -1516,20 +1516,26 @@ namespace SanguoshaServer.AI
                 if (choice.StartsWith("playerChosen") && choices[1] == Name)
                 {
                     Player target = room.FindPlayer(choices[2]);
-                    if (ai.GetPlayerTendency(target) != "unknown" && target.HandcardNum > player.HandcardNum)
-                        ai.UpdatePlayerRelation(player, target, true);
-                }
-                else if (choice.StartsWith("cardChosen") && choices[1] == Name)
-                {
-                    int card_id = int.Parse(choices[2]);
-                    Player target = room.FindPlayer(choices[4]);
-                    if (room.GetCardPlace(card_id) == Place.PlaceHand)
+                    if (ai.GetPlayerTendency(target) != "unknown")
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
-                    }
-                    else if (room.GetCardPlace(card_id) == Place.PlaceEquip)
-                    {
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                        if (target.HandcardNum > player.HandcardNum)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            bool friend = false;
+                            if (target.HasEquip())
+                            {
+                                foreach (int id in target.GetEquips())
+                                {
+                                    if (ai.GetKeepValue(id, target) < 0)
+                                    {
+                                        friend = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            ai.UpdatePlayerRelation(player, target, friend);
+                        }
                     }
                 }
             }
@@ -1567,6 +1573,19 @@ namespace SanguoshaServer.AI
                 List<ScoreStruct> scores = new List<ScoreStruct>();
                 foreach (Player p in targets)
                 {
+                    if (!ai.IsFriend(p) && p.HasEquip())
+                    {
+                        bool skip = false;
+                        foreach (int id in p.GetEquips())
+                        {
+                            if (ai.GetKeepValue(id, p) < 0)
+                            {
+                                skip = true;
+                                break;
+                            }
+                        }
+                        if (skip) continue;
+                    }
                     ScoreStruct score = ai.FindCards2Discard(player, p, Name, "he", HandlingMethod.MethodDiscard);
                     score.Players = new List<Player> { p };
                     scores.Add(score);

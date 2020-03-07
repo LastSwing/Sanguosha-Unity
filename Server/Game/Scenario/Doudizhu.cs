@@ -473,8 +473,7 @@ namespace SanguoshaServer.Scenario
                 else
                     lord = p;
             }
-
-            clients.Add(room.GetInteractivity(lord.ClientId));
+            if (lord != null) clients.Add(room.GetInteractivity(lord.ClientId));
             if (rebel.Count == 1 && rebel[0].ClientId > 0)
             {
                 clients.Add(room.GetInteractivity(rebel[0].ClientId));
@@ -546,7 +545,7 @@ namespace SanguoshaServer.Scenario
             int time = 300000;
             await System.Threading.Tasks.Task.Delay(time);
 
-            if (room.Surrender.Count == 0)
+            if (!room.Finished && room.Surrender.Count == 0)
                 room.CheckSurrend();
         }
 

@@ -9643,7 +9643,9 @@ namespace SanguoshaServer.Package
             {
                 WrappedCard card = use.Card;
                 List<int> ids = room.GetSubCards(card);
-                string str = string.Format("{0}_{1}", Name, card.Name);
+                string card_name = card.Name;
+                if (card_name.Contains(Slash.ClassName)) card_name = Slash.ClassName;
+                string str = string.Format("{0}_{1}", Name, card_name);
                 if (!from.HasFlag(str) && ids.Count > 0 && ids.SequenceEqual(card.SubCards))
                 {
                     bool check = true;
@@ -9701,7 +9703,9 @@ namespace SanguoshaServer.Package
                     ask_who.Result = result;
 
                     WrappedCard card = use.Card;
-                    string str = string.Format("{0}_{1}", Name, card.Name);
+                    string card_name = card.Name;
+                    if (card_name.Contains(Slash.ClassName)) card_name = Slash.ClassName;
+                    string str = string.Format("{0}_{1}", Name, card_name);
                     ask_who.SetFlags(str);
 
                     room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_RECYCLE, ask_who.Name, target.Name, Name, string.Empty));
