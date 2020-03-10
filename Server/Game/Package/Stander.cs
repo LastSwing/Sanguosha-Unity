@@ -3361,9 +3361,9 @@ namespace SanguoshaServer.Package
         {
             if (data is PhaseChangeStruct change)
             {
-                if (base.Triggerable(player, room) && change.To == PlayerPhase.Play)
+                if (base.Triggerable(player, room) && change.To == PlayerPhase.Play && !player.IsSkipped(PlayerPhase.Play))
                 {
-                    return (player.IsSkipped(PlayerPhase.Play)) ? new TriggerStruct() : new TriggerStruct(Name, player);
+                    return new TriggerStruct(Name, player);
                 }
                 else if (change.To == PlayerPhase.NotActive && player.HasFlag(Name) && RoomLogic.CanDiscard(room, player, player, "h"))
                 {

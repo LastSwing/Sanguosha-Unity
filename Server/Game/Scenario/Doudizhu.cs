@@ -37,7 +37,7 @@ namespace SanguoshaServer.Scenario
             //武将预览
             foreach (Player p in room.Players)
             {
-                List<string> gongxinArgs = new List<string> { string.Empty, JsonUntity.Object2Json(options[p]), string.Empty, string.Empty };
+                List<string> gongxinArgs = new List<string> { string.Empty, JsonUntity.Object2Json(options[p]), string.Empty, string.Empty, "false" };
                 room.DoNotify(room.GetClient(p), CommandType.S_COMMAND_VIEW_GENERALS, gongxinArgs);
             }
 
@@ -604,30 +604,20 @@ namespace SanguoshaServer.Scenario
         {
             DeathStruct death = (DeathStruct)data;
             room.BuryPlayer(player);
-
-            Player killer = death.Damage.From;
-            if (killer != null)
-                RewardAndPunish(room, killer, player);
-        }
-        protected override void OnDeath(Room room, Player player, ref object data)
-        {
-        }
-
-        protected override void RewardAndPunish(Room room, Player killer, Player victim)
-        {
-            if (!killer.Alive) return;
-
-            if (victim.GetRoleEnum() == PlayerRole.Rebel)
+            if (player.GetRoleEnum() == PlayerRole.Rebel)
             {
                 foreach (Player p in room.Players)
                 {
-                    if (p != victim && p.Alive && p.GetRoleEnum() == PlayerRole.Rebel)
+                    if (p != player && p.Alive && p.GetRoleEnum() == PlayerRole.Rebel)
                     {
                         room.DrawCards(p, 2, "gamerule");
                         break;
                     }
                 }
             }
+        }
+        protected override void OnDeath(Room room, Player player, ref object data)
+        {
         }
     }
 

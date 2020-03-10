@@ -705,7 +705,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && RoomLogic.CanDiscard(room, Self, to_select, "hej");
+            return targets.Count == 0 && RoomLogic.CanDiscard(room, Self, to_select, "ej");
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -716,10 +716,10 @@ namespace SanguoshaServer.Package
             room.AskForDiscard(player, "qingce", 1, 1, false, true, "@qingce-discard", false, card_use.Card.SkillPosition);
 
             room.SetEmotion(player, "dismantlement");
-            if (!RoomLogic.CanDiscard(room, player, target, "hej"))
+            if (!RoomLogic.CanDiscard(room, player, target, "ej"))
                 return;
 
-            int card_id = room.AskForCardChosen(player, target, "hej", "qingce", false, HandlingMethod.MethodDiscard);
+            int card_id = room.AskForCardChosen(player, target, "ej", "qingce", false, HandlingMethod.MethodDiscard);
             room.ThrowCard(card_id, room.GetCardPlace(card_id) == Place.PlaceDelayedTrick ? null : target, player != target ? player : null);
         }
     }

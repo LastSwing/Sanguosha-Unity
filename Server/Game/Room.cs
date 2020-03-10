@@ -2860,6 +2860,7 @@ namespace SanguoshaServer.Game
 
         private void GameStart(Client client, List<string> data)
         {
+            if (GameStarted) return;
             bool check = true;
             if (Scenario.IsFull(this) && Host == client)
             {
@@ -8116,11 +8117,15 @@ namespace SanguoshaServer.Game
             List<string> gongxinArgs = new List<string> { reason, JsonUntity.Object2Json(names), reason, position };
             if (player.Status == "trust")
             {
+                gongxinArgs.Add("false");
                 DoNotify(GetClient(player), CommandType.S_COMMAND_VIEW_GENERALS, gongxinArgs);
                 Thread.Sleep(3000);
             }
             else
+            {
+                gongxinArgs.Add("true");
                 DoRequest(player, CommandType.S_COMMAND_VIEW_GENERALS, gongxinArgs, true);
+            }
 
             DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
         }

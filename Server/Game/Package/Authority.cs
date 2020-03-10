@@ -89,6 +89,7 @@ namespace SanguoshaServer.Package
             {
                 { "zhengpi", new List<string> { "#zhengpi-target" } },
                 { "jieyue", new List<string> { "#jieyue-draw" } },
+                { "jieyue_cc", new List<string> { "#jieyue-draw" } },
                 { "paoxiao_fz", new List<string> { "#paoxiao_fz-tm" } },
                 { "liegong_fz", new List<string> { "#liegong_fz-for-lord" } },
                 { "yongsi", new List<string> { "#yongshi-viewhas" } },

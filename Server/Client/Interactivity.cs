@@ -133,7 +133,10 @@ namespace SanguoshaServer
                         CommandType command = ExpectedReplyCommand;
                         if (m_requestResponsePair.ContainsKey(ExpectedReplyCommand))
                             m_requestResponsePair.TryGetValue(ExpectedReplyCommand, out command);
-                        callbacks[command](arg);
+                        if (callbacks.ContainsKey(command))
+                            callbacks[command](arg);
+                        else
+                            room.Debug(string.Format("command {0} is not operation", command.ToString()));
                     }
                     return true;
                 }

@@ -200,8 +200,8 @@ namespace SanguoshaServer.AI
             List<ScoreStruct> scores = new List<ScoreStruct>();
             foreach (Player p in room.GetAlivePlayers())
             {
-                if (!RoomLogic.CanDiscard(room, player, p, "hej")) continue;
-                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "hej", HandlingMethod.MethodDiscard);
+                if (!RoomLogic.CanDiscard(room, player, p, "ej")) continue;
+                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "ej", HandlingMethod.MethodDiscard);
                 scores.Add(score);
             }
             if (scores.Count > 0)

@@ -77,7 +77,7 @@ namespace SanguoshaServer.AI
             if (room.GetTag(Name) is DamageStruct damage)
             {
                 ScoreStruct score = ai.GetDamageScore(damage, DamageStruct.DamageStep.Done);
-                if (!ai.IsEnemy(damage.To))
+                if (ai.IsEnemy(damage.To))
                 {
                     List<int> ids = new List<int>();
                     foreach (int id in player.GetCards("h"))
