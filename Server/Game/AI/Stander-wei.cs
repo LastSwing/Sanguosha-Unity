@@ -1555,7 +1555,7 @@ namespace SanguoshaServer.AI
             if (ai.Room.Setting.GameMode == "Hegemony")
             {
                 List<string> kingdoms = new List<string>();
-                foreach (Player p in ai.Room.Players)
+                foreach (Player p in ai.Room.GetAlivePlayers())
                     if (p.HasShownOneGeneral() && !kingdoms.Contains(p.Kingdom))
                         kingdoms.Add(p.Kingdom);
 
@@ -2177,7 +2177,7 @@ namespace SanguoshaServer.AI
                         if (ai.HasSkill("jushou", target))
                         {
                             List<string> kingdoms = new List<string>();
-                            foreach (Player p in room.Players)
+                            foreach (Player p in room.GetAlivePlayers())
                                 if (p.HasShownOneGeneral() && !kingdoms.Contains(p.Kingdom))
                                     kingdoms.Add(p.Kingdom);
 
@@ -2215,7 +2215,7 @@ namespace SanguoshaServer.AI
                 if (p != player && !p.FaceUp && ai.HasSkill("jushou", p) && p == room.Current)
                 {
                     List<string> kingdoms = new List<string>();
-                    foreach (Player _p in room.Players)
+                    foreach (Player _p in room.GetAlivePlayers())
                         if (_p.HasShownOneGeneral() && !kingdoms.Contains(_p.Kingdom))
                             kingdoms.Add(_p.Kingdom);
 
@@ -2232,7 +2232,7 @@ namespace SanguoshaServer.AI
             if (room.Current != player && ai.IsFriend(room.Current) && ai.HasSkill("jushou", room.Current) && room.Current.FaceUp)
             {
                 List<string> kingdoms = new List<string>();
-                foreach (Player p in room.Players)
+                foreach (Player p in room.GetAlivePlayers())
                     if (p.HasShownOneGeneral() && !kingdoms.Contains(p.Kingdom))
                         kingdoms.Add(p.Kingdom);
 

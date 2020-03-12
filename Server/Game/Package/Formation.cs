@@ -421,6 +421,7 @@ namespace SanguoshaServer.Package
         public override bool CanPreShow() => false;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
+            if (room.AliveCount() < 4) return;
             if (triggerEvent == TriggerEvent.EventPhaseStart)
             {
                 if (player != null && player.Alive && player.Phase == PlayerPhase.RoundStart)
@@ -456,11 +457,10 @@ namespace SanguoshaServer.Package
         }
         public override bool ViewHas(Room room, Player player, string skill_name)
         {
+            if (room.AliveCount() < 4) return false;
             List <Player> caohongs = new List<Player>();
-            List<Player> sib = room.GetAlivePlayers();
-            if (sib.Count <= 3) return false;
 
-            foreach (Player p in sib)
+            foreach (Player p in room.GetOtherPlayers(player))
             if (RoomLogic.PlayerHasShownSkill(room, p, "heyi"))
                 caohongs.Add(p);
 

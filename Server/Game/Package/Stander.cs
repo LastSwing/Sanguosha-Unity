@@ -1327,7 +1327,7 @@ namespace SanguoshaServer.Package
         public override bool OnPhaseChange(Room room, Player caoren, TriggerStruct info)
         {
             List<string> kingdoms = new List<string>();
-            foreach (Player p in room.Players)
+            foreach (Player p in room.GetAlivePlayers())
                 if (p.HasShownOneGeneral() && !kingdoms.Contains(p.Kingdom))
                     kingdoms.Add(p.Kingdom);
 

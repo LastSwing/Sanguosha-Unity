@@ -3172,12 +3172,11 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && base.Triggerable(move.From, room)
                 && move.Reason.Reason == MoveReason.S_REASON_THROW && move.Reason.SkillName == Name && move.Card_ids.Count == 1 && move.To_place == Place.PlaceTable && move.From.Alive)
             {
-                int count = move.From.GetMark(Name);
+                int count = 0;
                 foreach (int id in move.Card_ids)
                     count += room.GetCard(id).Number;
 
-                move.From.SetMark(Name, count);
-                room.SetPlayerStringMark(move.From, Name, count.ToString());
+                move.From.SetMark("fangtong_discard", count);
             }
         }
 
@@ -3214,8 +3213,9 @@ namespace SanguoshaServer.Package
             {
                 player.SetMark(Name, count);
                 room.SetPlayerStringMark(player, Name, count.ToString());
-
-                if (count == 36)
+                int discard = player.GetMark("fangtong_discard");
+                player.SetMark("fangtong_discard", 0);
+                if (count + discard == 36)
                 {
                     Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@fangtong-target", false, true, info.SkillPosition);
                     GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
