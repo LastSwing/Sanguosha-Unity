@@ -1835,7 +1835,7 @@ namespace SanguoshaServer.Package
     {
         public Zhiyi() : base("zhiyi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded };
+            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded, TriggerEvent.CardsMoveOneTime };
             frequency = Frequency.Compulsory;
             view_as_skill = new ZhiyiVS();
         }
@@ -1864,6 +1864,14 @@ namespace SanguoshaServer.Package
                 if (Engine.GetFunctionCard(resp.Card.Name) is BasicCard)
                     return new TriggerStruct(Name, player);
             }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.DiscardPile
+                && move.Reason.Reason == MoveReason.S_REASON_RESPONSE && move.Reason.Card != null)
+            {
+                Player from = room.FindPlayer(move.Reason.PlayerId);
+                if (from != null && from.ContainsTag("zhiyi_resp") && from.GetTag("zhiyi_resp") is WrappedCard resp_card && resp_card == move.Reason.Card)
+                    return new TriggerStruct(Name, from);
+            }
+
             return new TriggerStruct();
         }
 
@@ -1891,7 +1899,11 @@ namespace SanguoshaServer.Package
                 }
                 else
                 {
-                    player.SetTag(Name, card);
+                    if (triggerEvent == TriggerEvent.CardUsed || (data is CardResponseStruct resp && resp.Use))
+                        player.SetTag(Name, card);
+                    else
+                        player.SetTag("zhiyi_resp", card);
+
                     LogMessage log = new LogMessage("$zhiyi")
                     {
                         From = player.Name,
@@ -1907,6 +1919,14 @@ namespace SanguoshaServer.Package
                 room.AskForUseCard(player, "@@zhiyi", "@zhiyi:::" + card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
 
                 player.RemoveTag(Name);
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && ask_who.GetTag("zhiyi_resp") is WrappedCard _card)
+            {
+                ask_who.RemoveTag("zhiyi_resp");
+                ask_who.SetTag(Name, _card.Name);
+                room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi:::" + _card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
+
+                ask_who.RemoveTag(Name);
             }
 
             return false;

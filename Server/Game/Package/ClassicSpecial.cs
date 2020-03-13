@@ -11364,7 +11364,7 @@ namespace SanguoshaServer.Package
 
                 int card_id = room.AskForCardChosen(player, target, "e", Name, false, HandlingMethod.MethodNone, ids);
                 List<string> choices = new List<string>();
-                if (RoomLogic.CanGetCard(room, player, target, card_id)) choices.Add("get");
+                if (RoomLogic.CanGetCard(room, player, target, card_id) && Engine.GetFunctionCard(room.GetCard(card_id).Name) is Armor) choices.Add("get");
                 if (RoomLogic.CanDiscard(room, player, target, card_id)) choices.Add("discard");
                 if (room.AskForChoice(player, Name, string.Join("+", choices), null, card_id) == "get")
                 {
@@ -11383,13 +11383,13 @@ namespace SanguoshaServer.Package
     {
         public Zhixi() : base("zhixi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging };
             frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && base.Triggerable(player, room))
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (!(fcard is SkillCard))
@@ -11400,16 +11400,6 @@ namespace SanguoshaServer.Package
                         RoomLogic.SetPlayerCardLimitation(player, Name, "use", ".", true);
                         player.SetFlags(Name);
                     }
-                }
-
-            }
-            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && base.Triggerable(player, room))
-            {
-                player.AddMark(Name);
-                if (!player.HasFlag(Name) && player.GetMark(Name) >= player.Hp)
-                {
-                    RoomLogic.SetPlayerCardLimitation(player, Name, "use", ".", true);
-                    player.SetFlags(Name);
                 }
             }
             else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
