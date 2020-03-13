@@ -963,10 +963,12 @@ namespace SanguoshaServer.Game
 
                 case TargetModSkill.ModType.SpecificAssignee:
                     {
+                        CardUseStruct.CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+                        string pattern = room.GetRoomState().GetCurrentCardUsePattern(from);
                         foreach (TargetModSkill skill in targetmod_skills)
                         {
                             CardPattern p = GetPattern(skill.Pattern);
-                            if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card)) return true;
+                            if (p.Match(from, room, card) && skill.CheckSpecificAssignee(room, from, to, card, pattern)) return true;
                         }
 
                         break;

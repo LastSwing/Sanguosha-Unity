@@ -1161,7 +1161,7 @@ namespace SanguoshaServer.Package
             return false;
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             if (from != null && to != null && RoomLogic.PlayerHasShownSkill(room, from, "limu") && RoomLogic.InMyAttackRange(room, from, to, card) && from != to
                 && from.JudgingArea.Count > 0)
@@ -1482,7 +1482,7 @@ namespace SanguoshaServer.Package
             return from != null && to != null && from == room.Current && to.HasFlag("xiongluan");
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             return from != null && to != null && from == room.Current && to.HasFlag("xiongluan");
         }

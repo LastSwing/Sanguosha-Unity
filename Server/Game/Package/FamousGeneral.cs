@@ -2694,9 +2694,9 @@ namespace SanguoshaServer.Package
     public class ZhongyongTag : TargetModSkill
     {
         public ZhongyongTag() : base("#zhongyong-tar", false) { }
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseStruct.CardUseReason reason, string pattern)
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
-            if (reason == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE && to.HasFlag("SlashAssignee")
+            if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && to.HasFlag("SlashAssignee")
                 && (room.GetRoomState().GetCurrentResponseSkill() == "zhongyong" || pattern == "Slash:zhongyong"))
                 return true;
 
@@ -5957,7 +5957,7 @@ namespace SanguoshaServer.Package
             if (base.Triggerable(zhurong, room) && data is DamageStruct damage && damage.Card != null && zhurong.GetWeapon())
             {
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
-                if (fcard is Slash && !zhurong.IsKongcheng() && !damage.To.IsKongcheng() && damage.To != zhurong && !damage.Chain && !damage.Transfer)
+                if (fcard is Slash && damage.To != zhurong && !damage.Chain && !damage.Transfer)
                     return new TriggerStruct(Name, zhurong);
             }
             return new TriggerStruct();
@@ -7628,7 +7628,7 @@ namespace SanguoshaServer.Package
             return false;
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             if (from != null && to != null && from.ContainsTag("xianzhen") && from.GetTag("xianzhen") is List<string> target_names && target_names.Contains(to.Name))
                 return true;

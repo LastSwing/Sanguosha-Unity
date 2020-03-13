@@ -1008,7 +1008,7 @@ namespace SanguoshaServer.Package
             pattern = ".";
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             if (to != null && !to.HasShownOneGeneral() && from.HasFlag("zhengpi_" + to.Name))
                 return true;

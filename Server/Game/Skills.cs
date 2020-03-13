@@ -940,7 +940,7 @@ namespace SanguoshaServer.Game
         public virtual int GetResidueNum(Room room, Player from, WrappedCard card) => 0;
         public virtual int GetExtraTargetNum(Room room, Player from, WrappedCard card) => 0;
         public virtual bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern) => false;
-        public virtual bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card) => false;
+        public virtual bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern) => false;
         public virtual bool IgnoreCount(Room room, Player from, WrappedCard card) => false;
         public virtual bool CheckExtraTargets(Room room, Player from, Player to, WrappedCard card,
                                   List<Player> previous_targets, List<Player> targets = null) => false;

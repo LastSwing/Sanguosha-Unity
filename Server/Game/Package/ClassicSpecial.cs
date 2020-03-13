@@ -7099,7 +7099,7 @@ namespace SanguoshaServer.Package
             pattern = ".";
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             if (to != null && from.HasFlag("tanbei_" + to.Name))
                 return true;
@@ -7881,6 +7881,8 @@ namespace SanguoshaServer.Package
                 bool effected = judge_struct.Good == Engine.MatchExpPattern(room, judge_struct.Pattern, judge_struct.Who, judge_struct.Card);
                 judge_struct.UpdateResult(effected);
                 data = judge_struct;
+
+                return true;
             }
             else
             {
@@ -7895,9 +7897,10 @@ namespace SanguoshaServer.Package
                         if (p.Alive)
                             room.LoseHp(p);
                 }
+
+                return false;
             }
 
-            return false;
         }
     }
 
@@ -8495,7 +8498,7 @@ namespace SanguoshaServer.Package
             pattern = ".Basic";
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card)
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
         {
             return from != null && to != null && from.HasFlag(string.Format("huxiao_{0}", to.Name));
         }

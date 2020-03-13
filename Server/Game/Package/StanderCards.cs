@@ -233,7 +233,7 @@ namespace SanguoshaServer.Package
                         {
                             foreach (Player p in use.To)
                             {
-                                if (skill.CheckSpecificAssignee(room, player, p, card))
+                                if (skill.CheckSpecificAssignee(room, player, p, card, use.Pattern))
                                 {
                                     if (!skill.SkillRelated) return;
                                     targetModSkills.Add(skill);
@@ -691,7 +691,7 @@ namespace SanguoshaServer.Package
                             }
                             q.Add(skill.Name);
                         }
-                        if (skill.CheckSpecificAssignee(room, player, player, card))
+                        if (skill.CheckSpecificAssignee(room, player, player, card, use.Pattern))
                         {
                             if (!skill.SkillRelated) return;
                             q.Add(skill.Name);

@@ -48,6 +48,7 @@ namespace SanguoshaServer.Package
                 new Yizan(),
                 new Longyuan(),
                 new Zhiyi(),
+                new ZhiyiTar(),
 
                 new Yingjian(),
                 new Shixin(),
@@ -70,6 +71,7 @@ namespace SanguoshaServer.Package
                 { "qiancong", new List<string>{ "#qiancong", "#qiancong-tar" } },
                 { "zhanyi", new List<string>{ "#zhanyi" } },
                 { "zhaoxin", new List<string> { "#zhaoxin-clear" } },
+                { "zhiyi", new List<string> { "#zhiyi" } },
             };
         }
     }
@@ -887,7 +889,6 @@ namespace SanguoshaServer.Package
 
             return triggers;
         }
-
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
@@ -1942,6 +1943,19 @@ namespace SanguoshaServer.Package
             card.Skill = "_zhiyi";
             result.Add(card);
             return result;
+        }
+    }
+
+    public class ZhiyiTar : TargetModSkill
+    {
+        public ZhiyiTar() : base("#zhiyi", false)
+        {
+            pattern = Analeptic.ClassName;
+        }
+
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
+        {
+            return pattern == "@@zhiyi" ? true : false;
         }
     }
 
