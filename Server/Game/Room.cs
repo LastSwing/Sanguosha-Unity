@@ -2860,7 +2860,7 @@ namespace SanguoshaServer.Game
 
         private void GameStart(Client client, List<string> data)
         {
-            if (GameStarted) return;
+            if (GameStarted || thread != null) return;
             bool check = true;
             if (Scenario.IsFull(this) && Host == client)
             {
@@ -2882,6 +2882,8 @@ namespace SanguoshaServer.Game
 
         public void Run()
         {
+            if (thread != null) return;
+
             GameStarted = true;
             Hall.BroadCastRoom(this);
             PrepareForStart();
