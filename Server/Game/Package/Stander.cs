@@ -4162,7 +4162,8 @@ namespace SanguoshaServer.Package
         }
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            if (card.Name == Peach.ClassName && room.Current != null && room.Current.Phase != PlayerPhase.NotActive && RoomLogic.PlayerHasShownSkill(room, room.Current, "wansha")
+            if (card.Name == Peach.ClassName && room.Current != null && room.Current.Alive && room.Current.Phase != PlayerPhase.NotActive
+                && RoomLogic.PlayerHasShownSkill(room, room.Current, "wansha")
                 && room.Current != from && !from.HasFlag("Global_Dying"))
                 return true;
 

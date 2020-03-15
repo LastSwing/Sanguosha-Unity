@@ -1520,9 +1520,8 @@ namespace SanguoshaServer.Package
             if (to_select.IsAllNude() || !RoomLogic.CanGetCard(room, Self, to_select, "hej") || !base.TargetFilter(room, targets, to_select, Self, card))
                 return false;
 
-            bool correct_target = (!card.DistanceLimited || Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, Self, to_select, card));
-
-            return correct_target || RoomLogic.DistanceTo(room, Self, to_select, card) == 1;
+            return !card.DistanceLimited
+                || Engine.CorrectCardTarget(room, TargetModSkill.ModType.DistanceLimit, Self, to_select, card) || RoomLogic.DistanceTo(room, Self, to_select, card) == 1;
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {

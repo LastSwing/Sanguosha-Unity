@@ -1577,7 +1577,6 @@ namespace SanguoshaServer.Package
         public Xuanhuo() : base("xuanhuo")
         {
             events = new List<TriggerEvent> { TriggerEvent.GeneralShown, TriggerEvent.Death, TriggerEvent.DFDebut, TriggerEvent.EventPhaseChanging };
-            frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)

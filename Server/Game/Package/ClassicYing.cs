@@ -2073,7 +2073,7 @@ namespace SanguoshaServer.Package
 
     public class WanglieTar : TargetModSkill
     {
-        public WanglieTar() : base("#wanglie-tar") { }
+        public WanglieTar() : base("#wanglie-tar") { pattern = "."; }
 
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {

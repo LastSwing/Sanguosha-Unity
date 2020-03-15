@@ -18,10 +18,13 @@ namespace SanguoshaServer.AI
 
                 new DaigongAI(),
                 new ZhaoxinAI(),
+                new ZhongzuoAI(),
+                new WanlanAI(),
 
                 new YixiangAI(),
                 new YirangAI(),
                 new RensheAI(),
+                new ZhiyiAI(),
 
                 new WuyuanAI(),
             };
@@ -130,6 +133,98 @@ namespace SanguoshaServer.AI
             }
 
             return false;
+        }
+    }
+
+    public class ZhongzuoAI : SkillEvent
+    {
+        public ZhongzuoAI() : base("zhongzuo")
+        {
+            key = new List<string> { "playerChosen:zhongzuo" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (target != null && ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> players = ai.FriendNoSelf;
+            if (players.Count > 0)
+            {
+                ai.SortByDefense(ref players, false);
+                foreach (Player p in players)
+                    if (p.IsWounded())
+                        return new List<Player> { p };
+
+                players = ai.GetFriends(player);
+                Room room = ai.Room;
+                room.SortByActionOrder(ref players);
+                foreach (Player p in players)
+                {
+                    if (p == room.Current || !p.FaceUp) continue;
+                    return new List<Player> { p };
+                }
+            }
+            return new List<Player> { player };
+        }
+    }
+
+    public class WanlanAI : SkillEvent
+    {
+        public WanlanAI() : base("wanlan")
+        {
+            key = new List<string> { "skillInvoke:wanlan" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && player != ai.Self)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name && strs[2] == "yes")
+                {
+                    Room room = ai.Room;
+                    Player target = null;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.HasFlag("Global_Dying"))
+                        {
+                            target = p;
+                            break;
+                        }
+                    }
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            Player target = null;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p.HasFlag("Global_Dying"))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            return ai.IsFriend(target) && (room.Current == null || !ai.IsFriend(room.Current) || room.Current.Hp > 1);
         }
     }
 
@@ -404,6 +499,16 @@ namespace SanguoshaServer.AI
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 4;
+        }
+    }
+
+    public class ZhiyiAI : SkillEvent
+    {
+        public ZhiyiAI() : base("zhiyi") { }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            return "draw";
         }
     }
 }
