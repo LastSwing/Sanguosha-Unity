@@ -1835,7 +1835,7 @@ namespace SanguoshaServer.Package
     {
         public Zhiyi() : base("zhiyi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded, TriggerEvent.CardsMoveOneTime };
+            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded };
             frequency = Frequency.Compulsory;
             view_as_skill = new ZhiyiVS();
         }
@@ -1848,31 +1848,32 @@ namespace SanguoshaServer.Package
             }
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardFinished && player.ContainsTag(Name) && player.Alive && data is CardUseStruct _use && player.GetTag(Name) is WrappedCard card && _use.Card == card)
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct _use)
             {
-                return new TriggerStruct(Name, player);
+                if (player.ContainsTag(Name) && player.Alive && player.GetTag(Name) is WrappedCard card && _use.Card == card)
+                    triggers.Add(new TriggerStruct(Name, player));
+
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    if (p.ContainsTag(Name) && p.ContainsTag("zhiyi_resp") && p.GetTag("zhiyi_resp") is WrappedCard resp_card && _use.Card == resp_card)
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
             }
             else if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && !player.HasFlag(Name) && data is CardUseStruct use)
             {
                 if (Engine.GetFunctionCard(use.Card.Name) is BasicCard)
-                    return new TriggerStruct(Name, player);
+                    triggers.Add(new TriggerStruct(Name, player));
             }
             else if (triggerEvent == TriggerEvent.CardResponded && base.Triggerable(player, room) && !player.HasFlag(Name) && data is CardResponseStruct resp)
             {
                 if (Engine.GetFunctionCard(resp.Card.Name) is BasicCard)
-                    return new TriggerStruct(Name, player);
-            }
-            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.DiscardPile
-                && move.Reason.Reason == MoveReason.S_REASON_RESPONSE && move.Reason.Card != null)
-            {
-                Player from = room.FindPlayer(move.Reason.PlayerId);
-                if (from != null && from.ContainsTag("zhiyi_resp") && from.GetTag("zhiyi_resp") is WrappedCard resp_card && resp_card == move.Reason.Card)
-                    return new TriggerStruct(Name, from);
+                    triggers.Add(new TriggerStruct(Name, player));
             }
 
-            return new TriggerStruct();
+            return triggers;
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -1881,14 +1882,18 @@ namespace SanguoshaServer.Package
             {
                 player.SetFlags(Name);
                 WrappedCard card = null;
+                bool can_use = true;
                 if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use)
                     card = use.Card;
                 else if (data is CardResponseStruct resp)
+                {
                     card = resp.Card;
+                    if (card.Name == Jink.ClassName || resp.Data == null || !(resp.Data is CardEffectStruct effect) || effect.Card == null)
+                        can_use = false;
+                }
 
                 List<string> choices = new List<string> { "draw" };
-                if (card.Name != Jink.ClassName)
-                    choices.Add("use");
+                if (can_use) choices.Add("use");
 
                 string choice = room.AskForChoice(player, Name, string.Join("+", choices));
                 room.SendCompulsoryTriggerLog(player, Name);
@@ -1899,10 +1904,9 @@ namespace SanguoshaServer.Package
                 }
                 else
                 {
-                    if (triggerEvent == TriggerEvent.CardUsed || (data is CardResponseStruct resp && resp.Use))
-                        player.SetTag(Name, card);
-                    else
-                        player.SetTag("zhiyi_resp", card);
+                    player.SetTag(Name, card);
+                    if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Data is CardEffectStruct effect)
+                        player.SetTag("zhiyi_resp", effect.Card);
 
                     LogMessage log = new LogMessage("$zhiyi")
                     {
@@ -1912,19 +1916,11 @@ namespace SanguoshaServer.Package
                     room.SendLog(log);
                 }
             }
-            else if (triggerEvent == TriggerEvent.CardFinished && player.GetTag(Name) is WrappedCard card)
+            else if (triggerEvent == TriggerEvent.CardFinished && ask_who.GetTag(Name) is WrappedCard card)
             {
-                player.RemoveTag(Name);
-                player.SetTag(Name, card.Name);
-                room.AskForUseCard(player, "@@zhiyi", "@zhiyi:::" + card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
-
-                player.RemoveTag(Name);
-            }
-            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && ask_who.GetTag("zhiyi_resp") is WrappedCard _card)
-            {
-                ask_who.RemoveTag("zhiyi_resp");
-                ask_who.SetTag(Name, _card.Name);
-                room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi:::" + _card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
+                ask_who.RemoveTag(Name);
+                ask_who.SetTag(Name, card.Name);
+                room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi:::" + card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
 
                 ask_who.RemoveTag(Name);
             }

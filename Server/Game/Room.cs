@@ -1644,7 +1644,8 @@ namespace SanguoshaServer.Game
                         || cards_move.To_place == Place.DiscardPile
                         // any card from/to discard pile should be visible
                         || cards_move.From_place == Place.PlaceTable
-                        || (cards_move.To_place == Place.PlaceTable && (cards_move.From_place != Place.PlaceHand || cards_move.Reason.SkillName != "guhuo"));
+                        || (cards_move.To_place == Place.PlaceTable
+                            && (cards_move.Reason.SkillName != "guhuo" || (cards_move.From_place != Place.PlaceHand && cards_move.From_place != Place.PlaceSpecial)));
                     // any card from/to place table should be visible
                     // the player put someone's cards to the drawpile
 

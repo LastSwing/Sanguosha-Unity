@@ -1062,7 +1062,7 @@ namespace SanguoshaServer.Package
         }
         private int GetGuanxingNum(Room room, Player zhuge)
         {
-            return Math.Max(3, Math.Min(5, room.AliveCount()));
+            return room.AliveCount() <= 3 ? 3 : 5;
         }
     }
 
