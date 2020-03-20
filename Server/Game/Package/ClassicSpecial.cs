@@ -1412,8 +1412,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                if (move.From != null && move.From_places.Contains(Place.PlaceEquip) && move.From.GetMark(Name) < 3
-                    && (move.To != move.From || move.To_place == Place.PlaceSpecial || move.To_place == Place.PlaceTable))
+                if (move.From != null && move.From_places.Contains(Place.PlaceEquip) && move.From.GetMark(Name) < 3)
                 {
                     int count = move.From.GetMark(Name);
                     foreach (Place place in move.From_places)
