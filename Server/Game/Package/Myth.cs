@@ -954,12 +954,12 @@ namespace SanguoshaServer.Package
     {
         public Longhun() : base("longhun")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced };
+            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded };
             view_as_skill = new LonghunVS();
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (data is CardUseStruct use && use.Card.Skill == Name && use.Card.SubCards.Count == 2)
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card.Skill == Name && use.Card.SubCards.Count == 2 && player.Alive)
             {
                 if (WrappedCard.IsRed(use.Card.Suit))
                 {
@@ -991,6 +991,15 @@ namespace SanguoshaServer.Package
                     }
                 }
                 else if (room.Current.Alive && !room.Current.IsNude() && RoomLogic.CanDiscard(room, player, room.Current, "he"))
+                {
+                    int id = room.AskForCardChosen(player, room.Current, "he", Name, false, HandlingMethod.MethodDiscard);
+                    room.ThrowCard(id, room.Current, player);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Card != null && resp.Use
+                && resp.Card.Skill == Name && resp.Card.SubCards.Count == 2)
+            {
+                if (!WrappedCard.IsRed(resp.Card.Suit) && room.Current.Alive && !room.Current.IsNude() && RoomLogic.CanDiscard(room, player, room.Current, "he"))
                 {
                     int id = room.AskForCardChosen(player, room.Current, "he", Name, false, HandlingMethod.MethodDiscard);
                     room.ThrowCard(id, room.Current, player);

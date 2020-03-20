@@ -1854,10 +1854,13 @@ namespace SanguoshaServer.Package
                 if (fcard is Slash)
                     player.AddMark(Name);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change
-                && change.To == PlayerPhase.NotActive)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                player.SetMark(Name, 0);
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.GetMark(Name) > 0)
+                        p.SetMark(Name, 0);
+                }
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)

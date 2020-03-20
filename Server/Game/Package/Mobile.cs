@@ -1918,6 +1918,7 @@ namespace SanguoshaServer.Package
             }
             else if (triggerEvent == TriggerEvent.CardFinished && ask_who.GetTag(Name) is WrappedCard card)
             {
+                ask_who.RemoveTag("zhiyi_resp");
                 ask_who.RemoveTag(Name);
                 ask_who.SetTag(Name, card.Name);
                 room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi:::" + card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);

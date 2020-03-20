@@ -618,16 +618,20 @@ namespace SanguoshaServer.Package
             frequency = Frequency.Frequent;
             skill_type = SkillType.Replenish;
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
-        {
 
-            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room)
-                && player.Phase == PlayerPhase.Discard && !player.HasFlag("ShengxiDamageInPlayPhase"))
-                    return new TriggerStruct(Name, player);
-            else if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && !damage.From.HasFlag("ShengxiDamageInPlayPhase"))
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && !damage.From.HasFlag("ShengxiDamageInPlayPhase"))
             {
                 damage.From.SetFlags("ShengxiDamageInPlayPhase");
             }
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room)
+                && player.Phase == PlayerPhase.Discard && !player.HasFlag("ShengxiDamageInPlayPhase"))
+                    return new TriggerStruct(Name, player);
+
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
@@ -651,13 +655,16 @@ namespace SanguoshaServer.Package
     {
         public ShengxiClear() : base("#shengxi-clear")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
         }
         public override int GetPriority() => -1;
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Discard && player.HasFlag("ShengxiDamageInPlayPhase"))
                 player.SetFlags("-ShengxiDamageInPlayPhase");
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
             return new TriggerStruct();
         }
     }

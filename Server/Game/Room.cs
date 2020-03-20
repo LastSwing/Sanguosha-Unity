@@ -6459,7 +6459,10 @@ namespace SanguoshaServer.Game
                 List<PhaseStruct> phases_state = new List<PhaseStruct>(player.PhasesState);
                 for (int i = 0; i < phases.Count; i++)
                 {
-                    if (phases_state[i].Finished) continue;                       //若该阶段已经执行过则跳过
+                    if (phases_state[i].Finished)
+                    {
+                        continue;                       //若该阶段已经执行过则跳过
+                    }
 
                     proceed = true;
                     player.PhasesIndex = i;

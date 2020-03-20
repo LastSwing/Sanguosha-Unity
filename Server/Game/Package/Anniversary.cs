@@ -1438,7 +1438,7 @@ namespace SanguoshaServer.Package
                     if (p.ContainsTag("weilu_hp") && p.GetTag("weilu_hp") is int count)
                     {
                         p.RemoveTag("weilu_hp");
-                        int n = Math.Min(count, p.MaxHp - p.Hp);
+                        int n = Math.Min(count, p.GetLostHp());
                         if (n > 0)
                         {
                             RecoverStruct recover = new RecoverStruct
@@ -1487,7 +1487,10 @@ namespace SanguoshaServer.Package
                 foreach (string general in names)
                 {
                     Player target = room.FindPlayer(general);
-                    if (target != null && target.Hp > 1)
+                    if (target != null)
+                        room.RemovePlayerStringMark(target, Name);
+
+                    if (target != null && !targets.Contains(target) && target.Hp > 1)
                         targets.Add(target);
                 }
 

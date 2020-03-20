@@ -632,10 +632,19 @@ namespace SanguoshaServer
                     }
                 }
 
-                //Debug(string.Format("创建room的hall当前线程为{0}", Thread.CurrentThread.ManagedThreadId));
-                int room_id = Interlocked.Increment(ref room_serial);
-                Room room = new Room(this, room_id, client, setting);
-                RId2Room.TryAdd(room_id, room);
+                while (true)
+                {
+                    int room_id = Interlocked.Increment(ref room_serial);
+
+                    if (!RId2Room.TryGetValue(room_id, out Room exsited))
+                    {
+                        Room room = new Room(this, room_id, client, setting);
+                        RId2Room.TryAdd(room_id, room);
+                        break;
+                    }
+                    else
+                        Debug(string.Format("room id {0} already existed", room_id));
+                }
             }
             else
             {

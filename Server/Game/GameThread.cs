@@ -367,6 +367,8 @@ namespace SanguoshaServer.Game
                                 broken = result_skill.Effect(triggerEvent, room, skill_target, ref data, invoker, cost_str);
                                 if (broken)
                                 {
+                                    //if (room.Setting.GameMode == "Hegemony")
+                                    //    room.Debug(string.Format("{0}-{1}", triggerEvent, result_skill.Name));
                                     p.RemoveTag("JustShownSkill");
                                     break;
                                 }

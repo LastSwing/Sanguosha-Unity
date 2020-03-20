@@ -1956,9 +1956,13 @@ namespace SanguoshaServer.Package
                 if (fcard is Slash)
                     player.AddMark(Name);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player.GetMark(Name) > 0 && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                player.SetMark(Name, 0);
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.GetMark(Name) > 0)
+                        p.SetMark(Name, 0);
+                }
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -3365,7 +3369,7 @@ namespace SanguoshaServer.Package
                 {
                     return new TriggerStruct(Name, player);
                 }
-                else if (change.To == PlayerPhase.NotActive && player.HasFlag(Name) && RoomLogic.CanDiscard(room, player, player, "h"))
+                else if (change.To == PlayerPhase.NotActive && player.Alive && player.HasFlag(Name) && RoomLogic.CanDiscard(room, player, player, "h"))
                 {
                     TriggerStruct trigger = new TriggerStruct(Name, player)
                     {
@@ -5594,6 +5598,11 @@ namespace SanguoshaServer.Package
                 return info;
             }
             return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            return false;
         }
     }
     public class KejiMax : MaxCardsSkill

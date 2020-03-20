@@ -7861,7 +7861,6 @@ namespace SanguoshaServer.Package
 
             if (triggerEvent == TriggerEvent.StartJudge && data is JudgeStruct judge_struct)
             {
-                room.SkipGameRule = true;
                 List<int> ids = player.GetPile("incantation");
                 judge_struct.Card = room.GetCard(ids[0]);
                 player.SetFlags(Name);

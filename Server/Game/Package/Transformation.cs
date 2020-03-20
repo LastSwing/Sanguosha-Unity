@@ -412,7 +412,7 @@ namespace SanguoshaServer.Package
         {
             if (RoomLogic.CanTransform(player) && room.AskForSkillInvoke(player, "transform"))
             {
-                //room.BroadcastSkillInvoke("transform", player.IsMale);
+                player.AddMark(Name + "_transform");
                 return info;
             }
 
@@ -420,8 +420,8 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            player.AddMark(Name + "_transform");
             room.TransformDeputyGeneral(player);
+            player.SetFlags("-qice");
             return false;
         }
     }
