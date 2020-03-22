@@ -1307,7 +1307,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.Card != null && damage.Card.Name == Duel.ClassName
-                && damage.Card.Skill == "shuangxiong_jx" && player.ContainsTag(RoomLogic.CardToString(room, damage.Card))
+                && damage.Card.Skill == "shuangxiong_jx" && player.ContainsTag(RoomLogic.CardToString(room, damage.Card)) && player.Alive
                 && player.GetTag(RoomLogic.CardToString(room, damage.Card)) is List<int> ids && ids.Count > 0)
             {
                 return new TriggerStruct(Name, player);
