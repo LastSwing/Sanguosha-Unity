@@ -9464,12 +9464,16 @@ namespace SanguoshaServer.Package
         }
         public override bool ViewFilter(Room room, WrappedCard card, Player player)
         {
-            switch (room.GetRoomState().GetCurrentCardUseReason())
+            CardUseReason reason = room.GetRoomState().GetCurrentCardUseReason();
+            switch (reason)
             {
                 case CardUseReason.CARD_USE_REASON_PLAY:
-                    return card.Name == Jink.ClassName;
+                    return card.Name == Jink.ClassName && !RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse);
                 case CardUseReason.CARD_USE_REASON_RESPONSE:
                 case CardUseReason.CARD_USE_REASON_RESPONSE_USE:
+                    if (!RoomLogic.IsCardLimited(room, player, card, reason == CardUseReason.CARD_USE_REASON_RESPONSE ? HandlingMethod.MethodResponse : HandlingMethod.MethodUse))
+                        return false;
+
                     string pattern = room.GetRoomState().GetCurrentCardUsePattern();
                     pattern = Engine.GetPattern(pattern).GetPatternString();
                     if (pattern == Slash.ClassName)
