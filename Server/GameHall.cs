@@ -665,12 +665,9 @@ namespace SanguoshaServer
                 if (client.UserID > 0)
                     ClientDBOperation.UpdateGameRoom(client.UserName, client.GameRoom);
 
-            if (!Room2Thread.TryGetValue(room, out Thread _thread))
-            {
-                Thread thread = new Thread(room.Run);
-                if (Room2Thread.TryAdd(room, thread))
-                    thread.Start();
-            }
+            Thread thread = new Thread(room.Run);
+            Room2Thread.TryAdd(room, thread);
+            thread.Start();
         }
 
         //广播状态更改了的room
