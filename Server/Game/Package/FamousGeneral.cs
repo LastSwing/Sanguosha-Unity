@@ -7071,7 +7071,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && to_select != Self && !to_select.IsKongcheng() && !to_select.HasFlag("jiyu") && RoomLogic.CanDiscard(room, to_select, to_select, "h");
+            return targets.Count == 0 && !to_select.IsKongcheng() && !to_select.HasFlag("jiyu") && RoomLogic.CanDiscard(room, to_select, to_select, "h");
         }
 
         public override void Use(Room room, CardUseStruct card_use)
