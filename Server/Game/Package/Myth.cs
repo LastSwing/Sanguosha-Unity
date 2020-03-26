@@ -2294,6 +2294,7 @@ namespace SanguoshaServer.Package
         public override void OnUse(Room room, CardUseStruct card_use)
         {
             room.SetPlayerMark(card_use.From, "@zhanhuo", 0);
+            room.SetPlayerMark(card_use.From, "@junlue", 0);
             room.BroadcastSkillInvoke("zhanhuo", card_use.From, card_use.Card.SkillPosition);
             room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "zhanhuo");
             base.OnUse(room, card_use);

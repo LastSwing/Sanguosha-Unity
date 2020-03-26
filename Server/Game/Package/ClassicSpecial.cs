@@ -6377,13 +6377,25 @@ namespace SanguoshaServer.Package
         public Jianjie() : base("jianjie")
         {
             skill_type = SkillType.Wizzard;
-            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill };
+            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.Death };
             view_as_skill = new JianjieVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct info && info.Info == Name)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.GetMark("@dragon") > 0 || p.GetMark("@phenix") > 0)
+                    {
+                        room.SetPlayerMark(p, "@dragon", 0);
+                        room.SetPlayerMark(p, "@phenix", 0);
+                        room.HandleAcquireDetachSkills(p, "-huoji_sm|-lianhuan_sm|-yeyan_sm", true);
+                    }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Death && RoomLogic.PlayerHasSkill(room, player, Name))
             {
                 foreach (Player p in room.GetAlivePlayers())
                 {
