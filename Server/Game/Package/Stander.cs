@@ -2925,7 +2925,7 @@ namespace SanguoshaServer.Package
             }
             return false;
         }
-};
+    };
 
     public class SavageAssaultAvoid : TriggerSkill
     {

@@ -28,6 +28,8 @@ namespace SanguoshaServer.AI
                 new ZaiqiJXAI(),
                 new LierenJXAI(),
                 new TiaoxinJXAI(),
+                new KanpoJXAI(),
+                new HuojiJXAI(),
 
                 new FenjiJXAI(),
                 new ZhibaAI(),
@@ -39,6 +41,7 @@ namespace SanguoshaServer.AI
                 new QiangxiJXAI(),
                 new TuntianJXAI(),
                 new ShensuJXAI(),
+                new ShebianAI(),
             };
 
             use_cards = new List<UseCard>
@@ -605,6 +608,102 @@ namespace SanguoshaServer.AI
                     use.To = new List<Player>(scores[0].Players);
                 }
             }
+        }
+    }
+
+    public class KanpoJXAI : SkillEvent
+    {
+        public KanpoJXAI() : base("kanpo_jx")
+        {
+        }
+
+        public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
+        {
+            Room room = ai.Room;
+            WrappedCard card = room.GetCard(id);
+            if (card != null && WrappedCard.IsBlack(card.Suit) && (player.GetHandPile().Contains(id)))
+            {
+                WrappedCard nulli = new WrappedCard(Nullification.ClassName)
+                {
+                    Skill = Name,
+                    ShowSkill = Name
+                };
+                nulli.AddSubCard(id);
+                nulli = RoomLogic.ParseUseCard(room, nulli);
+                return nulli;
+            }
+
+            return null;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
+        {
+            if (!isUse && ai.HasSkill(Name, player) && !card.IsVirtualCard())
+            {
+                if (WrappedCard.IsBlack(ai.Room.GetCard(card.GetEffectiveId()).Suit))
+                    return 1.5;
+            }
+
+            return 0;
+        }
+
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            int id = card.GetEffectiveId();
+            Room room = ai.Room;
+            List<WrappedCard> cards = ai.GetViewAsCards(player, id);
+            double value = 0;
+            foreach (WrappedCard c in cards)
+            {
+                if (c.Skill == Name) continue;
+                double card_value = ai.GetUseValue(c, player, room.GetCardPlace(id));
+                if (card_value > value)
+                    value = card_value;
+            }
+
+            return Math.Min(0, 4 - value);
+        }
+    }
+
+    public class HuojiJXAI : SkillEvent
+    {
+        public HuojiJXAI() : base("huoji_jx")
+        {
+        }
+        public override double UseValueAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return -2;
+        }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card.Name == FireAttack.ClassName && use.Card.Skill == Name)
+                return -2;
+
+            return 0;
+        }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            List<int> ids = player.GetCards("he");
+            ids.AddRange(player.GetHandPile());
+
+            foreach (int id in ids)
+            {
+                WrappedCard card = ai.Room.GetCard(id);
+                if (WrappedCard.IsRed(card.Suit) && card.Name != FireAttack.ClassName)
+                {
+                    WrappedCard slash = new WrappedCard(FireAttack.ClassName)
+                    {
+                        Skill = Name,
+                        ShowSkill = Name
+                    };
+                    slash.AddSubCard(card);
+                    slash = RoomLogic.ParseUseCard(room, slash);
+                    return new List<WrappedCard> { slash };
+                }
+            }
+
+            return null;
         }
     }
 
@@ -1716,6 +1815,144 @@ namespace SanguoshaServer.AI
             }
 
             return use;
+        }
+    }
+
+    public class ShebianAI : SkillEvent
+    {
+        public ShebianAI() : base("shebian") { }
+
+        public static KeyValuePair<int, Player> CardForQiaobian(TrustedAI ai, Player who)
+        {
+            int result_id = -1;
+            Player player = ai.Self;
+            Room room = ai.Room;
+            if (ai.IsFriend(who))
+            {
+                if (ai.HasSkill(TrustedAI.LoseEquipSkill, who, true) && who.HasEquip())
+                {
+                    List<int> equips = player.GetEquips();
+                    if (who.GetArmor() && ai.GetKeepValue(who.Armor.Key, who) < 0)
+                        result_id = who.Armor.Key;
+                    if (result_id < 0 && who.GetSpecialEquip())
+                        result_id = who.Special.Key;
+                    if (result_id < 0 && who.GetOffensiveHorse())
+                        result_id = who.OffensiveHorse.Key;
+                    if (result_id < 0 && who.GetDefensiveHorse() && !ai.IsWeak(who))
+                        result_id = who.DefensiveHorse.Key;
+                    if (result_id < 0 && who.GetArmor() && !ai.IsWeak(who))
+                        result_id = who.Armor.Key;
+
+                    if (result_id >= 0)
+                    {
+                        WrappedCard equip = room.GetCard(result_id);
+                        foreach (Player p in room.GetOtherPlayers(who))
+                        {
+                            if (ai.GetSameEquip(equip, p) == null && (ai.HasSkill(TrustedAI.NeedEquipSkill, who) || ai.HasSkill(TrustedAI.LoseEquipSkill, who))
+                                && RoomLogic.CanPutEquip(p, equip))
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+                        List<Player> friends = ai.GetFriends(player);
+                        ai.SortByDefense(ref friends, false);
+                        foreach (Player p in room.GetOtherPlayers(who))
+                        {
+                            if (p != who && ai.GetSameEquip(equip, p) == null && RoomLogic.CanPutEquip(p, equip))
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (!who.HasEquip() || (ai.HasSkill(TrustedAI.LoseEquipSkill, who) && !who.GetTreasure())) return new KeyValuePair<int, Player>(-1, null);
+
+                int id = ai.AskForCardChosen(who, "e", Snatch.ClassName, FunctionCard.HandlingMethod.MethodNone, new List<int>());
+                if (id >= 0 && who.GetEquips().Contains(id))
+                {
+                    List<Player> friends = ai.GetFriends(player);
+                    result_id = id;
+                    WrappedCard card = room.GetCard(id);
+                    FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                    if (fcard is Armor || fcard is DefensiveHorse)
+                    {
+                        ai.SortByDefense(ref friends, false);
+                        foreach (Player p in friends)
+                        {
+                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+
+                        foreach (Player p in friends)
+                        {
+                            if (ai.GetSameEquip(card, p) == null)
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+                    }
+                    else if (fcard is Treasure || fcard is Weapon)
+                    {
+                        foreach (Player p in friends)
+                        {
+                            if (ai.GetSameEquip(card, p) == null && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+
+                        foreach (Player p in friends)
+                        {
+                            if (ai.GetSameEquip(card, p) == null)
+                                return new KeyValuePair<int, Player>(result_id, p);
+                        }
+                    }
+                }
+            }
+
+            return new KeyValuePair<int, Player>(-1, null);
+        }
+        public override List<int> OnCardsChosen(TrustedAI ai, Player from, Player to, string flags, int min, int max, List<int> disable_ids)
+        {
+            List<int> result = new List<int>();
+            if (flags == "e")
+            {
+                int id = CardForQiaobian(ai, to).Key;
+                if (id >= 0)
+                    result.Add(id);
+            }
+
+            return null;
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
+        {
+            List<Player> result = new List<Player>();
+            if (ai.Room.GetTag("MouduanTarget") != null && ai.Room.GetTag("MouduanTarget") is Player from)
+            {
+                Player to = CardForQiaobian(ai, from).Value;
+                if (to != null)
+                    result.Add(to);
+                else
+                    ai.Room.Debug("AI出错");
+            }
+            else
+            {
+                foreach (Player friend in ai.FriendNoSelf)
+                {
+                    if (friend.HasEquip() && ai.HasSkill(TrustedAI.LoseEquipSkill, friend) && CardForQiaobian(ai, friend).Key >= 0)
+                    {
+                        return new List<Player> { friend };
+                    }
+                }
+
+                List<Player> enemies = ai.GetEnemies(player);
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                {
+                    if (QiaobianAI.CardForQiaobian(ai, p).Key >= 0)
+                    {
+                        return new List<Player> { p };
+                    }
+                }
+            }
+
+            return result;
         }
     }
 }
