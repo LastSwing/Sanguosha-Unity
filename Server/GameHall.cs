@@ -453,10 +453,9 @@ namespace SanguoshaServer
                         {
                             if (!room.GameStarted || !room.Setting.SpeakForbidden || (data.Body.Count == 3 && data.Body[1] != "Speech"))
                             {
-                                List<Client> room_clients = new List<Client>(room.Clients);
                                 if (!room.GameStarted)
                                 {
-                                    foreach (Client dest in room_clients)
+                                    foreach (Client dest in room.Clients)
                                         if (dest.GameRoom == room.RoomId)
                                             dest.SendMessage(message);
                                 }
@@ -464,7 +463,7 @@ namespace SanguoshaServer
                                 {
                                     //假如双方有分冷暖阵营，则只有同阵营之间可以通讯
                                     Game3v3Camp camp = room.GetPlayers(sourcer.UserID)[0].Camp;
-                                    foreach (Client dest in room_clients)
+                                    foreach (Client dest in room.Clients)
                                         if (dest.GameRoom == room.RoomId && room.GetPlayers(dest.UserID)[0].Camp == camp)
                                             dest.SendMessage(message);
                                 }

@@ -11513,6 +11513,8 @@ namespace SanguoshaServer.Package
             List<int> ids = room.AskForExchange(ask_who, Name, 1, 0, "@meibu:" + player.Name, string.Empty, "..!", info.SkillPosition);
             if (ids.Count == 1)
             {
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 room.ThrowCard(ref ids, ask_who, null, Name);
                 if (ids.Count == 1)
                 {
