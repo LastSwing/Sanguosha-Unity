@@ -928,6 +928,13 @@ namespace SanguoshaServer.Package
                 List<int> dis = room.GetSubCards(use.Card);
                 if (dis.Count > 0 && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
                 {
+                    if (dis.Count > 1)
+                    {
+                        AskForMoveCardsStruct result = room.AskForMoveCards(player, dis, new List<int>(), false, Name, dis.Count, 0, false, true, new List<int>(), info.SkillPosition);
+                        if (result.Success && result.Top.Count == dis.Count)
+                            dis = result.Top;
+                    }
+
                     room.RemoveSubCards(use.Card);
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                     CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_PUT, player.Name, Name, string.Empty);
