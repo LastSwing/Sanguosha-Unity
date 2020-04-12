@@ -1098,31 +1098,6 @@ namespace SanguoshaServer.Package
                         Card = card
                     };
                     room.MoveCardTo(card, from, to, place, reason);
-                    /*
-                    if (place == Place.PlaceDelayedTrick)
-                    {
-                        CardUseStruct use = new CardUseStruct(card, null, to)
-                        {
-                            EffectCount = new List<CardBasicEffect> { fcard.FillCardBasicEffct(room, to) }
-                        };
-                        object _data = use;
-                        room.RoomThread.Trigger(TriggerEvent.TargetConfirming, room, to, ref _data);
-                        CardUseStruct new_use = (CardUseStruct)_data;
-                        if (new_use.To.Count > 0)
-                        {
-                            for (int i = 0; i < new_use.EffectCount.Count; i++)
-                            {
-                                CardBasicEffect effect = new_use.EffectCount[i];
-                                effect.Triggered = false;
-                                room.RoomThread.Trigger(TriggerEvent.TargetConfirmed, room, effect.To, ref _data);
-                                effect.Triggered = true;
-                            }
-                        }
-                        new_use = (CardUseStruct)_data;
-                        if (new_use.To.Count == 0)
-                            fcard.OnNullified(room, to, card);
-                    }
-                    */
                 }
                 room.RemoveTag("QiaobianTarget");
             }
