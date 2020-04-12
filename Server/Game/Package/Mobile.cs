@@ -1816,14 +1816,14 @@ namespace SanguoshaServer.Package
             priority = new Dictionary<TriggerEvent, double>
             {
                 { TriggerEvent.EventPhaseStart, 3 },
-                { TriggerEvent.CardUsed, 2 },
+                { TriggerEvent.CardUsedAnnounced, 2 },
                 {TriggerEvent.CardResponded, 2 }
             };
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && triggerEvent == TriggerEvent.CardResponded && player.ContainsTag(Name))
+            if ((triggerEvent == TriggerEvent.CardUsedAnnounced || triggerEvent == TriggerEvent.CardResponded) && player.ContainsTag(Name))
                 player.RemoveTag(Name);
         }
 
@@ -1952,7 +1952,7 @@ namespace SanguoshaServer.Package
             while (guojia.Alive && yiji_cards.Count > 0)
             {
                 guojia.PileChange("#zhouxuan", yiji_cards);
-                if (!room.AskForYiji(guojia, yiji_cards, Name, true, false, true, -1, room.GetOtherPlayers(guojia), null, null, "#zhouxuan", false, info.SkillPosition))
+                if (!room.AskForYiji(guojia, yiji_cards, "zhouxuan", true, false, true, -1, room.GetAlivePlayers(), null, "@zhouxuan-atri", "#zhouxuan", false, info.SkillPosition))
                     break;
 
                 guojia.Piles["#zhouxuan"].Clear();
