@@ -25,6 +25,8 @@ namespace SanguoshaServer.AI
                 new YirangAI(),
                 new RensheAI(),
                 new ZhiyiAI(),
+                new RangjieAI(),
+                new ZhouxuanAI(),
 
                 new WuyuanAI(),
             };
@@ -32,6 +34,7 @@ namespace SanguoshaServer.AI
             use_cards = new List<UseCard>
             {
                 new WuyuanCardAI(),
+                new YizhengCardAI(),
             };
         }
     }
@@ -509,6 +512,90 @@ namespace SanguoshaServer.AI
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
             return "draw";
+        }
+    }
+
+    public class RangjieAI : SkillEvent
+    {
+        public RangjieAI() : base("rangjie")
+        {
+            key = new List<string> { "cardChosen:rangjie" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    int id = int.Parse(choices[2]);
+                    Player target = room.FindPlayer(choices[4]);
+
+                    if (player != target && ai.GetPlayerTendency(target) != "unknown")
+                    {
+                        if (room.GetCardPlace(id) == Player.Place.PlaceDelayedTrick)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            bool friend = ai.GetKeepValue(id, target, Player.Place.PlaceEquip) < 0;
+                            ai.UpdatePlayerRelation(player, target, friend);
+                        }
+                    }
+                }
+            }
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            if (choice.Contains("get"))
+                return "get";
+            else
+                return "basic";
+        }
+    }
+
+    public class YizhengCardAI : UseCard
+    {
+        public YizhengCardAI() : base("yizheng")
+        {
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                Player target = use.To[0];
+                if (ai.GetPlayerTendency(target) != "unknown")
+                    ai.UpdatePlayerRelation(player, target, false);
+            }
+        }
+    }
+
+    public class ZhouxuanAI : SkillEvent
+    {
+        public ZhouxuanAI() : base("zhouxuan")
+        {
+            key = new List<string> { "Yiji:zhouxuan" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                Player target = room.FindPlayer(strs[3]);
+                ai.UpdatePlayerRelation(player, target, true);
+                if (player == ai.Self)
+                {
+                    List<string> cards = new List<string>(strs[4].Split('+'));
+                    List<int> ids = JsonUntity.StringList2IntList(cards);
+                    foreach (int id in ids)
+                        ai.SetPrivateKnownCards(target, id);
+                }
+            }
         }
     }
 }

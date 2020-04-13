@@ -432,18 +432,18 @@ namespace CommonClass.Game
 
         public void BanEquip(int index)
         {
-            if (equip_state.Keys.Contains(index))
+            if (equip_state.ContainsKey(index))
                 equip_state[index] = false;
         }
         public void RecoverEquip(int index)
         {
-            if (equip_state.Keys.Contains(index))
+            if (equip_state.ContainsKey(index))
                 equip_state[index] = true;
         }
 
         public bool CanPutEquip(int index)
         {
-            if (equip_state.Keys.Contains(index))
+            if (equip_state.ContainsKey(index))
             {
                 return equip_state[index] && (index != 2 && index != 3 || !GetSpecialEquip());
             }
@@ -453,7 +453,7 @@ namespace CommonClass.Game
 
         public bool EquipIsBaned(int index)
         {
-            if (equip_state.Keys.Contains(index))
+            if (equip_state.ContainsKey(index))
                 return !equip_state[index];
 
             return false;

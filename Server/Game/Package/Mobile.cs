@@ -1635,6 +1635,8 @@ namespace SanguoshaServer.Package
                     if (targets.Count > 0)
                     {
                         Player from = room.AskForPlayerChosen(player, targets, Name, "@rangjie-move", false, false, info.SkillPosition);
+
+                        room.SetTag("QiaobianTarget", from);
                         int card_id = room.AskForCardChosen(player, from, "ej", Name);
                         WrappedCard card = room.GetCard(card_id);
                         Place place = room.GetCardPlace(card_id);
@@ -1659,7 +1661,6 @@ namespace SanguoshaServer.Package
                                 tos.Add(p);
                         }
 
-                        room.SetTag("QiaobianTarget", from);
                         Player to = room.AskForPlayerChosen(player, tos, Name, "@rangjie-to:::" + card.Name, false, false, info.SkillPosition);
                         if (to != null)
                         {

@@ -1727,7 +1727,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (base.Triggerable(player, room) && data is CardUseStruct use && use.From != null && use.From.Alive
-                && use.From != player && player.GetMark(Name) == 1 && player.HandcardNum < use.From.HandcardNum)
+                && use.From != player && player.GetMark(Name) == 1 && player.HandcardNum <= use.From.HandcardNum)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash || fcard is Duel)

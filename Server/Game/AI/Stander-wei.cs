@@ -1161,7 +1161,34 @@ namespace SanguoshaServer.AI
     {
         public QiaobianAI() : base("qiaobian")
         {
+            key = new List<string> { "cardChosen:qiaobian" };
         }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    int id = int.Parse(choices[2]);
+                    Player target = room.FindPlayer(choices[4]);
+
+                    if (player != target)
+                    {
+                        if (room.GetCardPlace(id) == Player.Place.PlaceDelayedTrick)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            bool friend = ai.GetKeepValue(id, target, Player.Place.PlaceEquip) < 0;
+                            ai.UpdatePlayerRelation(player, target, friend);
+                        }
+                    }
+                }
+            }
+        }
+
         public static KeyValuePair<int, Player> CardForQiaobian(TrustedAI ai, Player who)
         {
             int result_id = -1;

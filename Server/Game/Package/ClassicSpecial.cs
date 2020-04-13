@@ -9699,7 +9699,7 @@ namespace SanguoshaServer.Package
                 player.PlayerGender = general.GeneralGender;
                 room.BroadcastProperty(player, "PlayerGender");
 
-                List<string> skills = player.GetSkills(true, false);
+                List<string> skills = player.GetSkills(false, false);
                 foreach (string skill in skills)
                 {
                     Skill _s = Engine.GetSkill(skill);

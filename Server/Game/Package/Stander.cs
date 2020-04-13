@@ -1056,6 +1056,7 @@ namespace SanguoshaServer.Package
                 if (from.GetCards("ej").Count == 0)
                     return;
 
+                room.SetTag("QiaobianTarget", from);
                 int card_id = room.AskForCardChosen(card_use.From, from, "ej", "qiaobian");
                 WrappedCard card = room.GetCard(card_id);
                 Place place = room.GetCardPlace(card_id);
@@ -1080,7 +1081,6 @@ namespace SanguoshaServer.Package
                             tos.Add(p);
                 }
 
-                room.SetTag("QiaobianTarget", from);
                 string position = card_use.Card.SkillPosition;
                 Player to = room.AskForPlayerChosen(card_use.From, tos, "qiaobian", "@qiaobian-to:::" + card.Name, false, false, position);
                 if (to != null)
