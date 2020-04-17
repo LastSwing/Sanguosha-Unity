@@ -1880,7 +1880,7 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player player = card_use.From, target = card_use.To[0];
-            List<string> choices = new List<string> { "trick", "delayed_trick", "weapon", "armor", "dhorse", "ohorse", "treasure" };
+            List<string> choices = new List<string> { "trick", "equip" };
             List<string> basic = ViewAsSkill.GetGuhuoCards(room, "b");
             foreach (string card in basic)
             {
@@ -1922,19 +1922,9 @@ namespace SanguoshaServer.Package
                     if (p != null)
                     {
                         string choice = zhouxuan[player_name];
-                        if (choice == "trick" && fcard is TrickCard && !(fcard is DelayedTrick))
+                        if (choice == "trick" && fcard is TrickCard)
                             triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "delayed_trick" && fcard is DelayedTrick)
-                            triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "weapon" && fcard is Weapon)
-                            triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "armor" && fcard is Armor)
-                            triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "dhorse" && fcard is DefensiveHorse)
-                            triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "ohorse" && fcard is OffensiveHorse)
-                            triggers.Add(new TriggerStruct(Name, p));
-                        else if (choice == "treasure" && fcard is Treasure)
+                        else if (choice == "equip" && fcard is EquipCard)
                             triggers.Add(new TriggerStruct(Name, p));
                         else if (card_name.Contains(choice))
                             triggers.Add(new TriggerStruct(Name, p));

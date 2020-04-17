@@ -2097,12 +2097,12 @@ namespace SanguoshaServer.Package
             WrappedCard from = pd.From_card, to = pd.To_cards[0];
             if (from.Name.Contains(Slash.ClassName) && to.Name != Jink.ClassName)
             {
-                room.ThrowCard(from.GetEffectiveId(), player);
+                //room.ThrowCard(from.GetEffectiveId(), player);
                 room.Damage(new DamageStruct("wurong", player, target));
             }
             else if (!from.Name.Contains(Slash.ClassName) && to.Name == Jink.ClassName)
             {
-                room.ThrowCard(from.GetEffectiveId(), player);
+                //room.ThrowCard(from.GetEffectiveId(), player);
                 if (player.Alive && target.Alive && RoomLogic.CanGetCard(room, player, target, "he"))
                 {
                     int id = room.AskForCardChosen(player, target, "he", "wurong", false, HandlingMethod.MethodGet);
