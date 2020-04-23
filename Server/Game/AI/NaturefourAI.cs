@@ -30,6 +30,8 @@ namespace SanguoshaServer.AI
                 new TiaoxinJXAI(),
                 new KanpoJXAI(),
                 new HuojiJXAI(),
+                new LianhuanJXAI(),
+                new NiepanJXAI(),
 
                 new FenjiJXAI(),
                 new ZhibaAI(),
@@ -706,6 +708,88 @@ namespace SanguoshaServer.AI
             return null;
         }
     }
+
+    public class NiepanJXAI : SkillEvent
+    {
+        public NiepanJXAI() : base("niepan_jx")
+        {
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            int count = 0;
+            List<WrappedCard> analeptics = ai.GetCards(Analeptic.ClassName, player, true);
+            analeptics.AddRange(ai.GetCards(Peach.ClassName, player, true));
+            foreach (WrappedCard card in analeptics)
+                if (!RoomLogic.IsCardLimited(room, player, card, FunctionCard.HandlingMethod.MethodUse) && RoomLogic.IsProhibited(room, player, player, card) == null)
+                    count++;
+
+            if (count >= 1 - player.Hp)
+                return false;
+
+            return true;
+        }
+    }
+
+    public class LianhuanJXAI : SkillEvent
+    {
+        public LianhuanJXAI() : base("lianhuan_jx")
+        {
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!ai.WillShowForAttack()) return null;
+            Room room = ai.Room;
+            List<int> ids = player.GetCards("he");
+            ids.AddRange(player.GetHandPile());
+            ai.SortByUseValue(ref ids, false);
+            foreach (int id in ids)
+            {
+                WrappedCard card = room.GetCard(id);
+                if (card.Suit == WrappedCard.CardSuit.Club)
+                {
+                    List<WrappedCard> cards = ai.GetViewAsCards(player, id);
+                    double value = 0;
+                    WrappedCard _card = null;
+                    foreach (WrappedCard _c in cards)
+                    {
+                        double card_value = ai.GetUseValue(_c, player, room.GetCardPlace(id));
+                        if (card_value > value)
+                        {
+                            value = card_value;
+                            _card = _c;
+                        }
+                    }
+
+                    if (_card != null && _card.Name == IronChain.ClassName && _card.Skill == Name) return new List<WrappedCard> { _card };
+                }
+            }
+
+            return null;
+        }
+
+        public override WrappedCard ViewAs(TrustedAI ai, Player player, int id, bool current, Player.Place place)
+        {
+            Room room = ai.Room;
+            WrappedCard card = room.GetCard(id);
+            if (card != null && card.Suit == WrappedCard.CardSuit.Club)
+            {
+                WrappedCard ic = new WrappedCard(IronChain.ClassName)
+                {
+                    Skill = Name,
+                    ShowSkill = Name
+                };
+                ic.AddSubCard(card);
+                ic = RoomLogic.ParseUseCard(room, ic);
+                return ic;
+            }
+
+            return null;
+        }
+    }
+
 
     public class FenjiJXAI : SkillEvent
     {

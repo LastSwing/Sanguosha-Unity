@@ -57,6 +57,8 @@ namespace SanguoshaServer.Package
                 new KanpoJX(),
                 new Cangzhuo(),
                 new CangzhuoMax(),
+                new LianhuanJX(),
+                new NiepanJX(),
 
                 new Songwei(),
                 new DuanliangJX(),
@@ -104,6 +106,7 @@ namespace SanguoshaServer.Package
                 { "tuntian_jx", new List<string>{ "#tuntian_jx" } },
                 { "fangquan_jx", new List<string>{ "#fangquan-max" } },
                 { "cangzhuo", new List<string>{ "#cangzhuo-max" } },
+                { "lianhuan_jx", new List<string>{ "#lianhuan_jx" } },
             };
         }
     }
@@ -2967,6 +2970,95 @@ namespace SanguoshaServer.Package
         {
             return RoomLogic.PlayerHasSkill(room, player, Name) && !player.HasFlag("cangzhuo")
                 && Engine.GetFunctionCard(room.GetCard(card_id).Name) is TrickCard;
+        }
+    }
+
+    public class LianhuanJX : OneCardViewAsSkill
+    {
+        public LianhuanJX() : base("lianhuan_jx")
+        {
+            filter_pattern = ".|club";
+            response_or_use = true;
+            skill_type = SkillType.Alter;
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard originalCard, Player player)
+        {
+            WrappedCard chain = new WrappedCard(IronChain.ClassName);
+            chain.AddSubCard(originalCard);
+            chain.Skill = Name;
+            chain.ShowSkill = Name;
+            chain.CanRecast = true;
+            chain = RoomLogic.ParseUseCard(room, chain);
+            return chain;
+        }
+    }
+
+    public class LianhuanMax : TargetModSkill
+    {
+        public LianhuanMax() : base("#lianhuan_jx", false)
+        {
+            pattern = IronChain.ClassName;
+        }
+
+        public override int GetExtraTargetNum(Room room, Player from, WrappedCard card)
+        {
+            if (RoomLogic.PlayerHasSkill(room, from, "lianhuan_jx")) return 1;
+            return 0;
+        }
+    }
+
+    public class NiepanJX : TriggerSkill
+    {
+        public NiepanJX() : base("niepan_jx")
+        {
+            events.Add(TriggerEvent.AskForPeaches);
+            frequency = Frequency.Limited;
+            limit_mark = "@nirvana";
+            skill_type = SkillType.Recover;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who)
+        {
+            if (data is DyingStruct dying && dying.Who == target && target.Hp <= 0
+                && base.Triggerable(target, room) && target.GetMark("@nirvana") > 0)
+                return new TriggerStruct(Name, target);
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player pangtong, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(pangtong, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, pangtong, info.SkillPosition);
+                room.DoSuperLightbox(pangtong, info.SkillPosition, Name);
+                room.SetPlayerMark(pangtong, "@nirvana", 0);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player pangtong, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.ThrowAllCards(pangtong);
+            RecoverStruct recover = new RecoverStruct
+            {
+                Recover = Math.Min(3, pangtong.MaxHp) - pangtong.Hp
+            };
+            room.Recover(pangtong, recover);
+
+            room.DrawCards(pangtong, 3, Name);
+
+            if (pangtong.Chained)
+                room.SetPlayerChained(pangtong, false);
+
+            if (!pangtong.FaceUp)
+                room.TurnOver(pangtong);
+
+            if (pangtong.Alive)
+            {
+                string skill = room.AskForChoice(pangtong, Name, "bazhen+huoji_jx+kanpo_jx");
+                room.HandleAcquireDetachSkills(pangtong, skill, true);
+            }
+
+            return false; //return pangtong.Hp > 0 || pangtong.isDead();
         }
     }
 

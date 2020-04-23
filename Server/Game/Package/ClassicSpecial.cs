@@ -92,6 +92,7 @@ namespace SanguoshaServer.Package
                 new LinglongVH(),
                 new LinglongTar(),
                 new LinglongMax(),
+                new LinglongFix(),
                 new Zhuiji(),
                 new Shichou(),
                 new Fuqi(),
@@ -231,6 +232,7 @@ namespace SanguoshaServer.Package
                 new QizhouVH(),
                 new Mashu("heqi"),
                 new Yingzi("heqi", false),
+                new YingziMax("heqi"),
                 new Shanxi(),
             };
 
@@ -285,7 +287,7 @@ namespace SanguoshaServer.Package
                 { "shanjia", new List<string>{ "#shanjia-clear" } },
                 { "fanghun", new List<string>{ "#fanghun-clear" } },
                 { "yuhua", new List<string>{ "#yuhua-max" } },
-                { "linglong", new List<string>{ "#linglong-max", "#linglong-tar", "#linglongvh" } },
+                { "linglong", new List<string>{ "#linglong-max", "#linglong-tar", "#linglongvh", "#linglong-fix" } },
                 { "xingwu", new List<string>{ "#xingwu-clear" } },
                 { "yicong", new List<string>{ "#yicong" } },
                 { "weikui", new List<string>{ "#weikui-dis" } },
@@ -4554,6 +4556,20 @@ namespace SanguoshaServer.Package
         public override int GetExtra(Room room, Player target)
         {
             return RoomLogic.PlayerHasSkill(room, target, "linglong") && !target.GetDefensiveHorse() && !target.GetOffensiveHorse() ? 1 : 0;
+        }
+    }
+
+    public class LinglongFix : FixCardSkill
+    {
+        public LinglongFix() : base("#linglong-fix") { }
+
+        public override bool IsCardFixed(Room room, Player from, Player to, string flags, HandlingMethod method)
+        {
+            if (to != null && from != null && from != to && (flags == "t" || flags == "a")
+                && method == HandlingMethod.MethodDiscard && RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure())
+                return true;
+
+            return false;
         }
     }
 
