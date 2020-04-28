@@ -4566,7 +4566,7 @@ namespace SanguoshaServer.Package
         public override bool IsCardFixed(Room room, Player from, Player to, string flags, HandlingMethod method)
         {
             if (to != null && from != null && from != to && (flags == "t" || flags == "a")
-                && method == HandlingMethod.MethodDiscard && RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure())
+                && method == HandlingMethod.MethodDiscard && RoomLogic.PlayerHasSkill(room, to, "linglong") && !to.GetTreasure())
                 return true;
 
             return false;
@@ -6003,9 +6003,14 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard zy = new WrappedCard(ZhenyiCard.ClassName);
-            zy.AddSubCard(card);
-            return zy;
+            if (!RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse))
+            {
+                WrappedCard zy = new WrappedCard(ZhenyiCard.ClassName);
+                zy.AddSubCard(card);
+                return zy;
+            }
+
+            return null;
         }
     }
     public class ZhenyiCard : SkillCard

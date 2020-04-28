@@ -1691,10 +1691,7 @@ namespace SanguoshaServer.Package
             if (targets.Count >= total_num || !base.TargetFilter(room, targets, to_select, Self, card) || to_select.IsKongcheng())
                 return false;
 
-            if (to_select == Self)
-                return !Self.IsLastHandCard(card, true);
-            else
-                return true;
+            return true;
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {

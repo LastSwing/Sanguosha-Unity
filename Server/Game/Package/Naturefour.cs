@@ -58,6 +58,7 @@ namespace SanguoshaServer.Package
                 new Cangzhuo(),
                 new CangzhuoMax(),
                 new LianhuanJX(),
+                new LianhuanMax(),
                 new NiepanJX(),
 
                 new Songwei(),
