@@ -111,21 +111,23 @@ namespace SanguoshaServer.Package
             WrappedCard card = card_use.Card;
             room.AddToPile(card_use.From, "wooden_ox", card.SubCards, false);
 
-            List<Player> targets = new List<Player>();
-            foreach (Player p in room.GetOtherPlayers(card_use.From))
+            WrappedCard treasure = room.GetCard(card_use.From.Treasure.Key);
+            if (treasure != null)
             {
-                if (!p.GetTreasure())
-                    targets.Add(p);
-            }
-            if (targets.Count == 0)
-                return;
-            Player target = room.AskForPlayerChosen(card_use.From, targets, "ClassicWoodenOx", "@wooden_ox-move", true);
-            if (target != null)
-            {
-                WrappedCard treasure = room.GetCard(card_use.From.Treasure.Key);
-                if (treasure != null)
+                List<Player> targets = new List<Player>();
+                foreach (Player p in room.GetOtherPlayers(card_use.From))
+                {
+                    if (!p.GetTreasure() && RoomLogic.CanPutEquip(p, treasure))
+                        targets.Add(p);
+                }
+                if (targets.Count == 0)
+                    return;
+                Player target = room.AskForPlayerChosen(card_use.From, targets, "ClassicWoodenOx", "@wooden_ox-move", true);
+                if (target != null)
+                {
                     room.MoveCardTo(treasure, card_use.From, target, Place.PlaceEquip,
                         new CardMoveReason(MoveReason.S_REASON_TRANSFER, card_use.From.Name, "ClassicWoodenOx", null));
+                }
             }
         }
     }

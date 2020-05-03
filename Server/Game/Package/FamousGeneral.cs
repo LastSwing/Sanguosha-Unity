@@ -9406,13 +9406,20 @@ namespace SanguoshaServer.Package
     {
         public Wengua() : base("wengua")
         {
-            events.Add(TriggerEvent.GameStart);
+            events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.EventAcquireSkill };
             view_as_skill = new WenguaVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (base.Triggerable(player, room))
+            if (triggerEvent == TriggerEvent.GameStart && base.Triggerable(player, room))
+            {
+                if (!room.Skills.Contains("wenguavs"))
+                    room.Skills.Add("wenguavs");
+                foreach (Player p in room.GetOtherPlayers(player))
+                    room.HandleAcquireDetachSkills(p, "wenguavs", true);
+            }
+            else if (triggerEvent == TriggerEvent.EventAcquireSkill && data is InfoStruct info && info.Info == Name)
             {
                 if (!room.Skills.Contains("wenguavs"))
                     room.Skills.Add("wenguavs");

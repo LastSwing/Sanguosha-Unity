@@ -83,6 +83,8 @@ namespace SanguoshaServer.AI
                 new LianzhuAI(),
                 new ZhoufuAI(),
                 new NeifaAI(),
+                new ZhenduJXAI(),
+                new QiluanJXAI(),
 
                 new XuejiAI(),
                 new LiangzhuAI(),

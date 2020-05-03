@@ -909,7 +909,7 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null && (!use.Card.IsVirtualCard() || use.Card.SubCards.Count == 0))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard.IsNDTrick())
+                if (fcard is TrickCard)
                     return new TriggerStruct(Name, player);
             }
             return new TriggerStruct();
