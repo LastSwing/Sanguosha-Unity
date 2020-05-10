@@ -9327,14 +9327,15 @@ namespace SanguoshaServer.Game
             _m_roomState.SetCurrentCardUsePattern(".");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_UNKNOWN);
 
-            if (from.HandcardNum == 1)
-                from_card = GetCard(from.HandCards[0]);
-
             TrustedAI ai = null;
             if (from_card == null)
             {
                 ai = GetAI(from);
-                if (ai != null)
+                if (from.HandcardNum == 1)
+                {
+                    from_card = GetCard(from.HandCards[0]);
+                }
+                else if (ai != null)
                 {
                     from_card = ai.AskForPindian(from, to, reason);
                 }
