@@ -101,6 +101,7 @@ namespace SanguoshaServer.Package
                 new Sijian(),
                 new Suishi(),
                 new Kuangfu(),
+                new KuangfuJX(),
                 new Huoshui(),
                 new Qingcheng(),
                 new Zhiheng(),
@@ -167,6 +168,7 @@ namespace SanguoshaServer.Package
                 new ZhijianCard(),
                 new FenxunCard(),
                 new YijiCard(),
+                new KuangfuCard(),
             };
             related_skills = new Dictionary<string, List<string>>
             {
@@ -5244,6 +5246,115 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+
+    public class KuangfuJX : TriggerSkill
+    {
+        public KuangfuJX() : base("kuangfu_jx")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.Damage };
+            skill_type = SkillType.Attack;
+            view_as_skill = new KuangfuJXVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is DamageStruct damage && player != null && player.HasFlag(Name) && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName)
+                && damage.Card.GetSkillName() == Name)
+                player.SetFlags("-kuangfu_jx");
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class KuangfuJXVS : ZeroCardViewAsSkill
+    {
+        public KuangfuJXVS() : base("kuangfu_jx")
+        {
+        }
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            if (!player.HasUsed(KuangfuCard.ClassName))
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasEquip() && RoomLogic.CanDiscard(room, player, p, "e"))
+                        return true;
+            }
+
+            return false;
+        }
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            return new WrappedCard(KuangfuCard.ClassName) { Skill = Name, ShowSkill = Name };
+        }
+    }
+
+    public class KuangfuCard : SkillCard
+    {
+        public static string ClassName = "KuangfuCard";
+        public KuangfuCard() : base(ClassName)
+        {
+            target_fixed = true;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.HasEquip() && RoomLogic.CanDiscard(room, player, p, "e"))
+                    targets.Add(p);
+
+            if (targets.Count > 0)
+            {
+                Player target = room.AskForPlayerChosen(player, targets, "kuangfu_jx", "@kuangfu_jx-equip", false, false, card_use.Card.SkillPosition);
+                if (target != null)
+                {
+                    int id = room.AskForCardChosen(player, target, "e", "kuangfu_jx", false, HandlingMethod.MethodDiscard);
+                    bool self = room.GetCardOwner(id) == player;
+                    room.ThrowCard(id, target, player);
+
+                    if (player.Alive)
+                    {
+                        WrappedCard slash = new WrappedCard(Slash.ClassName)
+                        {
+                            DistanceLimited = false,
+                            Skill = "_kuangfu_jx"
+                        };
+                        targets.Clear();
+                        foreach (Player p in room.GetOtherPlayers(player))
+                        {
+                            if (RoomLogic.CanSlash(room, player, p, slash))
+                                targets.Add(p);
+                        }
+                        if (targets.Count > 0)
+                        {
+                            player.SetFlags("kuangfu_jx");
+                            Player slasher = room.AskForPlayerChosen(player, targets, "kuangfu_jx", "@dummy-slash", false, false, card_use.Card.SkillPosition);
+                            room.UseCard(new CardUseStruct(slash, player, slasher), false);
+
+                            if (player.Alive)
+                            {
+                                if (self && !player.HasFlag("kuangfu_jx"))
+                                {
+                                    room.DrawCards(player, 2, "kuangfu_jx");
+                                }
+                                else if (!self && player.HasFlag("kuangfu_jx"))
+                                {
+                                    room.AskForDiscard(player, "kuangfu_jx", 2, 2, false, true, "@kuangfu_jx-disacard", false, card_use.Card.SkillPosition);
+                                }
+
+                                player.SetFlags("-kuangfu_jx");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public class HuoshuiCard : SkillCard
     {
         public HuoshuiCard() : base("HuoshuiCard")

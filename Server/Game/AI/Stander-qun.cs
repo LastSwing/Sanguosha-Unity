@@ -35,6 +35,7 @@ namespace SanguoshaServer.AI
                 new ShuangrenAI(),
                 new ShuangrenSlashAI(),
                 new KuangfuAI(),
+                new KuangfuJXAI(),
                 new HuoshuiAI(),
                 new QingchengAI()
             };
@@ -47,6 +48,7 @@ namespace SanguoshaServer.AI
                 new XiongyiCardAI(),
                 new HuoshuiCardAI(),
                 new QingchengCardAI(),
+                new KuangfuCardAI(),
             };
         }
     }
@@ -1632,6 +1634,104 @@ namespace SanguoshaServer.AI
                 return new List<int> { id };
 
             return null;
+        }
+    }
+
+    public class KuangfuJXAI : SkillEvent
+    {
+        public KuangfuJXAI() : base("kuangfu_jx")
+        {
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            if (ai.WillShowForAttack() && !player.HasUsed(KuangfuCard.ClassName))
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasEquip() && RoomLogic.CanDiscard(room, player, p, "e"))
+                        return new List<WrappedCard> { new WrappedCard(KuangfuCard.ClassName) { Skill = Name, ShowSkill = Name } };
+            }
+            return new List<WrappedCard>();
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            if (player.HasFlag(Name))
+            {
+                if (ai.Target[Name] != null)
+                    return new List<Player> { ai.Target[Name] };
+            }
+            else
+            {
+                WrappedCard slash = new WrappedCard(Slash.ClassName)
+                {
+                    Skill = "_kuangfu_jx",
+                    DistanceLimited = false
+                };
+                List<WrappedCard> cards = new List<WrappedCard> { slash };
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, cards, null, false);
+                if (scores.Count > 0)
+                {
+                    return new List<Player> { scores[0].Players[0] };
+                }
+            }
+
+            return new List<Player>();
+        }
+    }
+
+    public class KuangfuCardAI : UseCard
+    {
+        public KuangfuCardAI() : base(KuangfuCard.ClassName)
+        {
+        }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            ai.Target["kuangfu_jx"] = null;
+            Room room = ai.Room;
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.HasEquip() && RoomLogic.CanDiscard(room, player, p, "e"))
+                {
+                    ScoreStruct score = ai.FindCards2Discard(player, p, "kuangfu_jx", "e", FunctionCard.HandlingMethod.MethodDiscard);
+                    score.Players = new List<Player> { p };
+                }
+            }
+
+            if (scores.Count > 0)
+            {
+                scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
+                if (scores[0].Score > 0)
+                {
+                    ai.Target["kuangfu_jx"] = scores[0].Players[0];
+                    use.Card = card;
+                    return;
+                }
+            }
+            else if (player.HasEquip() && RoomLogic.CanDiscard(room, player, player, "e"))
+            {
+                WrappedCard slash = new WrappedCard(Slash.ClassName)
+                {
+                    Skill = "_kuangfu_jx",
+                    DistanceLimited = false
+                };
+                List<WrappedCard> cards = new List<WrappedCard> { slash };
+                scores = ai.CaculateSlashIncome(player, cards, null, false);
+                if (scores.Count > 0 && scores[0].Score >= 4)
+                {
+                    ai.Target["kuangfu_jx"] = player;
+                    use.Card = card;
+                    return;
+                }
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 5;
         }
     }
 
