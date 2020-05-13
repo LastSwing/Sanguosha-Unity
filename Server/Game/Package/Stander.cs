@@ -5343,7 +5343,7 @@ namespace SanguoshaServer.Package
                                 }
                                 else if (!self && player.HasFlag("kuangfu_jx"))
                                 {
-                                    room.AskForDiscard(player, "kuangfu_jx", 2, 2, false, true, "@kuangfu_jx-disacard", false, card_use.Card.SkillPosition);
+                                    room.AskForDiscard(player, "kuangfu_jx", 2, 2, false, false, "@kuangfu_jx-disacard", false, card_use.Card.SkillPosition);
                                 }
 
                                 player.SetFlags("-kuangfu_jx");
