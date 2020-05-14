@@ -1442,7 +1442,7 @@ namespace SanguoshaServer.AI
             if (judge_card != -1)
             {
                 WrappedCard j_card = room.GetCard(judge_card);
-                WrappedCard.CardSuit suit = HasSkill("hongyan", player) && j_card.Suit == WrappedCard.CardSuit.Spade ? WrappedCard.CardSuit.Heart : j_card.Suit;
+                WrappedCard.CardSuit suit = HasSkill("hongyan|hongyan_jx", player) && j_card.Suit == WrappedCard.CardSuit.Spade ? WrappedCard.CardSuit.Heart : j_card.Suit;
                 if (expect_effect)
                     return (reason == Indulgence.ClassName && suit != WrappedCard.CardSuit.Heart) || (reason == SupplyShortage.ClassName && suit != WrappedCard.CardSuit.Club)
                                        || (reason == Lightning.ClassName && suit == WrappedCard.CardSuit.Spade && j_card.Number <= 9 && j_card.Number >= 2);
@@ -2278,7 +2278,7 @@ namespace SanguoshaServer.AI
                     Nature = DamageStruct.DamageNature.Thunder,
                     To = who
                 };
-                if (HasSkill("hongyan", who)) return false;
+                if (HasSkill("hongyan|hongyan_jx", who)) return false;
                 if (DamageEffect(damage, DamageStruct.DamageStep.Done) == 0)
                     return false;
                 else
@@ -2370,7 +2370,7 @@ namespace SanguoshaServer.AI
                 WrappedCard card_x = Engine.CloneCard(Engine.GetRealCard(id));
                 if (card_x.HasFlag("using") || RoomLogic.IsCardLimited(room, self, room.GetCard(id), HandlingMethod.MethodResponse)) continue;
                 bool is_peach = IsFriend(who) && HasSkill("tiandu", who) || IsCard(id, Peach.ClassName, who, self);
-                if (HasSkill("hongyan", who) && card_x.Suit == WrappedCard.CardSuit.Spade)
+                if (HasSkill("hongyan|hongyan_jx", who) && card_x.Suit == WrappedCard.CardSuit.Spade)
                 {
                     card_x.SetSuit(WrappedCard.CardSuit.Heart);
                 }
@@ -2456,6 +2456,34 @@ namespace SanguoshaServer.AI
                             can_use.Add(id);
                         else if (judge.Good && score.Score < -6 && !Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x))
                             can_use.Add(id);
+                    }
+                }
+                else if (reason == "zhuilie")
+                {
+                    Player target = room.FindPlayer(who.GetTag("zhuilie").ToString());
+                    if (target != null && target.Hp > 1 && (!target.HasArmor(SilverLion.ClassName) || who.HasWeapon(QinggangSword.ClassName)))
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if ((judge.Good && IsFriend(target) && (fcard is Weapon || fcard is Horse))
+                            || (!judge.Good && IsEnemy(target) && !(fcard is Weapon || fcard is Horse)))
+                        {
+                            List<CardUseStruct> uses = room.GetUseList();
+                            CardUseStruct use = uses[uses.Count - 1];
+                            if (use.Card.Name.Contains(Slash.ClassName) && use.From == who)
+                            {
+                                DamageStruct damage = new DamageStruct(use.Card, use.From, target, 1 + use.Drank + use.ExDamage);
+                                if (use.Card.Name == FireSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Fire;
+                                else if (use.Card.Name == ThunderSlash.ClassName)
+                                    damage.Nature = DamageStruct.DamageNature.Thunder;
+                                ScoreStruct score1 = GetDamageScore(damage);
+                                damage.Damage += target.Hp - 1;
+                                ScoreStruct score2 = GetDamageScore(damage);
+
+                                if ((IsFriend(target) && score2.Score < score1.Score) || (IsFriend(who) && score2.Score > score1.Score))
+                                    can_use.Add(id);
+                            }
+                        }
                     }
                 }
                 else if (IsFriend(who) && judge.Negative != (Engine.GetPattern(judge.Pattern).Match(judge.Who, room, card_x) == judge.Good)
@@ -3847,7 +3875,7 @@ namespace SanguoshaServer.AI
         {
             WrappedCard card = room.GetCard(id);
             if (card.HasFlag("using")) return false;
-            WrappedCard.CardSuit suit = (RoomLogic.PlayerHasShownSkill(room, judge_who, "hongyan") && card.Suit == WrappedCard.CardSuit.Spade ? WrappedCard.CardSuit.Heart : card.Suit);
+            WrappedCard.CardSuit suit = (RoomLogic.PlayerHasShownSkill(room, judge_who, "hongyan|hongyan_jx") && card.Suit == WrappedCard.CardSuit.Spade ? WrappedCard.CardSuit.Heart : card.Suit);
             if (IsFriend(retrialer, judge_who))
             {
                 if ((reason == Indulgence.ClassName && suit == WrappedCard.CardSuit.Heart) || (reason == SupplyShortage.ClassName && suit == WrappedCard.CardSuit.Club)
@@ -3936,7 +3964,8 @@ namespace SanguoshaServer.AI
                                 foreach (int id in ids)
                                 {
                                     WrappedCard card = room.GetCard(id);
-                                    if (card.Suit == WrappedCard.CardSuit.Heart || (card.Suit == WrappedCard.CardSuit.Spade && RoomLogic.PlayerHasShownSkill(room, p, "hongyan")))
+                                    if (card.Suit == WrappedCard.CardSuit.Heart || (card.Suit == WrappedCard.CardSuit.Spade
+                                        && RoomLogic.PlayerHasShownSkill(room, p, "hongyan|hongyan_jx")))
                                         return new KeyValuePair<Player, int>(p, id);
                                 }
                             }
@@ -5072,7 +5101,7 @@ namespace SanguoshaServer.AI
                         WrappedCard card = room.GetCard(id);
                         int number = card.Number;
                         WrappedCard.CardSuit suit = card.Suit;
-                        if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan"))
+                        if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan|hongyan_jx"))
                             suit = WrappedCard.CardSuit.Heart;
 
                         bool add = false;
@@ -5458,7 +5487,7 @@ namespace SanguoshaServer.AI
                                 WrappedCard card = room.GetCard(id);
                                 int number = card.Number;
                                 WrappedCard.CardSuit suit = card.Suit;
-                                if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                                if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan|hongyan_jx", next))
                                     suit = WrappedCard.CardSuit.Heart;
 
                                 if (for_light != null)
@@ -5546,7 +5575,7 @@ namespace SanguoshaServer.AI
                                             WrappedCard card = room.GetCard(id);
                                             int number = card.Number;
                                             WrappedCard.CardSuit suit = card.Suit;
-                                            if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                                            if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan|hongyan_jx", next))
                                                 suit = WrappedCard.CardSuit.Heart;
 
                                             if (number > 1 && number <= 9 && suit == WrappedCard.CardSuit.Spade)
@@ -5705,7 +5734,7 @@ namespace SanguoshaServer.AI
                             WrappedCard card = room.GetCard(id);
                             int number = card.Number;
                             WrappedCard.CardSuit suit = card.Suit;
-                            if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                            if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan|hongyan_jx", next))
                                 suit = WrappedCard.CardSuit.Heart;
 
                             if (for_light != null)
@@ -5799,7 +5828,7 @@ namespace SanguoshaServer.AI
                                         WrappedCard card = room.GetCard(id);
                                         int number = card.Number;
                                         WrappedCard.CardSuit suit = card.Suit;
-                                        if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan", next))
+                                        if (suit == WrappedCard.CardSuit.Spade && HasSkill("hongyan|hongyan_jx", next))
                                             suit = WrappedCard.CardSuit.Heart;
 
                                         if (number > 1 && number <= 9 && suit == WrappedCard.CardSuit.Spade)

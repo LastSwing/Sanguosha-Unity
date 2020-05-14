@@ -1922,6 +1922,7 @@ namespace SanguoshaServer.Package
                     Reason = Name,
                     Who = player
                 };
+                player.SetTag(Name, target.Name);
                 room.Judge(ref judge);
 
                 if (judge.IsGood() && target.Alive && target.Hp > 1)

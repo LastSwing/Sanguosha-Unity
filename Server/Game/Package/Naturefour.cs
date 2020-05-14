@@ -5,6 +5,7 @@ using SanguoshaServer.Game;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Web.UI.WebControls;
 using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
@@ -81,6 +82,7 @@ namespace SanguoshaServer.Package
                 new FenjiJX(),
                 new TianxiangJX(),
                 new TianxiangSecond(),
+                new HongyanJX(),
                 new Hunzi(),
                 new Zhiba(),
                 new ZhibaVS(),
@@ -2568,7 +2570,10 @@ namespace SanguoshaServer.Package
                 room.LoseHp(player, lose);
 
                 if (player.Alive)
+                {
                     player.SetMark("qimou", lose);
+                    room.DrawCards(player, lose, "qimou");
+                }
             }
         }
     }
@@ -3851,6 +3856,87 @@ namespace SanguoshaServer.Package
             xiaoqiao.RemoveTag("tianxiang_card");
 
             return false;
+        }
+    }
+
+    public class HongyanJXFilter : FilterSkill
+    {
+        public HongyanJXFilter() : base("hongyan_jx")
+        {
+        }
+
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
+        {
+            int id = to_select.GetEffectiveId();
+            return to_select.Suit == WrappedCard.CardSuit.Spade
+                    && (room.GetCardPlace(id) == Place.PlaceEquip
+                        || room.GetCardPlace(id) == Place.PlaceHand || room.GetCardPlace(id) == Place.PlaceJudge);
+        }
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            return base.ViewAs(room, cards, player);
+        }
+        public override void ViewAs(Room room, ref RoomCard card, Player player)
+        {
+            card.Skill = Name;
+            card.SetSuit(WrappedCard.CardSuit.Heart);
+        }
+    }
+    public class HongyanJX : TriggerSkill
+    {
+        public HongyanJX() : base("hongyan_jx")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime, TriggerEvent.FinishRetrial };
+            frequency = Frequency.Compulsory;
+            view_as_skill = new HongyanJXFilter();
+            skill_type = SkillType.Alter;
+        }
+
+        public override bool CanPreShow() => true;
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.FinishRetrial && base.Triggerable(player, room) && !RoomLogic.PlayerHasShownSkill(room, player, Name)
+                && data is JudgeStruct judge && judge.Who == player && judge.Card.Suit == WrappedCard.CardSuit.Spade)
+                return new TriggerStruct(Name, player);
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
+                && (move.From_places.Contains(Place.PlaceEquip) || move.From_places.Contains(Place.PlaceHand)) && base.Triggerable(move.From, room)
+                && (move.To != move.From || move.To_place != Place.PlaceHand) && move.From.Phase == PlayerPhase.NotActive)
+            {
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if ((move.From_places[i] == Place.PlaceEquip || move.From_places[i] == Place.PlaceHand) && room.GetCard(move.Card_ids[i]).Suit == WrappedCard.CardSuit.Heart)
+                        return new TriggerStruct(Name, move.From);
+                }
+            }
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.FinishRetrial)
+                return room.AskForSkillInvoke(player, Name, data, info.SkillPosition) ? info : new TriggerStruct();
+            else return RoomLogic.PlayerHasShownSkill(room, ask_who, Name) || room.AskForSkillInvoke(ask_who, Name, null, info.SkillPosition) ? info : new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.FinishRetrial && data is JudgeStruct judge)
+            {
+                List<int> cards = new List<int> { judge.Card.GetEffectiveId() };
+                room.FilterCards(player, cards, true);
+                room.UpdateJudgeResult(ref judge);
+                data = judge;
+            }
+            else
+            {
+                room.SendCompulsoryTriggerLog(ask_who, Name, true);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                room.DrawCards(ask_who, 1, Name);
+            }
+            return false;
+        }
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = -2;
         }
     }
 
