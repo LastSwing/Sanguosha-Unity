@@ -29,6 +29,7 @@ namespace SanguoshaServer.AI
                 new ZengdaoAI(),
                 new YinjuAI(),
                 new QianxinZGAI(),
+                new ZhuilieAI(),
 
                 new TunanAI(),
 
@@ -633,6 +634,23 @@ namespace SanguoshaServer.AI
             }
 
             return "draw";
+        }
+    }
+
+    public class ZhuilieAI : SkillEvent
+    {
+        public ZhuilieAI() : base("zhuilie") { }
+
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
+        {
+            double value = 0;
+            Room room = ai.Room;
+            if (card != null && card.Name.Contains(Slash.ClassName) && from != null && ai.HasSkill(Name) && to != null && !RoomLogic.InMyAttackRange(room, from, to, card))
+            {
+                if (ai.IsFriend(from, to)) return -10;
+                if (ai.IsEnemy(from, to)) return 2;
+            }
+            return value;
         }
     }
 

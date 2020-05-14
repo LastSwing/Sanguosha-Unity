@@ -2306,7 +2306,8 @@ namespace SanguoshaServer.Package
                     {
                         Type = "#Liegong_add",
                         From = target.Name,
-                        To = new List<string> { target.Name }
+                        To = new List<string> { target.Name },
+                        Arg = "1"
                     };
                     room.SendLog(log);
 

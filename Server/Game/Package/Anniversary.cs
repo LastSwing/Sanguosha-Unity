@@ -48,6 +48,8 @@ namespace SanguoshaServer.Package
                 new ChijieEffect(),
                 new Yinju(),
                 new YinjuEffect(),
+                new ZhuilieTar(),
+                new Zhuilie(),
 
                 new Tunan(),
                 new TunanTag(),
@@ -138,6 +140,7 @@ namespace SanguoshaServer.Package
                 { "chijie", new List<string>{ "#chijie" } },
                 { "yinju", new List<string>{ "#yinju" } },
                 { "mansi", new List<string>{ "#mansi" } },
+                { "zhuilie", new List<string>{ "#zhuilie" } },
             };
         }
     }
@@ -1868,6 +1871,108 @@ namespace SanguoshaServer.Package
                 room.DrawCards(player, 1, Name);
 
             return false;
+        }
+    }
+
+    public class Zhuilie : TriggerSkill
+    {
+        public Zhuilie() : base("zhuilie")
+        {
+            events.Add(TriggerEvent.TargetChosen);
+            skill_type = SkillType.Attack;
+            frequency = Frequency.Compulsory;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is CardUseStruct use && base.Triggerable(player, room) && use.Card.Name.Contains(Slash.ClassName))
+            {
+                List<Player> targets = new List<Player>();
+                foreach (Player p in use.To)
+                    if (!RoomLogic.InMyAttackRange(room, player, p))
+                        targets.Add(p);
+
+                if (targets.Count > 0)
+                    return new TriggerStruct(Name, player, targets);
+            }
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player skill_target, ref object data, Player player, TriggerStruct info)
+        {
+            room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, skill_target.Name);
+            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            room.SendCompulsoryTriggerLog(player, Name, true);
+            return info;
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player player, TriggerStruct info)
+        {
+            if (data is CardUseStruct use)
+            {
+                if (use.AddHistory)
+                {
+                    use.AddHistory = false;
+                    player.AddHistory(use.Card.Name, -1);
+                    data = use;
+                }
+
+                JudgeStruct judge = new JudgeStruct
+                {
+                    Pattern = "Weapon#Horse",
+                    Good = true,
+                    PlayAnimation = false,
+                    Reason = Name,
+                    Who = player
+                };
+                room.Judge(ref judge);
+
+                if (judge.IsGood() && target.Alive && target.Hp > 1)
+                {
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#Liegong_add",
+                        From = target.Name,
+                        To = new List<string> { target.Name },
+                        Arg = (target.Hp - 1).ToString()
+                    };
+                    room.SendLog(log);
+
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
+                        {
+                            index++;
+                            if (index == info.Times)
+                            {
+                                effect.Effect1 += target.Hp - 1;
+                                data = use;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else if (judge.IsBad() && player.Alive)
+                    room.LoseHp(player);
+            }
+
+            return false;
+        }
+    }
+    
+    public class ZhuilieTar : TargetModSkill
+    {
+        public ZhuilieTar() : base("#zhuilie")
+        {
+        }
+
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
+        {
+            return from != null && RoomLogic.PlayerHasSkill(room, from, "zhuilie") && to != null;
+        }
+
+        public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
+        {
+            index = -2;
         }
     }
 
