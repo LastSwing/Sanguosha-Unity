@@ -2707,7 +2707,7 @@ namespace SanguoshaServer.AI
                         List<int> ids = self.GetPile("chun");
                         if (ids.Count > 0)
                         {
-                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true };
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true, UserString = dying.Name };
                             result.AddSubCard(ids[0]);
                         }
                     }
@@ -2756,7 +2756,7 @@ namespace SanguoshaServer.AI
                         List<int> ids = self.GetPile("chun");
                         if (ids.Count > 0)
                         {
-                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true };
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true, UserString = dying.Name };
                             result.AddSubCard(ids[0]);
                         }
                     }

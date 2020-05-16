@@ -10449,7 +10449,8 @@ namespace SanguoshaServer.Package
             {
                 Skill = Name,
                 ShowSkill = Name,
-                Mute = true
+                Mute = true,
+                UserString = room.GetRoomState().GetCurrentAskforPeachPlayer().Name
             };
             c.AddSubCard(card);
             return c;
@@ -10471,7 +10472,7 @@ namespace SanguoshaServer.Package
 
             FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_use.Card.GetEffectiveId()).Name);
 
-            Player target = room.GetRoomState().GetCurrentAskforPeachPlayer();
+            Player target = room.FindPlayer(card_use.Card.UserString);
             if (target != null)
             {
                 WrappedCard peach = new WrappedCard(Analeptic.ClassName) { Skill = "_chunlao" };
