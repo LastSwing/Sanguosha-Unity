@@ -2047,10 +2047,8 @@ namespace SanguoshaServer.Package
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Finish)
             {
-                foreach (Player p in room.GetAlivePlayers())
-                {
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
                     if (p.GetMark(Name) >= 2 && !p.IsKongcheng()) triggers.Add(new TriggerStruct(Name, p));
-                }
             }
 
             return triggers;
