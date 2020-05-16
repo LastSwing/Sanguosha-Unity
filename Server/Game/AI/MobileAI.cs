@@ -27,6 +27,7 @@ namespace SanguoshaServer.AI
                 new ZhiyiAI(),
                 new RangjieAI(),
                 new ZhouxuanAI(),
+                new ChengzhaoAI(),
 
                 new WuyuanAI(),
             };
@@ -596,6 +597,48 @@ namespace SanguoshaServer.AI
                         ai.SetPrivateKnownCards(target, id);
                 }
             }
+        }
+    }
+
+    public class ChengzhaoAI : SkillEvent
+    {
+        public ChengzhaoAI() : base("chengzhao")
+        {
+            key = new List<string> { "playerChosen:chengzhao" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (target != null && ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, false);
+                }
+            }
+        }
+
+        public override WrappedCard OnPindian(TrustedAI ai, Player requestor, List<Player> players)
+        {
+            return ai.GetMaxCard();
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> enemies = ai.GetEnemies(player);
+            if (enemies.Count > 0)
+            {
+                ai.SortByDefense(ref enemies, false);
+                foreach (Player p in enemies)
+                    if (targets.Contains(p))
+                        return new List<Player> { p };
+            }
+
+            return new List<Player>();
         }
     }
 }

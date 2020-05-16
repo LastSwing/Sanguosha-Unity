@@ -6091,13 +6091,13 @@ namespace SanguoshaServer.Package
     {
         public Jiangchi() : base("jiangchi")
         {
-            events.Add(TriggerEvent.EventPhaseProceeding);
+            events.Add(TriggerEvent.EventPhaseEnd);
             skill_type = SkillType.Replenish;
         }
         
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Draw && (int)data >= 0)
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -6118,21 +6118,15 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is int n)
+            string choice = player.GetTag(Name).ToString();
+            if (choice == "more")
             {
-                string choice = player.GetTag(Name).ToString();
-                if (choice == "more")
-                {
-                    n++;
-                    RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", Slash.ClassName, true);
-                }
-                else
-                {
-                    n--;
-                    player.SetFlags(Name);
-                }
-
-                data = n;
+                RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", Slash.ClassName, true);
+                room.DrawCards(player, 1, Name);
+            }
+            else if (room.AskForDiscard(player, Name, 1, 1, false, true, "@jiangchi-discard", false, info.SkillPosition))
+            {
+                player.SetFlags(Name);
             }
 
             return false;
@@ -10475,8 +10469,28 @@ namespace SanguoshaServer.Package
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, card_use.From, "chunlao", card_use.Card.SkillPosition);
             room.BroadcastSkillInvoke("chunlao", "male", 2, gsk.General, gsk.SkinId);
 
-            WrappedCard peach = new WrappedCard(Analeptic.ClassName) { Skill = "_chunlao" };
-            room.UseCard(new CardUseStruct(peach, card_use.To[0], new List<Player>(), false));
+            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_use.Card.GetEffectiveId()).Name);
+
+            Player target = room.GetRoomState().GetCurrentAskforPeachPlayer();
+            if (target != null)
+            {
+                WrappedCard peach = new WrappedCard(Analeptic.ClassName) { Skill = "_chunlao" };
+                room.UseCard(new CardUseStruct(peach, target, new List<Player>(), false));
+            }
+            Player player = card_use.From;
+            if (player.Alive && fcard is FireSlash && player.IsWounded())
+            {
+                RecoverStruct recover = new RecoverStruct
+                {
+                    Who = player,
+                    Recover = 1
+                };
+                room.Recover(player, recover, true);
+            }
+            else if (player.Alive && fcard is ThunderSlash)
+            {
+                room.DrawCards(player, 2, "chunlao");
+            }
         }
     }
 

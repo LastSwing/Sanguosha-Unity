@@ -3900,7 +3900,10 @@ namespace SanguoshaServer.Package
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
                 && (move.From_places.Contains(Place.PlaceEquip) || move.From_places.Contains(Place.PlaceHand)) && base.Triggerable(move.From, room)
-                && (move.To != move.From || move.To_place != Place.PlaceHand) && move.From.Phase == PlayerPhase.NotActive)
+                && (move.To != move.From || move.To_place != Place.PlaceHand) && move.From.Phase == PlayerPhase.NotActive
+                && ((move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_RESPONSE
+                || (move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_USE
+                || (move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_DISCARD))
             {
                 for (int i = 0; i < move.Card_ids.Count; i++)
                 {
