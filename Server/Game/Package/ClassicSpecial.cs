@@ -4468,7 +4468,7 @@ namespace SanguoshaServer.Package
 
             foreach (int id in card_ids)
             {
-                if (Engine.GetFunctionCard(room.GetCard(id).Name).TypeID == CardType.TypeTrick)
+                if (Engine.GetFunctionCard(room.GetCard(id).Name).TypeID != CardType.TypeEquip)
                     gets.Add(id);
                 else
                     drops.Add(id);
@@ -4540,12 +4540,17 @@ namespace SanguoshaServer.Package
     {
         public LinglongTar() : base("#linglong-tar")
         {
-            pattern = "TrickCard";
+            pattern = "Slash#TrickCard";
             skill_type = SkillType.Wizzard;
         }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
-            return RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure() ? true : false;
+            return Engine.GetFunctionCard(card.Name).TypeID == CardType.TypeTrick && RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure() ? true : false;
+        }
+
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
+        {
+            return Engine.GetFunctionCard(card.Name) is Slash && !from.GetWeapon() ? 1 : 0;
         }
     }
 
@@ -6761,7 +6766,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && Self != to_select && to_select.GetEquips().Count < Self.GetEquips().Count && !to_select.IsAllNude(); 
+            return targets.Count == 0 && Self != to_select && to_select.GetEquips().Count < Self.GetEquips().Count; 
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -6770,7 +6775,6 @@ namespace SanguoshaServer.Package
             player.AddMark("lueming");
             room.SetPlayerStringMark(player, "lueming", player.GetMark("lueming").ToString());
             string number = room.AskForChoice(target, "lueming", "A+2+3+4+5+6+7+8+9+10+J+Q+K", new List<string> { "@lueming-judge:" + player.Name });
-            int id = WrappedCard.GetNumber(number);
 
             JudgeStruct judge = new JudgeStruct
             {

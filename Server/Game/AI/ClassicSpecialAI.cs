@@ -5646,7 +5646,7 @@ namespace SanguoshaServer.AI
             ai.SortByDefense(ref enemies);
             foreach (Player p in enemies)
             {
-                if (!p.IsNude())
+                if (!p.IsNude() && p.GetEquips().Count < player.GetEquips().Count)
                 {
                     use.Card = card;
                     use.To.Add(p);
