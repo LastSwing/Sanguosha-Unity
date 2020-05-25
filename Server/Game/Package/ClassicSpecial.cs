@@ -4550,7 +4550,7 @@ namespace SanguoshaServer.Package
 
         public override int GetResidueNum(Room room, Player from, WrappedCard card)
         {
-            return Engine.GetFunctionCard(card.Name) is Slash && !from.GetWeapon() ? 1 : 0;
+            return Engine.GetFunctionCard(card.Name) is Slash && !from.GetWeapon() && RoomLogic.PlayerHasSkill(room, from, "linglong") ? 1 : 0;
         }
     }
 
