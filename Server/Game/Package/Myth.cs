@@ -61,6 +61,10 @@ namespace SanguoshaServer.Package
                 new ChuyuanMax(),
                 new Dengji(),
                 new Tianxing(),
+                new Duorui(),
+                new DuoruiInvalid(),
+                new Zhiti(),
+                new ZhitiMax(),
             };
             skill_cards = new List<FunctionCard>
             {
@@ -90,6 +94,8 @@ namespace SanguoshaServer.Package
                 { "jieying_gn", new List<string>{ "#jieying_gn-max", "#jieying_gn-tar", "#jieying-draw", "#jieying_gn-clear" } },
                 { "qixing", new List<string>{ "#qixing-clear" } },
                 { "chuyuan", new List<string>{ "#chuyuan" } },
+                { "duorui", new List<string>{ "#duorui" } },
+                { "zhiti", new List<string>{ "#zhiti" } },
             };
         }
     }
@@ -2609,6 +2615,225 @@ namespace SanguoshaServer.Package
             }
 
             return false;
+        }
+    }
+
+    public class Duorui : TriggerSkill
+    {
+        public Duorui() : base("duorui")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.Damage };
+            skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.ContainsTag(Name))
+            {
+                room.RemovePlayerStringMark(player, Name);
+                player.RemoveTag(Name);
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.Damage && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play && data is DamageStruct damage
+                && damage.To.Alive && damage.To != player && !damage.To.ContainsTag(Name) && !damage.To.IsDuanchang(true))
+            {
+                return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage && damage.To.Alive && room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.To.Name);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage)
+            {
+                Player target = damage.To;
+                List<string> skills = Engine.GetGeneralSkills(target.ActualGeneral1, room.Setting.GameMode, true);
+                List<string> choices = new List<string>();
+                foreach (string skill in skills)
+                {
+                    Skill real = Engine.GetSkill(skill);
+                    if (real.SkillFrequency != Frequency.Compulsory && !real.Attached_lord_skill)
+                        choices.Add(skill);
+                }
+
+                if (choices.Count > 0)
+                {
+                    string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@duorui-skill:" + target.Name }, target);
+                    target.SetTag(Name, choice);
+                }
+
+               player.SetFlags("Global_PlayPhaseTerminated");
+            }
+
+            return false;
+        }
+    }
+
+    public class DuoruiInvalid : InvalidSkill
+    {
+        public DuoruiInvalid() : base("#duorui")
+        {
+        }
+
+        public override bool Invalid(Room room, Player player, string skill)
+        {
+            Skill s = Engine.GetSkill(skill);
+            if (s == null || s.SkillFrequency == Frequency.Compulsory || s.Attached_lord_skill) return false;
+            if (player.HasEquip(skill)) return false;
+
+            if (player.ContainsTag("duorui") && player.GetTag("duorui") is string skill_name && skill_name == skill)
+                return true;
+
+            return false;
+        }
+    }
+
+    public class Zhiti : TriggerSkill
+    {
+        public Zhiti() : base("zhiti")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseProceeding, TriggerEvent.EventPhaseStart };
+            skill_type = SkillType.Attack;
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseProceeding && base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw)
+            {
+                int n = 0;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.IsWounded())
+                        n++;
+                }
+                if (n >= 3)
+                    return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Finish)
+            {
+                int n = 0;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.IsWounded())
+                        n++;
+                }
+                if (n >= 5)
+                    return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseProceeding)
+            {
+                return info;
+            }
+            else
+            {
+                List<Player> targets = new List<Player>();
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    for (int i = 0; i < 5; i++)
+                    {
+                        if (!p.EquipIsBaned(i))
+                        {
+                            targets.Add(p);
+                            break;
+                        }
+                    }
+                }
+                if (targets.Count > 0)
+                {
+                    Player target = room.AskForPlayerChosen(player, targets, Name, "@zhiti-ban", true, true, info.SkillPosition);
+                    if (target != null)
+                    {
+                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        room.SetTag(Name, target);
+                        return info;
+                    }
+                }
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseProceeding && data is int count)
+            {
+                room.SendCompulsoryTriggerLog(player, Name);
+                count++;
+                data = count;
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && room.GetTag(Name) is Player target)
+            {
+                room.RemoveTag(Name);
+                List<int> indexs = new List<int>();
+
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!target.EquipIsBaned(i))
+                        indexs.Add(i);
+                }
+
+                if (indexs.Count > 1)
+                    Shuffle.shuffle(ref indexs);
+
+                int n = indexs[0];
+                room.AbolisheEquip(target, n, Name);
+            }
+            return false;
+        }
+    }
+
+    public class ZhitiMax : MaxCardsSkill
+    {
+        public ZhitiMax() : base("#zhiti")
+        { }
+
+        public override int GetExtra(Room room, Player target)
+        {
+            int n = 0;
+            if (RoomLogic.PlayerHasSkill(room, target, "zhiti"))
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.IsWounded())
+                    {
+                        n = 1;
+                        break;
+                    }
+                }
+            }
+
+            if (target.IsWounded())
+            {
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, "zhiti"))
+                {
+                    if (p != target && RoomLogic.InMyAttackRange(room, p, target))
+                        n--;
+                }
+            }
+
+            return n;
         }
     }
 }
