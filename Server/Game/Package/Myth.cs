@@ -2433,7 +2433,7 @@ namespace SanguoshaServer.Package
                     else
                     {
                         int card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
-                        room.ThrowCard(card_id, player);
+                        room.ThrowCard(card_id, target, player);
                     }
 
                     if (!target.Alive || !player.Alive || target.HandcardNum != target.Hp)
@@ -2498,7 +2498,7 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.Damage && player.Alive)
+            if (triggerEvent == TriggerEvent.Damaged && player.Alive)
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
                     triggers.Add(new TriggerStruct(Name, p));
