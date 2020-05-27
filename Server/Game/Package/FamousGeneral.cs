@@ -3009,7 +3009,7 @@ namespace SanguoshaServer.Package
                         id = room.AskForCardChosen(player, p, "he", Name, false, HandlingMethod.MethodDiscard);
                     else
                     {
-                        List<int> ids = room.AskForExchange(player, Name, 1, 1, "@qinqing", string.Empty, "..!", info.SkillPosition);
+                        List<int> ids = room.AskForExchange(player, Name, 1, 1, "@discard-self", string.Empty, "..!", info.SkillPosition);
                         id = ids[0];
                     }
                     room.ThrowCard(id, p, player != p ? player : null);

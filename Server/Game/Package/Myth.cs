@@ -889,6 +889,7 @@ namespace SanguoshaServer.Package
 
         public override void OnDamaged(Room room, Player target, DamageStruct damage, TriggerStruct info)
         {
+            string choice = room.AskForChoice(target, Name, "hand+equip+judge", new List<string> { "@guixin" });
             List<Player> targets = new List<Player>();
             foreach (Player p in room.GetOtherPlayers(target))
             {
@@ -902,16 +903,53 @@ namespace SanguoshaServer.Package
             foreach (Player p in targets)
             {
                 if (!p.Alive || p.IsAllNude()) continue;
-                List<int> ids = p.GetCards("hej");
-                Shuffle.shuffle(ref ids);
-                foreach (int id in ids)
+                List<int> ids = new List<int>();
+                switch (choice)
                 {
-                    if (RoomLogic.CanGetCard(room, target, p, id))
-                    {
-                        List<int> cards = new List<int> { id };
-                        room.ObtainCard(target, ref cards, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, target.Name, p.Name, Name, string.Empty), false);
-                        Thread.Sleep(300);
+                    case "hand":
+                        {
+                            if (!p.IsKongcheng() && RoomLogic.CanGetCard(room, target, p, "h"))
+                                ids = p.GetCards("h");
+                            else if (p.HasEquip() && RoomLogic.CanGetCard(room, target, p, "e"))
+                                ids = p.GetCards("e");
+                            else if (p.JudgingArea.Count > 0 && RoomLogic.CanGetCard(room, target, p, "j"))
+                                ids = p.GetCards("j");
+                        }
                         break;
+                    case "equip":
+                        {
+                            if (p.HasEquip() && RoomLogic.CanGetCard(room, target, p, "e"))
+                                ids = p.GetCards("e");
+                            else if (!p.IsKongcheng() && RoomLogic.CanGetCard(room, target, p, "h"))
+                                ids = p.GetCards("h");
+                            else if (p.JudgingArea.Count > 0 && RoomLogic.CanGetCard(room, target, p, "j"))
+                                ids = p.GetCards("j");
+                        }
+                        break;
+                    case "judge":
+                        {
+                            if (p.JudgingArea.Count > 0 && RoomLogic.CanGetCard(room, target, p, "j"))
+                                ids = p.GetCards("j");
+                            else if (!p.IsKongcheng() && RoomLogic.CanGetCard(room, target, p, "h"))
+                                ids = p.GetCards("h");
+                            else if (p.HasEquip() && RoomLogic.CanGetCard(room, target, p, "e"))
+                                ids = p.GetCards("e");
+                        }
+                        break;
+                }
+
+                if (ids.Count > 0)
+                {
+                    Shuffle.shuffle(ref ids);
+                    foreach (int id in ids)
+                    {
+                        if (RoomLogic.CanGetCard(room, target, p, id))
+                        {
+                            List<int> cards = new List<int> { id };
+                            room.ObtainCard(target, ref cards, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, target.Name, p.Name, Name, string.Empty), false);
+                            Thread.Sleep(300);
+                            break;
+                        }
                     }
                 }
 
@@ -2437,7 +2475,7 @@ namespace SanguoshaServer.Package
                             card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
                         else
                         {
-                            List<int> ids = room.AskForExchange(player, Name, 1, 1, "@shenfu-self", string.Empty, "..!", info.SkillPosition);
+                            List<int> ids = room.AskForExchange(player, Name, 1, 1, "@discard-self", string.Empty, "..!", info.SkillPosition);
                             card_id = ids[0];
                         }
                         room.ThrowCard(card_id, target, player);
@@ -2617,8 +2655,33 @@ namespace SanguoshaServer.Package
             if (player.Alive)
             {
                 room.HandleAcquireDetachSkills(player, "-chuyuan");
-                string choice = room.AskForChoice(player, Name, "rende+zhiheng_jx+luanji_jx+fangquan_jx");
-                room.HandleAcquireDetachSkills(player, choice, true);
+                List<string> choices = new List<string>();
+                if (!room.UsedGeneral.Contains("liubei")) choices.Add("rende");
+                if (!room.UsedGeneral.Contains("liushan")) choices.Add("fangquan_jx");
+                if (!room.UsedGeneral.Contains("sunquan")) choices.Add("zhiheng_jx");
+                if (!room.UsedGeneral.Contains("yuanshao")) choices.Add("luanji_jx");
+
+                if (choices.Count > 0)
+                {
+                    string choice = room.AskForChoice(player, Name, string.Join("+", choices));
+                    switch (choice)
+                    {
+                        case "rende":
+                            room.HandleUsedGeneral("liubei");
+                            break;
+                        case "fangquan_jx":
+                            room.HandleUsedGeneral("liushan");
+                            break;
+                        case "zhiheng_jx":
+                            room.HandleUsedGeneral("sunquan");
+                            break;
+                        case "luanji_jx":
+                            room.HandleUsedGeneral("yuanshao");
+                            break;
+                    }
+
+                    room.HandleAcquireDetachSkills(player, choice, true);
+                }
             }
 
             return false;
