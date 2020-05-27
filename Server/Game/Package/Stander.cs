@@ -5208,17 +5208,21 @@ namespace SanguoshaServer.Package
             List<int> disable_equiplist = new List<int>(), equiplist = new List<int>();
             for (int i = 0; i < 6; i++)
             {
-                if (target.GetEquip(i) >= 0)
+                int id = target.GetEquip(i);
+                if (id >= 0)
                 {
-                    if (!RoomLogic.CanDiscard(room, panfeng, target, target.GetEquip(i)))
+                    bool discard = true;
+                    if (!RoomLogic.CanDiscard(room, panfeng, target, id))
+                        discard = false;
+
+                    bool put = false;
+                    if (RoomLogic.CanPutEquip(panfeng, room.GetCard(id)))
                     {
-                        if (panfeng.GetEquip(i) >= 0 || ((i == 2 || i == 3) && panfeng.GetEquip(5) >= 0))
-                        {
-                            disable_equiplist.Add(target.GetEquip(i));
-                            continue;
-                        }
+                        put = true;
+                        equiplist.Add(id);
                     }
-                    equiplist.Add(target.GetEquip(i));
+
+                    if (!discard && !put) disable_equiplist.Add(id);
                 }
             }
             int card_id = room.AskForCardChosen(panfeng, target, "e", Name, false, HandlingMethod.MethodNone, disable_equiplist);
@@ -5227,7 +5231,7 @@ namespace SanguoshaServer.Package
             List<string> choicelist = new List<string>();
             if (RoomLogic.CanDiscard(room, panfeng, target, card_id))
                 choicelist.Add("throw");
-            if (!equiplist.Contains(card_id))
+            if (equiplist.Contains(card_id))
                 choicelist.Add("move");
 
             string choice = room.AskForChoice(panfeng, "kuangfu", string.Join("+", choicelist), new List<string> { "@kuangfu:::" + card.Name });

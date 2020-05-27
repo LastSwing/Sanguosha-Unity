@@ -2111,7 +2111,7 @@ namespace SanguoshaServer.Package
                     {
                         if (equip_index != -1)
                         {
-                            if (p.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(player, card))
+                            if (p.GetEquip(equip_index) < 0 && RoomLogic.CanPutEquip(p, card))
                                 tos.Add(p);
                         }
                         else if (RoomLogic.IsProhibited(room, null, p, card) == null && !RoomLogic.PlayerContainsTrick(room, p, card.Name) && p.JudgingAreaAvailable)

@@ -519,6 +519,7 @@ namespace SanguoshaServer.Package
             ask_who.SetFlags(Name);
             if (room.GetTag(Name) is List<int> ids && data is CardsMoveOneTimeStruct move)
             {
+                room.RemoveTag(Name);
                 List<string> patterns = new List<string>();
                 foreach (int id in ids)
                 {
@@ -2430,7 +2431,7 @@ namespace SanguoshaServer.Package
             Player player = card_use.From;
             int id = card_use.Card.GetEffectiveId();
             WrappedCard card = room.GetCard(id);
-            string card_name = string.Empty;
+            string card_name;
             if (card.Name == Lightning.ClassName)
             {
                 card_name = LightningSummoner.ClassName;

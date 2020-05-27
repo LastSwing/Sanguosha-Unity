@@ -3004,7 +3004,14 @@ namespace SanguoshaServer.Package
             {
                 if (p.Alive && !p.IsNude() && player.Alive && RoomLogic.CanDiscard(room, player, p, "he"))
                 {
-                    int id = room.AskForCardChosen(player, p, "he", Name, false, HandlingMethod.MethodDiscard);
+                    int id;
+                    if (p != player)
+                        id = room.AskForCardChosen(player, p, "he", Name, false, HandlingMethod.MethodDiscard);
+                    else
+                    {
+                        List<int> ids = room.AskForExchange(player, Name, 1, 1, "@qinqing", string.Empty, "..!", info.SkillPosition);
+                        id = ids[0];
+                    }
                     room.ThrowCard(id, p, player != p ? player : null);
                 }
                 if (p.Alive) room.DrawCards(p, new DrawCardStruct(1, player, Name));
