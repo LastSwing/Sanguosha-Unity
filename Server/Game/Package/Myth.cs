@@ -58,7 +58,7 @@ namespace SanguoshaServer.Package
                 new Shenfu(),
                 new Qixian(),
                 new Chuyuan(),
-                new ChuyuanMax(),
+                //new ChuyuanMax(),
                 new Dengji(),
                 new Tianxing(),
                 new Duorui(),
@@ -93,7 +93,7 @@ namespace SanguoshaServer.Package
                 { "poxi", new List<string>{ "#poxi" } },
                 { "jieying_gn", new List<string>{ "#jieying_gn-max", "#jieying_gn-tar", "#jieying-draw", "#jieying_gn-clear" } },
                 { "qixing", new List<string>{ "#qixing-clear" } },
-                { "chuyuan", new List<string>{ "#chuyuan" } },
+                //{ "chuyuan", new List<string>{ "#chuyuan" } },
                 { "duorui", new List<string>{ "#duorui" } },
                 { "zhiti", new List<string>{ "#zhiti" } },
             };
@@ -2471,7 +2471,7 @@ namespace SanguoshaServer.Package
                     else
                     {
                         int card_id;
-                        if (player == target)
+                        if (player != target)
                             card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
                         else
                         {
@@ -2546,7 +2546,8 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.Damaged && player.Alive)
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    triggers.Add(new TriggerStruct(Name, p));
+                    if (p.GetPile(Name).Count < p.MaxHp)
+                        triggers.Add(new TriggerStruct(Name, p));
             }
 
             return triggers;
@@ -2576,7 +2577,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
+    /*
     public class ChuyuanMax : MaxCardsSkill
     {
         public ChuyuanMax() : base("#chuyuan") { }
@@ -2586,7 +2587,7 @@ namespace SanguoshaServer.Package
             return target.GetPile("chuyuan").Count;
         }
     }
-
+    */
     public class Dengji : PhaseChangeSkill
     {
         public Dengji() : base("dengji")
@@ -2657,7 +2658,6 @@ namespace SanguoshaServer.Package
                 room.HandleAcquireDetachSkills(player, "-chuyuan");
                 List<string> choices = new List<string>();
                 if (!room.UsedGeneral.Contains("liubei")) choices.Add("rende");
-                if (!room.UsedGeneral.Contains("liushan")) choices.Add("fangquan_jx");
                 if (!room.UsedGeneral.Contains("sunquan")) choices.Add("zhiheng_jx");
                 if (!room.UsedGeneral.Contains("yuanshao")) choices.Add("luanji_jx");
 
@@ -2668,9 +2668,6 @@ namespace SanguoshaServer.Package
                     {
                         case "rende":
                             room.HandleUsedGeneral("liubei");
-                            break;
-                        case "fangquan_jx":
-                            room.HandleUsedGeneral("liushan");
                             break;
                         case "zhiheng_jx":
                             room.HandleUsedGeneral("sunquan");
