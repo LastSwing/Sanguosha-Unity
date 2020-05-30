@@ -12094,7 +12094,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@xiashu", true, true, info.SkillPosition);
+            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@xiashu-target", true, true, info.SkillPosition);
             if (target != null)
             {
                 room.SetTag(Name, target);
@@ -12107,7 +12107,6 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             Player target = (Player)room.GetTag(Name);
-            room.RemoveTag(Name);
             List<int> ids = player.GetCards("h");
             target.SetFlags(Name);
             room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty), false);
@@ -12117,12 +12116,28 @@ namespace SanguoshaServer.Package
                 List<int> showed = target.GetCards("h");
                 if (showed.Count > 1) showed = room.AskForExchange(target, Name, showed.Count, 1, "@xiashu-shown:" + player.Name, string.Empty, ".", string.Empty);
                 room.ShowCards(target, showed, Name);
+                /*
                 room.SetTag(Name, showed);
                 room.FillAG(Name, showed, player, null, null);
                 string choice = room.AskForChoice(player, Name, "shown+hide", null, target);
                 room.ClearAG(player);
                 room.RemoveTag(Name);
                 if (choice == "shown")
+                {
+                    room.ObtainCard(player, ref showed, new CardMoveReason(MoveReason.S_REASON_GOTCARD, player.Name, target.Name, string.Empty));
+                }
+                else
+                {
+                    List<int> hands = target.GetCards("h");
+                    hands.RemoveAll(t => showed.Contains(t));
+                    if (hands.Count > 0)
+                        room.ObtainCard(player, ref hands, new CardMoveReason(MoveReason.S_REASON_GOTCARD, player.Name, target.Name, string.Empty), false);
+                }
+                */
+
+                AskForMoveCardsStruct move = room.AskForMoveCards(player, showed, new List<int>(), false, Name, 0, 0, true, false, new List<int>(), info.SkillPosition);
+                room.RemoveTag(Name);
+                if (move.Success)
                 {
                     room.ObtainCard(player, ref showed, new CardMoveReason(MoveReason.S_REASON_GOTCARD, player.Name, target.Name, string.Empty));
                 }
