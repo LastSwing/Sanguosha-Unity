@@ -38,10 +38,10 @@ namespace SanguoshaServer.Game
         public List<int> RoomCards => new List<int>(m_cards.Keys);
         public List<FunctionCard> AvailableFunctionCards { private set; get; } = new List<FunctionCard>();
         public GameSetting Setting { set; get; }
-        public GameScenario Scenario { get; }
+        public GameScenario Scenario { get; private set; }
         public List<string> Generals { get; private set; } = new List<string>();
-        public List<string> Skills { get; } = new List<string>();
-        public List<string> UsedGeneral { get; } = new List<string>();
+        public List<string> Skills { get; private set; } = new List<string>();
+        public List<string> UsedGeneral { get; private set; } = new List<string>();
         public List<int> DiscardPile => m_discardPile;
         public int Round { get; private set; }
         public bool Finished { get; private set; }
