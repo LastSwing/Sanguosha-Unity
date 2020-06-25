@@ -5606,7 +5606,7 @@ namespace SanguoshaServer.Package
     {
         public Quanji() : base("quanji")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.Damaged };
+            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.Damaged, TriggerEvent.EventPhaseEnd };
             skill_type = SkillType.Masochism;
         }
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -5625,6 +5625,10 @@ namespace SanguoshaServer.Package
                     Times = damage.Damage
                 };
                 return trigger;
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseEnd && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play && player.HandcardNum > player.Hp)
+            {
+                return new TriggerStruct(Name, player);
             }
 
             return new TriggerStruct();

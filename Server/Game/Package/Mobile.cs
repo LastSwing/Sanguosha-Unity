@@ -58,6 +58,8 @@ namespace SanguoshaServer.Package
                 new ZhiyiTar(),
                 new Duoduan(),
                 new Gongshun(),
+                new Jimeng(),
+                new Shuaiyan(),
 
                 new Yingjian(),
                 new Shixin(),
@@ -2747,6 +2749,129 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class Jimeng : TriggerSkill
+    {
+        public Jimeng() : base("jimeng")
+        {
+            events.Add(TriggerEvent.EventPhaseStart);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
+            {
+                return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (RoomLogic.CanGetCard(room, player, p, "he"))
+                    targets.Add(p);
+            }
+            if (targets.Count > 0)
+            {
+                Player target = room.AskForPlayerChosen(player, targets, Name, "@jimeng", true, true, info.SkillPosition);
+                if (target != null)
+                {
+                    room.SetTag(Name, target);
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    return info;
+                }
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.GetTag(Name) is Player target)
+            {
+                room.RemoveTag(Name);
+                int id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodGet);
+                room.ObtainCard(player, room.GetCard(id), new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, Name, string.Empty), false);
+
+                if (player.Alive && target.Alive)
+                {
+                    int count = Math.Max(player.GetCardCount(true), player.Hp);
+                    List<int> give;
+                    if (count == player.GetCardCount(true))
+                    {
+                        give = player.GetCards("he");
+                    }
+                    else
+                        give = room.AskForExchange(player, Name, count, count, string.Format("@jimeng-give:{0}::{1}", target.Name, count), string.Empty, "..", info.SkillPosition);
+
+                    ResultStruct result = player.Result;
+                    result.Assist += give.Count;
+                    player.Result = result;
+
+                    room.ObtainCard(target, ref give, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, Name, string.Empty), false);
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public class Shuaiyan : TriggerSkill
+    {
+        public Shuaiyan() : base("shuaiyan")
+        {
+            events.Add(TriggerEvent.EventPhaseStart);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Discard && player.HandcardNum > 1)
+            {
+                return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (!p.IsNude()) targets.Add(p);
+            }
+            if (targets.Count > 0)
+            {
+                Player target = room.AskForPlayerChosen(player, targets, Name, "@shuaiyan", true, true, info.SkillPosition);
+                if (target != null)
+                {
+                    room.SetTag(Name, target);
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    return info;
+                }
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.ShowAllCards(player, null, Name, info.SkillPosition);
+            if (room.GetTag(Name) is Player target)
+            {
+                List<int> give = room.AskForExchange(target, Name, 1, 1, "@shuaiyan:" + player.Name, string.Empty, "..", info.SkillPosition);
+
+                ResultStruct result = target.Result;
+                result.Assist += 1;
+                target.Result = result;
+
+                room.ObtainCard(player, ref give, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
+            }
+
+            return false;
+        }
+    }
 
     public class Yingjian : TriggerSkill
     {

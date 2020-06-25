@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
@@ -142,7 +143,6 @@ namespace SanguoshaServer.Package
                 new ZhidaoPro(),
                 new JiliYbh(),
                 new Lianji(),
-                new LianjiPro(),
                 new Moucheng(),
                 new Jingong(),
                 new Zhoufu(),
@@ -7487,20 +7487,13 @@ namespace SanguoshaServer.Package
         public Lianji() : base("lianji")
         {
             skill_type = SkillType.Wizzard;
-            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.GameStart, TriggerEvent.SwapPile };
+            events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.SwapPile };
             view_as_skill = new LianjiVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct use && use.Reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE
-                && !use.Card.IsVirtualCard() && !string.IsNullOrEmpty(use.Pattern))
-            {
-                int id = use.Card.GetEffectiveId();
-                if (use.Pattern.StartsWith(id.ToString()) && use.From.HasFlag(string.Format("{0}_{1}", Name, id)))
-                    room.SetTag(Name, use.To);
-            }
-            else if (triggerEvent == TriggerEvent.SwapPile && room.ContainsTag("saber_change") && !room.ContainsTag("saber_changed"))
+            if (triggerEvent == TriggerEvent.SwapPile && room.ContainsTag("saber_change") && !room.ContainsTag("saber_changed"))
             {
                 for (int i = 0; i < room.DrawPile.Count; i++)
                 {
@@ -7534,25 +7527,11 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class LianjiPro : ProhibitSkill
-    {
-        public LianjiPro() : base("#lianji") { }
-        public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
-        {
-            if (from != null && to != null && to != from && !card.IsVirtualCard() && to.HasFlag(string.Format("lianji_{0}", card.Id))
-                && room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE
-                && room.GetRoomState().GetCurrentCardUsePattern() == card.Id.ToString())
-                return true;
-
-            return false;
-        }
-    }
-
     public class LianjiVS : OneCardViewAsSkill
     {
         public LianjiVS() : base("lianji")
         {
-            filter_pattern = "Slash#TrickCard|black";
+            filter_pattern = ".!";
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
@@ -7573,7 +7552,7 @@ namespace SanguoshaServer.Package
         public static string ClassName = "LianjiCard";
         public LianjiCard() : base(ClassName)
         {
-            will_throw = false;
+            will_throw = true;
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
@@ -7584,10 +7563,7 @@ namespace SanguoshaServer.Package
         {
             room.SetTag("saber_change", true);
             Player player = card_use.From, target = card_use.To[0];
-            int id = card_use.Card.GetEffectiveId();
-            string card_name = room.GetCard(id).Name;
-            List<int> ids = new List<int> { id };
-            room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "lianji", string.Empty), true);
+            player.AddMark("lianji");
 
             if (target.Alive)
             {
@@ -7624,148 +7600,68 @@ namespace SanguoshaServer.Package
                 }
             }
 
-            bool choice = true;
-            WrappedCard vcard = new WrappedCard(card_name) { Skill = "_lianji" };
-            FunctionCard function = Engine.GetFunctionCard(card_name);
-            if (!player.Alive || vcard.Name == Collateral.ClassName || function is DelayedTrick
-                || !function.IsAvailable(room, player, vcard) || RoomLogic.IsProhibited(room, player, target, vcard) != null)
-                choice = false;
-
-            bool used = false;
-            if (target.Alive && room.GetCardOwner(id) == target && room.GetCardPlace(id) == Place.PlaceHand)
+            if (target.Alive && player.Alive)
             {
-                WrappedCard card = room.GetCard(id);
-                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
-                if (fcard.IsAvailable(room, target, card))
+                List<Player> targets = new List<Player>();
+                foreach (Player p in room.GetOtherPlayers(target))
                 {
-                    string flag = string.Format("lianji_{0}", id);
-                    player.SetFlags(flag);
-                    target.SetFlags(flag);
-                    string pattern = id.ToString();
-                    room.SetTag(Name, vcard);
-                    WrappedCard use = room.AskForUseCard(target, pattern, "@lianji:" + player.Name, null);
-                    room.RemoveTag(Name);
-                    used = use != null;
+                    if (RoomLogic.CanSlash(room, target, p))
+                        targets.Add(p);
+                }
 
-                    if (!choice && use == null && vcard.Name != Collateral.ClassName)
+                bool slash = true;
+                if (targets.Count > 0)
+                {
+                    Player victim = room.AskForPlayerChosen(player, targets, "lianji", "@lianji-victim:" + target.Name, false, false, card_use.Card.SkillPosition);
+                    if (victim != null)
                     {
-                        CardUseStruct force = new CardUseStruct(card, target, new List<Player>())
+                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, victim.Name);
+                        LogMessage log = new LogMessage
                         {
-                            Pattern = pattern
+                            Type = "#lianji-target",
+                            From = player.Name,
+                            To = new List<string> { victim.Name }
                         };
-                        if (fcard.TargetFixed(card))
-                        {
-                            room.UseCard(force);
-                            used = true;
-                        }
-                        else
-                        {
-                            foreach (Player p in room.GetOtherPlayers(player))
-                            {
-                                force.To.Clear();
-                                if (fcard.TargetFilter(room, new List<Player>(), p, target, card))
-                                {
-                                    force.To.Add(p);
-                                    if (fcard.TargetsFeasible(room, force.To, target, card))
-                                    {
-                                        room.UseCard(force);
-                                        used = true;
-                                    }
-                                }
-                            }
-                        }
-                    }         
+                        room.SendLog(log);
 
-                    flag = string.Format("-lianji_{0}", id);
-                    player.SetFlags(flag);
-                    target.SetFlags(flag);
-                }
-            }
-
-            if (used && room.GetTag("lianji") is List<Player> targets)
-            {
-                room.RemoveTag("lianji");
-                if (target.Alive && target.GetWeapon())
-                {
-                    List<Player> players = new List<Player>();
-                    foreach (Player p in targets)
-                        if (p.Alive) players.Add(p);
-                    if (players.Count > 0)
-                    {
-                        Player get = room.AskForPlayerChosen(target, players, "lianji", "@lianji-give");
-                        if (get != target)
-                        {
-                            List<int> to_give = new List<int> { target.Weapon.Key };
-                            room.ObtainCard(get, ref to_give, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, get.Name, "lianji", string.Empty));
-                        }
-                    }
-                }
-            }
-            else if (!used && choice)
-            {
-                CardUseStruct force = new CardUseStruct(vcard, player, new List<Player>());
-                if (function.TargetFixed(vcard))
-                {
-                    room.UseCard(force);
-                    used = true;
-                }
-                else
-                {
-                    force.To.Add(target);
-                    if (function.TargetsFeasible(room, force.To, player, vcard))
-                    {
-                        room.UseCard(force);
-                        used = true;
+                        slash = room.AskForUseSlashTo(target, victim, string.Format("@lianji-slash:{0}:{1}", player.Name, victim), null) != null;
                     }
                 }
 
-                if (used && player.Alive && target.Alive && target.GetWeapon())
+                if (!slash && target.GetWeapon())
                 {
-                    List<int> to_give = new List<int> { target.Weapon.Key };
-                    room.ObtainCard(player, ref to_give, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, player.Name, "lianji", string.Empty));
+                    WrappedCard card = room.GetCard(target.Weapon.Key);
+                    Player holder = room.AskForPlayerChosen(player, room.GetOtherPlayers(target), Name, string.Format("@lianji-weapon:{0}::{1}", target, card.Name),
+                        false, false, card_use.Card.SkillPosition);
+
+                    room.ObtainCard(holder, card, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, holder.Name, "lianji", string.Empty));
                 }
             }
         }
     }
 
-    public class Moucheng : TriggerSkill
+
+    public class Moucheng : PhaseChangeSkill
     {
         public Moucheng() : base("moucheng")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.Damaged };
             frequency = Frequency.Wake;
-        }
-
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && !use.Card.IsVirtualCard()
-                && use.Reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && !string.IsNullOrEmpty(use.Pattern))
-            {
-                int id = use.Card.GetEffectiveId();
-                if (use.Pattern == id.ToString() && use.From.HasFlag(string.Format("lianji_{0}", id)))
-                    use.Card.SetFlags(Name);
-            }
-            else if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.Card != null && damage.Card.HasFlag(Name))
-            {
-                if (room.Current != null && room.Current.Alive) room.Current.AddMark("moucheng_damage", damage.Damage);
-            }
+            skill_type = SkillType.Recover;
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.Card != null && damage.Card.HasFlag(Name)
-                && base.Triggerable(room.Current, room) && room.Current.GetMark("moucheng_damage") >= 3 && room.Current.GetMark(Name) == 0)
-            {
-                return new TriggerStruct(Name, room.Current);
-            }
+            if (player.Phase == PlayerPhase.Start && player.GetMark(Name) == 0 && base.Triggerable(player, room) && player.GetMark("lianji") >= 3)
+                return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+
+        public override bool OnPhaseChange(Room room, Player ask_who, TriggerStruct info)
         {
             room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
             room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
-            room.SetPlayerMark(ask_who, Name, 1);
+            ask_who.SetMark(Name, 1);
             room.SendCompulsoryTriggerLog(ask_who, Name);
 
             room.HandleAcquireDetachSkills(ask_who, "-lianji", false);
@@ -7779,7 +7675,7 @@ namespace SanguoshaServer.Package
     {
         public Jingong() : base("jingong")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.EventPhaseStart, TriggerEvent.Damage, TriggerEvent.CardUsedAnnounced };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.Damage, TriggerEvent.CardUsedAnnounced };
             skill_type = SkillType.Alter;
             view_as_skill = new JingongVS();
         }
@@ -7788,12 +7684,6 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.ContainsTag(Name))
                 player.RemoveTag(Name);
-            else if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card.GetSkillName() == Name)
-                player.SetFlags(Name);
-            else if (triggerEvent == TriggerEvent.Damage && player.HasFlag(Name))
-                player.SetFlags("-jingong");
-            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Finish && player.HasFlag(Name))
-                room.LoseHp(player);
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
