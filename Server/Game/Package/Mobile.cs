@@ -2797,7 +2797,7 @@ namespace SanguoshaServer.Package
 
                 if (player.Alive && target.Alive)
                 {
-                    int count = Math.Max(player.GetCardCount(true), player.Hp);
+                    int count = Math.Min(player.GetCardCount(true), player.Hp);
                     List<int> give;
                     if (count == player.GetCardCount(true))
                     {

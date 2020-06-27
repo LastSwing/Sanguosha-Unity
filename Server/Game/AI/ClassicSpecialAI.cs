@@ -5973,46 +5973,21 @@ namespace SanguoshaServer.AI
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            string[] strs = prompt.Split(':');
-            Room room = ai.Room;
-            Player zhanghe = room.FindPlayer(strs[1]);
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
-            if (room.GetTag(LianjiCard.ClassName) is WrappedCard vcard)
+            string target_name = prompt.Split(':')[2];
+            Room room = ai.Room;
+            Player target = room.FindPlayer(target_name);
+            if (target != null)
             {
-                FunctionCard fcard = Engine.GetFunctionCard(vcard.Name);
-                if (zhanghe != null && ai.IsFriend(zhanghe))
+                double not_use = 0;
+                if (ai.HasSkill(TrustedAI.LoseEquipSkill)) not_use += 3;
+
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, null, new List<Player> { target });
+                if (scores.Count > 0 && scores[0].Score > not_use && scores[0].Card != null)
                 {
-                    if (vcard.Name == Snatch.ClassName && RoomLogic.IsProhibited(room, zhanghe, player, vcard) == null && ai.IsCardEffect(vcard, player, zhanghe)
-                        && ai.FindCards2Discard(zhanghe, player, Snatch.ClassName, "hej", HandlingMethod.MethodGet).Score > 0)
-                        return use;
-
-                    if (vcard.Name == Dismantlement.ClassName && RoomLogic.IsProhibited(room, zhanghe, player, vcard) == null && ai.IsCardEffect(vcard, player, zhanghe)
-                        && ai.FindCards2Discard(zhanghe, player, Snatch.ClassName, "hej", HandlingMethod.MethodDiscard).Score > 0)
-                        return use;
-
-                    if (ai.HasSkill(TrustedAI.LoseEquipSkill) && player.HasEquip() && (vcard.Name == Collateral.ClassName || fcard is DelayedTrick
-                        || !ai.IsCardEffect(vcard, player, zhanghe) || !fcard.IsAvailable(room, zhanghe, vcard) || RoomLogic.IsProhibited(room, zhanghe, player, vcard) != null))
-                        return use;
-
-                    if ((vcard.Name == ArcheryAttack.ClassName || vcard.Name == SavageAssault.ClassName || vcard.Name == FireAttack.ClassName)
-                        && (!ai.IsCardEffect(vcard, player, zhanghe) || RoomLogic.IsProhibited(room, zhanghe, player, vcard) != null))
-                        return use;
+                    use.Card = scores[0].Card;
+                    use.To.Add(target);
                 }
-
-
-                int id = int.Parse(pattern);
-                WrappedCard card = room.GetCard(id);
-                if (card.Name.Contains(Slash.ClassName))
-                {
-                    ai.FindSlashandTarget(ref use, player, new List<WrappedCard> { card });
-                    if (use.Card != null)
-                        return use;
-                }
-
-                UseCard e = Engine.GetCardUsage(card.Name);
-                e.Use(ai, player, ref use, card);
-                if (use.Card != null && RoomLogic.ParseUseCard(room, use.Card) != card)
-                    use.Card = null;
             }
 
             return use;
@@ -6020,26 +5995,32 @@ namespace SanguoshaServer.AI
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
         {
-            if (targets.Contains(player))
-                return new List<Player> { player };
+            if (player.HasFlag("lianji_weapon"))
+            {
+                List<Player> friends = new List<Player>();
+                foreach (Player p in ai.GetEnemies(player))
+                    if (targets.Contains(p)) friends.Add(p);
 
-            foreach (Player p in targets)
-                if (ai.IsFriend(p) && !ai.WillSkipPlayPhase(p) && (ai.HasSkill(TrustedAI.NeedEquipSkill, p) || ai.HasSkill(TrustedAI.LoseEquipSkill, p)))
-                    return new List<Player> { p };
+                Room room = ai.Room;
+                room.SortByActionOrder(ref friends);
+                foreach (Player p in friends)
+                    if (ai.HasSkill(TrustedAI.LoseEquipSkill, p)) return new List<Player> { p };
 
-            foreach (Player p in targets)
-                if (ai.IsFriend(p) && !ai.WillSkipPlayPhase(p) && !ai.HasSkill("zishu", p))
-                    return new List<Player> { p };
+                foreach (Player p in friends)
+                    if (!p.GetWeapon()) return new List<Player> { p };
 
-            foreach (Player p in targets)
-                if (ai.IsFriend(p))
-                    return new List<Player> { p };
+                if (friends.Count > 0) return new List<Player> { friends[0] };
+            }
+            else
+            {
+                List<Player> enemies = new List<Player>();
+                foreach (Player p in ai.GetEnemies(player))
+                    if (targets.Contains(p)) enemies.Add(p);
 
-            foreach (Player p in targets)
-                if (ai.WillSkipPlayPhase(p) || ai.HasSkill("zishu", p))
-                    return new List<Player> { p };
+                if (enemies.Count > 1) ai.SortByDefense(ref enemies);
+                if (enemies.Count > 0) return new List<Player> { enemies[0] };
+            }
 
-            ai.SortByHandcards(ref targets, false);
             return new List<Player> { targets[0] };
         }
     }

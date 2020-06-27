@@ -2999,7 +2999,7 @@ namespace SanguoshaServer.AI
             { "@luanwu-slash", "luanwu" },
             { "@kill_victim", BeltsheChao.ClassName },
             { "@kangkai-use", "kangkai" },
-            { "@lianji", "lianji" },
+            { "@lianji-slash", "lianji" },
             { "@jianji", "jianji" },
         };
 

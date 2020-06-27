@@ -311,7 +311,6 @@ namespace SanguoshaServer.Package
                 { "baobian", new List<string>{ "#baobian" } },
                 { "qizhou", new List<string>{ "#qizhou" } },
                 { "zhidao", new List<string>{ "#zhidao" } },
-                { "lianji", new List<string>{ "#lianji" } },
                 { "xingzhao", new List<string>{ "#xingzhao" } },
                 { "zhoufu", new List<string>{ "#zhoufu" } },
                 { "xiahui", new List<string>{ "#xiahui-max" } },
@@ -7631,8 +7630,10 @@ namespace SanguoshaServer.Package
                 if (!slash && target.GetWeapon())
                 {
                     WrappedCard card = room.GetCard(target.Weapon.Key);
+                    player.SetFlags("lianji_weapon");
                     Player holder = room.AskForPlayerChosen(player, room.GetOtherPlayers(target), Name, string.Format("@lianji-weapon:{0}::{1}", target, card.Name),
                         false, false, card_use.Card.SkillPosition);
+                    player.SetFlags("-lianji_weapon");
 
                     room.ObtainCard(holder, card, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, holder.Name, "lianji", string.Empty));
                 }
