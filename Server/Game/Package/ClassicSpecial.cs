@@ -7631,7 +7631,7 @@ namespace SanguoshaServer.Package
                 {
                     WrappedCard card = room.GetCard(target.Weapon.Key);
                     player.SetFlags("lianji_weapon");
-                    Player holder = room.AskForPlayerChosen(player, room.GetOtherPlayers(target), Name, string.Format("@lianji-weapon:{0}::{1}", target, card.Name),
+                    Player holder = room.AskForPlayerChosen(player, room.GetOtherPlayers(target), Name, string.Format("@lianji-weapon:{0}::{1}", target.Name, card.Name),
                         false, false, card_use.Card.SkillPosition);
                     player.SetFlags("-lianji_weapon");
 
