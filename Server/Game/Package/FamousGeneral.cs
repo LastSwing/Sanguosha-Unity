@@ -7945,7 +7945,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && base.Triggerable(player, room))
+            if (data is DamageStruct damage && damage.Card != null && base.Triggerable(player, room))
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -7958,21 +7958,7 @@ namespace SanguoshaServer.Package
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 if (WrappedCard.IsRed(damage.Card.Suit) && damage.From != null && damage.From.Alive)
                 {
-                    List<string> choices = new List<string> { "draw" };
-                    if (damage.From.IsWounded()) choices.Add("recover");
-                    if (room.AskForChoice(damage.From, Name, string.Join("+", choices)) == "draw")
-                    {
-                        room.DrawCards(damage.From, 1, Name);
-                    }
-                    else
-                    {
-                        RecoverStruct recover = new RecoverStruct
-                        {
-                            Who = damage.From,
-                            Recover = 1
-                        };
-                        room.Recover(damage.From, recover, true);
-                    }
+                    room.DrawCards(damage.From, 1, Name);
                 }
                 else
                 {

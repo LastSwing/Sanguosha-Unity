@@ -1570,7 +1570,7 @@ namespace SanguoshaServer.AI
                 DoDamage = true
             };
 
-            if (!HasSkill("jueqing", from))
+            if (!HasSkill("jueqing|gangzhi_classic", from))
             {
                 damage.Damage = DamageEffect(damage, step);
                 if (damage.Steped < DamageStruct.DamageStep.Caused)
@@ -1634,7 +1634,7 @@ namespace SanguoshaServer.AI
                 TransferReason = _damage.TransferReason,
                 Chain = _damage.Chain
             };
-            if (damage.From == null || !HasSkill("jueqing", damage.From))
+            if (damage.From == null || !HasSkill("jueqing|gangzhi_classic", damage.From))
                 damage.Damage = DamageEffect(damage, step);
             Player from = damage.From;
             Player to = damage.To;
@@ -1666,13 +1666,13 @@ namespace SanguoshaServer.AI
             }
 
 
-            if (from == null || !HasSkill("jueqing", from))
+            if (from == null || !HasSkill("jueqing|gangzhi_classic", from))
                 damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
 
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
 
-            if (HasSkill("lixun", to) && to.GetMark("@zhu") >= 10 && (from == null || !HasSkill("jueqing", from))) damage.Damage = 0;
+            if (HasSkill("lixun", to) && to.GetMark("@zhu") >= 10 && (from == null || !HasSkill("jueqing|gangzhi_classic", from))) damage.Damage = 0;
             if (damage.To.GetMark("@tangerine") > 0)            //橘防止伤害时
             {
                 double value = 3;
@@ -1822,7 +1822,7 @@ namespace SanguoshaServer.AI
                             deadly = true;
                 }
 
-                if (!to.Removed && CanResist(to, damage.Damage) && (from == null || !HasSkill("jueqing", damage.From))) result_score.Score = 3;
+                if (!to.Removed && CanResist(to, damage.Damage) && (from == null || !HasSkill("jueqing|gangzhi_classic", damage.From))) result_score.Score = 3;
 
                 //根据身份矫正分数
                 if (self.GetRoleEnum() == PlayerRole.Lord || self.GetRoleEnum() == PlayerRole.Loyalist)
@@ -1839,7 +1839,7 @@ namespace SanguoshaServer.AI
                             else
                             {
                                 value -= 4;
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing|gangzhi_classic", from))
                                     value -= from.GetCards("he").Count * 1.5;
                             }
                         }
@@ -1853,7 +1853,7 @@ namespace SanguoshaServer.AI
                             {
                                 value += 5;
                             }
-                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive && !HasSkill("jueqing", from) && !HasSkill("lixun", to))
+                            if (GetPlayerTendency(to) == "rebel" && damage.From != null && damage.From.Alive && !HasSkill("jueqing|gangzhi_classic", from) && !HasSkill("lixun", to))
                             {
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                             }
@@ -1920,7 +1920,7 @@ namespace SanguoshaServer.AI
                             }
                             else
                             {
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing|gangzhi_classic", from))
                                     value += from.GetCardCount(true) * 1.5;
                             }
                         }
@@ -1937,7 +1937,7 @@ namespace SanguoshaServer.AI
                                 value += IsFriend(from) ? 1.5 * 3 : -1.5 * 3;
                                 if (to.Hp == 1 && to.GetCardCount(true) < 2 && !MaySave(to) && GetPlayerTendency(from) == "rebel")      //无可救药的反贼同伴宁可被自己人收掉
                                 {
-                                    if (!HasSkill("jueqing", from) && !HasSkill("lixun", to))
+                                    if (!HasSkill("jueqing|gangzhi_classic", from) && !HasSkill("lixun", to))
                                         value += 4;
                                     else
                                         value += 1;
@@ -2007,7 +2007,7 @@ namespace SanguoshaServer.AI
                             }
                             else
                             {
-                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing", from))
+                                if (GetPlayerTendency(to) == "loyalist" && from != null && from.GetRoleEnum() == PlayerRole.Lord && !from.IsNude() && !HasSkill("jueqing|gangzhi_classic", from))
                                     value += from.GetCardCount(true) * 1.5;
                             }
                         }
@@ -2471,7 +2471,7 @@ namespace SanguoshaServer.AI
         public override double ChainDamage(DamageStruct damage)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing", damage.From)))
+                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing|gangzhi_classic", damage.From)))
                 return 0;
 
             List<Player> players = GetSpreadTargets(damage);

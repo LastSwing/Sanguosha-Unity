@@ -85,6 +85,7 @@ namespace SanguoshaServer.AI
                 new NeifaAI(),
                 new ZhenduJXAI(),
                 new QiluanJXAI(),
+                new BeizhanCAI(),
 
                 new XuejiAI(),
                 new LiangzhuAI(),
@@ -6725,6 +6726,38 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;
+        }
+    }
+
+    public class BeizhanCAI : SkillEvent
+    {
+        public BeizhanCAI() : base("beizhan_classic") { }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            int count = 0;
+            Player target = null;
+
+            foreach (Player p in ai.GetFriends(player))
+            {
+                if (p.MaxHp - p.HandcardNum > count && p.HandcardNum < 5)
+                {
+                    count = p.MaxHp - p.HandcardNum;
+                    target = p;
+                }
+            }
+
+            if (target != null) return new List<Player> { target };
+
+            foreach (Player p in ai.GetEnemies(player))
+            {
+                if (!ai.WillSkipPlayPhase(p) && (p.HandcardNum > p.MaxHp ||  p.HandcardNum >= 5))
+                {
+                    return new List<Player> { p };
+                }
+            }
+
+            return new List<Player>();
         }
     }
 
