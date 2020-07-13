@@ -4,6 +4,7 @@ using CommonClassLibrary;
 using SanguoshaServer.Game;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Web.UI.WebControls;
 using static CommonClass.Game.CardUseStruct;
@@ -39,6 +40,8 @@ namespace SanguoshaServer.Package
                 new Huashen(),
                 new Xinsheng(),
                 new BeigeJX(),
+                new JianchuJX(),
+                new JianchuTar(),
 
                 new FangquanJX(),
                 new FangquanMax(),
@@ -110,6 +113,7 @@ namespace SanguoshaServer.Package
                 { "fangquan_jx", new List<string>{ "#fangquan-max" } },
                 { "cangzhuo", new List<string>{ "#cangzhuo-max" } },
                 { "lianhuan_jx", new List<string>{ "#lianhuan_jx" } },
+                { "jianchu_jx", new List<string>{ "#jianchu-tar" } },
             };
         }
     }
@@ -1817,6 +1821,120 @@ namespace SanguoshaServer.Package
                     break;
             }
             return false;
+        }
+    }
+
+    public class JianchuJX : TriggerSkill
+    {
+        public JianchuJX() : base("jianchu_jx")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.CardsMoveOneTime, TriggerEvent.EventPhaseChanging };
+            frequency = Frequency.Frequent;
+            skill_type = SkillType.Attack;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.To_place == Place.PlaceTable
+                && move.From != null && move.Reason.Reason == MoveReason.S_REASON_DISMANTLE && move.Reason.SkillName == Name
+                && move.From.Name == move.Reason.TargetId && move.Card_ids.Count == 1)
+            {
+                bool basic = Engine.GetFunctionCard(room.GetCard(move.Card_ids[0]).Name) is BasicCard;
+                string tag_name = string.Format("{0}_{1}", Name, move.Reason.TargetId);
+                Player pangde = room.FindPlayer(move.Reason.PlayerId, true);
+                pangde.SetTag(tag_name, basic);
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.GetMark(Name) > 0)
+                player.SetMark(Name, 0);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.TargetChosen && base.Triggerable(player, room) && data is CardUseStruct use && use.Card != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is Slash)
+                {
+                    List<Player> targets = new List<Player>();
+                    foreach (Player p in use.To)
+                    {
+                        if (!p.IsNude() && p.Alive && RoomLogic.CanDiscard(room, player, p, "he"))
+                            targets.Add(p);
+                    }
+                    if (targets.Count > 0)
+                        return new TriggerStruct(Name, player, targets);
+                }
+            }
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player pangde, TriggerStruct info)
+        {
+            if (!player.IsNude() && RoomLogic.CanDiscard(room, pangde, player, "he") && room.AskForSkillInvoke(pangde, Name, player, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, pangde.Name, player.Name);
+                room.BroadcastSkillInvoke(Name, pangde, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player pangde, TriggerStruct info)
+        {
+            int to_throw = room.AskForCardChosen(pangde, target, "he", Name, false, HandlingMethod.MethodDiscard);
+            List<int> ids = new List<int> { to_throw };
+            string tag_name = string.Format("{0}_{1}", Name, target.Name);
+            pangde.RemoveTag(tag_name);
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_DISMANTLE, pangde.Name, target.Name, Name, string.Empty)
+            {
+                General = RoomLogic.GetGeneralSkin(room, pangde, Name, info.SkillPosition)
+            };
+            room.ThrowCard(ref ids, reason, target, pangde);
+            CardUseStruct use = (CardUseStruct)data;
+            if (ids.Count > 0)
+            {
+                if (!(bool)pangde.GetTag(tag_name))
+                {
+                    if (pangde.Alive && pangde.Phase == PlayerPhase.Play) pangde.AddMark(Name); 
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
+                        {
+                            index++;
+                            if (index == info.Times)
+                            {
+                                effect.Effect2 = 0;
+                                break;
+                            }
+                        }
+                    }
+
+                    data = use;
+                }
+                else
+                {
+                    List<int> card_ids = room.GetCardIdsOnTable(room.GetSubCards(use.Card));
+                    if (card_ids.Count > 0 && card_ids.SequenceEqual(use.Card.SubCards))
+                    {
+                        room.RemoveSubCards(use.Card);
+                        room.ObtainCard(target, ref card_ids, new CardMoveReason(MoveReason.S_REASON_GOTBACK, target.Name));
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public class JianchuTar : TargetModSkill
+    {
+        public JianchuTar() : base("#jianchu-tar", false)
+        {
+        }
+
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
+        {
+            return from.GetMark("jianchu_jx");
         }
     }
 

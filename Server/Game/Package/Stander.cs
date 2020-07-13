@@ -4357,7 +4357,6 @@ namespace SanguoshaServer.Package
                             if (index == info.Times)
                             {
                                 effect.Effect2 = 0;
-                                data = use;
                                 break;
                             }
                         }
