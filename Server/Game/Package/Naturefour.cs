@@ -4395,23 +4395,25 @@ namespace SanguoshaServer.Package
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (data is PindianInfo info)
             {
-                List<Player> targets = new List<Player>();
                 if (base.Triggerable(info.From, room))
                 {
+                    List<Player> targets = new List<Player>();
                     foreach (Player p in info.Cards.Keys)
-                        if (info.Cards[p] == null && !p.IsKongcheng())
+                        if (p != info.From && info.Cards[p] == null && !p.IsKongcheng())
                             targets.Add(p);
 
                     if (targets.Count > 0)
                         triggers.Add(new TriggerStruct(Name, info.From, targets));
                 }
+
                 if (info.Cards[info.From] == null && !info.From.IsKongcheng())
                 {
                     foreach (Player p in info.Cards.Keys)
                     {
-                        targets.Clear();
+                        if (p == info.From) continue;
                         if (base.Triggerable(p, room))
                         {
+                            List<Player> targets = new List<Player>();
                             targets.Add(info.From);
                             triggers.Add(new TriggerStruct(Name, p, targets));
                         }
