@@ -638,21 +638,29 @@ namespace SanguoshaServer.Package
     {
         public PaoxiaoJX() : base("paoxiao_jx")
         {
-            events = new List<TriggerEvent> { TriggerEvent.SlashMissed, TriggerEvent.CardUsedAnnounced };
+            events = new List<TriggerEvent> { TriggerEvent.SlashMissed, TriggerEvent.DamageCaused, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Attack;
             frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.SlashMissed && base.Triggerable(player, room))
-                player.SetFlags(Name);
+            if (triggerEvent == TriggerEvent.SlashMissed && base.Triggerable(player, room) && room.Current == player)
+            {
+                player.AddMark(Name);
+                room.SetPlayerStringMark(player, Name, player.GetMark(Name).ToString());
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.GetMark(Name) > 0)
+            {
+                player.SetMark(Name, 0);
+                room.RemovePlayerStringMark(player, Name);
+            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName)
-                && player.Alive && player.HasFlag(Name))
+            if (triggerEvent == TriggerEvent.DamageCaused && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName)
+                && player.Alive && player.GetMark(Name) > 0)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -663,21 +671,21 @@ namespace SanguoshaServer.Package
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
             room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
             room.SendCompulsoryTriggerLog(player, Name, true);
-            player.SetFlags("-paoxiao_jx");
 
-            if (data is CardUseStruct use)
+            DamageStruct damage = (DamageStruct)data;
+            damage.Damage += player.GetMark(Name);
+            player.SetMark(Name, 0);
+            room.RemovePlayerStringMark(player, Name);
+
+            LogMessage log = new LogMessage
             {
-                use.ExDamage += 1;
-                data = use;
-
-                LogMessage log = new LogMessage
-                {
-                    Type = "#paoxiao",
-                    From = player.Name,
-                    Arg = use.Card.Name
-                };
-                room.SendLog(log);
-            }
+                Type = "#AddDamage",
+                From = player.Name,
+                To = new List<string> { damage.To.Name },
+                Arg = Name,
+                Arg2 = (damage.Damage).ToString()
+            };
+            room.SendLog(log);
 
             return false;
         }

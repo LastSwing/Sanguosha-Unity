@@ -1037,6 +1037,6 @@ namespace CommonClass.Game
 
         public Player From { set; get; }
         public string Reason { set; get; }
-        public WrappedCard Card { set; get; }
+        public Dictionary<Player, WrappedCard> Cards { set; get; }
     }
 }

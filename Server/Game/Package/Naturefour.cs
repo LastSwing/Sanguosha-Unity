@@ -91,6 +91,7 @@ namespace SanguoshaServer.Package
                 new ZhibaVS(),
                 new PoluSJ(),
                 new ZhijianJX(),
+                new Hanzhan(),
             };
             skill_cards = new List<FunctionCard>
             {
@@ -4379,5 +4380,13 @@ namespace SanguoshaServer.Package
             return zhijian_card;
         }
     }
+
+    public class Hanzhan : TriggerSkill
+    {
+        public Hanzhan() : base("hanzhan")
+        {
+        }
+    }
+
     #endregion
 }

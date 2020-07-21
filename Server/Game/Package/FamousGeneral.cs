@@ -2925,13 +2925,18 @@ namespace SanguoshaServer.Package
             }
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.PindianCard && base.Triggerable(player, room))
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.PindianCard && data is PindianInfo info)
             {
-                return new TriggerStruct(Name, player);
+                foreach (Player p in info.Cards.Keys)
+                {
+                    if (base.Triggerable(p, room) && info.Cards[p] == null)
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
             }
-            return new TriggerStruct();
+            return triggers;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
@@ -2947,7 +2952,7 @@ namespace SanguoshaServer.Package
             if (data is PindianInfo pindian)
             {
                 List<int> ids = room.GetNCards(1);
-                pindian.Card = room.GetCard(ids[0]);
+                pindian.Cards[sunce] = room.GetCard(ids[0]);
                 data = pindian;
             }
 

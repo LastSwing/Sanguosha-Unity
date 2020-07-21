@@ -9289,29 +9289,27 @@ namespace SanguoshaServer.Game
                     return result;
             }
 
+            PindianInfo info = new PindianInfo()
+            {
+                From = from,
+                Reason = reason,
+                Cards = new Dictionary<Player, WrappedCard>()
+            };
+            info.Cards[from] = card;
+            foreach (Player p in to)
+                info.Cards[p] = null;
+
             if (type == PindianInfo.PindianType.Pindian)
             {
-                PindianInfo info = new PindianInfo
-                {
-                    From = from,
-                    Reason = reason,
-                    Card = card
-                };
                 object data = info;
-                RoomThread.Trigger(TriggerEvent.PindianCard, this, from, ref data);
+                RoomThread.Trigger(TriggerEvent.PindianCard, this, null, ref data);
+
                 info = (PindianInfo)data;
-                if (info.Card != null)
-                    card = info.Card;
+                card = info.Cards[from];
 
                 for (int index = 0; index < to.Count; index++)
-                {
-                    info.Card = null;
-                    data = info;
-                    RoomThread.Trigger(TriggerEvent.PindianCard, this, to[index], ref data);
-                    info = (PindianInfo)data;
-                    if (info.Card != null)
-                        to_cards[index] = info.Card.GetEffectiveId();
-                }
+                    if (info.Cards[to[index]] != null)
+                        to_cards[index] = info.Cards[to[index]].GetEffectiveId();
             }
 
             Thread.Sleep(500);
@@ -9327,7 +9325,7 @@ namespace SanguoshaServer.Game
             _m_roomState.SetCurrentCardUsePattern(".");
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_UNKNOWN);
 
-            TrustedAI ai = null;
+            TrustedAI ai;
             if (from_card == null)
             {
                 ai = GetAI(from);
