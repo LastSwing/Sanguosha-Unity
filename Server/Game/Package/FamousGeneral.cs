@@ -229,6 +229,7 @@ namespace SanguoshaServer.Package
                 new TongboCard(),
                 new JiyuCard(),
                 new JunxingCard(),
+                new SanyaoJxCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>

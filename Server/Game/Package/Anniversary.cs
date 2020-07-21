@@ -3674,6 +3674,7 @@ namespace SanguoshaServer.Package
                 player.SetTag(Name, choice);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 room.NotifySkillInvoked(player, Name);
+                room.LoseMaxHp(player);
                 return info;
             }
 
@@ -3682,7 +3683,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (player.GetTag(Name) is string choice)
+            if (player.GetTag(Name) is string choice && player.Alive)
             {
                 player.RemoveTag(Name);
                 List<Player> targets = new List<Player>();

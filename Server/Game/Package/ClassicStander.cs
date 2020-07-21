@@ -676,6 +676,7 @@ namespace SanguoshaServer.Package
             damage.Damage += player.GetMark(Name);
             player.SetMark(Name, 0);
             room.RemovePlayerStringMark(player, Name);
+            data = damage;
 
             LogMessage log = new LogMessage
             {
