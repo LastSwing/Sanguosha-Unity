@@ -659,7 +659,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageCaused && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName)
+            if (triggerEvent == TriggerEvent.DamageCaused && data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName)
                 && player.Alive && player.GetMark(Name) > 0)
                 return new TriggerStruct(Name, player);
 
@@ -703,7 +703,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.RoundStart && base.Triggerable(player, room)
-                && player.GetMark(Name) > 0 && player.IsWounded())
+                && player.GetMark(limit_mark) > 0 && player.IsWounded())
             {
                 return new TriggerStruct(Name, player);
             }

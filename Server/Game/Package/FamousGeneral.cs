@@ -9679,7 +9679,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is CardUseStruct use && use.To.Count == 1 && use.Card.ExtraTarget && player.Phase == PlayerPhase.Play && base.Triggerable(player, room))
+            if (data is CardUseStruct use && use.To.Count == 1 && use.Card.ExtraTarget && player.Phase == PlayerPhase.Play && base.Triggerable(player, room) && !player.HasFlag(Name))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash || (fcard is TrickCard && !(fcard is DelayedTrick) && !(fcard is Nullification) && WrappedCard.IsBlack(use.Card.Suit)))
@@ -9764,6 +9764,7 @@ namespace SanguoshaServer.Package
 
                 if (!give)
                 {
+                    player.SetFlags(Name);
                     LogMessage log = new LogMessage
                     {
                         Type = "#zenhui-add",
@@ -9848,7 +9849,7 @@ namespace SanguoshaServer.Package
                     }
                 }
 
-                List<int> ids = room.AskForExchange(player, Name, 1, 0, string.Format("@zhenlie-from:{0}::{1}", use.From.Name, use.Card.Name), string.Empty, "EquipCard!", info.SkillPosition);
+                List<int> ids = room.AskForExchange(player, Name, 1, 0, string.Format("@jiaojin-from:{0}::{1}", use.From.Name, use.Card.Name), string.Empty, "EquipCard!", info.SkillPosition);
                 player.RemoveTag(Name);
                 room.RemoveTag(Name);
                 if (ids.Count > 0)
@@ -9866,12 +9867,6 @@ namespace SanguoshaServer.Package
         {
             if (player.Alive && data is CardUseStruct use)
             {
-                if (use.From != null && use.From.Alive && RoomLogic.CanDiscard(room, player, use.From, "he"))
-                {
-                    int id = room.AskForCardChosen(player, use.From, "he", Name, false, HandlingMethod.MethodDiscard);
-                    room.ThrowCard(id, use.From, player);
-                }
-
                 int index = 0;
                 for (int i = 0; i < use.EffectCount.Count; i++)
                 {
