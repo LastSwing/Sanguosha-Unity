@@ -134,9 +134,9 @@ namespace SanguoshaServer.Scenario
 
             //按武将强度排序
             List<string> prefer_cools = new List<string>{ "xunyou", "xunyu", "chengyu", "guojia", "liuye", "caoren", "guanyu_sp", "xuhuang_jx", "zhangliao_jx",
-                "hanhaoshihuan", "yujin", "caohong" };
+                "hanhaoshihuan", "yujin", "caohong", "manchong", "litong", "zangba" };
             List<string> prefer_warms = new List<string>{ "chunyuqiong", "xunchen", "shenpei", "liubei_gd", "chenlin_gd", "jvshou",  "xuyou", "zhanghe_gd", "gaolan",
-                "guotupangji", "tianfeng", "yanliangwenchou" };
+                "guotupangji", "tianfeng", "yanliangwenchou", "eryuan", "xinpi", "erlv"  };
 
             //给AI和超时的玩家自动选择武将
             foreach (Player player in options.Keys)

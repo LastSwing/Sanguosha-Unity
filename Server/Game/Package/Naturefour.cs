@@ -4385,6 +4385,65 @@ namespace SanguoshaServer.Package
     {
         public Hanzhan() : base("hanzhan")
         {
+            events.Add(TriggerEvent.PindianCard);
+        }
+
+        public override int GetPriority() => 4;
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (data is PindianInfo info)
+            {
+                List<Player> targets = new List<Player>();
+                if (base.Triggerable(info.From, room))
+                {
+                    foreach (Player p in info.Cards.Keys)
+                        if (info.Cards[p] == null && !p.IsKongcheng())
+                            targets.Add(p);
+
+                    if (targets.Count > 0)
+                        triggers.Add(new TriggerStruct(Name, info.From, targets));
+                }
+                if (info.Cards[info.From] == null && !info.From.IsKongcheng())
+                {
+                    foreach (Player p in info.Cards.Keys)
+                    {
+                        targets.Clear();
+                        if (base.Triggerable(p, room))
+                        {
+                            targets.Add(info.From);
+                            triggers.Add(new TriggerStruct(Name, p, targets));
+                        }
+                    }
+                }
+            }
+
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is PindianInfo pindian && pindian.Cards[player] == null && !player.IsKongcheng() && room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
+            {
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is PindianInfo pindian)
+            {
+                List<int> hands = player.GetCards("h");
+                Shuffle.shuffle(ref hands);
+                int id = hands[0];
+                pindian.Cards[player] = room.GetCard(id);
+                data = pindian;
+            }
+
+            return false;
         }
     }
 
