@@ -99,7 +99,7 @@ namespace SanguoshaServer.Package
                 //{ "paoxiao_jx", new List<string> { "#paoxiao-record" } },
                 { "paoxiao_jx", new List<string> { "#paoxiao_jx-tar" } },
                 { "kongcheng_jx", new List<string> { "#kongcheng_jx-prohibit" } },
-                { "tishen", new List<string> { "#tishen-get" } },
+                //{ "tishen", new List<string> { "#tishen-get" } },
                 { "zhaxiang", new List<string> { "#zhaxiang-tm" } },
                 { "qianxun_jx", new List<string> { "#qianxun_jx-clear" } },
                 { "botu", new List<string> { "#botu" } },

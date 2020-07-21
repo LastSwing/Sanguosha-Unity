@@ -6104,15 +6104,16 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Biluan : PhaseChangeSkill
+    public class Biluan : TriggerSkill
     {
         public Biluan() : base("biluan")
         {
+            events.Add(TriggerEvent.EventPhaseStart);
             skill_type = SkillType.Defense;
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who)
         {
-            if (base.Triggerable(lidian, room) && lidian.Phase == PlayerPhase.Draw)
+            if (base.Triggerable(lidian, room) && lidian.Phase == PlayerPhase.Finish)
                 foreach (Player p in room.GetOtherPlayers(lidian))
                     if (RoomLogic.DistanceTo(room, p, lidian) == 1) return new TriggerStruct(Name, lidian);
 
@@ -6120,7 +6121,8 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(lidian, Name, null, info.SkillPosition))
+            int count = Math.Min(4, room.GetAlivePlayers().Count);
+            if (room.AskForDiscard(lidian, Name, 1, 1, true, true, "@biluan:::" + count.ToString(), true, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, lidian, info.SkillPosition);
                 return info;
@@ -6128,9 +6130,9 @@ namespace SanguoshaServer.Package
 
             return new TriggerStruct();
         }
-        public override bool OnPhaseChange(Room room, Player lidian, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who, TriggerStruct info)
         {
-            int count = Fuli.GetKingdoms(room);
+            int count = Math.Min(4, room.GetAlivePlayers().Count);
             lidian.AddMark(Name, count);
             int change = lidian.GetMark(Name) - lidian.GetMark("lixia");
             room.SetPlayerStringMark(lidian, "distance", change.ToString());
@@ -6181,7 +6183,7 @@ namespace SanguoshaServer.Package
             if (choice == "draw")
                 room.DrawCards(ask_who, 1, Name);
             else
-                room.DrawCards(player, new DrawCardStruct(1, ask_who, Name));
+                room.DrawCards(player, new DrawCardStruct(2, ask_who, Name));
 
             if (ask_who.Alive)
             {
@@ -11962,15 +11964,27 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class CanshiSH : PhaseChangeSkill
+    public class CanshiSH : DrawCardsSkill
     {
         public CanshiSH() : base("canshi_sh")
         {
             frequency = Frequency.Frequent;
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who)
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            return (base.Triggerable(lidian, room) && lidian.Phase == Player.PlayerPhase.Draw) ? new TriggerStruct(Name, lidian) : new TriggerStruct();
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw && (int)data >= 0)
+            {
+                int count = 0;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.IsWounded() || (RoomLogic.PlayerHasSkill(room, player, "guiming") && p.Kingdom == "wu" && p != player))
+                        count++;
+                }
+
+                if (count > 0)
+                    return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who, TriggerStruct info)
         {
@@ -11980,29 +11994,24 @@ namespace SanguoshaServer.Package
                 if (p.IsWounded() || (RoomLogic.PlayerHasSkill(room, lidian, "guiming") && p.Kingdom == "wu" && p != lidian))
                     count++;
             }
-
-            if (count > 0)
+            if (room.AskForSkillInvoke(lidian, Name, "@canshi_sh:::" + count.ToString(), info.SkillPosition))
             {
-                if (room.AskForSkillInvoke(lidian, Name, "@canshi_sh:::" + count.ToString(), info.SkillPosition))
-                {
-                    room.BroadcastSkillInvoke(Name, lidian, info.SkillPosition);
-                    return info;
-                }
+                room.BroadcastSkillInvoke(Name, lidian, info.SkillPosition);
+                return info;
             }
 
             return new TriggerStruct();
         }
-        public override bool OnPhaseChange(Room room, Player lidian, TriggerStruct info)
+        public override int GetDrawNum(Room room, Player lidian, int n)
         {
+            lidian.SetFlags(Name);
             int count = 0;
             foreach (Player p in room.GetAlivePlayers())
             {
                 if (p.IsWounded() || (RoomLogic.PlayerHasSkill(room, lidian, "guiming") && p.Kingdom == "wu" && p != lidian))
                     count++;
             }
-            lidian.SetFlags(Name);
-            room.DrawCards(lidian, count, Name);
-            return true;
+            return n + count;
         }
     }
 
@@ -12019,7 +12028,7 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && player.HasFlag("canshi_sh"))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard.TypeID == CardType.TypeBasic || fcard.TypeID == CardType.TypeTrick)
+                if (fcard is Slash || fcard.TypeID == CardType.TypeTrick)
                     return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && player.HasFlag("canshi_sh"))
@@ -12049,7 +12058,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is DamageStruct damage && base.Triggerable(player, room) && player.IsKongcheng())
+            if (data is DamageStruct damage && base.Triggerable(player, room) && player.IsKongcheng() && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName))
             {
                 return new TriggerStruct(Name, player);
             }

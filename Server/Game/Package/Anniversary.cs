@@ -74,6 +74,7 @@ namespace SanguoshaServer.Package
                 new Lixun(),
                 new KuizhuLS(),
                 new Fenyue(),
+                new Xuhe(),
 
                 new Guolun(),
                 new Songsang(),
@@ -3620,6 +3621,120 @@ namespace SanguoshaServer.Package
             }
         }
     }
+
+    public class Xuhe : TriggerSkill
+    {
+        public Xuhe() : base("xuhe")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseEnd };
+            skill_type = SkillType.Wizzard;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Phase == PlayerPhase.Play && base.Triggerable(player, room))
+            {
+                int count = 99;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.MaxHp < count) count = p.MaxHp;
+                }
+                if (player.MaxHp == count)
+                {
+                    player.MaxHp++;
+                    room.BroadcastProperty(player, "MaxHp");
+
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "$GainMaxHp",
+                        From = player.Name,
+                        Arg = "1"
+                    };
+                    room.SendLog(log);
+
+                    room.RoomThread.Trigger(TriggerEvent.MaxHpChanged, room, player);
+                }
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play && base.Triggerable(player, room) && player.MaxHp > 1)
+            {
+                return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            string choice = room.AskForChoice(player, Name, "discard+draw+cancel");
+            if (choice != "cancel")
+            {
+                player.SetTag(Name, choice);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.NotifySkillInvoked(player, Name);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.GetTag(Name) is string choice)
+            {
+                player.RemoveTag(Name);
+                List<Player> targets = new List<Player>();
+                if (choice == "discard")
+                {
+                    if (RoomLogic.CanDiscard(room, player, player, "he")) targets.Add(player);
+                    foreach (Player p in room.GetOtherPlayers(player))
+                        if (RoomLogic.DistanceTo(room, player, p) == 1)
+                            targets.Add(p);
+
+                    if (targets.Count > 0)
+                    {
+                        room.SortByActionOrder(ref targets);
+                        foreach (Player p in targets)
+                        {
+                            if (p.Alive && RoomLogic.CanDiscard(room, player, p, "he") && player.Alive)
+                            {
+                                CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_DISMANTLE, player.Name, p.Name, Name, null)
+                                {
+                                    General = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition)
+                                };
+                                List<int> ints = new List<int>();
+                                if (p == player)
+                                {
+                                    ints.AddRange(room.AskForExchange(player, Name, 1, 1, "@xuhe", null, "..!", info.SkillPosition));
+                                }
+                                else
+                                    ints.Add(room.AskForCardChosen(player, p, "he", Name, false, HandlingMethod.MethodDiscard));
+
+                                room.ThrowCard(ref ints, reason, p, player);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    targets.Add(player);
+                    foreach (Player p in room.GetOtherPlayers(player))
+                        if (RoomLogic.DistanceTo(room, player, p) == 1)
+                            targets.Add(p);
+
+                    room.SortByActionOrder(ref targets);
+                    foreach (Player p in targets)
+                        room.DrawCards(p, new DrawCardStruct(1, player, Name));
+                }
+
+            }
+
+            return false;
+        }
+    }
+
 
     public class Guolun : ZeroCardViewAsSkill
     {
