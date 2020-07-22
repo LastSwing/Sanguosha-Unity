@@ -9659,19 +9659,18 @@ namespace SanguoshaServer.Game
                     }
                     if (!match && (visible || isTrustAI))
                     {
-                        int fromPos = 0;
-                        int toPos = 0;
                         List<int> ups = new List<int>(upcards);
                         List<int> downs = new List<int>(downcards);
                         int upcount = Math.Max(upcards.Count, downcards.Count);
 
+                        int fromPos;
+                        int toPos;
                         for (int i = 0; i < top_cards.Count; ++i)
                         {
-                            int target_id = -1;
                             fromPos = 0;
                             if (top_cards[i] != ups[i])
                             {
-                                target_id = top_cards[i];
+                                int target_id = top_cards[i];
                                 toPos = i + 1;
                                 foreach (int id in ups)
                                 {
@@ -9722,7 +9721,6 @@ namespace SanguoshaServer.Game
 
                         if (ups.Count > top_cards.Count)
                         {
-
                             int newcount = ups.Count - top_cards.Count;
                             for (int i = 1; i <= newcount; ++i)
                             {
@@ -9777,6 +9775,8 @@ namespace SanguoshaServer.Game
                     }
                     Thread.Sleep(1000);
                 }
+                else
+                    System.Diagnostics.Debug.Assert(success);
             }
             else
             {

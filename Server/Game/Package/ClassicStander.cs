@@ -923,7 +923,7 @@ namespace SanguoshaServer.Package
                         if (target != null)
                         {
                             room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
-                            int id = room.AskForCardChosen(player, player, "hej", Name, false, HandlingMethod.MethodDiscard);
+                            int id = room.AskForCardChosen(player, target, "hej", Name, false, HandlingMethod.MethodDiscard);
                             room.ThrowCard(id, room.GetCardPlace(id) == Place.PlaceDelayedTrick ? null : target, player);
                         }
                     }

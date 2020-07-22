@@ -1922,7 +1922,7 @@ namespace SanguoshaServer.AI
             return value;
         }
 
-        public double GetKeepValue(WrappedCard card, Player player, Place place = Place.PlaceUnknown, bool ignore_lose_equip = false)
+        public double GetKeepValue(WrappedCard card, Player player, Place place = Place.PlaceUnknown, bool ignore_lose_equip = false, bool find_same = true)
         {
             if (card.IsVirtualCard() && card.SubCards.Count != 1)
             {
@@ -1949,11 +1949,11 @@ namespace SanguoshaServer.AI
                 if (e != null)
                     basic += e.CardValue(this, player, false, card, place);
             }
-            else if (fcard is EquipCard)
+            else if (find_same && fcard is EquipCard)
             {
                 WrappedCard same = GetSameEquip(card, player);
                 if (same != null)
-                    basic -= GetKeepValue(same, player);
+                    basic -= GetKeepValue(same, player, Place.PlaceUnknown, false, false);
             }
             else if (place == Place.PlaceHand)
             {

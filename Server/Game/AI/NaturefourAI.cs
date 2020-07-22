@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
@@ -1363,14 +1364,15 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            if (wanted.Count == 0) wanted = ups;
-            if (wanted.Count > 1)
-                ai.SortByUseValue(ref wanted);
+            if (wanted.Count == 0) wanted = new List<int>(ups);
+            if (wanted.Count > 1) ai.SortByUseValue(ref wanted);
 
             result.Bottom.Add(wanted[0]);
             foreach (int id in ups)
                 if (!result.Bottom.Contains(id))
                     result.Top.Add(id);
+
+            Debug.Assert(result.Bottom.Count == 1 && result.Top.Count == 1);
 
             return result;
         }
