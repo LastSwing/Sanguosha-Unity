@@ -401,14 +401,17 @@ namespace SanguoshaServer.Package
         public SanyaoJxCard() : base(ClassName) { }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (targets.Count > 0) return false;
-            int max = -1000;
-            foreach (Player p in room.GetAlivePlayers())
+            if (targets.Count == 0)
             {
-                if (max < p.Hp)
-                    max = p.Hp;
+                int max = -1000;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (max < p.Hp) max = p.Hp;
+                }
+                return to_select.Hp == max;
             }
-            return to_select.Hp == max && targets.Count < card.SubCards.Count;
+            else
+                return to_select.Hp == targets[0].Hp && targets.Count < card.SubCards.Count;
         }
 
         public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
