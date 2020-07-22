@@ -51,6 +51,7 @@ namespace SanguoshaServer.AI
                 new JixuAI(),
                 new KuizhuLSAI(),
                 new FenyueAI(),
+                new XuheAI()
             };
 
             use_cards = new List<UseCard>
@@ -1934,6 +1935,36 @@ namespace SanguoshaServer.AI
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 4;
+        }
+    }
+
+    public class XuheAI : SkillEvent
+    {
+        public XuheAI() : base("xuhe") { }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            double draw = 0;
+            double discard = 0;
+            Room room = ai.Room;
+            if (RoomLogic.CanDiscard(room, player, player, "he")) discard += ai.FindCards2Discard(player, player, Name, "he", HandlingMethod.MethodDiscard).Score;
+            draw += 1.5;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (RoomLogic.DistanceTo(room, player, p) == 1)
+                {
+                    if (RoomLogic.CanDiscard(room, player, p, "he"))
+                        discard += ai.FindCards2Discard(player, p, Name, "he", HandlingMethod.MethodDiscard).Score;
+
+                    draw += ai.HasSkill("zishu", p) ? 0 : ai.IsFriend(p) ? 1.5 : -1.5;
+                }
+            }
+            if (draw >= discard && draw > 2)
+                return "draw";
+            else if (discard >= draw && discard > 2)
+                return "discard";
+
+            return "cancle";
         }
     }
 }

@@ -4426,9 +4426,13 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is PindianInfo pindian && pindian.Cards[player] == null && !player.IsKongcheng() && room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
+            if (data is PindianInfo pindian && pindian.Cards[player] == null && !player.IsKongcheng())
             {
-                return info;
+                player.SetFlags(Name);
+                bool invoke = room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition);
+                player.SetFlags("-hanzhan");
+                if (invoke)
+                    return info;
             }
 
             return new TriggerStruct();

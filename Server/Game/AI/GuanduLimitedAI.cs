@@ -44,6 +44,9 @@ namespace SanguoshaServer.AI
                 new ShenduanAI(),
                 new YonglueAI(),
                 new QiceJXAI(),
+                new HengjiangJXAI(),
+                new QigongAI(),
+                new LiehouAI(),
             };
             use_cards = new List<UseCard>
             {
@@ -52,6 +55,7 @@ namespace SanguoshaServer.AI
                 new YuanlueCardAI(),
                 new MoushiCardAI(),
                 new SongciCardAI(),
+                new LiehouCardAI(),
             };
         }
     }
@@ -2574,6 +2578,107 @@ namespace SanguoshaServer.AI
                 return -10;
 
             return 0;
+        }
+    }
+
+    public class QigongAI : SkillEvent
+    {
+        public QigongAI() : base("qigong") { }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            Room room = ai.Room;
+            string[] strs = prompt.Split(':');
+
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+                if (p.HasFlag("SlashAssignee")) targets.Add(p);
+
+            List<ScoreStruct> values = ai.CaculateSlashIncome(player, null, targets);
+            if (values.Count > 0 && values[0].Score > 0)
+            {
+                use.Card = values[0].Card;
+                use.To = values[0].Players;
+            }
+
+            return use;
+        }
+    }
+
+    public class LiehouAI : SkillEvent
+    {
+        public LiehouAI() : base("liehou"){}
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.HasUsed(LiehouCard.ClassName))
+            {
+                return new List<WrappedCard> { new WrappedCard(LiehouCard.ClassName) { Skill = Name } };
+            }
+            return new List<WrappedCard>();
+        }
+        public override Player OnYiji(TrustedAI ai, Player player, List<int> ids, ref int id)
+        {
+            List<Player> friends = new List<Player>(), others = new List<Player>();
+            Room room = ai.Room;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (!p.HasFlag(Name) && RoomLogic.InMyAttackRange(room, player, p))
+                {
+                    if (ai.IsFriend(p))
+                        friends.Add(p);
+                    else
+                        others.Add(p);
+                }
+            }
+
+            if (friends.Count > 0)
+            {
+                KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids, friends, Player.Place.PlaceHand, Name);
+                if (key.Key != null && key.Value >= 0 && ai.Room.Current == key.Key)
+                {
+                    id = key.Value;
+                    return key.Key;
+                }
+                if (key.Key != null && key.Value >= 0)
+                {
+                    id = key.Value;
+                    return key.Key;
+                }
+            }
+
+            ai.SortByUseValue(ref ids, false);
+            id = ids[0];
+            return others[0];
+        }
+    }
+
+    public class LiehouCardAI : UseCard
+    {
+        public LiehouCardAI() : base(LiehouCard.ClassName)
+        {
+        }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            base.Use(ai, player, ref use, card);
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 5;
+        }
+    }
+
+    public class HengjiangJXAI : SkillEvent
+    {
+        public HengjiangJXAI() : base("hengjiang_jx") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target)
+                return !ai.IsFriend(target);
+
+            return true;
         }
     }
 }

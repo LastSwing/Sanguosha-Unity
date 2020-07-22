@@ -4,6 +4,7 @@ using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
 using SanguoshaServer.Package;
+using static CommonClass.Game.Player;
 
 namespace SanguoshaServer.AI
 {
@@ -27,6 +28,7 @@ namespace SanguoshaServer.AI
                 new JijiangAI(),
                 new WushengJXAI(),
                 new YijueAI(),
+                new PaoxiaoJXAI(),
                 new TishenAI(),
                 new JizhiJXAI(),
                 new LongdanJXAI(),
@@ -1558,10 +1560,24 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class PaoxiaoJXAI : SkillEvent
+    {
+        public PaoxiaoJXAI() : base("paoxiao_jx") { }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        {
+            if (step == DamageStruct.DamageStep.Caused && damage.From != null
+                && damage.From.Alive && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && damage.From.GetMark(Name) > 0)
+            {
+                damage.Damage += damage.From.GetMark(Name);
+            }
+        }
+    }
+
     public class TishenAI : SkillEvent
     {
         public TishenAI() : base("tishen") { }
-
+        /*
         public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
             if (card.Name.Contains(Slash.ClassName) && to != null && to.GetMark(Name) > 0 && !ai.IsCardEffect(card, to, from))
@@ -1575,6 +1591,11 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;
+        }
+        */
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return player.GetLostHp() >= 2;
         }
     }
 
@@ -1638,6 +1659,28 @@ namespace SanguoshaServer.AI
                     slash = RoomLogic.ParseUseCard(room, slash);
                     return new List<WrappedCard> { slash };
                 }
+                else if (card.Name == Analeptic.ClassName)
+                {
+                    WrappedCard slash = new WrappedCard(Peach.ClassName)
+                    {
+                        Skill = Name,
+                        ShowSkill = Name
+                    };
+                    slash.AddSubCard(card);
+                    slash = RoomLogic.ParseUseCard(room, slash);
+                    return new List<WrappedCard> { slash };
+                }
+                else if (card.Name == Peach.ClassName)
+                {
+                    WrappedCard slash = new WrappedCard(Analeptic.ClassName)
+                    {
+                        Skill = Name,
+                        ShowSkill = Name
+                    };
+                    slash.AddSubCard(card);
+                    slash = RoomLogic.ParseUseCard(room, slash);
+                    return new List<WrappedCard> { slash };
+                }
             }
             return null;
         }
@@ -1670,6 +1713,28 @@ namespace SanguoshaServer.AI
                     jink = RoomLogic.ParseUseCard(room, jink);
                     return jink;
                 }
+                else if (card.Name == Analeptic.ClassName)
+                {
+                    WrappedCard slash = new WrappedCard(Peach.ClassName)
+                    {
+                        Skill = Name,
+                        ShowSkill = Name
+                    };
+                    slash.AddSubCard(card);
+                    slash = RoomLogic.ParseUseCard(room, slash);
+                    return slash;
+                }
+                else if (card.Name == Peach.ClassName)
+                {
+                    WrappedCard slash = new WrappedCard(Analeptic.ClassName)
+                    {
+                        Skill = Name,
+                        ShowSkill = Name
+                    };
+                    slash.AddSubCard(card);
+                    slash = RoomLogic.ParseUseCard(room, slash);
+                    return slash;
+                }
             }
 
             return null;
@@ -1680,19 +1745,45 @@ namespace SanguoshaServer.AI
     {
         public YajiaoAI() : base("yajiao")
         {
-            key = new List<string> { "playerChosen:yajiao" };
+            key = new List<string> { "playerChosen:yajiao", "cardChosen:yajiao" };
         }
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (data is string choice)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string choice)
             {
                 string[] choices = choice.Split(':');
-                if (choices[1] == Name)
+                Room room = ai.Room;
+                if (choice.Contains("playerChosen:yajiao") && choices[1] == Name && !player.HasFlag(Name))
                 {
-                    Room room = ai.Room;
                     Player target = room.FindPlayer(choices[2]);
                     if (target != player && ai.GetPlayerTendency(target) != "unknown")
                         ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(target), 80);
+                }
+                else if (choice.Contains("cardChosen:yajiao") && ai.Self != player)
+                {
+                    int card_id = int.Parse(choices[2]);
+                    Player target = room.FindPlayer(choices[4]);
+                    if (room.GetCardPlace(card_id) == Place.PlaceJudge)
+                    {
+                        if (room.GetCard(card_id).Name != Lightning.ClassName)
+                            ai.UpdatePlayerRelation(player, target, true);
+                        else
+                        {
+                            Player winner = ai.GetWizzardRaceWinner(room.GetCard(card_id).Name, target, target);
+                            if (winner != null && ai.IsFriend(winner, target))
+                                ai.UpdatePlayerRelation(player, target, false);
+                            else
+                                ai.UpdatePlayerRelation(player, target, true);
+                        }
+                    }
+                    else if (room.GetCardPlace(card_id) == Place.PlaceHand)
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
+                    }
+                    else if (room.GetCardPlace(card_id) == Place.PlaceEquip)
+                    {
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                    }
                 }
             }
         }
@@ -1703,7 +1794,25 @@ namespace SanguoshaServer.AI
 
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
         {
-            return new List<Player> { player };
+            if (!player.HasFlag(Name))
+            {
+                return new List<Player> { player };
+            }
+            else
+            {
+                List<ScoreStruct> scores = new List<ScoreStruct>();
+                foreach (Player p in targets)
+                {
+                    ScoreStruct score = ai.FindCards2Discard(player, p, Name, "hej", FunctionCard.HandlingMethod.MethodDiscard);
+                    scores.Add(score);
+                }
+                if (scores.Count > 0)
+                {
+                    scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
+                    if (scores[0].Score > 0) return scores[0].Players;
+                }
+            }
+            return new List<Player>();
         }
     }
 

@@ -6113,7 +6113,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player lidian, ref object data, Player ask_who)
         {
-            if (base.Triggerable(lidian, room) && lidian.Phase == PlayerPhase.Finish)
+            if (base.Triggerable(lidian, room) && lidian.Phase == PlayerPhase.Finish && !lidian.IsNude())
                 foreach (Player p in room.GetOtherPlayers(lidian))
                     if (RoomLogic.DistanceTo(room, p, lidian) == 1) return new TriggerStruct(Name, lidian);
 

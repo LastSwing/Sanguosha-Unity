@@ -72,6 +72,7 @@ namespace SanguoshaServer.AI
                 new EnJXAI(),
                 new YuanJXAI(),
                 new XuanhuoJXAI(),
+                new SanyaoJXAI(),
                 new ZhimanJXAI(),
                 new FumianAI(),
                 new DaiyanAI(),
@@ -157,6 +158,7 @@ namespace SanguoshaServer.AI
                 new JunxingCardAI(),
                 new YanzhuCardAI(),
                 new JiyuCardAI(),
+                new SanyaoJXCardAI(),
             };
         }
     }
@@ -4211,7 +4213,87 @@ namespace SanguoshaServer.AI
             return use;
         }
     }
+    public class SanyaoJXAI : SkillEvent
+    {
+        public SanyaoJXAI() : base("sanyao_jx") { }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.IsNude() && !player.HasUsed(SanyaoJxCard.ClassName))
+            {
+                WrappedCard first = new WrappedCard(SanyaoJxCard.ClassName)
+                {
+                    Skill = Name,
+                    ShowSkill = Name
+                };
+                return new List<WrappedCard> { first };
+            }
 
+            return new List<WrappedCard>();
+        }
+    }
+
+    public class SanyaoJXCardAI : UseCard
+    {
+        public SanyaoJXCardAI() : base(SanyaoJxCard.ClassName) { }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 3;
+        }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            Room room = ai.Room;
+            int max = 0;
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.Hp > max)
+                    max = p.Hp;
+
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.Hp == max)
+                {
+                    DamageStruct damage = new DamageStruct(Name, player, p);
+                    ScoreStruct score = ai.GetDamageScore(damage);
+                    score.Players = new List<Player> { p };
+                    scores.Add(score);
+                }
+            }
+
+            if (scores.Count > 0)
+            {
+                ai.CompareByScore(ref scores);
+                List<int> ids = new List<int>();
+                foreach (int id in player.GetCards("he"))
+                    if (RoomLogic.CanDiscard(room, player, player, id))
+                        ids.Add(id);
+
+                if (ids.Count > 0)
+                {
+                    ai.SortByKeepValue(ref ids, false);
+                    if (ai.GetKeepValue(ids[0], player) < 0 && scores[0].Score >= 0)
+                    {
+                        card.AddSubCard(ids[0]);
+                        use.Card = card;
+                        use.To = scores[0].Players;
+                        return;
+                    }
+
+                    ai.SortByUseValue(ref ids, false);
+                    double value = ai.GetUseValue(ids[0], player);
+                    if (ai.GetOverflow(player) > 0)
+                        value /= 3;
+
+                    if (scores[0].Score > 0 && scores[0].Score > value)
+                    {
+                        card.AddSubCard(ids[0]);
+                        use.Card = card;
+                        use.To = scores[0].Players;
+                        return;
+                    }
+                }
+            }
+        }
+    }
     public class ZhimanJXAI : SkillEvent
     {
         public ZhimanJXAI() : base("zhiman_jx")
@@ -4248,7 +4330,7 @@ namespace SanguoshaServer.AI
                         {
                             ai.UpdatePlayerRelation(player, target, strs[2] == "no");
                         }
-                        else if (player.GetCards("ej").Count == 0 && strs[2] == "yes")
+                        else if (player.GetCards("hej").Count == 0 && strs[2] == "yes")
                             ai.UpdatePlayerRelation(player, target, true);
                     }
                 }
@@ -4284,7 +4366,7 @@ namespace SanguoshaServer.AI
             if ((ai.WillShowForAttack() || ai.WillShowForDefence())
                 && room.ContainsTag("zhiman_data") && room.GetTag("zhiman_data") is DamageStruct damage)
             {
-                ScoreStruct get = ai.FindCards2Discard(player, damage.To, string.Empty, "ej", HandlingMethod.MethodGet);
+                ScoreStruct get = ai.FindCards2Discard(player, damage.To, string.Empty, "hej", HandlingMethod.MethodGet);
                 ScoreStruct score = ai.GetDamageScore(damage);
 
                 //if (get.Score < score.Score)
@@ -7432,47 +7514,82 @@ namespace SanguoshaServer.AI
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
             Room room = ai.Room;
-
-            if (room.GetTag("jiaojin_data") is DamageStruct damage)
+            if (room.GetTag(Name) is CardUseStruct use)
             {
-                if (ai.GetDamageScore(damage, DamageStruct.DamageStep.Done).Score >= 0) return new List<int>();
-                foreach (int id in player.GetCards("he"))
+                if (!ai.IsCardEffect(use.Card, player, use.From)) return new List<int>();
+                bool discard = false;
+                if (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Duel.ClassName
+                    || use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName)
                 {
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
-                    if (fcard is OffensiveHorse || fcard is Weapon)
-                        return new List<int> { id };
-                }
+                    bool avoid = false;
+                    int index = (int)player.GetTag(Name);
+                    if (use.EffectCount[index].Nullified) return new List<int>();
 
-                foreach (int id in player.GetCards("h"))
-                {
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
-                    if (fcard is Horse)
-                        return new List<int> { id };
-                }
+                    if (use.Card.Name.Contains(Slash.ClassName))
+                    {
+                        if (use.EffectCount[index].Effect2 == 1 && (ai.GetKnownCardsNums(Jink.ClassName, "he", player) > 0
+                            || (ai.HasArmorEffect(player, EightDiagram.ClassName) && !player.ArmorIsNullifiedBy(use.From))))
+                            avoid = true;
 
-                foreach (int id in player.GetCards("h"))
-                {
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
-                    if (fcard is EquipCard)
-                        return new List<int> { id };
-                }
+                        if (use.From.HasWeapon(Axe.ClassName) && use.From.GetCardCount(true) > 3) avoid = false;
+                    }
+                    else if (use.EffectCount[index].Effect2 == 1 && use.Card.Name == ArcheryAttack.ClassName && (ai.GetKnownCardsNums(Jink.ClassName, "he", player) > 0
+                        || (ai.HasArmorEffect(player, EightDiagram.ClassName) && !player.ArmorIsNullifiedBy(use.From))))
+                        avoid = true;
+                    else if (use.EffectCount[index].Effect2 == 1 && use.Card.Name == SavageAssault.ClassName && ai.GetKnownCardsNums(Slash.ClassName, "he", player) > 0)
+                        avoid = true;
+                    else if (use.EffectCount[index].Effect2 == 1 && use.Card.Name == Duel.ClassName
+                        && ai.GetKnownCardsNums(Slash.ClassName, "he", player) > 2 && !ai.HasSkill("wushuang|wushuang_jx", use.From))
+                        avoid = true;
 
-                foreach (int id in player.GetCards("e"))
-                {
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
-                    if (fcard is Horse)
-                        return new List<int> { id };
-                }
+                    if (!avoid)
+                    {
+                        DamageStruct damage = new DamageStruct(use.Card, use.From, player, 1 + use.Drank + use.ExDamage + use.EffectCount[index].Effect1);
+                        if (use.Card.Name == FireSlash.ClassName)
+                            damage.Nature = DamageStruct.DamageNature.Fire;
+                        else if (damage.Card.Name == ThunderSlash.ClassName)
+                            damage.Nature = DamageStruct.DamageNature.Thunder;
 
-                if (player.GetArmor())
+                        ScoreStruct score = ai.GetDamageScore(damage);
+                        if (score.Score < -1)
+                            discard = true;
+                    }
+                }
+                else if (use.Card.Name == Snatch.ClassName && !ai.IsFriend(use.From))
+                    discard = true;
+
+                if (discard)
                 {
-                    if (player.HasArmor(Vine.ClassName) && damage.Nature == DamageStruct.DamageNature.Fire)
+                    foreach (int id in player.GetCards("he"))
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if (fcard is OffensiveHorse || fcard is Weapon)
+                            return new List<int> { id };
+                    }
+
+                    foreach (int id in player.GetCards("h"))
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if (fcard is Horse)
+                            return new List<int> { id };
+                    }
+
+                    foreach (int id in player.GetCards("h"))
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if (fcard is EquipCard)
+                            return new List<int> { id };
+                    }
+
+                    foreach (int id in player.GetCards("e"))
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if (fcard is Horse)
+                            return new List<int> { id };
+                    }
+
+                    if (player.GetArmor())
                         return new List<int> { player.Armor.Key };
-
-                    if (player.HasArmor(SilverLion.ClassName) && damage.Damage > 1)
-                        return new List<int>();
-
-                    if (player.Hp == 1) return new List<int> { player.Armor.Key };
                 }
             }
 

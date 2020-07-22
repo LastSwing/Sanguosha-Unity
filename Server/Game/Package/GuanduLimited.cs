@@ -1402,10 +1402,20 @@ namespace SanguoshaServer.Package
                             targets.Add(p);
                     }
 
+                    List<int> hands = player.GetCards("h");
                     if (targets.Count > 0)
                     {
-                        room.AskForYiji(player, player.GetCards("h"), "liehou", false, false, false, 1, targets, null,
+                        target.SetFlags("liehou");
+                        bool give = !room.AskForYiji(player, hands, "liehou", false, false, false, 1, targets, null,
                             "@liehou", null, false, card_use.Card.SkillPosition);
+                        target.SetFlags("-liehou");
+                        if (!give)
+                        {
+                            Shuffle.shuffle(ref hands);
+                            Shuffle.shuffle(ref targets);
+                            List<int> to_give = new List<int> { hands[0] };
+                            room.ObtainCard(targets[0], ref to_give, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, targets[0].Name, "liehou", string.Empty), false);
+                        }
                     }
                 }
             }
