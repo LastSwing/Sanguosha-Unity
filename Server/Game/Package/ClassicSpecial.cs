@@ -4604,10 +4604,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is CardUseStruct use && player.GetLostHp() > 0)
+            if (base.Triggerable(player, room) && data is CardUseStruct use)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is Slash)
+                if (fcard is Slash && use.Card.ExtraTarget)
                 {
                     List<Player> selected = new List<Player>(use.To);
                     foreach (Player p in room.GetOtherPlayers(player))
@@ -4631,7 +4631,7 @@ namespace SanguoshaServer.Package
             if (targets.Count > 0)
             {
                 room.SetTag("extra_target_skill", data);                   //for AI
-                List<Player> players = room.AskForPlayersChosen(player, targets, Name, 0, player.GetLostHp(),
+                List<Player> players = room.AskForPlayersChosen(player, targets, Name, 0, Math.Max(1, player.GetLostHp()),
                     string.Format("@extra_targets1:::{0}:{1}", use.Card.Name, player.GetLostHp()), true, info.SkillPosition);
                 room.RemoveTag("extra_target_skill");
                 if (players.Count > 0)
