@@ -1372,8 +1372,6 @@ namespace SanguoshaServer.AI
                 if (!result.Bottom.Contains(id))
                     result.Top.Add(id);
 
-            Debug.Assert(result.Bottom.Count == 1 && result.Top.Count == 1);
-
             return result;
         }
     }

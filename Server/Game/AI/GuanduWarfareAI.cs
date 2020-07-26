@@ -964,5 +964,14 @@ namespace SanguoshaServer.AI
             }
             return null;
         }
+
+        public override AskForMoveCardsStruct AskForMoveCards(List<int> upcards, List<int> downcards, string reason, int min_num, int max_num)
+        {
+            SkillEvent e = Engine.GetSkillEvent(reason);
+            if (e != null)
+                return e.OnMoveCards(this, self, new List<int>(upcards), new List<int>(downcards), min_num, max_num);
+
+            return base.AskForMoveCards(upcards, downcards, reason, min_num, max_num);
+        }
     }
 }
