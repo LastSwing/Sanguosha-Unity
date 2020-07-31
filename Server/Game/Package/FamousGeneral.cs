@@ -3970,6 +3970,10 @@ namespace SanguoshaServer.Package
         {
             Player target = effect.To, player = effect.From;
 
+            ResultStruct result = player.Result;
+            result.Assist++;
+            player.Result = result;
+
             CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "mingce", string.Empty);
             room.ObtainCard(target, effect.Card, reason);
 
