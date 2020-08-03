@@ -2385,6 +2385,9 @@ namespace SanguoshaServer.Package
 
                 if (player.GetMark(Name) > 0)
                     player.SetMark(Name, 0);
+
+                if (player.GetMark("zhiyan_used") > 0)
+                    player.SetMark("zhiyan_used", 0);
             }
         }
 
@@ -2403,7 +2406,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            if (player.UsedTimes(ZhiyanCard.ClassName) < 2)
+            if (player.GetMark("zhiyan_used") < 2)
             {
                 int mark = player.GetMark(Name);
                 List<string> choices = new List<string>();
@@ -2481,6 +2484,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
+                player.AddMark("zhiyan_used");
                 string choice = player.GetMark("zhiyan_xh") == 1 ? "give" : "draw";
                 if (player.GetMark("zhiyan_xh") == 0)
                 {
