@@ -1193,7 +1193,7 @@ namespace SanguoshaServer.AI
                         while (!append)
                         {
                             int id = room.GetRandomHandCard(player);
-                            if (!result.Contains(id))
+                            if (!result.Contains(id) && !disable.Contains(id))
                             {
                                 result.Add(id);
                                 append = true;
