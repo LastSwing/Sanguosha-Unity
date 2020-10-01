@@ -5268,6 +5268,7 @@ namespace SanguoshaServer.Game
                 Damage = reason
             };
             object dying_data = dying;
+            _m_roomState.AddDying(reason);
             RoomThread.Trigger(TriggerEvent.Dying, this, player, ref dying_data);
 
             if (player.Alive)
@@ -5307,6 +5308,7 @@ namespace SanguoshaServer.Game
                 arg = new List<string> { GameEventType.S_GAME_EVENT_PLAYER_QUITDYING.ToString(), player.Name };
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
             }
+            _m_roomState.QuitDying();
             RoomThread.Trigger(TriggerEvent.QuitDying, this, player, ref dying_data);
         }
 

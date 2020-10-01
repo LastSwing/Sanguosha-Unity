@@ -2425,7 +2425,7 @@ namespace SanguoshaServer.Package
                 {
                     LogMessage log = new LogMessage
                     {
-                        Type = "#Liegong_add",
+                        Type = "#add_damage",
                         From = target.Name,
                         To = new List<string> { target.Name },
                         Arg = "1"
