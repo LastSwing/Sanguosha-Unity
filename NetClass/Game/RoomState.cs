@@ -1,4 +1,5 @@
-﻿using static CommonClass.Game.CardUseStruct;
+﻿using System.Collections.Generic;
+using static CommonClass.Game.CardUseStruct;
 
 namespace CommonClass.Game
 {
@@ -11,6 +12,7 @@ namespace CommonClass.Game
         private int m_global_response_id;
         private int m_current_response_id;
         private int m_global_activate_id;
+        private List<DamageStruct> dyings = new List<DamageStruct>();
         public RoomState()
         {
             m_currentAskforPeachPlayer = null;
@@ -43,5 +45,19 @@ namespace CommonClass.Game
         public int GlobalActivateID => m_global_activate_id;
         public void SetCurrentResponseSkill(string skill_name) => m_currentRespondSKill = skill_name;
         public string GetCurrentResponseSkill() => m_currentRespondSKill;
+        public void AddDying(DamageStruct damage)
+        {
+            dyings.Add(damage);
+        }
+
+        public void QuitDying()
+        {
+            dyings.RemoveAt(dyings.Count - 1);
+        }
+
+        public DamageStruct GetDyingDamage()
+        {
+            return dyings[dyings.Count - 1];
+        }
     }
 }
