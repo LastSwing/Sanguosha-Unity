@@ -3322,7 +3322,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 1 && to_select != Self && RoomLogic.CanBePindianBy(room, to_select, Self);
+            return targets.Count == 0 && to_select != Self && RoomLogic.CanBePindianBy(room, to_select, Self);
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -10719,6 +10719,7 @@ namespace SanguoshaServer.Package
             {
                 room.FillAG(Name, equips, machao, null, null, "@pojun-discard");
                 int discard = room.AskForAG(machao, equips, false, Name);
+                room.ClearAG(machao);
                 room.MoveCardTo(room.GetCard(discard), null, Place.DiscardPile, new CardMoveReason(MoveReason.S_REASON_NATURAL_ENTER, machao.Name, skill_target.Name, Name, string.Empty));
             }
 
