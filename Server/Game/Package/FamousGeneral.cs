@@ -4614,7 +4614,8 @@ namespace SanguoshaServer.Package
                 {
                     int card_id = move.Card_ids[i];
                     WrappedCard card = room.GetCard(card_id);
-                    if (card.HasFlag(Name) && WrappedCard.IsBlack(card.Suit) && Engine.GetFunctionCard(card.Name) is BasicCard)
+                    FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                    if (card.HasFlag(Name) && WrappedCard.IsBlack(card.Suit) && (fcard is BasicCard || fcard is EquipCard))
                     {
                         return new TriggerStruct(Name, move.From);
                     }
@@ -4640,7 +4641,7 @@ namespace SanguoshaServer.Package
             while (ids.Count > 0)
             {
                 ask_who.Piles["#shenduan"] = ids;
-                WrappedCard card = room.AskForUseCard(ask_who, "@@shenduan", "@shenduan-use", null, -1, FunctionCard.HandlingMethod.MethodUse, false, info.SkillPosition);
+                WrappedCard card = room.AskForUseCard(ask_who, "@@shenduan", "@shenduan-use", null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
                 ask_who.Piles["#shenduan"] = new List<int>();
 
                 if (card != null)
@@ -4732,7 +4733,6 @@ namespace SanguoshaServer.Package
             else
             {
                 WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = "_yonglue", SkillPosition = info.SkillPosition };
-                slash.UserString = ask_who.Name;
 
                 if (Engine.IsProhibited(room, ask_who, player, slash) == null)
                     room.UseCard(new CardUseStruct(slash, ask_who, player));
@@ -10937,7 +10937,7 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName))
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName) && player != null)
                 player.RemoveTag(Name);
         }
 
@@ -11007,7 +11007,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            if (card.Name == Peach.ClassName && from == to && !from.HasFlag("Global_Dying"))
+            if (card.Name == Peach.ClassName && from == to && from.HasFlag("Global_Dying"))
             {
                 DamageStruct reason = room.GetRoomState().GetDyingDamage();
                 if (reason.From != null && reason.From.Alive && !reason.Transfer && !reason.Chain && reason.From.ContainsTag("anjian")

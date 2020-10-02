@@ -139,7 +139,6 @@ namespace SanguoshaServer.Package
                 { "qianxin_zg", new List<string>{ "#qianxin_zg" } },
                 { "chijie", new List<string>{ "#chijie" } },
                 { "yinju", new List<string>{ "#yinju" } },
-                { "mansi", new List<string>{ "#mansi" } },
                 { "zhuilie", new List<string>{ "#zhuilie" } },
             };
         }
@@ -2626,6 +2625,16 @@ namespace SanguoshaServer.Package
                         if (p.GetMark(str) > 0)
                             p.SetMark(str, 0);
                     }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.TargetChosen && data is CardUseStruct use)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is SkillCard || fcard is DelayedTrick) return;
+                foreach (Player p in use.To)
+                {
+                    string str = string.Format("{0}_to_{1}", Name, p.Name);
+                    player.AddMark(str);
                 }
             }
         }
