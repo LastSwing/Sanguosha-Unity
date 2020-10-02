@@ -9084,24 +9084,31 @@ namespace SanguoshaServer.Package
     {
         public Zhengnan() : base("zhengnan")
         {
-            events.Add(TriggerEvent.Death);
+            events.Add(TriggerEvent.Dying);
         }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             List<Player> caopis = RoomLogic.FindPlayersBySkillName(room, Name);
+            string mark = string.Format("{0}_{1}", Name, player.Name);
             foreach (Player caopi in caopis)
-                if (caopi != player)
+            {
+                if (caopi.GetMark(mark) == 0)
                     triggers.Add(new TriggerStruct(Name, caopi));
+            }
 
             return triggers;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player caopi, TriggerStruct info)
         {
-            List<string> choices = new List<string> { "draw" };
+            string mark = string.Format("{0}_{1}", Name, player.Name);
+            caopi.SetMark(mark, 1);
+            List<string> choices = new List<string>();
             if (!caopi.GetAcquiredSkills().Contains("wusheng_jx")) choices.Add("wusheng_jx");
             if (!caopi.GetAcquiredSkills().Contains("dangxian")) choices.Add("dangxian");
             if (!caopi.GetAcquiredSkills().Contains("zhiman_jx")) choices.Add("zhiman_jx");
+            if (choices.Count == 0) choices.Add("draw");
+
             choices.Add("cancel");
 
             string choice = room.AskForChoice(caopi, Name, string.Join("+", choices));
@@ -9116,6 +9123,12 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player caopi, TriggerStruct info)
         {
+            RecoverStruct recover = new RecoverStruct();
+            recover.Who = player;
+            recover.Recover = 1;
+            room.Recover(caopi, recover, true);
+            room.DrawCards(caopi, 1, Name);
+
             string choice = caopi.GetTag(Name).ToString();
             caopi.RemoveTag(Name);
             if (choice == "draw")

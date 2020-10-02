@@ -2124,8 +2124,9 @@ namespace SanguoshaServer.Package
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {   if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From_pile_names.Contains("&ring")
-                && move.From_places.Contains(Place.PlaceSpecial) && base.Triggerable(move.From, room))
+        {
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From_pile_names.Contains("&ring")
+                && move.From_places.Contains(Place.PlaceSpecial) && base.Triggerable(move.From, room) && move.From.Phase == PlayerPhase.NotActive)
             {
                 List<WrappedCard.CardSuit> suits = new List<WrappedCard.CardSuit>();
                 for (int i = 0; i < move.Card_ids.Count; i++)
@@ -2156,6 +2157,11 @@ namespace SanguoshaServer.Package
                     if (get.Count > 0)
                         room.ObtainCard(move.From, ref get, new CardMoveReason(MoveReason.S_REASON_GOTCARD, move.From.Name, Name, string.Empty));
                 }
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.RoundStart && player.GetPile("&ring").Count > 0)
+            {
+                List<int> ids = player.GetPile("&ring");
+                room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXCHANGE_FROM_PILE, player.Name, Name, string.Empty), false);
             }
         }
 

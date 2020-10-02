@@ -267,23 +267,15 @@ namespace SanguoshaServer.Package
 
         public override void OnDamaged(Room room, Player target, DamageStruct damage, TriggerStruct info)
         {
-            int count = 1000, hp = 100;
             int draw = 1;
-            int mark = target.GetMark(Name) < 4 ? 1 : 0;
-            foreach (Player p in room.GetAlivePlayers())
-            {
-                if (p.HandcardNum < count) count = p.HandcardNum;
-                if (p.Hp < hp) hp = p.Hp;
-            }
-
-            if (target.HandcardNum == count) draw = 2;
+            if (Shuffle.random(1, 2)) draw = 2;
             room.DrawCards(target, draw, Name);
-            if (mark > 0)
-            {
-                if (target.Hp == hp && target.GetMark(Name) + 2 <= 4) mark = 2;
-                target.AddMark(Name, mark);
-                room.SetPlayerStringMark(target, Name, target.GetMark(Name).ToString());
-            }
+
+            int mark = target.GetMark(Name);
+            mark += target.GetLostHp();
+            mark = Math.Min(6, mark);
+            target.SetMark(Name, mark);
+            room.SetPlayerStringMark(target, Name, mark.ToString());
         }
     }
 
@@ -2546,18 +2538,10 @@ namespace SanguoshaServer.Package
             return triggers;
         }
 
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            if (room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
-            {
-                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                return info;
-            }
-            return new TriggerStruct();
-        }
-
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            room.SendCompulsoryTriggerLog(ask_who, Name, true);
+            room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
             room.DrawCards(ask_who, 1, Name);
             ask_who.AddMark(Name);
             return false;
@@ -2662,21 +2646,22 @@ namespace SanguoshaServer.Package
             if (data is CardUseStruct use)
             {
                 WrappedCard card = use.Card;
-                List<int> table_cardids = room.GetCardIdsOnTable(room.GetSubCards(card));
-                List<int> ids = new List<int>(card.SubCards);
-                List<int> whole = room.GetSubCards(card);
-                bool take = false;
-                if (table_cardids.Count > 0 && ids.SequenceEqual(table_cardids) && ids.SequenceEqual(whole))
-                    take = true;
-                Player to = use.To[0];
                 bool invoke = false;
-                if (player == ask_who && take)
+                if (player == ask_who )
                 {
-                    invoke = room.AskForDiscard(player, Name, 1, 1, true, true, string.Format("@souying:{0}::{1}", to.Name, use.Card.Name), true, info.SkillPosition);
+                    List<int> table_cardids = room.GetCardIdsOnTable(room.GetSubCards(card));
+                    List<int> ids = new List<int>(card.SubCards);
+                    List<int> whole = room.GetSubCards(card);
+                    bool take = false;
+                    if (table_cardids.Count > 0 && ids.SequenceEqual(table_cardids) && ids.SequenceEqual(whole))
+                        take = true;
+                    Player to = use.To[0];
+                    if (take)
+                        invoke = room.AskForDiscard(player, Name, 1, 1, true, true, string.Format("@souying:{0}::{1}", to.Name, use.Card.Name), true, info.SkillPosition);
                 }
                 else if (player != ask_who)
                 {
-                    string prompt = take ? string.Format("@souying-choice:{0}::{1}", player.Name, use.Card.Name) : string.Format("@souying-invalid:{0}::{1}", player.Name, use.Card.Name);
+                    string prompt = string.Format("@souying-invalid:{0}::{1}", player.Name, use.Card.Name);
                     invoke = room.AskForDiscard(ask_who, Name, 1, 1, true, true, prompt, true, info.SkillPosition);
                 }
 
@@ -2696,50 +2681,39 @@ namespace SanguoshaServer.Package
             if (data is CardUseStruct use)
             {
                 WrappedCard card = use.Card;
-                List<int> table_cardids = room.GetCardIdsOnTable(room.GetSubCards(card));
-                List<int> ids = new List<int>(card.SubCards);
-                List<int> whole = room.GetSubCards(card);
-                bool take = false;
-                if (table_cardids.Count > 0 && ids.SequenceEqual(table_cardids) && ids.SequenceEqual(whole))
-                    take = true;
 
-                if (player == ask_who && take)
+                if (player == ask_who)
                 {
-                    room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty), true);
+                    List<int> table_cardids = room.GetCardIdsOnTable(room.GetSubCards(card));
+                    List<int> ids = new List<int>(card.SubCards);
+                    List<int> whole = room.GetSubCards(card);
+                    bool take = false;
+                    if (table_cardids.Count > 0 && ids.SequenceEqual(table_cardids) && ids.SequenceEqual(whole))
+                        take = true;
+
+                    if (take)
+                        room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_RECYCLE, player.Name, Name, string.Empty), true);
                 }
                 else if (player != ask_who)
                 {
-                    List<string> choices = new List<string> { "invalid" };
-                    if (take) choices.Add("get");
-
-                    string choice = room.AskForChoice(ask_who, Name, string.Join("+", choices), null, data);
-                    if (choice == "get")
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
                     {
-                        room.ObtainCard(ask_who, ref ids, new CardMoveReason(MoveReason.S_REASON_RECYCLE, ask_who.Name, Name, string.Empty), true);
-                    }
-                    else
-                    {
-                        int index = 0;
-                        for (int i = 0; i < use.EffectCount.Count; i++)
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == ask_who)
                         {
-                            CardBasicEffect effect = use.EffectCount[i];
-                            if (effect.To == ask_who)
+                            index++;
+                            if (index == info.Times)
                             {
-                                index++;
-                                if (index == info.Times)
-                                {
-                                    effect.Nullified = true;
-                                    use.EffectCount[i] = effect;
-                                    data = use;
-                                    break;
-                                }
+                                effect.Nullified = true;
+                                use.EffectCount[i] = effect;
+                                data = use;
+                                break;
                             }
                         }
                     }
                 }
             }
-
-
 
             return false;
         }

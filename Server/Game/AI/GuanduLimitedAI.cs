@@ -2412,6 +2412,18 @@ namespace SanguoshaServer.AI
                         return use;
                     }
                 }
+
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    if (SupplyShortage.Instance.TargetFilter(room, new List<Player>(), p, player, ss) && RoomLogic.InMyAttackRange(room, player, p))
+                    {
+                        WrappedCard sd = new WrappedCard(ShenduanCard.ClassName) { Skill = Name };
+                        sd.AddSubCard(id);
+                        use.Card = sd;
+                        use.To.Add(p);
+                        return use;
+                    }
+                }
             }
 
             return use;
@@ -2429,12 +2441,17 @@ namespace SanguoshaServer.AI
             Player target = room.Current;
             WrappedCard slash = new WrappedCard(Slash.ClassName);
             ScoreStruct score = new ScoreStruct();
-            List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { slash }, new List<Player> { target }, false);
-            if (scores.Count > 0)
-                score = scores[0];
+            if (!RoomLogic.InMyAttackRange(room, player, target))
+            {
+                List<ScoreStruct> scores = ai.CaculateSlashIncome(player, new List<WrappedCard> { slash }, new List<Player> { target }, false);
+                if (scores.Count > 0)
+                    score = scores[0];
+            }
 
             if (ai.IsFriend(target))
             {
+                if (RoomLogic.InMyAttackRange(room, player, target)) return true;
+
                 if (score.Score >= 0) return true;
                 if (RoomLogic.PlayerContainsTrick(room, target, Indulgence.ClassName))
                     if (score.Score > -5) return true;

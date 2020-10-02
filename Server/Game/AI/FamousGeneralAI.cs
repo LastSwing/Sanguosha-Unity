@@ -159,6 +159,7 @@ namespace SanguoshaServer.AI
                 new YanzhuCardAI(),
                 new JiyuCardAI(),
                 new SanyaoJXCardAI(),
+                new QiaoshuiCardAI(),
             };
         }
     }
@@ -6440,13 +6441,6 @@ namespace SanguoshaServer.AI
 
                 return result;
             }
-            else
-            {
-                List<Player> enemies = ai.GetEnemies(player);
-                ai.SortByDefense(ref enemies, false);
-                foreach (Player p in enemies)
-                    if (RoomLogic.CanBePindianBy(room, p, player)) return new List<Player> { p };
-            }
 
             return new List<Player>();
         }
@@ -6464,6 +6458,42 @@ namespace SanguoshaServer.AI
                 else
                     return ai.GetMaxCard();
             }
+        }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.IsKongcheng() && (!player.HasFlag(Name) || player.GetMark(Name) != 0))
+            {
+                return new List<WrappedCard> { new WrappedCard(QiaoshuiCard.ClassName) { Skill = Name } };
+            }
+
+            return new List<WrappedCard>();
+        }
+    }
+
+    public class QiaoshuiCardAI : UseCard
+    {
+        public QiaoshuiCardAI() : base(QiaoshuiCard.ClassName) { }
+
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            Room room = ai.Room;
+            List<Player> enemies = ai.GetEnemies(player);
+            ai.SortByDefense(ref enemies, false);
+            foreach (Player p in enemies)
+            {
+                if (RoomLogic.CanBePindianBy(room, p, player))
+                {
+                    use.Card = card;
+                    use.To.Add(p);
+                    return;
+                }
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 10;
         }
     }
 
@@ -7763,7 +7793,7 @@ namespace SanguoshaServer.AI
                 if (values[0] < 0)
                     return new List<int> { ids[0] };
 
-                if (values[0] < 3 && room.GetTag(Name) is DamageStruct damage && damage.To.Alive && ai.IsEnemy(damage.To) && damage.To.GetWeapon())
+                if (values[0] < 3 && room.GetTag(Name) is CardUseStruct use && use.From.Alive && ai.IsEnemy(use.From) && use.From.GetWeapon())
                     return new List<int> { ids[0] };
             }
 
@@ -7775,12 +7805,12 @@ namespace SanguoshaServer.AI
     {
         public AnjianAI() : base("anjian") { }
 
-        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
-            Room room = ai.Room;
-            if (damage.Card != null && damage.From != null && damage.Card.Name.Contains(Slash.ClassName) && ai.HasSkill(Name, damage.From) && damage.To != damage.From
-                && !damage.Chain && !damage.Transfer && !RoomLogic.InMyAttackRange(room, damage.To, damage.From) && step <= DamageStruct.DamageStep.Caused)
-                damage.Damage++;
+            if (from != null && ai.IsEnemy(from, to) && !RoomLogic.InMyAttackRange(ai.Room, to, from))
+                return 5;
+
+            return 0;
         }
     }
 

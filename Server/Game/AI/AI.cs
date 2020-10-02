@@ -1703,6 +1703,8 @@ namespace SanguoshaServer.AI
                         if (lord != null && RoomLogic.PlayerHasShownSkill(room, lord, "shouyue") && RoomLogic.WillBeFriendWith(room, from, lord))
                             armor_ignore = true;
                     }
+                    else if (HasSkill("anjian", from) && !RoomLogic.InMyAttackRange(room, to, from))
+                        armor_ignore = true;
                 }
 
                 if (!armor_ignore)
@@ -3558,6 +3560,8 @@ namespace SanguoshaServer.AI
                     if (lord != null && RoomLogic.PlayerHasShownSkill(room, lord, "shouyue") && RoomLogic.WillBeFriendWith(room, from, lord))
                         armor_ignore = true;
                 }
+                else if (HasSkill("anjian", from) && !RoomLogic.InMyAttackRange(room, to, from))
+                    armor_ignore = true;
             }
 
             if (!armor_ignore && from != null && HasSkill("benxi", from))
