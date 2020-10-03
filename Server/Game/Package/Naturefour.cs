@@ -28,6 +28,7 @@ namespace SanguoshaServer.Package
                 new HuangtianVS(),
                 new Jiuchi(),
                 new JiuchiInvalid(),
+                new JiuchiTar(),
                 new Roulin(),
                 new Baonue(),
                 new DuanchangJX(),
@@ -109,7 +110,7 @@ namespace SanguoshaServer.Package
                 { "duanliang_jx", new List<string>{ "#jxduanliang-target" } },
                 { "buqu_jx", new List<string>{ "#buqu_jx-clear", "#buqu-max" } },
                 { "tianxiang_jx", new List<string>{ "#tianxian-second" } },
-                { "jiuchi", new List<string>{ "#jiuchi-invalid" } },
+                { "jiuchi", new List<string>{ "#jiuchi-invalid", "#jiuchi-tar" } },
                 { "tuntian_jx", new List<string>{ "#tuntian_jx" } },
                 { "fangquan_jx", new List<string>{ "#fangquan-max" } },
                 { "cangzhuo", new List<string>{ "#cangzhuo-max" } },
@@ -607,6 +608,19 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class JiuchiTar : TargetModSkill
+    {
+        public JiuchiTar() : base("#jiuchi-tar", true)
+        {
+            pattern = Analeptic.ClassName;
+        }
+
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
+        {
+            return from == to && RoomLogic.PlayerHasSkill(room, from, "jiuchi");
+        }
+    }
+
     public class Roulin : TriggerSkill
     {
         public Roulin() : base("roulin")
@@ -691,7 +705,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             Player dongzhuo = RoomLogic.FindPlayerBySkillName(room, Name);
-            if (dongzhuo != null && dongzhuo.IsWounded() && data is DamageStruct damage && damage.From != null && damage.From.Alive && !damage.Prevented
+            if (dongzhuo != null && data is DamageStruct damage && damage.From != null && damage.From.Alive && !damage.Prevented
                 && damage.From.Kingdom == "qun" && damage.From != dongzhuo && damage.Damage > 0)
             {
                 TriggerStruct trigger = new TriggerStruct(Name, damage.From);
@@ -729,15 +743,19 @@ namespace SanguoshaServer.Package
             };
 
             room.Judge(ref judge);
-            if (judge.IsGood() && dongzhuo.Alive && dongzhuo.IsWounded())
+            if (judge.IsGood() && dongzhuo.Alive)
             {
-                RecoverStruct recover = new RecoverStruct
+                if (dongzhuo.IsWounded())
                 {
-                    Who = ask_who,
-                    Recover = 1
-                };
-                room.Recover(dongzhuo, recover, true);
-                if (room.GetCardOwner(judge.Card.Id) == null && room.GetCardPlace(judge.Card.Id) == Place.DiscardPile)
+                    RecoverStruct recover = new RecoverStruct
+                    {
+                        Who = ask_who,
+                        Recover = 1
+                    };
+                    room.Recover(dongzhuo, recover, true);
+                }
+
+                if (dongzhuo.Alive && room.GetCardOwner(judge.Card.Id) == null && room.GetCardPlace(judge.Card.Id) == Place.DiscardPile)
                     room.ObtainCard(dongzhuo, judge.Card);
             }
 
