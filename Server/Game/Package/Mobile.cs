@@ -69,6 +69,9 @@ namespace SanguoshaServer.Package
                 new Gongshun(),
                 new Jimeng(),
                 new Shuaiyan(),
+                new Xuewei(),
+                new XueweiDamage(),
+                new Liechi(),
 
                 new Yingjian(),
                 new Shixin(),
@@ -102,6 +105,7 @@ namespace SanguoshaServer.Package
                 { "fengji", new List<string> { "#fengji" } },
                 { "zhiyan_xh", new List<string> { "#zhiyan_xh" } },
                 { "zhilue", new List<string> { "#zhilue" } },
+                { "xuewei", new List<string> { "#xuewei" } },
             };
         }
     }
@@ -3458,6 +3462,206 @@ namespace SanguoshaServer.Package
                 room.ObtainCard(player, ref give, new CardMoveReason(MoveReason.S_REASON_GIVE, target.Name, player.Name, Name, string.Empty), false);
             }
 
+            return false;
+        }
+    }
+
+    public class Xuewei : TriggerSkill
+    {
+        public Xuewei() : base("xiewei")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.TurnStart };
+            skill_type = SkillType.Defense;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.TurnStart && player.ContainsTag(Name) && player.GetTag(Name) is string target_name)
+            {
+                Player target = room.FindPlayer(target_name, true);
+                player.RemoveTag(Name);
+
+                if (target.ContainsTag("xuewei_from") && target.GetTag("xuewei_from") is List<string> froms)
+                {
+                    froms.Remove(player.Name);
+                    if (froms.Count == 0)
+                        target.RemoveTag("xuewei_from");
+                    else
+                        target.SetTag("xuewei_from", froms);
+                }
+
+                List<string> arg = new List<string>
+                {
+                    target.Name,
+                    "@xuewei",
+                    "0"
+                };
+                room.DoNotify(room.GetClient(player), CommandType.S_COMMAND_SET_MARK, arg);
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Start)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@xuewei-target", true, false, info.SkillPosition);
+            if (target != null)
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name, new List<Player> { player });
+                room.NotifySkillInvoked(player, Name);
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                room.SetTag(Name, target);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.ContainsTag(Name) && room.GetTag(Name) is Player target)
+            {
+                room.RemoveTag(Name);
+
+                List<string> arg = new List<string>
+                {
+                    target.Name,
+                    "@xuewei",
+                    "1"
+                };
+                room.DoNotify(room.GetClient(player), CommandType.S_COMMAND_SET_MARK, arg);
+
+                if (target.ContainsTag("xuewei_from") && target.GetTag("xuewei_from") is List<string> froms)
+                {
+                    if (!froms.Contains(player.Name))
+                        froms.Add(player.Name);
+
+                    target.SetTag("xuewei_from", froms);
+                }
+                else
+                    target.SetTag("xuewei_from", new List<string> { player.Name });
+            }
+
+            return false;
+        }
+    }
+
+    public class XueweiDamage : TriggerSkill
+    {
+        public XueweiDamage() : base("#xuewei")
+        {
+            frequency = Frequency.Compulsory;
+            events.Add(TriggerEvent.DamageInflicted);
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (player.ContainsTag("xuewei_from") && player.GetTag("xuewei_from") is List<string> froms)
+            {
+                List<string> names = new List<string>(froms);
+                foreach (string player_name in names)
+                {
+                    Player p = room.FindPlayer(player_name);
+                    if (p == null)
+                        froms.Remove(player_name);
+                }
+
+                if (froms.Count == 0)
+                    player.RemoveTag("xuewei_from");
+                else
+                    player.SetTag("xuewei_from", froms);
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (player.ContainsTag("xuewei_from") && player.GetTag("xuewei_from") is List<string> froms)
+            {
+                List<string> names = new List<string>(froms);
+                foreach (string player_name in names)
+                {
+                    Player p = room.FindPlayer(player_name);
+                    if (p != null) triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+
+            return triggers;
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
+            room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
+            room.SendCompulsoryTriggerLog(ask_who, Name, true);
+
+            if (player.ContainsTag("xuewei_from") && player.GetTag("xuewei_from") is List<string> froms)
+            {
+                froms.Remove(ask_who.Name);
+                if (froms.Count == 0)
+                    player.RemoveTag("xuewei_from");
+                else
+                    player.SetTag("xuewei_from", froms);
+            }
+
+            List<string> arg = new List<string>
+            {
+                    player.Name,
+                    "@xuewei",
+                    "0"
+            };
+            room.DoNotify(room.GetClient(ask_who), CommandType.S_COMMAND_SET_MARK, arg);
+
+            if (data is DamageStruct damage)
+            {
+                DamageStruct _damage = new DamageStruct(Name, damage.From, ask_who, damage.Damage, damage.Nature);
+                room.Damage(_damage);
+
+                if (ask_who.Alive && damage.From != null && damage.From.Alive)
+                {
+                    DamageStruct damage2 = new DamageStruct(Name, ask_who, damage.From, damage.Damage, damage.Nature);
+                    room.Damage(damage2);
+                }
+            }
+
+            return true;
+        }
+    }
+
+    public class Liechi : TriggerSkill
+    {
+        public Liechi() : base("liechi")
+        {
+            events.Add(TriggerEvent.Dying);
+            frequency = Frequency.Compulsory;
+            skill_type = SkillType.Attack;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && data is DyingStruct dying && dying.Damage.From != null && dying.Damage.From != player
+                && dying.Damage.From.Alive && !dying.Damage.From.IsNude())
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(player, Name);
+            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            if (data is DyingStruct dying)
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, dying.Damage.From.Name);
+                room.AskForDiscard(dying.Damage.From, Name, 1, 1, false, true, "@liechi:" + player.Name, false, null);
+            }
             return false;
         }
     }

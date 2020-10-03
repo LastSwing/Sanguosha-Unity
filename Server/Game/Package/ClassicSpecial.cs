@@ -3342,7 +3342,7 @@ namespace SanguoshaServer.Package
                     skills.Remove(skill);
             }
 
-            string choice = room.AskForChoice(player, Name, string.Join("+", skills), new List<string> { "@tuogu:" + ask_who.Name }, ask_who);
+            string choice = room.AskForChoice(player, Name, string.Join("+", skills), new List<string> { "@tuogu-from:" + ask_who.Name }, ask_who);
             room.HandleAcquireDetachSkills(ask_who, choice, true);
 
             return false;

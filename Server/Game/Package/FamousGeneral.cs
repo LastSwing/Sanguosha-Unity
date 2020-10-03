@@ -11014,7 +11014,11 @@ namespace SanguoshaServer.Package
 
                 if (targets.Count > 0)
                 {
-                    player.SetTag(Name, targets);
+                    List<string> target_names = new List<string>();
+                    foreach (Player p in targets)
+                        target_names.Add(p.Name);
+
+                    player.SetTag(Name,  target_names);
                     return new TriggerStruct(Name, player, targets);
                 }
             }
@@ -11073,7 +11077,7 @@ namespace SanguoshaServer.Package
             {
                 DamageStruct reason = room.GetRoomState().GetDyingDamage();
                 if (reason.From != null && reason.From.Alive && !reason.Transfer && !reason.Chain && reason.From.ContainsTag("anjian")
-                    && reason.From.GetTag("anjian") is List<Player> targets && targets.Contains(from))
+                    && reason.From.GetTag("anjian") is List<string> targets && targets.Contains(from.Name))
                     return true;
 
                 return true;
