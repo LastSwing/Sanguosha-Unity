@@ -3039,6 +3039,7 @@ namespace SanguoshaServer.AI
             if (HasSkill("fuqi", from) && RoomLogic.DistanceTo(room, from, to) == 1)
                 force_hit = 1;
             if (HasSkill("wanglie", from) && from.Phase == PlayerPhase.Play && !IsFriend(from, to)) force_hit = 1;
+            if (HasSkill("wushen", from) && RoomLogic.GetCardSuit(room, card) == WrappedCard.CardSuit.Heart) force_hit = 1;
 
             bool no_red = to.GetMark("@qianxi_red") > 0;
             bool no_black = to.GetMark("@qianxi_black") > 0;

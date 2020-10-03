@@ -136,6 +136,7 @@ namespace SanguoshaServer.Package
                 new Qianju(),
                 new Jiangchi(),
                 new JiangchiMod(),
+                new JiangchiMax(),
                 new QiceJX(),
                 new Sidi(),
                 new SidiSlash(),
@@ -249,7 +250,7 @@ namespace SanguoshaServer.Package
                 { "duliang", new List<string>{ "#duliang-draw" } },
                 { "fulin", new List<string>{ "#fulin-max" } },
                 { "kuangbi", new List<string> { "#kuangbi-clear" } },
-                { "jiangchi", new List<string> { "#jiangchi-target" } },
+                { "jiangchi", new List<string> { "#jiangchi-target", "#jiangchi-max" } },
                 { "benxi", new List<string> { "#benxi" } },
                 { "sidi", new List<string> { "#sidi-slash" } },
                 { "zhongyong", new List<string> { "#zhongyong", "#zhongyong-tar" } },
@@ -6226,6 +6227,7 @@ namespace SanguoshaServer.Package
             {
                 RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", Slash.ClassName, true);
                 room.DrawCards(player, 1, Name);
+                player.SetFlags("jiangchi_keep");
             }
             else if (room.AskForDiscard(player, Name, 1, 1, false, true, "@jiangchi-discard", false, info.SkillPosition))
             {
@@ -6255,6 +6257,16 @@ namespace SanguoshaServer.Package
         public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
             index = -2;
+        }
+    }
+
+    public class JiangchiMax : MaxCardsSkill
+    {
+        public JiangchiMax() : base("#jiangchi-max") { }
+
+        public override bool Ingnore(Room room, Player player, int card_id)
+        {
+            return player.HasFlag("jiangchi_keep") && room.GetCard(card_id).Name.Contains(Slash.ClassName);
         }
     }
 

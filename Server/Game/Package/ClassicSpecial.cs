@@ -2358,9 +2358,7 @@ namespace SanguoshaServer.Package
             room.SetPlayerMark(player, Name, 1);
             room.SendCompulsoryTriggerLog(player, Name);
 
-            int count = player.MaxHp - player.HandcardNum;
-            if (count > 0)
-                room.DrawCards(player, count, Name);
+            room.DrawCards(player, player.MaxHp, Name);
 
             if (player.Alive)
                 room.HandleAcquireDetachSkills(player, "benghuai|weizhong", true);
@@ -2381,7 +2379,15 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(player, Name);
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-            room.DrawCards(player, 1, Name);
+            int min = 1000;
+            foreach (Player p in room.GetAlivePlayers())
+            {
+                if (p.HandcardNum < min)
+                    min = p.HandcardNum;
+            }
+            int count = 1;
+            if (player.HandcardNum == min) count = 2;
+            room.DrawCards(player, count, Name);
             return false;
         }
     }

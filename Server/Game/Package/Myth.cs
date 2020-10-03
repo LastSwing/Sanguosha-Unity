@@ -120,7 +120,7 @@ namespace SanguoshaServer.Package
     {
         public Wushen() : base("wushen")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded };
+            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded, TriggerEvent.TargetChosen };
             frequency = Frequency.Compulsory;
             view_as_skill = new WushenFilter();
             skill_type = SkillType.Alter;
@@ -132,6 +132,15 @@ namespace SanguoshaServer.Package
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Card.Name == Slash.ClassName && resp.Card.Skill == Name)
                 return new TriggerStruct(Name, player);
+            else if (triggerEvent == TriggerEvent.TargetChosen && base.Triggerable(player, room) && data is CardUseStruct _use && _use.Card != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(_use.Card.Name);
+                if (fcard is Slash && RoomLogic.GetCardSuit(room, _use.Card) == WrappedCard.CardSuit.Heart)
+                {
+                    List<Player> targets = new List<Player>(_use.To);
+                    return new TriggerStruct(Name, player, targets);
+                }
+            }
 
             return new TriggerStruct();
         }
@@ -139,8 +148,41 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardUsedAnnounced || triggerEvent == TriggerEvent.CardResponded)
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            else if (triggerEvent == TriggerEvent.TargetChosen)
+                return info;
 
             return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+            room.SendCompulsoryTriggerLog(ask_who, Name, true);
+            CardUseStruct use = (CardUseStruct)data;
+            LogMessage log = new LogMessage
+            {
+                Type = "#NoJink",
+                From = target.Name
+            };
+            room.SendLog(log);
+
+            int index = 0;
+            for (int i = 0; i < use.EffectCount.Count; i++)
+            {
+                CardBasicEffect effect = use.EffectCount[i];
+                if (effect.To == target)
+                {
+                    index++;
+                    if (index == info.Times)
+                    {
+                        effect.Effect2 = 0;
+                        data = use;
+                        break;
+                    }
+                }
+            }
+
+            return false;
         }
 
         public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
@@ -159,6 +201,15 @@ namespace SanguoshaServer.Package
 
             return false;
         }
+
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
+        {
+            if (RoomLogic.PlayerHasSkill(room, from, "wushen") && card.Name.Contains(Slash.ClassName) && RoomLogic.GetCardSuit(room, card) == WrappedCard.CardSuit.Heart)
+                return true;
+
+            return false;
+        }
+
         public override void GetEffectIndex(Room room, Player player, WrappedCard card, ModType type, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {
             index = -2;

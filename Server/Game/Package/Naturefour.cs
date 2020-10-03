@@ -694,7 +694,9 @@ namespace SanguoshaServer.Package
             if (dongzhuo != null && dongzhuo.IsWounded() && data is DamageStruct damage && damage.From != null && damage.From.Alive && !damage.Prevented
                 && damage.From.Kingdom == "qun" && damage.From != dongzhuo && damage.Damage > 0)
             {
-                return new TriggerStruct(Name, damage.From);
+                TriggerStruct trigger = new TriggerStruct(Name, damage.From);
+                trigger.Times = damage.Damage;
+                return trigger;
             }
             return new TriggerStruct();
         }
@@ -718,7 +720,7 @@ namespace SanguoshaServer.Package
             Player dongzhuo = RoomLogic.FindPlayerBySkillName(room, Name);
             JudgeStruct judge = new JudgeStruct
             {
-                Who = ask_who,
+                Who = dongzhuo,
                 Pattern = ".|spade",
                 Good = true,
                 PlayAnimation = true,
@@ -735,6 +737,8 @@ namespace SanguoshaServer.Package
                     Recover = 1
                 };
                 room.Recover(dongzhuo, recover, true);
+                if (room.GetCardOwner(judge.Card.Id) == null && room.GetCardPlace(judge.Card.Id) == Place.DiscardPile)
+                    room.ObtainCard(dongzhuo, judge.Card);
             }
 
             return false;
