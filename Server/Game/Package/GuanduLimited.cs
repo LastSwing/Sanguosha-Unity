@@ -1384,7 +1384,7 @@ namespace SanguoshaServer.Package
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return to_select != Self && !to_select.IsKongcheng() && RoomLogic.InMyAttackRange(room, Self, to_select);
+            return targets.Count == 0 && to_select != Self && !to_select.IsKongcheng() && RoomLogic.InMyAttackRange(room, Self, to_select);
         }
         public override void Use(Room room, CardUseStruct card_use)
         {
@@ -1406,7 +1406,7 @@ namespace SanguoshaServer.Package
                     if (targets.Count > 0)
                     {
                         target.SetFlags("liehou");
-                        bool give = !room.AskForYiji(player, hands, "liehou", false, false, false, 1, targets, null,
+                        bool give = room.AskForYiji(player, hands, "liehou", false, false, false, 1, targets, null,
                             "@liehou", null, false, card_use.Card.SkillPosition);
                         target.SetFlags("-liehou");
                         if (!give)

@@ -1435,7 +1435,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (data is DamageStruct damage && damage.To.Alive && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && RoomLogic.PlayerHasSkill(room, player, Name)
-                && !damage.To.IsAllNude() && !damage.Transfer && damage.ByUser && !damage.Chain && RoomLogic.CanGetCard(room, player, damage.To, "hej"))
+                && !damage.To.IsAllNude() && damage.ByUser && RoomLogic.CanGetCard(room, player, damage.To, "hej") && damage.To != damage.From)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();

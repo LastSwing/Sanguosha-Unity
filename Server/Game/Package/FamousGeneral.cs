@@ -3771,19 +3771,12 @@ namespace SanguoshaServer.Package
             List<Player> mosts = new List<Player>();
             int most = -1;
             foreach (Player p in room.GetAlivePlayers())
-            {
-                int h = p.HandcardNum;
-                if (h > most)
-                {
-                    mosts.Clear();
-                    most = h;
-                    mosts.Add(p);
-                }
-                else if (most == h)
-                    mosts.Add(p);
-            }
+                if (p.HandcardNum > most) most = p.HandcardNum;
 
-            if (most < 0 || mosts.Contains(current))
+            foreach (Player p in room.GetAlivePlayers())
+                if (most == p.HandcardNum) mosts.Add(p);
+
+            if (most < 0 || (mosts.Contains(current) && mosts.Count == 1))
                 return null;
 
             List<Player> mosts_copy = new List<Player>(mosts);

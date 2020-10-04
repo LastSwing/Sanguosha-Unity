@@ -1197,8 +1197,7 @@ namespace SanguoshaServer.Package
             if (player.Alive && player.HasFlag("Global_Dying"))
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    if (p != player && room.Round > p.GetMark(Name))
-                        triggers.Add(new TriggerStruct(Name, p));
+                    if (room.Round > p.GetMark(Name)) triggers.Add(new TriggerStruct(Name, p));
             }
 
             return triggers;
@@ -4376,8 +4375,10 @@ namespace SanguoshaServer.Package
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
-                    if ((fcard is Peach && !p.IsWounded()) || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && !RoomLogic.CanGetCard(room, player, p, "hej"))
+                    if ((fcard is Peach && !p.IsWounded())
+                        || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
+                        || (fcard is FireAttack && p.IsKongcheng())
+                        || (fcard is Snatch && !Snatch.Instance.ExtratargetFilter(room, use.To, p, player, use.Card))
                         || (fcard is Dismantlement && !RoomLogic.CanDiscard(room, player, p, "hej"))) continue;
 
                     if (p.GetMark("@kui") > 0 && !use.To.Contains(p) && RoomLogic.IsProhibited(room, player, p, use.Card) == null)
@@ -4492,7 +4493,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player panfeng, ref object data, Player ask_who)
         {
-            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null)
+            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null && WrappedCard.IsBlack(damage.Card.Suit))
             {
                 Player target = damage.To;
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
@@ -8394,9 +8395,11 @@ namespace SanguoshaServer.Package
                     {
                         if ((fcard is Slash && p == use.From) || (fcard is Peach && !p.IsWounded())
                             || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                            || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == use.From))
+                            || (fcard is FireAttack && p.IsKongcheng())
+                            || (fcard is Snatch && !Snatch.Instance.ExtratargetFilter(room, use.To, p, player, use.Card))
                             || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From))
-                            || (fcard is Duel && p == use.From) || ((fcard is ArcheryAttack || fcard is SavageAssault) && p == use.From)) continue;
+                            || (fcard is Duel && p == use.From)
+                            || ((fcard is ArcheryAttack || fcard is SavageAssault) && p == use.From)) continue;
                         targets.Add(p);
                     }
                 }
