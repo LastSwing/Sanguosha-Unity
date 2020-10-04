@@ -388,7 +388,7 @@ namespace SanguoshaServer.Package
                 && room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                room.DoAnimate(CommonClassLibrary.AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 return info;
             }
 
@@ -404,61 +404,95 @@ namespace SanguoshaServer.Package
     public class SanyaoJxCard : SkillCard
     {
         public static string ClassName = "SanyaoJxCard";
-        public SanyaoJxCard() : base(ClassName) { }
-        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        public SanyaoJxCard() : base(ClassName) { target_fixed = true; will_throw = true; }
+        public override void Use(Room room, CardUseStruct card_use)
         {
-            if (targets.Count == 0)
+            Player player = card_use.From;
+            int max_hp = -1000;
+            int max_hand = -1000;
+            foreach (Player p in room.GetAlivePlayers())
             {
-                int max = -1000;
-                foreach (Player p in room.GetAlivePlayers())
-                {
-                    if (max < p.Hp) max = p.Hp;
-                }
-                return to_select.Hp == max;
+                if (!player.HasFlag("sanyao_hp") && max_hp < p.Hp) max_hp = p.Hp;
+                if (!player.HasFlag("sanyao_handcard") && max_hand < p.HandcardNum) max_hand = p.HandcardNum;
             }
-            else
-                return to_select.Hp == targets[0].Hp && targets.Count < card.SubCards.Count;
-        }
+            List<Player> targets = new List<Player>();
+            foreach (Player p in targets)
+                if (p.Hp == max_hp || p.HandcardNum == max_hand) targets.Add(p);
 
-        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
-        {
-            return targets.Count == card.SubCards.Count;
-        }
-        public override void OnEffect(Room room, CardEffectStruct effect)
-        {
-            room.Damage(new DamageStruct("sanyao_jx", effect.From, effect.To));
+            if (targets.Count > 0)
+            {
+                string prompt = "@sanyao-hp";
+                if (max_hand >= 0 && max_hp > -1000)
+                    prompt = "@sanyao-both";
+                else if (max_hand >= 0)
+                    prompt = "@sanyao-handcard";
+
+                Player target = room.AskForPlayerChosen(player, targets, "sanyao_jx", prompt, false, false, card_use.Card.SkillPosition);
+                if (target != null)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                    if (target.Hp == max_hp && target.HandcardNum == max_hand)
+                    {
+                        string choice = room.AskForChoice(player, "sanyao_jx", "hp+hancard", new List<string> { "@sanyao:" + target.Name }, target);
+                        if (choice == "hp")
+                            player.SetFlags("sanyao_hp");
+                        else
+                            player.SetFlags("sanyao_handcard");
+                    }
+                    else if (target.Hp == max_hp)
+                        player.SetFlags("sanyao_hp");
+                    else
+                        player.SetFlags("sanyao_handcard");
+
+                    room.Damage(new DamageStruct("sanyao_jx", player, target));
+                }
+            }
         }
     }
-    public class SanyaoJX : ViewAsSkill
+
+    public class SanyaoJX : TriggerSkill
     {
         public SanyaoJX() : base("sanyao_jx")
         {
             skill_type = SkillType.Attack;
+            events.Add(TriggerEvent.EventPhaseChanging);
         }
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
+            {
+                if (player.HasFlag("sanyao_handcard")) player.SetFlags("-sanyao_handcard");
+                if (player.HasFlag("sanyao_hp")) player.SetFlags("-sanyao_hp");
+            }
+        }
+    }
+
+    public class SanyaoJXVS : OneCardViewAsSkill
+    {
+        public SanyaoJXVS() : base("sanyao_jx")
+        {
+        }
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
         {
             return RoomLogic.CanDiscard(room, player, player, to_select.Id);
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return RoomLogic.CanDiscard(room, player, player, "he") && !player.HasUsed(SanyaoJxCard.ClassName);
+            return RoomLogic.CanDiscard(room, player, player, "he") && !player.HasFlag("sanyao_handcard") && !player.HasFlag("sanyao_hp");
         }
-        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            if (cards.Count > 0)
+            WrappedCard first = new WrappedCard(SanyaoJxCard.ClassName)
             {
-                WrappedCard first = new WrappedCard(SanyaoJxCard.ClassName)
-                {
-                    Skill = Name,
-                    ShowSkill = Name
-                };
-                first.AddSubCards(cards);
-                return first;
-            }
-            else
-                return null;
+                Skill = Name,
+                ShowSkill = Name
+            };
+            first.AddSubCard(card);
+            return first;
         }
     }
+
     public class ZhimanJX : TriggerSkill
     {
         public ZhimanJX() : base("zhiman_jx")

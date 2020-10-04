@@ -4219,7 +4219,7 @@ namespace SanguoshaServer.AI
         public SanyaoJXAI() : base("sanyao_jx") { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (!player.IsNude() && !player.HasUsed(SanyaoJxCard.ClassName))
+            if (!player.IsNude() && !player.HasFlag("sanyao_handcard") && !player.HasFlag("sanyao_hp"))
             {
                 WrappedCard first = new WrappedCard(SanyaoJxCard.ClassName)
                 {
@@ -4230,6 +4230,26 @@ namespace SanguoshaServer.AI
             }
 
             return new List<WrappedCard>();
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<ScoreStruct> scores = new List<ScoreStruct>();
+            foreach (Player p in targets)
+            {
+                DamageStruct damage = new DamageStruct(Name, player, p);
+                ScoreStruct score = ai.GetDamageScore(damage);
+                score.Players = new List<Player> { p };
+                scores.Add(score);
+            }
+
+            if (scores.Count > 0)
+            {
+                ai.CompareByScore(ref scores);
+                return scores[0].Players;
+            }
+
+            return new List<Player>();
         }
     }
 
@@ -4243,53 +4263,95 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            int max = 0;
-            foreach (Player p in room.GetAlivePlayers())
-                if (p.Hp > max)
-                    max = p.Hp;
+            List<int> ids = new List<int>();
+            foreach (int id in player.GetCards("he"))
+                if (RoomLogic.CanDiscard(room, player, player, id))
+                    ids.Add(id);
 
-            List<ScoreStruct> scores = new List<ScoreStruct>();
-            foreach (Player p in room.GetOtherPlayers(player))
+            if (ids.Count > 0)
             {
-                if (p.Hp == max)
-                {
-                    DamageStruct damage = new DamageStruct(Name, player, p);
-                    ScoreStruct score = ai.GetDamageScore(damage);
-                    score.Players = new List<Player> { p };
-                    scores.Add(score);
-                }
-            }
+                List<double> values = ai.SortByKeepValue(ref ids, false);
+                int card_id = ids[0];
 
-            if (scores.Count > 0)
-            {
-                ai.CompareByScore(ref scores);
-                List<int> ids = new List<int>();
-                foreach (int id in player.GetCards("he"))
-                    if (RoomLogic.CanDiscard(room, player, player, id))
-                        ids.Add(id);
-
-                if (ids.Count > 0)
+                int max = -1000, max_hand = -1000;
+                foreach (Player p in room.GetAlivePlayers())
                 {
-                    ai.SortByKeepValue(ref ids, false);
-                    if (ai.GetKeepValue(ids[0], player) < 0 && scores[0].Score >= 0)
+                    if (player.HasFlag("sanyao_hp") && p.Hp > max) max = p.Hp;
+                    if (!player.HasFlag("sanyao_handcard"))
                     {
-                        card.AddSubCard(ids[0]);
+                        int hand = p.HandcardNum;
+                        if (p == player && room.GetCardPlace(card_id) == Place.PlaceHand)
+                            hand--;
+                        if (hand > max_hand) max_hand = hand;
+                    }
+                }
+
+                List<ScoreStruct> scores = new List<ScoreStruct>();
+                foreach (Player p in room.GetOtherPlayers(player))
+                {
+                    int hand = p.HandcardNum;
+                    if (p.Hp == max || hand == max_hand)
+                    {
+                        DamageStruct damage = new DamageStruct(Name, player, p);
+                        ScoreStruct score = ai.GetDamageScore(damage);
+                        score.Players = new List<Player> { p };
+                        scores.Add(score);
+                    }
+                }
+
+                if (scores.Count > 0)
+                {
+                    ai.CompareByScore(ref scores);
+                    if (values[0] < 0 && scores[0].Score >= 0)
+                    {
+                        card.AddSubCard(card_id);
                         use.Card = card;
                         use.To = scores[0].Players;
                         return;
                     }
 
-                    ai.SortByUseValue(ref ids, false);
-                    double value = ai.GetUseValue(ids[0], player);
-                    if (ai.GetOverflow(player) > 0)
-                        value /= 3;
-
-                    if (scores[0].Score > 0 && scores[0].Score > value)
+                    values = ai.SortByUseValue(ref ids, false);
+                    if (room.GetCardPlace(card_id) != room.GetCardPlace(ids[0]) && !player.HasFlag("sanyao_handcard"))
                     {
-                        card.AddSubCard(ids[0]);
-                        use.Card = card;
-                        use.To = scores[0].Players;
-                        return;
+                        card_id = ids[0];
+                        scores.Clear();
+                        max_hand = -1000;
+                        foreach (Player p in room.GetAlivePlayers())
+                        {
+                            int hand = p.HandcardNum;
+                            if (p == player && room.GetCardPlace(card_id) == Place.PlaceHand)
+                                hand--;
+                            if (hand > max_hand) max_hand = hand;
+                        }
+
+                        foreach (Player p in room.GetOtherPlayers(player))
+                        {
+                            int hand = p.HandcardNum;
+                            if (p == player && room.GetCardPlace(card_id) == Place.PlaceHand) hand--;
+                            if (p.Hp == max || hand == max_hand)
+                            {
+                                DamageStruct damage = new DamageStruct(Name, player, p);
+                                ScoreStruct score = ai.GetDamageScore(damage);
+                                score.Players = new List<Player> { p };
+                                scores.Add(score);
+                            }
+                        }
+                    }
+
+                    if (scores.Count > 0)
+                    {
+                        ai.CompareByScore(ref scores);
+                        double value = values[0];
+                        if (ai.GetOverflow(player) > 0)
+                            value /= 3;
+
+                        if (scores[0].Score > 0 && scores[0].Score > value)
+                        {
+                            card.AddSubCard(ids[0]);
+                            use.Card = card;
+                            use.To = scores[0].Players;
+                            return;
+                        }
                     }
                 }
             }

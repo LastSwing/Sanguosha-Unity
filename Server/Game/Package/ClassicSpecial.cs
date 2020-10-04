@@ -3308,7 +3308,7 @@ namespace SanguoshaServer.Package
                 List<Player> css = RoomLogic.FindPlayersBySkillName(room, Name);
                 foreach (Player p in css)
                 {
-                    if (p != player && p.GetMark(Name) > 0)
+                    if (p != player && p.GetMark(limit_mark) > 0)
                         triggers.Add(new TriggerStruct(Name, p));
                 }
             }
@@ -7937,32 +7937,90 @@ namespace SanguoshaServer.Package
     {
         public ZhoufuEffect() : base("#zhoufu")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.StartJudge };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.StartJudge, TriggerEvent.CardsMoveOneTime };
             frequency = Frequency.Compulsory;
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From_places.Contains(Place.PlaceSpecial)
+                && move.From_pile_names.Contains("incantation") && move.From.Alive)
+            {
+                int id = -1;
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if (move.From_places[i] == Place.PlaceSpecial)
+                    {
+                        id = move.Card_ids[i];
+                        break;
+                    }
+                }
+
+                foreach (Player p in room.GetOtherPlayers(move.From))
+                {
+                    if (p.ContainsTag("zhoufu") && p.GetTag("zhoufu") is Dictionary<int, int> draws && draws.ContainsKey(id))
+                    {
+                        draws.Remove(id);
+                        if (draws.Count == 0)
+                            p.RemoveTag("zhoufu");
+                        else
+                            p.SetTag("zhoufu", draws);
+
+                        if (p.ContainsTag("zhoufu_lose") && p.GetTag("zhoufu_lose") is List<string> targets)
+                        {
+                            if (!targets.Contains(move.From.Name))
+                                targets.Add(move.From.Name);
+                            p.SetTag("zhoufu_lose", targets);
+                        }
+                        else
+                            p.SetTag("zhoufu_lose", new List<string> { move.From.Name });
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                    foreach (Player p in room.GetAlivePlayers())
-                        if (p.HasFlag(Name)) return new TriggerStruct(Name, player);
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.ContainsTag("zhoufu_lose") && p.GetTag("zhoufu_lose") is List<string> targets)
+                    {
+                        bool add = false;
+                        if (base.Triggerable(p, room))
+                        {
+                            foreach (string player_name in targets)
+                            {
+                                if (room.FindPlayer(player_name) != null)
+                                {
+                                    add = true;
+                                    triggers.Add(new TriggerStruct(Name, p));
+                                    break;
+                                }
+                            }
+                        }
+                        if (!add)
+                            p.RemoveTag("zhoufu_lose");
+                    }
+                }
             }
             else if (triggerEvent == TriggerEvent.StartJudge && player.GetPile("incantation").Count > 0)
             {
-                return new TriggerStruct(Name, player);
+                triggers.Add(new TriggerStruct(Name, player));
             }
-            return new TriggerStruct();
+            return triggers;
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-
             if (triggerEvent == TriggerEvent.StartJudge && data is JudgeStruct judge_struct)
             {
                 List<int> ids = player.GetPile("incantation");
                 judge_struct.Card = room.GetCard(ids[0]);
-                player.SetFlags(Name);
 
                 LogMessage log = new LogMessage
                 {
@@ -7984,35 +8042,43 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                List<Player> targets = new List<Player>();
-                foreach (Player p in room.GetAlivePlayers())
-                    if (p.HasFlag(Name)) targets.Add(p);
-
-                if (targets.Count > 0)
+                if (ask_who.ContainsTag("zhoufu_lose") && ask_who.GetTag("zhoufu_lose") is List<string> targets)
                 {
-                    room.SortByActionOrder(ref targets);
-                    foreach (Player p in targets)
-                        if (p.Alive)
-                            room.LoseHp(p);
+                    ask_who.RemoveTag("zhoufu_lose");
+                    List<Player> loser = new List<Player>();
+                    foreach (string player_name in targets)
+                    {
+                        Player target = room.FindPlayer(player_name);
+                        if (target != null)
+                            loser.Add(target);
+                    }
+
+                    if (loser.Count > 0)
+                    {
+                        room.SortByActionOrder(ref loser);
+                        foreach (Player p in loser)
+                            if (p.Alive) room.LoseHp(p);
+                    }
                 }
 
                 return false;
             }
-
         }
     }
 
     public class Zhoufu : OneCardViewAsSkill
     {
         public Zhoufu() : base("zhoufu")
-        { }
+        {
+        }
         public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
         {
-            return room.GetCardPlace(to_select.Id) == Place.PlaceHand;
+            Place place = room.GetCardPlace(to_select.Id);
+            return place == Place.PlaceHand || place == Place.PlaceEquip;
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasUsed(ZhoufuCard.ClassName) && !player.IsKongcheng();
+            return !player.HasUsed(ZhoufuCard.ClassName) && !player.IsNude();
         }
 
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
@@ -8038,7 +8104,14 @@ namespace SanguoshaServer.Package
 
         public override void Use(Room room, CardUseStruct card_use)
         {
-            room.AddToPile(card_use.To[0], "incantation", card_use.Card.GetEffectiveId(), false, new List<Player> { card_use.From });
+            Dictionary<int, int> draws = new Dictionary<int, int>();
+            Player player = card_use.From, target = card_use.To[0];
+            if (player.ContainsTag("zhoufu"))
+                draws = (Dictionary<int, int>)player.GetTag("zhoufu");
+
+            draws[card_use.Card.GetEffectiveId()] = 0;
+            player.SetTag("zhoufu", draws);
+            room.AddToPile(target, "incantation", card_use.Card.GetEffectiveId(), false, new List<Player> { card_use.From });
         }
     }
 
@@ -8050,25 +8123,35 @@ namespace SanguoshaServer.Package
             frequency = Frequency.Compulsory;
             skill_type = SkillType.Wizzard;
         }
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From_places.Contains(Place.PlaceSpecial)
-                && move.From_pile_names.Contains("incantation") && move.From.GetMark(Name) > 0)
-                move.From.SetMark(Name, 0);
-        }
+
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && player.GetPile("incantation").Count > 0 && use.Card.Suit == room.GetCard(player.GetPile("incantation")[0]).Suit)
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && player.GetPile("incantation").Count > 0)
             {
-                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    triggers.Add(new TriggerStruct(Name, p));
+                int card_id = player.GetPile("incantation")[0];
+                WrappedCard.CardSuit suit = room.GetCard(card_id).Suit;
+                if (WrappedCard.IsBlack(use.Card.Suit) && WrappedCard.IsBlack(suit) || WrappedCard.IsRed(use.Card.Suit) && WrappedCard.IsRed(suit))
+                {
+                    foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                    {
+                        if (p.ContainsTag("zhoufu") && p.GetTag("zhoufu") is Dictionary<int, int> draws && draws.ContainsKey(card_id))
+                            triggers.Add(new TriggerStruct(Name, p));
+                    }
+                }
             }
-            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use
-               && player.GetPile("incantation").Count > 0 && resp.Card.Suit == room.GetCard(player.GetPile("incantation")[0]).Suit)
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && player.GetPile("incantation").Count > 0)
             {
-                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    triggers.Add(new TriggerStruct(Name, p));
+                int card_id = player.GetPile("incantation")[0];
+                WrappedCard.CardSuit suit = room.GetCard(card_id).Suit;
+                if (WrappedCard.IsBlack(resp.Card.Suit) && WrappedCard.IsBlack(suit) || WrappedCard.IsRed(resp.Card.Suit) && WrappedCard.IsRed(suit))
+                {
+                    foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                    {
+                        if (p.ContainsTag("zhoufu") && p.GetTag("zhoufu") is Dictionary<int, int> draws && draws.ContainsKey(card_id))
+                            triggers.Add(new TriggerStruct(Name, p));
+                    }
+                }
             }
 
             return triggers;
@@ -8076,17 +8159,20 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            player.AddMark(Name);
-            if (ask_who.Alive)
-                room.DrawCards(ask_who, 1, Name);
-
-            if (player.GetMark(Name) > 1)
+            if (ask_who.ContainsTag("zhoufu") && ask_who.GetTag("zhoufu") is Dictionary<int, int> draws)
             {
-                List<int> ids = player.GetPile("incantation");
-                if (ids.Count > 0)
+                int card_id = player.GetPile("incantation")[0];
+                draws[card_id]++;
+                room.DrawCards(ask_who, 1, Name);
+                ask_who.SetTag("zhoufu", draws);
+                if (draws[card_id] > 1)
                 {
-                    CardsMoveStruct move = new CardsMoveStruct(ids, null, Place.DiscardPile, new CardMoveReason(MoveReason.S_REASON_NATURAL_ENTER, player.Name, Name, string.Empty));
-                    room.MoveCardsAtomic(move, true);
+                    List<int> ids = player.GetPile("incantation");
+                    if (ids.Count > 0)
+                    {
+                        CardsMoveStruct move = new CardsMoveStruct(ids, ask_who, Place.PlaceHand, new CardMoveReason(MoveReason.S_REASON_GOTCARD, ask_who.Name, player.Name, Name, string.Empty));
+                        room.MoveCardsAtomic(move, false);
+                    }
                 }
             }
 

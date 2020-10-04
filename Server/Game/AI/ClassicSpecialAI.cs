@@ -40,6 +40,8 @@ namespace SanguoshaServer.AI
                 new JuesiAI(),
                 new QingzhongAI(),
                 new WeijingAI(),
+                new TuoguAI(),
+                new ShanzhuanAI(),
 
                 new ChongzhenAI(),
                 new MizhaoAI(),
@@ -3388,6 +3390,39 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class TuoguAI : SkillEvent
+    {
+        public TuoguAI() : base("tuogu") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return true;
+        }
+    }
+
+    public class ShanzhuanAI : SkillEvent
+    {
+        public ShanzhuanAI() : base("shanzhuan")
+        { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target)
+                return ai.IsEnemy(target);
+
+            return false;
+        }
+
+        public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
+        {
+            if (ai.IsEnemy(from, to) && to.JudgingArea.Count == 0 && to.JudgingAreaAvailable
+                && (card.Name.Contains(Slash.ClassName) || card.Name.Contains(Duel.ClassName) || card.Name.Contains(FireAttack.ClassName)))
+                return 2;
+
+            return 0;
+        }
+    }
+
     public class ChongzhenAI : SkillEvent
     {
         public ChongzhenAI() : base("chongzhen")
@@ -6191,7 +6226,7 @@ namespace SanguoshaServer.AI
         {
             List<Player> enemies = ai.GetEnemies(player);
             ai.SortByDefense(ref enemies, false);
-            List<int> ids = player.GetCards("h");
+            List<int> ids = player.GetCards("he");
             ai.SortByUseValue(ref ids, false);
             Room room = ai.Room;
             ai.Number[Name] = 4;
