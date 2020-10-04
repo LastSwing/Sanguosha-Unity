@@ -3468,7 +3468,7 @@ namespace SanguoshaServer.Package
 
     public class Xuewei : TriggerSkill
     {
-        public Xuewei() : base("xiewei")
+        public Xuewei() : base("xuewei")
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.TurnStart };
             skill_type = SkillType.Defense;
