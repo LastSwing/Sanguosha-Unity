@@ -1607,6 +1607,7 @@ namespace SanguoshaServer.AI
 
             foreach (SkillEvent e in skill_events.Values)
                 e.DamageEffect(this, ref damage, step);
+            if (damage.Damage < 0) return 0;
 
             if (damage.Card != null)
             {

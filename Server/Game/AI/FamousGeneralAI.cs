@@ -2590,6 +2590,12 @@ namespace SanguoshaServer.AI
 
             return false;
         }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        {
+            if (damage.From != null && damage.From.HasFlag(Name) && damage.From.Alive && damage.From != damage.To)
+                damage.Damage = -1000;
+        }
     }
 
     public class XianzhouCardAI : UseCard

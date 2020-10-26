@@ -3284,8 +3284,8 @@ namespace SanguoshaServer.Package
         public Tuogu() : base("tuogu")
         {
             events.Add(TriggerEvent.Death);
-            frequency = Frequency.Limited;
-            limit_mark = "@tuogu";
+            //frequency = Frequency.Limited;
+            //limit_mark = "@tuogu";
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -3307,8 +3307,8 @@ namespace SanguoshaServer.Package
                 List<Player> css = RoomLogic.FindPlayersBySkillName(room, Name);
                 foreach (Player p in css)
                 {
-                    if (p != player && p.GetMark(limit_mark) > 0)
-                        triggers.Add(new TriggerStruct(Name, p));
+                    //if (p != player && p.GetMark(limit_mark) > 0)
+                    if (p != player) triggers.Add(new TriggerStruct(Name, p));
                 }
             }
 
@@ -3327,22 +3327,34 @@ namespace SanguoshaServer.Package
         {
             room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
             room.NotifySkillInvoked(ask_who, Name);
-            room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
-            room.RemovePlayerMark(ask_who, limit_mark);
+            //room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
+            //room.RemovePlayerMark(ask_who, limit_mark);
 
-            List<string> skills = Engine.GetGeneralSkills(player.General1, room.Setting.GameMode);
-            skills.Remove("huashen");
-            skills.Remove("xinsheng");
-            List<string> checks = new List<string>(skills);
-            foreach (string skill in checks)
+            if (ask_who.ContainsTag(Name) && ask_who.GetTag(Name) is string a_skill)
             {
-                Skill _skill = Engine.GetSkill(skill);
-                if (_skill.LordSkill || _skill.SkillFrequency == Frequency.Limited || _skill.SkillFrequency == Frequency.Wake)
-                    skills.Remove(skill);
+                ask_who.RemoveTag(Name);
+                room.RemovePlayerStringMark(ask_who, Name);
+                room.HandleAcquireDetachSkills(ask_who, "-" + a_skill, true);
             }
 
-            string choice = room.AskForChoice(player, Name, string.Join("+", skills), new List<string> { "@tuogu-from:" + ask_who.Name }, ask_who);
-            room.HandleAcquireDetachSkills(ask_who, choice, true);
+            if (ask_who.Alive)
+            {
+                List<string> skills = Engine.GetGeneralSkills(player.General1, room.Setting.GameMode);
+                skills.Remove("huashen");
+                skills.Remove("xinsheng");
+                List<string> checks = new List<string>(skills);
+                foreach (string skill in checks)
+                {
+                    Skill _skill = Engine.GetSkill(skill);
+                    if (_skill.LordSkill || _skill.SkillFrequency == Frequency.Limited || _skill.SkillFrequency == Frequency.Wake)
+                        skills.Remove(skill);
+                }
+
+                string choice = room.AskForChoice(player, Name, string.Join("+", skills), new List<string> { "@tuogu-from:" + ask_who.Name }, ask_who);
+                ask_who.SetTag(Name, choice);
+                room.SetPlayerStringMark(ask_who, Name, choice);
+                room.HandleAcquireDetachSkills(ask_who, choice, true);
+            }
 
             return false;
         }

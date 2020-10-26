@@ -73,7 +73,8 @@ namespace SanguoshaServer.Package
                 new Mingce(),
                 new Zhichi(),
                 new Zishou(),
-                new ZishouProhibit(),
+                new ZishouPrevent(),
+                //new ZishouProhibit(),
                 new Zongshi(),
                 new ZongshiMax(),
                 new Juece(),
@@ -132,6 +133,7 @@ namespace SanguoshaServer.Package
                 new Chengxiang(),
                 new Renxin(),
                 new Jingce(),
+                new JingceMax(),
                 new Qingxi(),
                 new Qianju(),
                 new Jiangchi(),
@@ -243,7 +245,8 @@ namespace SanguoshaServer.Package
                 { "shenduan", new List<string>{ "#shenduan-clear" } },
                 { "mingjian", new List<string>{ "#mingjian-tar", "#mingjian-max" } },
                 { "quanji", new List<string>{ "#quanji-max" } },
-                { "zishou", new List<string>{ "#zishou-prohibit" } },
+                //{ "zishou", new List<string>{ "#zishou-prohibit" } },
+                { "zishou", new List<string>{ "#zishou" } },
                 { "zongshi", new List<string>{ "#zongshi-max" } },
                 { "xianzhen", new List<string>{ "#xianzhen-tar", "#xianzhen-max" } },
                 { "xuanfeng", new List<string>{ "#xuanfeng-clear" } },
@@ -262,6 +265,7 @@ namespace SanguoshaServer.Package
                 { "pizhuan", new List<string>{ "#pizhuan", "#pizhuan-clear" } },
                 { "anjian", new List<string>{ "#anjian-prohibit" } },
                 { "qiaoshui", new List<string>{ "#qiaoshui-max" } },
+                { "jingce", new List<string>{ "#jingce" } },
             };
         }
     }
@@ -4162,7 +4166,6 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
     public class Zishou : DrawCardsSkill
     {
         public Zishou() : base("zishou")
@@ -4198,6 +4201,39 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class ZishouPrevent : TriggerSkill
+    {
+        public ZishouPrevent() : base("#zishou")
+        {
+            events.Add(TriggerEvent.DamageCaused);
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is DamageStruct damage && player != null && player.Alive && player.HasFlag("zishou") && player != damage.To)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(player, Name, true);
+            DamageStruct damage = (DamageStruct)data;
+            LogMessage log = new LogMessage
+            {
+                Type = "#damage-prevent",
+                From = player.Name,
+                To = new List<string> { damage.To.Name },
+                Arg = Name
+            };
+            room.SendLog(log);
+            return true;
+        }
+    }
+
+    /*
     public class ZishouProhibit : ProhibitSkill
     {
         public ZishouProhibit() : base("#zishou-prohibit")
@@ -4212,7 +4248,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
+    */
     public class Zongshi : TriggerSkill
     {
         public Zongshi() : base("zongshi")
@@ -6025,7 +6061,7 @@ namespace SanguoshaServer.Package
             room.ThrowCard(card_use.Card.GetEffectiveId(), player, player, "renxin");
         }
     }
-
+    /*
     public class Jingce : TriggerSkill
     {
         public Jingce() : base("jingce")
@@ -6075,6 +6111,128 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
+    */
+
+    public class Jingce : TriggerSkill
+    {
+        public Jingce() : base("jingce")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded, TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseChanging };
+            skill_type = SkillType.Replenish;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.From == room.Current)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is SkillCard))
+                {
+                    List<int> suits = new List<int>();
+                    List<int> types = new List<int>();
+                    if (player.ContainsTag("jingce-suit")) suits = (List<int>)player.GetTag("jingce-suit");
+                    if (player.ContainsTag("jingce-type")) suits = (List<int>)player.GetTag("jingce-type");
+                    if (use.From.Phase == PlayerPhase.Play && use.Card.Suit != WrappedCard.CardSuit.NoSuit && use.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
+                        && use.Card.Suit != WrappedCard.CardSuit.NoSuitRed && !suits.Contains((int)use.Card.Suit))
+                    {
+                        suits.Add((int)use.Card.Suit);
+                        player.SetTag("jingce-suit", suits);
+                        room.SetPlayerStringMark(player, "jingce-suit", suits.Count.ToString());
+                    }
+                    int type = 0;
+                    if (fcard is TrickCard)
+                        type = 1;
+                    else if (fcard is EquipCard)
+                        type = 2;
+
+                    if (!types.Contains(type))
+                    {
+                        types.Add(type);
+                        player.SetTag("jingce-type", suits);
+                        room.SetPlayerStringMark(player, "jingce-type", types.Count.ToString());
+                    }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Who == room.Current && resp.Use)
+            {
+                List<int> suits = new List<int>();
+                List<int> types = new List<int>();
+                if (player.ContainsTag("jingce-suit")) suits = (List<int>)player.GetTag("jingce-suit");
+                if (player.ContainsTag("jingce-type")) suits = (List<int>)player.GetTag("jingce-type");
+                if (resp.Who.Phase == PlayerPhase.Play && resp.Card.Suit != WrappedCard.CardSuit.NoSuit && resp.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
+                    && resp.Card.Suit != WrappedCard.CardSuit.NoSuitRed && !suits.Contains((int)resp.Card.Suit))
+                {
+                    suits.Add((int)resp.Card.Suit);
+                    player.SetTag("jingce-suit", suits);
+                    room.SetPlayerStringMark(player, "jingce-suit", suits.Count.ToString());
+                }
+                int type = 0;
+                if (!types.Contains(type))
+                {
+                    types.Add(type);
+                    player.SetTag("jingce-type", suits);
+                    room.SetPlayerStringMark(player, "jingce-type", types.ToString());
+                }
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                if (player.ContainsTag("jingce-suit"))
+                {
+                    room.RemovePlayerStringMark(player, "jingce-suit");
+                    player.RemoveTag("jingce-suit");
+                }
+
+                if (player.ContainsTag("jingce-type"))
+                {
+                    room.RemovePlayerStringMark(player, "jingce-type");
+                    player.RemoveTag("jingce-type");
+                }
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Phase == PlayerPhase.Play && base.Triggerable(player, room)
+                && player.ContainsTag("jingce-type") && player.GetTag("jingce-type") is List<int> types && types.Count > 0)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.ContainsTag("jingce-type") && player.GetTag("jingce-type") is List<int> types && types.Count > 0)
+                room.DrawCards(player, types.Count, Name);
+
+            return false;
+        }
+    }
+
+    public class JingceMax : MaxCardsSkill
+    {
+        public JingceMax() : base("#jingce")
+        { }
+
+        public override int GetExtra(Room room, Player target)
+        {
+            if (target.ContainsTag("jingce-suit") && target.GetTag("jingce-suit") is List<int> suits)
+                return suits.Count;
+
+            return 0;
+        }
+    }
+
 
     public class Qingxi : TriggerSkill
     {
