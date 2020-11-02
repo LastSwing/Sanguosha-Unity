@@ -831,7 +831,7 @@ namespace SanguoshaServer.AI
     public class QingxiAI : SkillEvent
     {
         public QingxiAI() : base("qingxi") { }
-
+        /*
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             Room room = ai.Room;
@@ -846,13 +846,65 @@ namespace SanguoshaServer.AI
 
             return false;
         }
+        */
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (data is Player target && ai.IsEnemy(target))
+                return true;
 
+            return false;
+        }
+        /*
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
             if (room.GetTag(Name) is DamageStruct damage)
             {
+                double value = ai.GetDamageScore(damage).Score;
+                DamageStruct _damage = damage;
+                _damage.Damage++;
+                if (ai.GetDamageScore(_damage).Score > value + 2)
+                {
+                    int count = player.GetMark(Name);
+                    int peach = 0;
+                    List<int> ids = new List<int>(), cards = player.GetCards("h");
+                    ai.SortByKeepValue(ref cards, false);
+                    foreach (int id in cards)
+                    {
+                        if (RoomLogic.CanDiscard(room, player, player, id))
+                        {
+                            if (ai.IsCard(id, Peach.ClassName, player) || ai.IsCard(id, Analeptic.ClassName, player)) peach++;
+                            ids.Add(id);
+                        }
+
+                        if (ids.Count >= count)
+                            break;
+                    }
+
+                    if (peach == 0 && ids.Count == count)
+                    {
+                        use.Card = new WrappedCard(QingxiCard.ClassName);
+                        use.Card.AddSubCards(ids);
+                    }
+                }
+            }
+
+            return use;
+        }
+        */
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            Room room = ai.Room;
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            if (room.GetTag(Name) is CardUseStruct _use)
+            {
+                DamageStruct damage = new DamageStruct(use.Card, _use.From, player);
+                damage.Damage += _use.Drank;
+                if (_use.Card.Name == FireSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Fire;
+                else if (_use.Card.Name == ThunderSlash.ClassName) damage.Nature = DamageStruct.DamageNature.Thunder;
+
                 double value = ai.GetDamageScore(damage).Score;
                 DamageStruct _damage = damage;
                 _damage.Damage++;

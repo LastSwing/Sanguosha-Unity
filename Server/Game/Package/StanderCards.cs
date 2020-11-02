@@ -199,7 +199,8 @@ namespace SanguoshaServer.Package
                 Drank = card_effect.Drank,
                 ExDamage = card_effect.ExDamage + card_effect.BasicEffect.Effect1,
                 Nullified = card_effect.BasicEffect.Nullified,
-                Jink_num = card_effect.BasicEffect.Effect2
+                Jink_num = card_effect.BasicEffect.Effect2,
+                RespondPattern = card_effect.BasicEffect.RespondPattern
             };
             
 
@@ -1135,6 +1136,7 @@ namespace SanguoshaServer.Package
             room.SetEmotion(second, "duel");
             Thread.Sleep(400);
 
+            string pattern = string.IsNullOrEmpty(effect.BasicEffect.RespondPattern) ? Slash.ClassName : effect.BasicEffect.RespondPattern;
             Dictionary<string, int> counts = new Dictionary<string, int>
             {
                 { first.Name, effect.BasicEffect.Effect2 },
@@ -1150,7 +1152,8 @@ namespace SanguoshaServer.Package
                 int count = counts[first.Name];
                 while (count > 0)
                 {
-                    WrappedCard slash = room.AskForCard(first, Name, Slash.ClassName, string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
+                    WrappedCard slash = room.AskForCard(first, Name, first == effect.To ? pattern : Slash.ClassName,
+                        string.Format("duel-slash:{0}::{1}", second.Name, count), effect, HandlingMethod.MethodResponse, second);
                     count--;
                     if (slash == null)
                     {

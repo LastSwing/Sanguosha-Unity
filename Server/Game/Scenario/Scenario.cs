@@ -769,11 +769,12 @@ namespace SanguoshaServer.Scenario
                     {
                         SlashEffectStruct effect = (SlashEffectStruct)data;
                         string slasher = effect.From.Name;
+                        string pattern = string.IsNullOrEmpty(effect.RespondPattern) ? Jink.ClassName : effect.RespondPattern;
                         if (!effect.To.Alive)
                             break;
                         if (effect.Jink_num == 1)
                         {
-                            CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, string.Format("slash-jink:{0}::{1}", slasher, effect.Slash.Name),
+                            CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, pattern, string.Format("slash-jink:{0}::{1}", slasher, effect.Slash.Name),
                                 data, HandlingMethod.MethodUse, null, effect.From, false, false);
                             room.SlashResult(effect, room.IsJinkEffected(effect.To, resp) ? resp.Card : null);
                         }
@@ -783,7 +784,7 @@ namespace SanguoshaServer.Scenario
                             for (int i = effect.Jink_num; i > 0; i--)
                             {
                                 string prompt = string.Format("@multi-jink{0}:{1}::{2}:{3}" , i == effect.Jink_num ? "-start" : string.Empty, slasher, i, effect.Slash.Name);
-                                CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, Jink.ClassName, prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
+                                CardResponseStruct resp = room.AskForCard(effect.To, Slash.ClassName, pattern, prompt, data, HandlingMethod.MethodUse, null, effect.From, false, false);
 
                                 if (!room.IsJinkEffected(effect.To, resp))
                                 {

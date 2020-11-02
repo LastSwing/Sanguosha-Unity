@@ -9,7 +9,6 @@ using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
 using CommonClass;
-using System.Security.Cryptography.X509Certificates;
 
 namespace SanguoshaServer.Package
 {
@@ -75,6 +74,7 @@ namespace SanguoshaServer.Package
                 new KuizhuLS(),
                 new Fenyue(),
                 new Xuhe(),
+                new Mouzhu(),
 
                 new Guolun(),
                 new Songsang(),
@@ -122,6 +122,7 @@ namespace SanguoshaServer.Package
                 new SongshuCard(),
                 new FenyueCard(),
                 new LijiCard(),
+                new MouzhuCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -3750,6 +3751,94 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class Mouzhu : ZeroCardViewAsSkill
+    {
+        public Mouzhu() : base("mouzhu") { }
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            if (!player.HasUsed(MouzhuCard.ClassName))
+            {
+                foreach (Player p in room.GetOtherPlayers(player))
+                    if (RoomLogic.DistanceTo(room, player, p) == 1 || p.Hp == player.Hp)
+                        return true;
+            }
+
+            return false;
+        }
+
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            return new WrappedCard(MouzhuCard.ClassName) { Skill = Name };
+        }
+    }
+
+    public class MouzhuCard : SkillCard
+    {
+        public static string ClassName = "MouzhuCard";
+        public MouzhuCard() : base(ClassName)
+        {
+            target_fixed = true;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            List<string> choices = new List<string>();
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (!choices.Contains("distance") && RoomLogic.DistanceTo(room, player, p) == 1)
+                    choices.Add("distance");
+                if (!choices.Contains("hp") && p.Hp == player.Hp)
+                    choices.Add("hp");
+            }
+            if (choices.Count > 0)
+            {
+                string choice = room.AskForChoice(player, "mouzhu", string.Join("+", choices), null, true);
+                if (choice == "hp")
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                        if (player.Alive && p.Alive && p.Hp == player.Hp && !p.IsKongcheng())
+                            Do(room, p, player);
+                }
+                else
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                        if (player.Alive && p.Alive && RoomLogic.DistanceTo(room, player, p) == 1 && !p.IsKongcheng())
+                            Do(room, p, player);
+                }
+            }
+        }
+
+        private void Do(Room room, Player from, Player to)
+        {
+            List<int> give = room.AskForExchange(from, "mouzhu", 1, 1, "@mouzhu:" + to.Name, string.Empty, ".", string.Empty);
+            if (give.Count > 0)
+            {
+                room.ObtainCard(to, ref give, new CardMoveReason(MoveReason.S_REASON_GIVE, from.Name, to.Name, "mouzhu", string.Empty), false);
+                if (from.Alive && to.Alive && from.HandcardNum < to.HandcardNum)
+                {
+                    List<string> choices = new List<string>();
+                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = "_mouzhu" };
+                    slash.DistanceLimited = false;
+                    if (RoomLogic.IsProhibited(room, from, to, slash) == null)
+                        choices.Add("slash");
+
+                    WrappedCard duel = new WrappedCard(Duel.ClassName) { Skill = "_mouzhu" };
+                    if (RoomLogic.IsProhibited(room, from, to, duel) == null)
+                        choices.Add("duel");
+
+                    if (choices.Count > 0)
+                    {
+                        string choice = room.AskForChoice(from, "mouzhu", string.Join("+", choices), new List<string> { "@mouzhu-choice:" + to.Name }, to);
+                        if (choice == "slash")
+                            room.UseCard(new CardUseStruct(slash, from, to));
+                        else
+                            room.UseCard(new CardUseStruct(duel, from, to));
+                    }
+                }
+            }
+        }
+    }
 
     public class Guolun : ZeroCardViewAsSkill
     {

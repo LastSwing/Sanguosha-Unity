@@ -212,6 +212,7 @@ namespace CommonClass.Game
             Effect2 = count2;
             Effect3 = count3;
             Nullified = false;
+            RespondPattern = string.Empty;
         }
         public Player To { set; get; }
         public int Effect1 { set; get; }
@@ -219,6 +220,7 @@ namespace CommonClass.Game
         public int Effect3 { set; get; }
         public bool Nullified { set; get; }
         public bool Triggered { set; get; }
+        public string RespondPattern { set; get; }
     }
 
     public struct CardEffectStruct
@@ -246,6 +248,7 @@ namespace CommonClass.Game
         public int ExDamage { set; get; }
         public DamageStruct.DamageNature Nature { set; get; }
         public bool Nullified { set; get; }
+        public string RespondPattern { set; get; }
     };
 
     public struct CardAskStruct
