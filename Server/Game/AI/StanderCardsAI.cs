@@ -3285,8 +3285,8 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            foreach (Player p in room.GetOtherPlayers(player))
-                if (ai.HasSkill("zhennan", p) && !ai.IsFriend(p)) return;
+            //foreach (Player p in room.GetOtherPlayers(player))
+            //    if (ai.HasSkill("zhennan", p) && !ai.IsFriend(p)) return;
 
             if (ai.GetAoeValue(card))
                 use.Card = card;

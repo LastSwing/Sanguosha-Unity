@@ -9650,6 +9650,8 @@ namespace SanguoshaServer.Package
                 room.FilterCards(target, target.GetCards("he"), true);
             }
 
+            if (target.Alive) room.DrawCards(target, new DrawCardStruct(3, player, Name));
+
             if (player.Alive)
             {
                 if (player.IsWounded())
@@ -9668,7 +9670,7 @@ namespace SanguoshaServer.Package
             return false;
         }
     }
-
+    /*
     public class Zhennan : TriggerSkill
     {
         public Zhennan() : base("zhennan")
@@ -9705,6 +9707,48 @@ namespace SanguoshaServer.Package
             Random ra = new Random();
             int result = ra.Next(1, 4);
             room.Damage(new DamageStruct(Name, player, target, result));
+            return false;
+        }
+    }
+    */
+
+    public class Zhennan : TriggerSkill
+    {
+        public Zhennan() : base("zhennan")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.TargetConfirmed };
+            skill_type = SkillType.Attack;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is CardUseStruct use)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is TrickCard && use.To.Count > 0) return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@zhennan", true, true, info.SkillPosition);
+            if (target != null)
+            {
+                player.SetTag(Name, target.Name);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = room.FindPlayer(player.GetTag(Name).ToString());
+            player.RemoveTag(Name);
+            room.Damage(new DamageStruct(Name, player, target));
             return false;
         }
     }

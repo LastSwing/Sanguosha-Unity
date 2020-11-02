@@ -21,6 +21,7 @@ namespace SanguoshaServer.Package
                 new LightningSummonerSkill(),
                 new PosionedDaggerSkill(),
                 new QuenchedKnifeSkill(),
+                new QuenchedKnifeTM(),
                 new WaterSwordSkill(),
             };
             cards = new List<FunctionCard> {
@@ -39,6 +40,7 @@ namespace SanguoshaServer.Package
             related_skills = new Dictionary<string, List<string>>
             {
                 { ClassicBlade.ClassName, new List<string> { "#blade-target-mod" } },
+                { QuenchedKnife.ClassName, new List<string> { "#QuenchedKnife-tm" } },
             };
         }
     }
@@ -246,20 +248,31 @@ namespace SanguoshaServer.Package
     {
         public static string ClassName = "Lance";
         public Lance() : base(ClassName, 3) { }
+        public override void OnUninstall(Room room, Player player, WrappedCard card)
+        {
+            player.SetFlags("-Lance");
+        }
     }
 
     public class LanceSkill : WeaponSkill
     {
         public LanceSkill() : base(Lance.ClassName)
         {
-            events.Add(TriggerEvent.Damage);
+            events= new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Recover;
         }
-
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasFlag(Name))
+                        p.SetFlags("-Lance");
+            }
+        }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && !player.HasFlag(Name) && data is DamageStruct damage && damage.Card != null
-                && damage.Card.Name.Contains(Slash.ClassName) && player.IsWounded())
+            if (base.Triggerable(player, room) && !player.HasFlag(Name) && data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName))
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -279,7 +292,7 @@ namespace SanguoshaServer.Package
             JudgeStruct judge = new JudgeStruct
             {
                 Good = true,
-                Pattern = ".|red",
+                //Pattern = ".|red",
                 PlayAnimation = true,
                 Reason = Name,
                 Who = player,
@@ -291,14 +304,24 @@ namespace SanguoshaServer.Package
             if (player.HasWeapon(Name))
                 room.SetCardFlag(player.Weapon.Key, "-using");
 
-            if (judge.IsGood() && player.Alive && player.IsWounded())
+            if (player.Alive)
             {
-                RecoverStruct recover = new RecoverStruct
+                if (WrappedCard.IsRed(judge.Card.Suit))
                 {
-                    Recover = 1,
-                    Who = player
-                };
-                room.Recover(player, recover, true);
+                    if (player.IsWounded())
+                    {
+                        RecoverStruct recover = new RecoverStruct
+                        {
+                            Recover = 1,
+                            Who = player
+                        };
+                        room.Recover(player, recover, true);
+                    }
+                }
+                else
+                {
+                    room.DrawCards(player, 2, Name);
+                }
             }
 
             return false;
@@ -321,59 +344,61 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is CardUseStruct use && use.To.Count == 1 && use.Card.Name.Contains(Slash.ClassName))
-                return new TriggerStruct(Name, player);
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName))
+                return new TriggerStruct(Name, player, use.To);
 
             return new TriggerStruct();
         }
 
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use)
+            if (target.Alive)
             {
-                room.SetTag(Name, data);
-                bool invoke = room.AskForSkillInvoke(player, Name, use.To[0]);
-                room.RemoveTag(Name);
-
+                bool invoke = room.AskForSkillInvoke(ask_who, Name, target);
                 if (invoke) return info;
             }
 
             return new TriggerStruct();
         }
 
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use)
+            if (target.Alive && ask_who.Alive)
             {
-                Player target = use.To[0];
                 JudgeStruct judge = new JudgeStruct
                 {
                     Good = true,
-                    Pattern = ".|spade|2~9",
+                    Pattern = ".|spade#club",
                     PlayAnimation = true,
                     Reason = Name,
                     Who = target,
                     Negative = true
                 };
-                
-                room.SetCardFlag(player.Weapon.Key, "using");
+
+                room.SetCardFlag(ask_who.Weapon.Key, "using");
                 room.Judge(ref judge);
-                if (player.HasWeapon(Name))
-                    room.SetCardFlag(player.Weapon.Key, "-using");
+                if (ask_who.HasWeapon(Name))
+                    room.SetCardFlag(ask_who.Weapon.Key, "-using");
 
                 if (judge.IsEffected() && target.Alive)
-                    room.Damage(new DamageStruct(Name, null, target, 3, DamageStruct.DamageNature.Thunder));
-
-                for (int i = 0; i < use.EffectCount.Count; i++)
                 {
-                    CardBasicEffect effect = use.EffectCount[i];
-                    if (effect.To == target)
+                    if (judge.Card.Suit == WrappedCard.CardSuit.Spade)
+                        room.Damage(new DamageStruct(Name, null, target, 3, DamageStruct.DamageNature.Thunder));
+                    else
                     {
-                        effect.Nullified = true;
-                        use.EffectCount[i] = effect;
+                        room.Damage(new DamageStruct(Name, null, target, 1, DamageStruct.DamageNature.Thunder));
+                        if (ask_who.Alive && ask_who.IsWounded())
+                        {
+                            RecoverStruct recover = new RecoverStruct
+                            {
+                                Recover = 1
+                            };
+                            room.Recover(ask_who, recover, true);
+                        }
+                        if (ask_who.Alive)
+                            room.DrawCards(ask_who, 1, Name);
                     }
                 }
-                data = use;
             }
 
             return false;
@@ -384,53 +409,51 @@ namespace SanguoshaServer.Package
     {
         public static string ClassName = "PosionedDagger";
         public PosionedDagger() : base(ClassName, 1) { }
+        public override void OnUninstall(Room room, Player player, WrappedCard card)
+        {
+            player.SetMark(Name, 0);
+        }
     }
 
     public class PosionedDaggerSkill : WeaponSkill
     {
         public PosionedDaggerSkill() : base(PosionedDagger.ClassName)
         {
-            events.Add(TriggerEvent.TargetChosen);
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Attack;
         }
-
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark(Name) > 0)
+                        p.SetMark(Name, 0);
+            }
+        }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is CardUseStruct use && use.To.Count == 1 && use.Card.Name.Contains(Slash.ClassName) && WrappedCard.IsBlack(use.Card.Suit)
-                && use.Card.SubCards.Count > 0 && use.To[0].Alive)
-            {
-                List<int> ids = new List<int>(use.Card.SubCards), table = room.GetCardIdsOnTable(use.Card), subs = room.GetSubCards(use.Card);
-                if (ids.SequenceEqual(table) && ids.SequenceEqual(subs))
-                    return new TriggerStruct(Name, player);
-            }
+            if (base.Triggerable(player, room) && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName) && player.GetMark(Name) < 5)
+                return new TriggerStruct(Name, player, use.To);
 
             return new TriggerStruct();
         }
 
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use)
+            if (ask_who.GetMark(Name) < 5 && ask_who.Alive && target.Alive)
             {
-                room.SetTag(Name, data);
-                bool invoke = room.AskForSkillInvoke(player, Name, use.To[0]);
-                room.RemoveTag(Name);
+                bool invoke = room.AskForSkillInvoke(ask_who, Name, target);
                 if (invoke) return info;
             }
 
             return new TriggerStruct();
         }
 
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use)
-            {
-                Player target = use.To[0];
-                List<int> ids = new List<int>(use.Card.SubCards);
-                room.RemoveSubCards(use.Card);
-                room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_RECYCLE, target.Name, Name, string.Empty));
-                if (target.Alive)
-                    room.LoseHp(target);
-            }
+            ask_who.AddMark(Name);
+            if (target.Alive) room.LoseHp(target);
 
             return false;
         }
@@ -439,20 +462,34 @@ namespace SanguoshaServer.Package
     {
         public static string ClassName = "QuenchedKnife";
         public QuenchedKnife() : base(ClassName, 2) { }
+        public override void OnUninstall(Room room, Player player, WrappedCard card)
+        {
+            player.SetMark(Name, 0);
+        }
     }
 
     public class QuenchedKnifeSkill : WeaponSkill
     {
         public QuenchedKnifeSkill() : base(QuenchedKnife.ClassName)
         {
-            events.Add(TriggerEvent.DamageCaused);
+            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark(Name) > 0)
+                        p.SetMark(Name, 0);
+            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName)
-                && !damage.Transfer && !damage.Chain && !player.IsNude())
+            if (triggerEvent == TriggerEvent.DamageCaused && base.Triggerable(player, room) && data is DamageStruct damage && damage.Card != null
+                && damage.Card.Name.Contains(Slash.ClassName) && !damage.Transfer && !damage.Chain && !player.IsNude() && player.GetMark(Name) < 2)
             {
                 return new TriggerStruct(Name, player);
             }
@@ -466,15 +503,15 @@ namespace SanguoshaServer.Package
             {
                 room.SetCardFlag(player.Weapon.Key, "using");
                 room.SetTag(Name, data);
-                List<int> ids = room.AskForExchange(player, Name, 1, 0, "@QuenchedKnife:" + damage.To.Name, string.Empty, "Slash,Weapon!", string.Empty);
-                room.RemoveTag(Name);
-                room.SetCardFlag(player.Weapon.Key, "-using");
-
-                if (ids.Count > 0)
+                //List<int> ids = room.AskForExchange(player, Name, 1, 0, "@QuenchedKnife:" + damage.To.Name, string.Empty, "Slash,Weapon!", string.Empty);
+                if (room.AskForDiscard(player, Name, 1, 1, true, true, "@QuenchedKnife:" + damage.To.Name, true, null))
                 {
-                    room.ThrowCard(ref ids, player, null, Name);
+                    room.RemoveTag(Name);
+                    room.SetCardFlag(player.Weapon.Key, "-using");
+
                     return info;
                 }
+                room.SetCardFlag(player.Weapon.Key, "-using");
             }
 
             return new TriggerStruct();
@@ -482,6 +519,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            player.AddMark(Name);
             DamageStruct damage = (DamageStruct)data;
             LogMessage log = new LogMessage
             {
@@ -498,46 +536,81 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class QuenchedKnifeTM : TargetModSkill
+    {
+        public QuenchedKnifeTM() : base("#QuenchedKnife-tm")
+        {
+        }
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
+        {
+            return from.HasWeapon("QuenchedKnife") ? 1 : 0;
+        }
+    }
+
     public class WaterSword : Weapon
     {
         public static string ClassName = "WaterSword";
         public WaterSword() : base(ClassName, 2) { }
+        public override void OnUninstall(Room room, Player player, WrappedCard card)
+        {
+            if (player.Alive && player.HasWeapon(Name))
+                player.SetFlags("WaterSwordRecover");
+
+            player.SetMark(Name, 0);
+        }
     }
 
     public class WaterSwordSkill : WeaponSkill
     {
         public WaterSwordSkill() : base(WaterSword.ClassName)
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsedAnnounced, TriggerEvent.CardTargetAnnounced };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.CardTargetAnnounced, TriggerEvent.CardsMoveOneTime };
             skill_type = SkillType.Wizzard;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && player.Phase == Player.PlayerPhase.Play
-                && data is CardUseStruct use && Engine.GetFunctionCard(use.Card.Name).TypeID != FunctionCard.CardType.TypeSkill)
-                player.AddMark(Name);
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == Player.PlayerPhase.Play && player.GetMark(Name) > 0)
-                player.SetMark(Name, 0);
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark(Name) > 0)
+                        p.SetMark(Name, 0);
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.CardTargetAnnounced && base.Triggerable(player, room) && player.GetMark(Name) == 1 && player.Phase == Player.PlayerPhase.Play
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && base.Triggerable(player, room) && player.GetMark(Name) < 2
                 && data is CardUseStruct use && use.To.Count > 0 && use.Card.Name != Collateral.ClassName)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash || fcard.IsNDTrick())
                     return new TriggerStruct(Name, player);
             }
-
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null
+                && move.From_places.Contains(Player.Place.PlaceEquip) && move.From.HasFlag("WaterSwordRecover"))
+            {
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if (move.From_places[i] != Player.Place.PlaceEquip) continue;
+                    WrappedCard card = Engine.GetRealCard(move.Card_ids[i]);
+                    if (card.Name == Name)
+                    {
+                        if (!move.From.IsWounded())
+                        {
+                            move.From.SetFlags("-WaterSwordRecover");
+                            return new TriggerStruct();
+                        }
+                        return new TriggerStruct(Name, move.From);
+                    }
+                }
+            }
             return new TriggerStruct();
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use)
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
             {
+                player.AddMark(Name);
                 List<Player> targets = new List<Player>();
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 foreach (Player p in room.GetAlivePlayers())
@@ -570,6 +643,29 @@ namespace SanguoshaServer.Package
                         room.SendLog(log);
                         room.SortByActionOrder(ref use);
                         data = use;
+                    }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
+            {
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if (move.From_places[i] != Player.Place.PlaceEquip) continue;
+                    WrappedCard card = Engine.GetRealCard(move.Card_ids[i]);
+                    if (card.Name == Name)
+                    {
+                        move.From.SetFlags("-WaterSwordRecover");
+
+                        //room.SetEmotion(move.From, "silverlion");
+                        //Thread.Sleep(400);
+                        RecoverStruct recover = new RecoverStruct
+                        {
+                            Recover = 1,
+                            Card = card
+                        };
+                        room.Recover(move.From, recover, true);
+
+                        return false;
                     }
                 }
             }

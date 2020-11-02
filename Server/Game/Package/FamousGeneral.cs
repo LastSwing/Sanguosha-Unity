@@ -191,7 +191,6 @@ namespace SanguoshaServer.Package
                 new Funan(),
                 new Jiexun(),
                 new Yanzhu(),
-                new Yanzhu2(),
                 new YanzhuDamage(),
                 new Xingxue(),
                 new Zhaofu(),
@@ -12079,21 +12078,6 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Yanzhu2 : ZeroCardViewAsSkill
-    {
-        public Yanzhu2() : base("yanzhu2") { }
-
-        public override bool IsEnabledAtPlay(Room room, Player player)
-        {
-            return !player.HasUsed(YanzhuCard.ClassName);
-        }
-
-        public override WrappedCard ViewAs(Room room, Player player)
-        {
-            return new WrappedCard(YanzhuCard.ClassName) { Skill = Name };
-        }
-    }
-
     public class YanzhuCard : SkillCard
     {
         public static string ClassName = "YanzhuCard";
@@ -12108,32 +12092,34 @@ namespace SanguoshaServer.Package
         {
             Player target = card_use.To[0], player = card_use.From;
 
-            if (card_use.Card.Skill == "yanzhu")
+            if (player.GetMark("yanzhu") == 0 && !target.IsNude())
             {
                 List<int> ids = new List<int>();
                 foreach (int id in target.GetEquips())
                     if (RoomLogic.CanGetCard(room, player, target, id)) ids.Add(id);
 
                 bool option = ids.Count > 0;
-                if (!room.AskForDiscard(target, "yanzhu", 1, 1, option, true, "@yanzhu:" + player.Name) && ids.Count > 0)
+                bool discard = room.AskForDiscard(target, "yanzhu", 1, 1, option, true, "@yanzhu:" + player.Name);
+                if (!discard && ids.Count > 0)
                 {
                     room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "yanzhu", string.Empty));
                     if (player.Alive)
                     {
-                        room.HandleAcquireDetachSkills(player, "-yanzhu|yanzhu2");
                         player.SetMark("xingxue", 1);
+                        player.SetMark("yanzhu", 1);
                     }
                 }
                 else
                 {
-                    target.AddMark("yanzhu");
-                    room.SetPlayerStringMark(target, "yanzhu", target.GetMark("yanzhu").ToString());
+                    //if (!discard) room.ForceToDiscard(target, target.GetCards("he"), 1);
+                    target.AddMark("yanzhu_damage");
+                    room.SetPlayerStringMark(target, "yanzhu", target.GetMark("yanzhu_damage").ToString());
                 }
             }
             else
             {
-                target.AddMark("yanzhu");
-                room.SetPlayerStringMark(target, "yanzhu", target.GetMark("yanzhu").ToString());
+                target.AddMark("yanzhu_damage");
+                room.SetPlayerStringMark(target, "yanzhu", target.GetMark("yanzhu_damage").ToString());
             }
         }
     }
@@ -12148,16 +12134,16 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.RoundStart && player.GetMark("yanzhu") > 0)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.RoundStart && player.GetMark("yanzhu_damage") > 0)
             {
-                player.SetMark("yanzhu", 0);
+                player.SetMark("yanzhu_damage", 0);
                 room.RemovePlayerStringMark(player, "yanzhu");
             }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.DamageInflicted && player.GetMark("yanzhu") > 0) return new TriggerStruct(Name, player);
+            if (triggerEvent == TriggerEvent.DamageInflicted && player.GetMark("yanzhu_damage") > 0) return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
@@ -12165,8 +12151,8 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             DamageStruct damage = (DamageStruct)data;
-            damage.Damage += player.GetMark("yanzhu");
-            player.SetMark("yanzhu", 0);
+            damage.Damage += player.GetMark("yanzhu_damage");
+            player.SetMark("yanzhu_damage", 0);
             room.RemovePlayerStringMark(player, "yanzhu");
 
             LogMessage log = new LogMessage

@@ -3415,7 +3415,7 @@ namespace SanguoshaServer.AI
 
         public override double TargetValueAdjust(TrustedAI ai, WrappedCard card, Player from, List<Player> targets, Player to)
         {
-            if (ai.IsEnemy(from, to) && to.JudgingArea.Count == 0 && to.JudgingAreaAvailable
+            if (from != null && ai.IsEnemy(from, to) && to.JudgingArea.Count == 0 && to.JudgingAreaAvailable
                 && (card.Name.Contains(Slash.ClassName) || card.Name.Contains(Duel.ClassName) || card.Name.Contains(FireAttack.ClassName)))
                 return 2;
 

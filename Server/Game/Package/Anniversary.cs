@@ -2309,10 +2309,13 @@ namespace SanguoshaServer.Package
                 return false;
             WrappedCard equip_card = room.GetCard(card.SubCards[0]);
             FunctionCard fcard = Engine.GetFunctionCard(equip_card.Name);
-            EquipCard equip = (EquipCard)fcard;
-            int equip_index = (int)equip.EquipLocation();
             return RoomLogic.CanPutEquip(to_select, equip_card);
         }
+
+        private List<string> weapons = new List<string>
+        {
+            Lance.ClassName, QuenchedKnife.ClassName, PosionedDagger.ClassName, WaterSword.ClassName,
+        };
 
         public override void Use(Room room, CardUseStruct card_use)
         {
@@ -2325,9 +2328,12 @@ namespace SanguoshaServer.Package
 
             int equipped_id = player.GetEquip(equip_index);
             List<CardsMoveStruct> exchangeMove = new List<CardsMoveStruct>();
+            bool draw = false;
             if (equipped_id != -1)
             {
-                CardsMoveStruct move1 = new CardsMoveStruct(equipped_id, player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
+                if (weapons.Contains(room.GetCard(equipped_id).Name)) draw = true;
+
+                    CardsMoveStruct move1 = new CardsMoveStruct(equipped_id, player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
                 exchangeMove.Add(move1);
                 room.MoveCardsAtomic(exchangeMove, true);
             }
@@ -2344,6 +2350,9 @@ namespace SanguoshaServer.Package
                     room.MoveCardsAtomic(new List<CardsMoveStruct> { move3 }, true);
                 }
             }
+
+            if (draw && player.Alive)
+                room.DrawCards(player, 2, "tianjiang");
         }
     }
 

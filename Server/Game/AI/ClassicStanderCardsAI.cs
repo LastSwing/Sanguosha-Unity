@@ -352,7 +352,7 @@ namespace SanguoshaServer.AI
         {
             ai.UseEquipCard(ref use, card);
         }
-
+        /*
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             Room room = ai.Room;
@@ -381,6 +381,12 @@ namespace SanguoshaServer.AI
                 return ai.IsEnemy(target);
             }
 
+            return false;
+        }
+        */
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target) return ai.IsEnemy(target);
             return false;
         }
     }
@@ -486,19 +492,12 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            Room room = ai.Room;
-            if (room.GetTag(Name) is CardUseStruct use)
+            if (data is Player target)
             {
-                Player target = use.To[0];
                 if (ai.IsEnemy(target))
                 {
-                    if (!ai.IsCardEffect(use.Card, target, player)) return true;
-                    Player wizzard = ai.GetWizzardRaceWinner(Name, target);
-                    if (wizzard != null && ai.IsFriend(wizzard) && ai.CanRetrial(wizzard, Name, target))
-                    {
-                        DamageStruct damage = new DamageStruct(Name, null, target, 3, DamageStruct.DamageNature.Thunder);
-                        if (ai.GetDamageScore(damage).Score > 8) return true;
-                    }
+                    DamageStruct damage = new DamageStruct(Name, null, target, 3, DamageStruct.DamageNature.Thunder);
+                    if (ai.GetDamageScore(damage).Score > 0) return true;
                 }
             }
 

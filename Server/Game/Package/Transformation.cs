@@ -651,8 +651,10 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.Alive && player.HasFlag(Name))
-                player.SetFlags("-wanwei");
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasFlag(Name))
+                        p.SetFlags("-wanwei");
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -686,10 +688,12 @@ namespace SanguoshaServer.Package
             if (data is CardsMoveOneTimeStruct move)
             {
                 string card_name = room.GetCard(move.Card_ids[0]).Name;
+                bool slash = false;
+                if (card_name.Contains(Slash.ClassName)) slash = true;
                 int get = -1;
                 foreach (int id in room.DrawPile)
                 {
-                    if (room.GetCard(id).Name == card_name)
+                    if (room.GetCard(id).Name == card_name || (slash && room.GetCard(id).Name.Contains(Slash.ClassName)))
                     {
                         get = id;
                         break;

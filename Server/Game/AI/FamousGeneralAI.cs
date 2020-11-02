@@ -8264,7 +8264,7 @@ namespace SanguoshaServer.AI
             }
             return null;
         }
-
+        /*
         public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
         {
             Room room = ai.Room;
@@ -8283,6 +8283,30 @@ namespace SanguoshaServer.AI
 
             return new List<int> { ids[0] };
         }
+        */
+
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            Room room = ai.Room;
+            Player target = room.Current;
+            List<double> values = ai.SortByKeepValue(ref ids, false);
+            if (values[0] < 0)
+            {
+                int id = ids[0];
+                if (ai.IsEnemy(target) && room.GetCardPlace(id) == Place.PlaceEquip && player.GetEquips().Count == 1)
+                    return new List<int>();
+
+                return new List<int> { ids[0] };
+            }
+
+            return new List<int>();
+        }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        {
+            if (damage.To != null && damage.To.GetMark("yanzhu_damage") > 0)
+                damage.Damage += damage.To.GetMark("yanzhu_damage");
+        }
     }
 
     public class YanzhuCardAI : UseCard
@@ -8298,18 +8322,22 @@ namespace SanguoshaServer.AI
                 if (ai.GetPlayerTendency(target) == "unknown")
                 {
                     bool friendly = false;
-                    foreach (int id in target.GetEquips())
+                    if (use.From.GetMark("yanzhu") == 0)
                     {
-                        if (ai.GetKeepValue(id, target, Place.PlaceEquip) < 0)
+                        foreach (int id in target.GetEquips())
                         {
-                            friendly = true;
-                            break;
+                            if (ai.GetKeepValue(id, target, Place.PlaceEquip) < 0)
+                            {
+                                friendly = true;
+                                break;
+                            }
                         }
                     }
                     ai.UpdatePlayerRelation(player, target, friendly);
                 }
             }
         }
+        /*
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
@@ -8360,7 +8388,64 @@ namespace SanguoshaServer.AI
                 }
             }
         }
+        */
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            List<Player> enemies = ai.GetEnemies(player);
+            ai.SortByDefense(ref enemies, false);
+            if (player.GetMark("yanzhu") == 0)
+            {
+                foreach (Player p in ai.FriendNoSelf)
+                {
+                    foreach (int id in p.GetEquips())
+                    {
+                        if (ai.GetKeepValue(id, p, Place.PlaceEquip) < 0)
+                        {
+                            use.Card = card;
+                            use.To.Add(p);
+                            return;
+                        }
+                    }
+                }
 
+                foreach (Player p in enemies)
+                {
+                    if (!p.HasEquip() && p.HandcardNum > 0)
+                    {
+                        use.Card = card;
+                        use.To.Add(p);
+                        return;
+                    }
+                }
+
+                foreach (Player p in enemies)
+                {
+                    if (p.IsNude()) continue;
+
+                    bool lose = false;
+                    foreach (int id in p.GetEquips())
+                    {
+                        if (ai.GetKeepValue(id, p, Place.PlaceEquip) < 0)
+                        {
+                            lose = true;
+                            break;
+                        }
+                    }
+
+                    if (!lose)
+                    {
+                        use.Card = card;
+                        use.To.Add(p);
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                use.Card = card;
+                use.To.Add(enemies[0]);
+            }
+        }
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 7;
@@ -8423,7 +8508,11 @@ namespace SanguoshaServer.AI
                 if (judges.Count > 0 && next.GetPile("incantation").Count > 0)
                     judges.RemoveAt(0);
 
-                int index = targets.Count - targets.IndexOf(player) - 1;
+                int adjust = 0;
+                for (int i = targets.IndexOf(player) + 1; i < targets.Count; i++)
+                    if (targets[i].HandcardNum + 1 <= targets[i].Hp) adjust++;
+
+                int index = targets.Count - adjust - targets.IndexOf(player) - 1;
                 if (index > judges.Count + 2)
                 {
                     return new List<int> { ids[0] };
