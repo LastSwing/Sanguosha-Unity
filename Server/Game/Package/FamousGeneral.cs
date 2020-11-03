@@ -6131,7 +6131,7 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.From == room.Current)
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player == room.Current && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (!(fcard is SkillCard))
@@ -6140,7 +6140,7 @@ namespace SanguoshaServer.Package
                     List<int> types = new List<int>();
                     if (player.ContainsTag("jingce-suit")) suits = (List<int>)player.GetTag("jingce-suit");
                     if (player.ContainsTag("jingce-type")) suits = (List<int>)player.GetTag("jingce-type");
-                    if (use.From.Phase == PlayerPhase.Play && use.Card.Suit != WrappedCard.CardSuit.NoSuit && use.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
+                    if (player.Phase == PlayerPhase.Play && use.Card.Suit != WrappedCard.CardSuit.NoSuit && use.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
                         && use.Card.Suit != WrappedCard.CardSuit.NoSuitRed && !suits.Contains((int)use.Card.Suit))
                     {
                         suits.Add((int)use.Card.Suit);
@@ -6156,12 +6156,12 @@ namespace SanguoshaServer.Package
                     if (!types.Contains(type))
                     {
                         types.Add(type);
-                        player.SetTag("jingce-type", suits);
+                        player.SetTag("jingce-type", types);
                         room.SetPlayerStringMark(player, "jingce-type", types.Count.ToString());
                     }
                 }
             }
-            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Who == room.Current && resp.Use)
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && player == room.Current && resp.Use && base.Triggerable(player, room))
             {
                 List<int> suits = new List<int>();
                 List<int> types = new List<int>();
@@ -6178,8 +6178,8 @@ namespace SanguoshaServer.Package
                 if (!types.Contains(type))
                 {
                     types.Add(type);
-                    player.SetTag("jingce-type", suits);
-                    room.SetPlayerStringMark(player, "jingce-type", types.ToString());
+                    player.SetTag("jingce-type", types);
+                    room.SetPlayerStringMark(player, "jingce-type", types.Count.ToString());
                 }
             }
             else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
