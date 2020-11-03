@@ -542,7 +542,7 @@ namespace SanguoshaServer.Package
             else if (reason == CardUseReason.CARD_USE_REASON_RESPONSE)
                 method = HandlingMethod.MethodResponse;
 
-            return Engine.GetPattern(room.GetRoomState().GetCurrentCardUsePattern()).GetPatternString() == Jink.ClassName && RoomLogic.IsProhibited(room, player, null, card) == null
+            return Engine.GetPattern(room.GetRoomState().GetCurrentCardUsePattern()).GetPatternString().StartsWith(ClassName) && RoomLogic.IsProhibited(room, player, null, card) == null
                 && !RoomLogic.IsCardLimited(room, player, card, method);
         }
     }
@@ -2099,7 +2099,8 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return pattern == Slash.ClassName && player.GetMark("Equips_nullified_to_Yourself") == 0;
+            pattern = Engine.GetPattern(pattern).GetPatternString();
+            return pattern.StartsWith(Slash.ClassName) && player.GetMark("Equips_nullified_to_Yourself") == 0;
         }
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {

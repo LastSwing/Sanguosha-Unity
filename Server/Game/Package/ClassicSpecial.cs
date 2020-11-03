@@ -9862,9 +9862,11 @@ namespace SanguoshaServer.Package
 
                     string pattern = room.GetRoomState().GetCurrentCardUsePattern();
                     pattern = Engine.GetPattern(pattern).GetPatternString();
-                    if (pattern == Slash.ClassName)
+                    if (pattern.StartsWith(Slash.ClassName))
+                    {
                         return card.Name == Jink.ClassName;
-                    else if (pattern == Jink.ClassName)
+                    }
+                    else if (pattern.StartsWith(Jink.ClassName))
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                         return fcard is Slash;
@@ -9884,13 +9886,20 @@ namespace SanguoshaServer.Package
         {
             if (player.GetMark(Name) == 0) return false;
             pattern = Engine.GetPattern(pattern).GetPatternString();
-            return pattern == Jink.ClassName || pattern == Slash.ClassName;
+            return pattern.StartsWith(Jink.ClassName) || pattern.StartsWith(Slash.ClassName);
         }
         public override WrappedCard ViewAs(Room room, WrappedCard originalCard, Player player)
         {
             FunctionCard fcard = Engine.GetFunctionCard(originalCard.Name);
+            string pattern = room.GetRoomState().GetCurrentCardUsePattern();
+            pattern = Engine.GetPattern(pattern).GetPatternString();
             if (fcard is Slash)
             {
+                WrappedCard view = new WrappedCard(Jink.ClassName);
+                view.AddSubCard(originalCard);
+                view = RoomLogic.ParseUseCard(room, view);
+                if (!Engine.MatchExpPattern(room, pattern, player, view)) return null;
+
                 WrappedCard jink = new WrappedCard(FanghunCard.ClassName)
                 {
                     UserString = Jink.ClassName
@@ -9900,6 +9909,11 @@ namespace SanguoshaServer.Package
             }
             else if (fcard is Jink)
             {
+                WrappedCard view = new WrappedCard(Slash.ClassName);
+                view.AddSubCard(originalCard);
+                view = RoomLogic.ParseUseCard(room, view);
+                if (!Engine.MatchExpPattern(room, pattern, player, view)) return null;
+
                 WrappedCard slash = new WrappedCard(FanghunCard.ClassName)
                 {
                     UserString = Slash.ClassName

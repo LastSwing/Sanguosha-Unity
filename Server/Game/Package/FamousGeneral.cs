@@ -1521,7 +1521,8 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return pattern == Slash.ClassName;
+            pattern = Engine.GetPattern(pattern).GetPatternString();
+            return pattern.StartsWith(Slash.ClassName);
         }
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
@@ -2404,7 +2405,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            if (player.IsNude() || pattern != Slash.ClassName || player.HasFlag(string.Format("jijiang_{0}", room.GetRoomState().GetCurrentResponseID())))
+            if (player.IsNude() || !pattern.StartsWith(Slash.ClassName) || player.HasFlag(string.Format("jijiang_{0}", room.GetRoomState().GetCurrentResponseID())))
                 return false;
 
             foreach (Player p in room.GetOtherPlayers(player))
@@ -5170,12 +5171,17 @@ namespace SanguoshaServer.Package
         {
             if (cards.Count == 1 && cards[0].IsVirtualCard())
             {
-                WrappedCard hm = new WrappedCard(HuomoCard.ClassName)
+                string pattern = room.GetRoomState().GetCurrentCardUsePattern();
+                pattern = Engine.GetPattern(pattern).GetPatternString();
+                if (Engine.MatchExpPattern(room, pattern, player, cards[0]))
                 {
-                    UserString = cards[0].Name
-                };
-                hm.AddSubCard(cards[0]);
-                return hm;
+                    WrappedCard hm = new WrappedCard(HuomoCard.ClassName)
+                    {
+                        UserString = cards[0].Name
+                    };
+                    hm.AddSubCard(cards[0]);
+                    return hm;
+                }
             }
 
             return null;
@@ -6456,7 +6462,7 @@ namespace SanguoshaServer.Package
                         else if (WrappedCard.IsBlack(use.Card.Suit))
                             pattern += "^black";
                         else
-                            pattern += "red#black";
+                            pattern = string.Empty;
 
                         for (int i = 0; i < use.EffectCount.Count; i++)
                         {

@@ -124,7 +124,7 @@ namespace SanguoshaServer.Package
 
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            if (pattern != Slash.ClassName || player.HasFlag(string.Format("jijiang_{0}", room.GetRoomState().GetCurrentResponseID())))
+            if (!pattern.StartsWith(Slash.ClassName) || player.HasFlag(string.Format("jijiang_{0}", room.GetRoomState().GetCurrentResponseID())))
                 return false;
 
             foreach (Player p in room.GetOtherPlayers(player))
@@ -275,7 +275,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return Engine.GetPattern(pattern).GetPatternString() == Slash.ClassName;
+            return Engine.GetPattern(pattern).GetPatternString().StartsWith(Slash.ClassName);
         }
         public override bool ViewFilter(Room room, WrappedCard card, Player player)
         {
@@ -768,9 +768,9 @@ namespace SanguoshaServer.Package
                 case CardUseReason.CARD_USE_REASON_RESPONSE_USE:
                     string pattern = room.GetRoomState().GetCurrentCardUsePattern();
                     pattern = Engine.GetPattern(pattern).GetPatternString();
-                    if (pattern == Slash.ClassName)
+                    if (pattern.StartsWith(Slash.ClassName))
                         return card.Name == Jink.ClassName;
-                    else if (pattern == Jink.ClassName)
+                    else if (pattern.StartsWith(Jink.ClassName))
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                         return fcard is Slash;
@@ -804,7 +804,7 @@ namespace SanguoshaServer.Package
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
             pattern = Engine.GetPattern(pattern).GetPatternString();
-            return pattern == Jink.ClassName || pattern == Slash.ClassName;
+            return pattern.StartsWith(Jink.ClassName) || pattern.StartsWith(Slash.ClassName) || pattern == Peach.ClassName || pattern == "Peach,Analeptic";
         }
         public override WrappedCard ViewAs(Room room, WrappedCard originalCard, Player player)
         {
@@ -1539,7 +1539,7 @@ namespace SanguoshaServer.Package
         public override bool IsEnabledAtPlay(Room room, Player player) => false;
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            if (pattern != Jink.ClassName || player.HasFlag(string.Format("hujia_{0}", room.GetRoomState().GetCurrentResponseID())))
+            if (!pattern.StartsWith(Jink.ClassName) || player.HasFlag(string.Format("hujia_{0}", room.GetRoomState().GetCurrentResponseID())))
                 return false;
 
             foreach (Player p in room.GetOtherPlayers(player))

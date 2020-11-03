@@ -1319,6 +1319,7 @@ namespace SanguoshaServer.Package
         {
             WrappedCard slash = new WrappedCard("HongfaCard");
             slash.AddSubCard(card);
+            slash = RoomLogic.ParseUseCard(room, slash);
             return slash;
         }
     }

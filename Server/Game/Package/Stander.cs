@@ -791,10 +791,20 @@ namespace SanguoshaServer.Package
         public Qingguo() : base("qingguo")
         {
             filter_pattern = ".|black|.|hand";
-            response_pattern = Jink.ClassName;
             response_or_use = true;
             skill_type = SkillType.Defense;
         }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return false;
+        }
+
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
+        {
+            return pattern.StartsWith(Jink.ClassName);
+        }
+
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
             WrappedCard jink = new WrappedCard(Jink.ClassName)
@@ -1859,7 +1869,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
-            return Engine.GetPattern(pattern).GetPatternString() == Slash.ClassName;
+            return Engine.GetPattern(pattern).GetPatternString().StartsWith(Slash.ClassName);
         }
         public override bool ViewFilter(Room room, WrappedCard card, Player player)
         {
@@ -2185,9 +2195,9 @@ namespace SanguoshaServer.Package
                 case CardUseReason.CARD_USE_REASON_RESPONSE_USE:
                     string pattern = room.GetRoomState().GetCurrentCardUsePattern();
                     pattern = Engine.GetPattern(pattern).GetPatternString();
-                    if (pattern == Slash.ClassName)
+                    if (pattern.StartsWith(Slash.ClassName))
                         return card.Name == Jink.ClassName;
-                    else if (pattern == Jink.ClassName)
+                    else if (pattern.StartsWith(Jink.ClassName))
                     {
                         FunctionCard fcard = Engine.GetFunctionCard(card.Name);
                         return fcard is Slash;
@@ -2206,7 +2216,7 @@ namespace SanguoshaServer.Package
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
             pattern = Engine.GetPattern(pattern).GetPatternString();
-            return pattern == Jink.ClassName || pattern == Slash.ClassName;
+            return pattern.StartsWith(Jink.ClassName) || pattern.StartsWith(Slash.ClassName);
         }
         public override WrappedCard ViewAs(Room room, WrappedCard originalCard, Player player)
         {
