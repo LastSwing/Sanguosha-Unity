@@ -12206,9 +12206,11 @@ namespace SanguoshaServer.Package
         {
             List<Player> targets = (List<Player>)room.GetTag(Name);
             foreach (Player p in targets)
-            {
                 if (p.Alive)
                     room.DrawCards(p, new DrawCardStruct(1, player, Name));
+
+            foreach (Player p in targets)
+            {
                 if (p.Alive && !p.IsNude() && p.HandcardNum > p.Hp)
                 {
                     List<int> ids = p.GetCards("he");

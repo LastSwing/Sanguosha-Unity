@@ -8510,7 +8510,7 @@ namespace SanguoshaServer.AI
 
                 int adjust = 0;
                 for (int i = targets.IndexOf(player) + 1; i < targets.Count; i++)
-                    if (targets[i].HandcardNum + 1 <= targets[i].Hp) adjust++;
+                    if (targets[i].HandcardNum <= targets[i].Hp) adjust++;
 
                 int index = targets.Count - adjust - targets.IndexOf(player) - 1;
                 if (index > judges.Count + 2)

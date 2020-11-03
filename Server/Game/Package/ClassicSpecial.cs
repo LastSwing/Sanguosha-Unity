@@ -9528,6 +9528,24 @@ namespace SanguoshaServer.Package
             return new TriggerStruct();
         }
 
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = null;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.GetMark(Name) > 0)
+                {
+                    target = p;
+                    target.SetMark(Name, 0);
+                    break;
+                }
+            }
+            if (room.AskForSkillInvoke(player, Name, target, info.SkillPosition))
+                return info;
+
+            return new TriggerStruct();
+        }
+
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.RemovePlayerMark(player, limit_mark);
@@ -9722,10 +9740,10 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is CardUseStruct use)
+            if (data is CardUseStruct use && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is TrickCard && use.To.Count > 0) return new TriggerStruct(Name, player);
+                if (fcard is TrickCard && use.To.Count > 1) return new TriggerStruct(Name, player);
             }
 
             return new TriggerStruct();
