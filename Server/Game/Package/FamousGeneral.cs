@@ -6139,7 +6139,7 @@ namespace SanguoshaServer.Package
                     List<int> suits = new List<int>();
                     List<int> types = new List<int>();
                     if (player.ContainsTag("jingce-suit")) suits = (List<int>)player.GetTag("jingce-suit");
-                    if (player.ContainsTag("jingce-type")) suits = (List<int>)player.GetTag("jingce-type");
+                    if (player.ContainsTag("jingce-type")) types = (List<int>)player.GetTag("jingce-type");
                     if (player.Phase == PlayerPhase.Play && use.Card.Suit != WrappedCard.CardSuit.NoSuit && use.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
                         && use.Card.Suit != WrappedCard.CardSuit.NoSuitRed && !suits.Contains((int)use.Card.Suit))
                     {
@@ -6166,7 +6166,7 @@ namespace SanguoshaServer.Package
                 List<int> suits = new List<int>();
                 List<int> types = new List<int>();
                 if (player.ContainsTag("jingce-suit")) suits = (List<int>)player.GetTag("jingce-suit");
-                if (player.ContainsTag("jingce-type")) suits = (List<int>)player.GetTag("jingce-type");
+                if (player.ContainsTag("jingce-type")) types = (List<int>)player.GetTag("jingce-type");
                 if (resp.Who.Phase == PlayerPhase.Play && resp.Card.Suit != WrappedCard.CardSuit.NoSuit && resp.Card.Suit != WrappedCard.CardSuit.NoSuitBlack
                     && resp.Card.Suit != WrappedCard.CardSuit.NoSuitRed && !suits.Contains((int)resp.Card.Suit))
                 {
