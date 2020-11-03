@@ -6456,7 +6456,7 @@ namespace SanguoshaServer.Package
                         else if (WrappedCard.IsBlack(use.Card.Suit))
                             pattern += "^black";
                         else
-                            pattern += "^red#^black";
+                            pattern += "red#black";
 
                         for (int i = 0; i < use.EffectCount.Count; i++)
                         {
