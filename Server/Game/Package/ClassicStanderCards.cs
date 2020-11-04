@@ -538,7 +538,7 @@ namespace SanguoshaServer.Package
 
     public class QuenchedKnifeTM : TargetModSkill
     {
-        public QuenchedKnifeTM() : base("#QuenchedKnife-tm")
+        public QuenchedKnifeTM() : base("#QuenchedKnife-tm", false)
         {
         }
         public override int GetResidueNum(Room room, Player from, WrappedCard card)

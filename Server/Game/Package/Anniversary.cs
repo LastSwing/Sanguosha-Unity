@@ -2308,13 +2308,12 @@ namespace SanguoshaServer.Package
             if (targets.Count > 0 || to_select == Self)
                 return false;
             WrappedCard equip_card = room.GetCard(card.SubCards[0]);
-            FunctionCard fcard = Engine.GetFunctionCard(equip_card.Name);
             return RoomLogic.CanPutEquip(to_select, equip_card);
         }
 
         private List<string> weapons = new List<string>
         {
-            Lance.ClassName, QuenchedKnife.ClassName, PosionedDagger.ClassName, WaterSword.ClassName,
+            Lance.ClassName, QuenchedKnife.ClassName, PosionedDagger.ClassName, WaterSword.ClassName, LightningSummoner.ClassName
         };
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -2329,11 +2328,10 @@ namespace SanguoshaServer.Package
             int equipped_id = player.GetEquip(equip_index);
             List<CardsMoveStruct> exchangeMove = new List<CardsMoveStruct>();
             bool draw = false;
+            if (weapons.Contains(room.GetCard(id).Name)) draw = true;
             if (equipped_id != -1)
             {
-                if (weapons.Contains(room.GetCard(equipped_id).Name)) draw = true;
-
-                    CardsMoveStruct move1 = new CardsMoveStruct(equipped_id, player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
+                CardsMoveStruct move1 = new CardsMoveStruct(equipped_id, player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
                 exchangeMove.Add(move1);
                 room.MoveCardsAtomic(exchangeMove, true);
             }
@@ -2342,17 +2340,14 @@ namespace SanguoshaServer.Package
             exchangeMove.Add(move2);
             room.MoveCardsAtomic(exchangeMove, true);
 
-            if (equipped_id != -1)
+            if (equipped_id != -1 && room.GetCardPlace(equipped_id) == Place.PlaceTable)
             {
-                if (room.GetCardPlace(equipped_id) == Place.PlaceTable)
-                {
-                    CardsMoveStruct move3 = new CardsMoveStruct(equipped_id, null, Place.DiscardPile, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
-                    room.MoveCardsAtomic(new List<CardsMoveStruct> { move3 }, true);
-                }
+                CardsMoveStruct move3 = new CardsMoveStruct(equipped_id, null, Place.DiscardPile, new CardMoveReason(MoveReason.S_REASON_CHANGE_EQUIP, player.Name));
+                room.MoveCardsAtomic(new List<CardsMoveStruct> { move3 }, true);
             }
 
-            if (draw && player.Alive)
-                room.DrawCards(player, 2, "tianjiang");
+            if (draw && card_use.From.Alive)
+                room.DrawCards(card_use.From, 2, "tianjiang");
         }
     }
 
