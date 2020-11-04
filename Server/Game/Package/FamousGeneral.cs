@@ -6454,8 +6454,7 @@ namespace SanguoshaServer.Package
                             Arg = "1"
                         };
                         room.SendLog(log);
-
-                        int index = 0;
+                        /*
                         string pattern = use.Card.Name.Contains(Slash.ClassName) ? "Jink|" : "Slash|";
                         if (WrappedCard.IsRed(use.Card.Suit))
                             pattern += "^red";
@@ -6464,6 +6463,7 @@ namespace SanguoshaServer.Package
                         else
                             pattern = string.Empty;
 
+                        int index = 0;
                         for (int i = 0; i < use.EffectCount.Count; i++)
                         {
                             CardBasicEffect effect = use.EffectCount[i];
@@ -6474,6 +6474,37 @@ namespace SanguoshaServer.Package
                                 {
                                     effect.Effect1++;
                                     effect.RespondPattern = pattern;
+                                    data = use;
+                                    break;
+                                }
+                            }
+                        }
+                        */
+
+                        bool no_respond = false;
+                        JudgeStruct judge = new JudgeStruct
+                        {
+                            Reason = Name,
+                            Who = ask_who,
+                            PlayAnimation = true,
+                            Negative = false,
+                            Pattern = ".|red",
+                            Good = true,
+                        };
+                        room.Judge(ref judge);
+                        if (judge.IsEffected()) no_respond = true;
+
+                        int index = 0;
+                        for (int i = 0; i < use.EffectCount.Count; i++)
+                        {
+                            CardBasicEffect effect = use.EffectCount[i];
+                            if (effect.To == target)
+                            {
+                                index++;
+                                if (index == info.Times)
+                                {
+                                    effect.Effect1++;
+                                    if (no_respond) effect.Effect2 = 0;
                                     data = use;
                                     break;
                                 }
