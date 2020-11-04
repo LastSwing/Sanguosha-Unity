@@ -3283,32 +3283,46 @@ namespace SanguoshaServer.Package
     {
         public Tuogu() : base("tuogu")
         {
-            events.Add(TriggerEvent.Death);
+            events = new List<TriggerEvent> { TriggerEvent.Death, TriggerEvent.EventLoseSkill };
             //frequency = Frequency.Limited;
             //limit_mark = "@tuogu";
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct _info && _info.Info == Name
+                && player.ContainsTag(Name) && player.GetTag(Name) is string a_skill)
+            {
+                player.RemoveTag(Name);
+                room.RemovePlayerStringMark(player, Name);
+                room.HandleAcquireDetachSkills(player, "-" + a_skill, true);
+            }
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            List<string> skills = Engine.GetGeneralSkills(player.General1, room.Setting.GameMode);
-            skills.Remove("huashen");
-            skills.Remove("xinsheng");
-            List<string> checks = new List<string>(skills);
-            foreach (string skill in checks)
+            if (triggerEvent == TriggerEvent.Death)
             {
-                Skill _skill = Engine.GetSkill(skill);
-                if (_skill.LordSkill || _skill.SkillFrequency == Frequency.Limited || _skill.SkillFrequency == Frequency.Wake)
-                    skills.Remove(skill);
-            }
-
-            if (skills.Count > 0)
-            {
-                List<Player> css = RoomLogic.FindPlayersBySkillName(room, Name);
-                foreach (Player p in css)
+                List<string> skills = Engine.GetGeneralSkills(player.General1, room.Setting.GameMode);
+                skills.Remove("huashen");
+                skills.Remove("xinsheng");
+                List<string> checks = new List<string>(skills);
+                foreach (string skill in checks)
                 {
-                    //if (p != player && p.GetMark(limit_mark) > 0)
-                    if (p != player) triggers.Add(new TriggerStruct(Name, p));
+                    Skill _skill = Engine.GetSkill(skill);
+                    if (_skill.LordSkill || _skill.SkillFrequency == Frequency.Limited || _skill.SkillFrequency == Frequency.Wake)
+                        skills.Remove(skill);
+                }
+
+                if (skills.Count > 0)
+                {
+                    List<Player> css = RoomLogic.FindPlayersBySkillName(room, Name);
+                    foreach (Player p in css)
+                    {
+                        //if (p != player && p.GetMark(limit_mark) > 0)
+                        if (p != player) triggers.Add(new TriggerStruct(Name, p));
+                    }
                 }
             }
 

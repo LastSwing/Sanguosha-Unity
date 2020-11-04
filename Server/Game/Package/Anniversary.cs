@@ -3803,17 +3803,30 @@ namespace SanguoshaServer.Package
             if (choices.Count > 0)
             {
                 string choice = room.AskForChoice(player, "mouzhu", string.Join("+", choices), null, true);
+                List<Player> targets = new List<Player>();
                 if (choice == "hp")
                 {
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (player.Alive && p.Alive && p.Hp == player.Hp && !p.IsKongcheng())
-                            Do(room, p, player);
+                        if (p.Hp == player.Hp && !p.IsKongcheng())
+                            targets.Add(p);
                 }
                 else
                 {
                     foreach (Player p in room.GetOtherPlayers(player))
-                        if (player.Alive && p.Alive && RoomLogic.DistanceTo(room, player, p) == 1 && !p.IsKongcheng())
+                        if (RoomLogic.DistanceTo(room, player, p) == 1 && !p.IsKongcheng())
+                            targets.Add(p);
+                }
+
+                if (targets.Count > 0)
+                {
+                    foreach (Player p in targets)
+                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, p.Name);
+
+                    foreach (Player p in targets)
+                    {
+                        if (p.Alive && player.Alive && !p.IsKongcheng())
                             Do(room, p, player);
+                    }
                 }
             }
         }
