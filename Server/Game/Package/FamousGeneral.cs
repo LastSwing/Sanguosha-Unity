@@ -6443,71 +6443,70 @@ namespace SanguoshaServer.Package
                         if (target.Alive && ask_who.GetWeapon() && RoomLogic.CanDiscard(room, target, ask_who, ask_who.Weapon.Key))
                             room.ThrowCard(ask_who.Weapon.Key, ask_who, target);
                     }
-
-                    if (!discard)
+                }
+                if (!discard)
+                {
+                    LogMessage log = new LogMessage
                     {
-                        LogMessage log = new LogMessage
-                        {
-                            Type = "#add_damage",
-                            From = target.Name,
-                            To = new List<string> { target.Name },
-                            Arg = "1"
-                        };
-                        room.SendLog(log);
-                        /*
-                        string pattern = use.Card.Name.Contains(Slash.ClassName) ? "Jink|" : "Slash|";
-                        if (WrappedCard.IsRed(use.Card.Suit))
-                            pattern += "^red";
-                        else if (WrappedCard.IsBlack(use.Card.Suit))
-                            pattern += "^black";
-                        else
-                            pattern = string.Empty;
+                        Type = "#add_damage",
+                        From = ask_who.Name,
+                        To = new List<string> { target.Name },
+                        Arg = "1"
+                    };
+                    room.SendLog(log);
+                    /*
+                    string pattern = use.Card.Name.Contains(Slash.ClassName) ? "Jink|" : "Slash|";
+                    if (WrappedCard.IsRed(use.Card.Suit))
+                        pattern += "^red";
+                    else if (WrappedCard.IsBlack(use.Card.Suit))
+                        pattern += "^black";
+                    else
+                        pattern = string.Empty;
 
-                        int index = 0;
-                        for (int i = 0; i < use.EffectCount.Count; i++)
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
                         {
-                            CardBasicEffect effect = use.EffectCount[i];
-                            if (effect.To == target)
+                            index++;
+                            if (index == info.Times)
                             {
-                                index++;
-                                if (index == info.Times)
-                                {
-                                    effect.Effect1++;
-                                    effect.RespondPattern = pattern;
-                                    data = use;
-                                    break;
-                                }
+                                effect.Effect1++;
+                                effect.RespondPattern = pattern;
+                                data = use;
+                                break;
                             }
                         }
-                        */
+                    }
+                    */
 
-                        bool no_respond = false;
-                        JudgeStruct judge = new JudgeStruct
-                        {
-                            Reason = Name,
-                            Who = ask_who,
-                            PlayAnimation = true,
-                            Negative = false,
-                            Pattern = ".|red",
-                            Good = true,
-                        };
-                        room.Judge(ref judge);
-                        if (judge.IsEffected()) no_respond = true;
+                    bool no_respond = false;
+                    JudgeStruct judge = new JudgeStruct
+                    {
+                        Reason = Name,
+                        Who = ask_who,
+                        PlayAnimation = true,
+                        Negative = false,
+                        Pattern = ".|red",
+                        Good = true,
+                    };
+                    room.Judge(ref judge);
+                    if (judge.IsEffected()) no_respond = true;
 
-                        int index = 0;
-                        for (int i = 0; i < use.EffectCount.Count; i++)
+                    int index = 0;
+                    for (int i = 0; i < use.EffectCount.Count; i++)
+                    {
+                        CardBasicEffect effect = use.EffectCount[i];
+                        if (effect.To == target)
                         {
-                            CardBasicEffect effect = use.EffectCount[i];
-                            if (effect.To == target)
+                            index++;
+                            if (index == info.Times)
                             {
-                                index++;
-                                if (index == info.Times)
-                                {
-                                    effect.Effect1++;
-                                    if (no_respond) effect.Effect2 = 0;
-                                    data = use;
-                                    break;
-                                }
+                                effect.Effect1++;
+                                if (no_respond) effect.Effect2 = 0;
+                                data = use;
+                                break;
                             }
                         }
                     }

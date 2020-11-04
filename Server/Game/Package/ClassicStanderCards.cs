@@ -293,7 +293,7 @@ namespace SanguoshaServer.Package
             {
                 Good = true,
                 //Pattern = ".|red",
-                PlayAnimation = true,
+                PlayAnimation = false,
                 Reason = Name,
                 Who = player,
                 Negative = false
