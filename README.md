@@ -11,3 +11,5 @@
 4、网络传输使用SuperSocket和MsgPack，Json使用Newtonsoft  
   
 Client DEMO video：https://www.bilibili.com/video/av58008252/
+
+Client download link: https://pan.baidu.com/s/1uxK5_sIDTQVOg-BXPCX9_g 提取码:kc3b
