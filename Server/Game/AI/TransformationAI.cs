@@ -322,7 +322,7 @@ namespace SanguoshaServer.AI
     public class WanweiAI : SkillEvent
     {
         public WanweiAI() : base("wanwei") { }
-
+        /*
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             CardUseStruct use = new CardUseStruct
@@ -401,6 +401,8 @@ namespace SanguoshaServer.AI
 
             return use;
         }
+        */
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
     }
 
     public class ZhimanAI : SkillEvent
