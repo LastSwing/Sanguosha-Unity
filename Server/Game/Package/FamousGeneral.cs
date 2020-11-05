@@ -11405,8 +11405,6 @@ namespace SanguoshaServer.Package
                 if (reason.From != null && reason.From.Alive && !reason.Transfer && !reason.Chain && reason.From.ContainsTag("anjian")
                     && reason.From.GetTag("anjian") is List<string> targets && targets.Contains(from.Name))
                     return true;
-
-                return true;
             }
 
             return false;
