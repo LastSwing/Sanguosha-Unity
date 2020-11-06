@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Policy;
 using CommonClass;
 using CommonClass.Game;
 using SanguoshaServer.Game;
@@ -1264,11 +1265,9 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             if (data is Player target)
-            {
                 return !ai.IsFriend(target);
-            }
 
-            return false;
+            return true;
         }
     }
 

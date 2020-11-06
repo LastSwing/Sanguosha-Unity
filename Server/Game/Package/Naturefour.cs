@@ -4407,7 +4407,7 @@ namespace SanguoshaServer.Package
     {
         public Hanzhan() : base("hanzhan")
         {
-            events.Add(TriggerEvent.PindianCard);
+            events = new List<TriggerEvent> { TriggerEvent.PindianCard, TriggerEvent.Pindian };
         }
 
         public override int GetPriority() => 4;
@@ -4415,30 +4415,48 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (data is PindianInfo info)
-            {
-                if (base.Triggerable(info.From, room))
+            if (triggerEvent == TriggerEvent.PindianCard && data is PindianInfo info)
                 {
-                    List<Player> targets = new List<Player>();
-                    foreach (Player p in info.Cards.Keys)
-                        if (p != info.From && info.Cards[p] == null && !p.IsKongcheng())
-                            targets.Add(p);
-
-                    if (targets.Count > 0)
-                        triggers.Add(new TriggerStruct(Name, info.From, targets));
-                }
-
-                if (info.Cards[info.From] == null && !info.From.IsKongcheng())
-                {
-                    foreach (Player p in info.Cards.Keys)
+                    if (base.Triggerable(info.From, room))
                     {
-                        if (p == info.From) continue;
-                        if (base.Triggerable(p, room))
+                        List<Player> targets = new List<Player>();
+                        foreach (Player p in info.Cards.Keys)
+                            if (p != info.From && info.Cards[p] == null && !p.IsKongcheng())
+                                targets.Add(p);
+
+                        if (targets.Count > 0)
+                            triggers.Add(new TriggerStruct(Name, info.From, targets));
+                    }
+
+                    if (info.Cards[info.From] == null && !info.From.IsKongcheng())
+                    {
+                        foreach (Player p in info.Cards.Keys)
                         {
-                            List<Player> targets = new List<Player>();
-                            targets.Add(info.From);
-                            triggers.Add(new TriggerStruct(Name, p, targets));
+                            if (p == info.From) continue;
+                            if (base.Triggerable(p, room))
+                            {
+                                List<Player> targets = new List<Player>();
+                                targets.Add(info.From);
+                                triggers.Add(new TriggerStruct(Name, p, targets));
+                            }
                         }
+                    }
+                else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd)
+                {
+                    int index = pd.Index;
+                    if (base.Triggerable(pd.From, room))
+                    {
+                        if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                            triggers.Add(new TriggerStruct(Name, player));
+                        else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                            triggers.Add(new TriggerStruct(Name, player));
+                    }
+                    else if (base.Triggerable(pd.Tos[index], room))
+                    {
+                        if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                            triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
+                        else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                            triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
                     }
                 }
             }
@@ -4448,13 +4466,27 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is PindianInfo pindian && pindian.Cards[player] == null && !player.IsKongcheng())
+            if (triggerEvent == TriggerEvent.PindianCard && data is PindianInfo pindian && pindian.Cards[player] == null && !player.IsKongcheng())
             {
                 player.SetFlags(Name);
                 bool invoke = room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition);
                 player.SetFlags("-hanzhan");
                 if (invoke)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
                     return info;
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Pindian)
+            {
+                if (room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
+                {
+                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
+                    return info;
+                }
             }
 
             return new TriggerStruct();
@@ -4462,13 +4494,41 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is PindianInfo pindian)
+            if (triggerEvent == TriggerEvent.PindianCard && data is PindianInfo pindian)
             {
                 List<int> hands = player.GetCards("h");
                 Shuffle.shuffle(ref hands);
                 int id = hands[0];
                 pindian.Cards[player] = room.GetCard(id);
                 data = pindian;
+            }
+            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd)
+            {
+                int index = pd.To_numbers.Count - 1;
+                List<int> ids = new List<int>();
+                if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                    ids.Add(pd.From_card.Id);
+                if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                    ids.Add(pd.To_cards[index].Id);
+
+                if (ids.Count > 1)
+                {
+                    int from = pd.From_card.Number;
+                    int to = pd.To_cards[index].Number;
+                    if (from == to)
+                    {
+                        room.FillAG(Name, ids, ask_who, null, null, "@hanzhan");
+                        int id = room.AskForAG(ask_who, ids, false, Name);
+                        room.ClearAG(ask_who);
+                        ids = new List<int> { id };
+                    }
+                    else if (from > to)
+                        ids.RemoveAt(1);
+                    else
+                        ids.RemoveAt(0);
+                }
+                if (ids.Count == 1)
+                    room.ObtainCard(ask_who, ref ids, new CardMoveReason(MoveReason.S_REASON_GOTBACK, ask_who.Name, Name, string.Empty));
             }
 
             return false;
