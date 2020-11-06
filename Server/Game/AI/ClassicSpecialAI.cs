@@ -4176,17 +4176,8 @@ namespace SanguoshaServer.AI
             {
                 Room room = ai.Room;
                 List<int> ids = new List<int>();
-                foreach (int id in target.GetEquips())
-                    if (RoomLogic.CanDiscard(room, player, target, id)) ids.Add(id);
-
-                if (ai.IsFriend(target))
-                {
-                    foreach (int id in ids)
-                        if (ai.GetKeepValue(id, target, Place.PlaceEquip) < 0) return true;
-                }
-                else
-                    foreach (int id in ids)
-                        if (ai.GetKeepValue(id, target, Place.PlaceEquip) >= 0) return true;
+                ScoreStruct score = ai.FindCards2Discard(player, target, Name, "hej", HandlingMethod.MethodDiscard);
+                if (score.Score > 0) return true;
             }
 
             return false;

@@ -4519,19 +4519,12 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player panfeng, ref object data, Player ask_who)
         {
-            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null && WrappedCard.IsBlack(damage.Card.Suit))
+            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null)
             {
                 Player target = damage.To;
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
-                if (fcard is Slash && target.HasEquip() && !target.HasFlag("Global_DFDebut"))
-                {
-                    for (int i = 0; i < 5; i++)
-                    {
-                        if (target.GetEquip(i) < 0) continue;
-                        if (RoomLogic.CanDiscard(room, panfeng, target, target.GetEquip(i)))
-                            return new TriggerStruct(Name, panfeng);
-                    }
-                }
+                if (fcard is Slash && RoomLogic.CanDiscard(room, panfeng, target, "hej") && !target.HasFlag("Global_DFDebut"))
+                    return new TriggerStruct(Name, panfeng);
             }
             return new TriggerStruct();
         }
@@ -4550,7 +4543,7 @@ namespace SanguoshaServer.Package
             DamageStruct damage = (DamageStruct)data;
             Player target = damage.To;
 
-            int card_id = room.AskForCardChosen(panfeng, target, "e", Name, false, HandlingMethod.MethodDiscard);
+            int card_id = room.AskForCardChosen(panfeng, target, "hej", Name, false, HandlingMethod.MethodDiscard);
             List<int> ids = new List<int> { card_id };
             room.ThrowCard(ref ids, target, panfeng);
             if (ids.Count == 1)
@@ -4608,7 +4601,7 @@ namespace SanguoshaServer.Package
         public override int GetCorrect(Room room, Player from, Player to, WrappedCard card = null)
         {
             int count = 0;
-            if (RoomLogic.PlayerHasShownSkill(room, from, this) && from.Hp > 2)
+            if (RoomLogic.PlayerHasShownSkill(room, from, this))
                 count--;
 
             if (RoomLogic.PlayerHasShownSkill(room, to, this) && to.Hp <= 2)
