@@ -4408,56 +4408,59 @@ namespace SanguoshaServer.Package
         public Hanzhan() : base("hanzhan")
         {
             events = new List<TriggerEvent> { TriggerEvent.PindianCard, TriggerEvent.Pindian };
+            priority = new Dictionary<TriggerEvent, double>
+            {
+                { TriggerEvent.PindianCard, 4 },
+                { TriggerEvent.Pindian, 3 },
+            };
         }
-
-        public override int GetPriority() => 4;
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
             if (triggerEvent == TriggerEvent.PindianCard && data is PindianInfo info)
+            {
+                if (base.Triggerable(info.From, room))
                 {
-                    if (base.Triggerable(info.From, room))
-                    {
-                        List<Player> targets = new List<Player>();
-                        foreach (Player p in info.Cards.Keys)
-                            if (p != info.From && info.Cards[p] == null && !p.IsKongcheng())
-                                targets.Add(p);
+                    List<Player> targets = new List<Player>();
+                    foreach (Player p in info.Cards.Keys)
+                        if (p != info.From && info.Cards[p] == null && !p.IsKongcheng())
+                            targets.Add(p);
 
-                        if (targets.Count > 0)
-                            triggers.Add(new TriggerStruct(Name, info.From, targets));
-                    }
+                    if (targets.Count > 0)
+                        triggers.Add(new TriggerStruct(Name, info.From, targets));
+                }
 
-                    if (info.Cards[info.From] == null && !info.From.IsKongcheng())
+                if (info.Cards[info.From] == null && !info.From.IsKongcheng())
+                {
+                    foreach (Player p in info.Cards.Keys)
                     {
-                        foreach (Player p in info.Cards.Keys)
+                        if (p == info.From) continue;
+                        if (base.Triggerable(p, room))
                         {
-                            if (p == info.From) continue;
-                            if (base.Triggerable(p, room))
-                            {
-                                List<Player> targets = new List<Player>();
-                                targets.Add(info.From);
-                                triggers.Add(new TriggerStruct(Name, p, targets));
-                            }
+                            List<Player> targets = new List<Player>();
+                            targets.Add(info.From);
+                            triggers.Add(new TriggerStruct(Name, p, targets));
                         }
                     }
-                else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd)
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd)
+            {
+                int index = pd.Index;
+                if (base.Triggerable(pd.From, room))
                 {
-                    int index = pd.Index;
-                    if (base.Triggerable(pd.From, room))
-                    {
-                        if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
-                            triggers.Add(new TriggerStruct(Name, player));
-                        else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
-                            triggers.Add(new TriggerStruct(Name, player));
-                    }
-                    else if (base.Triggerable(pd.Tos[index], room))
-                    {
-                        if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
-                            triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
-                        else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
-                            triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
-                    }
+                    if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                        triggers.Add(new TriggerStruct(Name, player));
+                    else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                        triggers.Add(new TriggerStruct(Name, player));
+                }
+                else if (base.Triggerable(pd.Tos[index], room))
+                {
+                    if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                        triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
+                    else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                        triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
                 }
             }
 

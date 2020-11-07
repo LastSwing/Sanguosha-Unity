@@ -1255,9 +1255,13 @@ namespace SanguoshaServer.AI
                             break;
                         }
                     }
-                    bool friendly = strs[2] == "no";
-                    if (ai.GetPlayerTendency(target) != "unknown")
-                        ai.UpdatePlayerRelation(player, target, friendly);
+
+                    if (target != null)
+                    {
+                        bool friendly = strs[2] == "no";
+                        if (ai.GetPlayerTendency(target) != "unknown")
+                            ai.UpdatePlayerRelation(player, target, friendly);
+                    }
                 }
             }
         }

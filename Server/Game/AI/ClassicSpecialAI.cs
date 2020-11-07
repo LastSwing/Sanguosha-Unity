@@ -4164,8 +4164,13 @@ namespace SanguoshaServer.AI
                 {
                     int card_id = int.Parse(strs[2]);
                     Player target = room.FindPlayer(strs[4]);
-
-                    ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                    Place place = room.GetCardPlace(card_id);
+                    if (place == Place.PlaceJudge)
+                        ai.UpdatePlayerRelation(player, target, true);
+                    else if (place == Place.PlaceHand)
+                        ai.UpdatePlayerRelation(player, target, false);
+                    else
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
                 }
             }
         }
@@ -4175,7 +4180,6 @@ namespace SanguoshaServer.AI
             if (data is Player target)
             {
                 Room room = ai.Room;
-                List<int> ids = new List<int>();
                 ScoreStruct score = ai.FindCards2Discard(player, target, Name, "hej", HandlingMethod.MethodDiscard);
                 if (score.Score > 0) return true;
             }

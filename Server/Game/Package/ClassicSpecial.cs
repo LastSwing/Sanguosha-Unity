@@ -4519,7 +4519,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player panfeng, ref object data, Player ask_who)
         {
-            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null)
+            if (base.Triggerable(panfeng, room) && data is DamageStruct damage && damage.Card != null && !damage.To.IsAllNude())
             {
                 Player target = damage.To;
                 FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
