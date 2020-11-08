@@ -4304,7 +4304,10 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.Reason.Reason == MoveReason.S_REASON_DRAW
                 && move.Reason.SkillName == "guqu" && move.To.GetMark(Name) == 0)
+            {
                 move.To.AddMark("baijia_got", move.Card_ids.Count);
+                room.SetPlayerStringMark(move.To, "guqu", move.To.GetMark("baijia_got").ToString());
+            }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -4320,6 +4323,7 @@ namespace SanguoshaServer.Package
             room.SetPlayerMark(player, Name, 1);
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
             room.DoSuperLightbox(player, info.SkillPosition, Name);
+            room.RemovePlayerStringMark(player, "guqu");
             if (player.Alive)
             {
                 player.MaxHp++;
