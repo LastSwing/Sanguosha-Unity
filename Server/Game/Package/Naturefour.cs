@@ -4232,7 +4232,7 @@ namespace SanguoshaServer.Package
             else
             {
                 List<Player> jiaozhu = RoomLogic.FindPlayersBySkillName(room, "zhiba");
-                return (jiaozhu.Count == 1 && targets.Count == 0) || (targets.Count == 1 && jiaozhu.Contains(targets[0]));
+                return (jiaozhu.Count == 1 && targets.Count == 0 && RoomLogic.CanBePindianBy(room, jiaozhu[0], Self)) || (targets.Count == 1 && jiaozhu.Contains(targets[0]));
             }
         }
 
