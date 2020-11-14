@@ -2514,7 +2514,9 @@ namespace SanguoshaServer.Package
                     if (!target.IsNude() && RoomLogic.CanDiscard(room, player, target, "he"))
                         choices.Add("discard");
 
+                    target.SetFlags("shenfu_target");
                     string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@shenfu-card-to:" + target.Name });
+                    target.SetFlags("-shenfu_target");
                     if (choice == "draw")
                     {
                         room.DrawCards(target, new DrawCardStruct(1, player, Name));

@@ -17,6 +17,7 @@ namespace SanguoshaServer.AI
                 new PoxiAI(),
                 new WumouAI(),
                 new CuikeAI(),
+                new ShenfuAI(),
             };
 
             use_cards = new List<UseCard>
@@ -182,6 +183,58 @@ namespace SanguoshaServer.AI
                 {
                     if (ai.GetPlayerTendency(p) != "unknown")
                         ai.UpdatePlayerRelation(player, p, false);
+                }
+            }
+        }
+    }
+
+    public class ShenfuAI : SkillEvent
+    {
+        public ShenfuAI() : base("shenfu")
+        {
+            key = new List<string> { "playerChosen:shenfu", "skillChoice:shenfu", "cardChosen:shenfu" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                if (str.StartsWith("playerChosen:shenfu") && strs[1] == Name && player.HandcardNum % 2 == 1)
+                {
+                    Player target = room.FindPlayer(strs[2]);
+                    if (ai.GetPlayerTendency(target) != "unknown" && ai is StupidAI _ai && !_ai.NeedDamage(new DamageStruct(Name, player, target, 1, DamageStruct.DamageNature.Thunder)))
+                        ai.UpdatePlayerRelation(player, target, false);
+                }
+                else if (str.StartsWith("skillChoice:shenfu") && strs[1] == Name)
+                {
+                    Player target = null;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.HasFlag("shenfu_target"))
+                        {
+                            target = p;
+                            break;
+                        }
+                    }
+                    if (ai.GetPlayerTendency(target) != "unknown" && strs[2] == "draw")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+                else if (str.StartsWith("cardChosen:shenfu") && strs[1] == Name)
+                {
+                    int id = int.Parse(strs[2]);
+                    Player target = room.FindPlayer(strs[4]);
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                    {
+                        if (room.GetCardPlace(id) == Player.Place.PlaceHand)
+                            ai.UpdatePlayerRelation(player, target, false);
+                        else if (room.GetCardPlace(id) == Player.Place.PlaceEquip)
+                        {
+                            bool friendly = ai.GetKeepValue(id, target, Player.Place.PlaceEquip) > 0;
+                            ai.UpdatePlayerRelation(player, target, friendly);
+                        }
+                    }
                 }
             }
         }
