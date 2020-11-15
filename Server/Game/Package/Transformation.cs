@@ -2011,7 +2011,8 @@ namespace SanguoshaServer.Package
     //lord_sunquan
     public class LianziCard : SkillCard
     {
-        public LianziCard() : base("LianziCard")
+        public static string ClassName = "LianziCard";
+        public LianziCard() : base(ClassName)
         {
             target_fixed = true;
             will_throw = true;
@@ -2062,7 +2063,7 @@ namespace SanguoshaServer.Package
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            WrappedCard first = new WrappedCard("LianziCard")
+            WrappedCard first = new WrappedCard(LianziCard.ClassName)
             {
                 Skill = Name,
                 ShowSkill = Name
