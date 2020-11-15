@@ -18,7 +18,8 @@ namespace SanguoshaServer.AI
 
                 new DaigongAI(),
                 new ZhaoxinAI(),
-                new ZhongzuoAI(),
+                //new ZhongzuoAI(),
+                new TongquAI(),
                 new WanlanAI(),
 
                 new YixiangAI(),
@@ -140,7 +141,7 @@ namespace SanguoshaServer.AI
             return false;
         }
     }
-
+    /*
     public class ZhongzuoAI : SkillEvent
     {
         public ZhongzuoAI() : base("zhongzuo")
@@ -185,6 +186,82 @@ namespace SanguoshaServer.AI
             return new List<Player> { player };
         }
     }
+    */
+
+    public class TongquAI : SkillEvent
+    {
+        public TongquAI() : base("tongqu")
+        {
+            key = new List<string> { "playerChosen:tongqu" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && player != ai.Self)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(strs[2]);
+                    if (player != target && ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            Room room = ai.Room;
+            room.SortByActionOrder(ref targets);
+            foreach (Player p in targets)
+                if (ai.IsFriend(p) && !ai.WillSkipPlayPhase(p) && !ai.WillSkipPlayPhase(p))
+                    return new List<Player> { p };
+
+            foreach (Player p in targets)
+                if (ai.IsFriend(p))
+                    return new List<Player> { p };
+
+            return new List<Player>();
+        }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            CardUseStruct use = new CardUseStruct(new WrappedCard(TongquCard.ClassName), player, new List<Player>());
+            List<Player> targets = new List<Player>();
+            Room room = ai.Room;
+            List<int> ids = player.GetCards("he");
+            ai.SortByKeepValue(ref ids, false);
+            foreach (Player p in room.GetOtherPlayers(player))
+                if (p.GetMark(Name) > 0 && ai.IsFriend(p)) targets.Add(p);
+
+            if (targets.Count > 0)
+            {
+                KeyValuePair<Player, int> keys = ai.GetCardNeedPlayer(null, targets, Player.Place.PlaceHand);
+                if (keys.Key != null && keys.Value > -1)
+                {
+                    use.Card.AddSubCard(keys.Value);
+                    use.To.Add(keys.Key);
+                    return use;
+                }
+                else
+                {
+                    use.Card.AddSubCard(ids[0]);
+                    use.To.Add(targets[0]);
+                    return use;
+                }
+            }
+
+            foreach (int id in ids)
+            {
+                if (RoomLogic.CanDiscard(room, player, player, id))
+                {
+                    use.Card.AddSubCard(id);
+                    break;
+                }
+            }
+
+            return use;
+        }
+    }
 
     public class WanlanAI : SkillEvent
     {
@@ -204,14 +281,14 @@ namespace SanguoshaServer.AI
                     Player target = null;
                     foreach (Player p in room.GetAlivePlayers())
                     {
-                        if (p.HasFlag("Global_Dying"))
+                        if (p.HasFlag(Name))
                         {
                             target = p;
                             break;
                         }
                     }
 
-                    if (ai.GetPlayerTendency(target) != "unknown")
+                    if (player != target && ai.GetPlayerTendency(target) != "unknown")
                         ai.UpdatePlayerRelation(player, target, true);
                 }
             }
@@ -219,17 +296,10 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             Room room = ai.Room;
-            Player target = null;
-            foreach (Player p in room.GetAlivePlayers())
-            {
-                if (p.HasFlag("Global_Dying"))
-                {
-                    target = p;
-                    break;
-                }
-            }
+            if (data is Player target)
+                return ai.IsFriend(target);
 
-            return ai.IsFriend(target) && (room.Current == null || !ai.IsFriend(room.Current) || room.Current.Hp > 1);
+            return false;
         }
     }
 

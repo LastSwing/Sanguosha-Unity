@@ -788,7 +788,9 @@ namespace SanguoshaServer.AI
 
     public class RenxinAI : SkillEvent
     {
-        public RenxinAI() : base("renxin") { }
+        public RenxinAI() : base("renxin")
+        {
+        }
 
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
