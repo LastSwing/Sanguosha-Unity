@@ -422,7 +422,7 @@ namespace SanguoshaServer.Package
                 if (!player.HasFlag("sanyao_handcard") && max_hand < p.HandcardNum) max_hand = p.HandcardNum;
             }
             List<Player> targets = new List<Player>();
-            foreach (Player p in targets)
+            foreach (Player p in room.GetAlivePlayers())
                 if (p.Hp == max_hp || p.HandcardNum == max_hand) targets.Add(p);
 
             if (targets.Count > 0)
@@ -462,6 +462,7 @@ namespace SanguoshaServer.Package
         {
             skill_type = SkillType.Attack;
             events.Add(TriggerEvent.EventPhaseChanging);
+            view_as_skill = new SanyaoJXVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -471,6 +472,11 @@ namespace SanguoshaServer.Package
                 if (player.HasFlag("sanyao_handcard")) player.SetFlags("-sanyao_handcard");
                 if (player.HasFlag("sanyao_hp")) player.SetFlags("-sanyao_hp");
             }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
         }
     }
 
@@ -485,7 +491,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return RoomLogic.CanDiscard(room, player, player, "he") && !player.HasFlag("sanyao_handcard") && !player.HasFlag("sanyao_hp");
+            return RoomLogic.CanDiscard(room, player, player, "he") && (!player.HasFlag("sanyao_handcard") || !player.HasFlag("sanyao_hp"));
         }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {

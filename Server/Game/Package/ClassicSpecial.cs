@@ -9509,7 +9509,7 @@ namespace SanguoshaServer.Package
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.HpRecover && data is RecoverStruct recover && recover.Who != null && player.HasFlag("Global_Dying")
-                && recover.Who.Alive && !player.HasFlag(Name) && player.GetMark(limit_mark) > 0)
+                && recover.Who.Alive && !player.HasFlag(Name) && player.GetMark(limit_mark) > 0 && player.Hp > 0)
             {
                 player.SetFlags(Name);
                 if (recover.Who != null && recover.Who.IsMale() && recover.Who.Alive)
@@ -9547,7 +9547,6 @@ namespace SanguoshaServer.Package
                 if (p.GetMark(Name) > 0)
                 {
                     target = p;
-                    target.SetMark(Name, 0);
                     break;
                 }
             }
