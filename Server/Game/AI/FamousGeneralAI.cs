@@ -4279,7 +4279,7 @@ namespace SanguoshaServer.AI
         public SanyaoJXAI() : base("sanyao_jx") { }
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (!player.IsNude() && !player.HasFlag("sanyao_handcard") && !player.HasFlag("sanyao_hp"))
+            if (!player.IsNude() && (!player.HasFlag("sanyao_handcard") || !player.HasFlag("sanyao_hp")))
             {
                 WrappedCard first = new WrappedCard(SanyaoJxCard.ClassName)
                 {
