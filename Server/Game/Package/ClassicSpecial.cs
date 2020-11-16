@@ -8852,7 +8852,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room))
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
@@ -8871,7 +8871,7 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             int num = 3;
-            if (player.GetMark(Name) > 0) num++;
+            if (player.GetMark("diaoling") > 0) num++;
             List<int> card_ids = room.GetNCards(num);
             List<int> gets = new List<int>(), drops = new List<int>();
 
@@ -8912,21 +8912,18 @@ namespace SanguoshaServer.Package
 
             if (player.Alive && gets.Count > 0)
             {
-                if (player.GetMark(Name) > 0)
+                if (player.GetMark("diaoling") > 0)
                 {
                     List<int> origin_yiji = new List<int>(gets);
                     while (player.Alive && gets.Count > 0)
                     {
-                        player.PileChange("#mubing", gets);
-                        if (!room.AskForYiji(player, gets, Name, false, false, true, -1, room.GetOtherPlayers(player), null, "@mubing-give", "#mubing", false, info.SkillPosition))
+                        if (!room.AskForYiji(player, gets, Name, false, false, true, -1, room.GetOtherPlayers(player), null, "@mubing-give", string.Empty, false, info.SkillPosition))
                             break;
 
-                        player.Piles["#yiji"].Clear();
                         foreach (int id in origin_yiji)
                             if (room.GetCardPlace(id) != Place.PlaceHand || room.GetCardOwner(id) != player)
                                 gets.Remove(id);
                     }
-                    player.Piles["#mubing"].Clear();
                 }
                 else
                 {
@@ -8956,7 +8953,10 @@ namespace SanguoshaServer.Package
                 foreach (int down_id in downs)
                     all += room.GetCard(down_id).Number;
 
-                return all + room.GetCard(id).Number <= count;
+                if (id < 0)
+                    return all <= count;
+                else
+                    return all + room.GetCard(id).Number <= count;
             }
 
             return false;
@@ -9080,7 +9080,6 @@ namespace SanguoshaServer.Package
         public Diaoling() : base("diaoling")
         {
             frequency = Frequency.Wake;
-            lord_skill = true;
             skill_type = SkillType.Recover;
         }
 

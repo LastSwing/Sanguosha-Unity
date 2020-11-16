@@ -4366,7 +4366,7 @@ namespace SanguoshaServer.AI
                     {
                         card.AddSubCard(card_id);
                         use.Card = card;
-                        use.To = scores[0].Players;
+                        //use.To = scores[0].Players;
                         return;
                     }
 
@@ -4409,7 +4409,7 @@ namespace SanguoshaServer.AI
                         {
                             card.AddSubCard(ids[0]);
                             use.Card = card;
-                            use.To = scores[0].Players;
+                            //use.To = scores[0].Players;
                             return;
                         }
                     }

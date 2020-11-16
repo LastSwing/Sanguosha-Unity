@@ -491,6 +491,14 @@ namespace SanguoshaServer.AI
             if (room.AliveCount() > 5) return "change";
             return "cancel";
         }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target)
+                return ai.IsFriend(target);
+
+            return false;
+        }
     }
 
     public class ZhennanAI : SkillEvent
@@ -3783,7 +3791,7 @@ namespace SanguoshaServer.AI
                 bool big = false;
                 foreach (int id in player.GetCards("h"))
                 {
-                    if (room.GetCard(id).Number > 11)
+                    if (room.GetCard(id).Number > 10)
                     {
                         big = true;
                         break;
