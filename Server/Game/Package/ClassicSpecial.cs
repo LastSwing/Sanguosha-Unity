@@ -8879,7 +8879,7 @@ namespace SanguoshaServer.Package
                 Thread.Sleep(200);
             }
 
-            List<int> discard = room.AskForExchange(player, Name, player.GetCardCount(true), 0, "@mubing", string.Empty, "..!", info.SkillPosition);
+            List<int> discard = room.AskForExchange(player, Name, player.GetCardCount(true), 0, "@mubing-discard", string.Empty, "..!", info.SkillPosition);
             if (discard.Count > 0)
             {
                 int number_count = 0;
@@ -8913,7 +8913,7 @@ namespace SanguoshaServer.Package
                     while (player.Alive && gets.Count > 0)
                     {
                         player.PileChange("#mubing", gets);
-                        if (!room.AskForYiji(player, gets, Name, false, false, true, -1, room.GetOtherPlayers(player), null, null, "#mubing", false, info.SkillPosition))
+                        if (!room.AskForYiji(player, gets, Name, false, false, true, -1, room.GetOtherPlayers(player), null, "@mubing-give", "#mubing", false, info.SkillPosition))
                             break;
 
                         player.Piles["#yiji"].Clear();
@@ -8960,7 +8960,7 @@ namespace SanguoshaServer.Package
 
     public class Zhiqu : TriggerSkill
     {
-        public Zhiqu() : base("Zhiqu")
+        public Zhiqu() : base("zhiqu")
         {
             events.Add(TriggerEvent.DamageCaused);
             skill_type = SkillType.Wizzard;
