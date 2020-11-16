@@ -165,6 +165,7 @@ namespace SanguoshaServer.Package
                 new GangzhiClassic(),
                 new Mubing(),
                 new Zhiqu(),
+                new ZhiquSecond(),
                 new Diaoling(),
 
                 new Shenxian(),
@@ -330,6 +331,7 @@ namespace SanguoshaServer.Package
                 { "yuxu", new List<string>{ "#yuxu" } },
                 { "neifa", new List<string>{ "#neifa-tar", "#neifa-pro" } },
                 { "qiluan_jx", new List<string>{ "#qiluan_jx" } },
+                { "zhiqu", new List<string>{ "#zhiqu" } },
             };
         }
     }
@@ -8878,8 +8880,9 @@ namespace SanguoshaServer.Package
                 room.MoveCardTo(room.GetCard(id), player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_TURNOVER, player.Name, Name, string.Empty), false);
                 Thread.Sleep(200);
             }
-
+            room.SetTag(Name, card_ids);
             List<int> discard = room.AskForExchange(player, Name, player.GetCardCount(true), 0, "@mubing-discard", string.Empty, "..!", info.SkillPosition);
+            room.RemoveTag(Name);
             if (discard.Count > 0)
             {
                 int number_count = 0;
@@ -8900,9 +8903,11 @@ namespace SanguoshaServer.Package
             else
                 drops = card_ids;
 
-            room.MoveCards(new List<CardsMoveStruct>{
+            if (gets.Count > 0)
+                room.MoveCards(new List<CardsMoveStruct>{
                 new CardsMoveStruct(gets, player, Place.PlaceHand, new CardMoveReason(MoveReason.S_REASON_GOTBACK, player.Name, Name, null)) }, true);
-            room.MoveCards(new List<CardsMoveStruct>{
+            if (drops.Count > 0)
+                room.MoveCards(new List<CardsMoveStruct>{
                 new CardsMoveStruct(drops, null, Place.DiscardPile, new CardMoveReason(MoveReason.S_REASON_NATURAL_ENTER, null, Name, null)) }, true);
 
             if (player.Alive && gets.Count > 0)
@@ -9043,7 +9048,7 @@ namespace SanguoshaServer.Package
             to.SetMark("zhiqu", 0);
             if (!to.IsNude())
             {
-                List<int> max = new List<int>(), ids = to.GetCards("he");
+                List<int> ids = to.GetCards("he");
                 int card_id;
                 int min = 0;
                 foreach (int id in ids)
@@ -9051,18 +9056,14 @@ namespace SanguoshaServer.Package
                     int number = room.GetCard(id).Number;
                     if (number > min) min = number;
                 }
-                foreach (int id in ids)
+                ids.RemoveAll(t => room.GetCard(t).Number != min);
+                if (ids.Count == 1)
                 {
-                    int number = room.GetCard(id).Number;
-                    if (number == min) max.Add(id);
-                }
-                if (max.Count == 1)
-                {
-                    card_id = max[0];
+                    card_id = ids[0];
                 }
                 else
                 {
-                    List<int> give = room.AskForExchange(to, Name, 1, 1, "@zhiqu:" + player.Name, string.Empty, string.Join("#", max), null);
+                    List<int> give = room.AskForExchange(to, Name, 1, 1, "@zhiqu:" + player.Name, string.Empty, string.Join("#", ids), null);
                     card_id = give[0];
                 }
 

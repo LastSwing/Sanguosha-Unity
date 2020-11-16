@@ -88,6 +88,8 @@ namespace SanguoshaServer.AI
                 new ZhenduJXAI(),
                 new QiluanJXAI(),
                 new BeizhanCAI(),
+                new MubingAI(),
+                new ZhiquAI(),
 
                 new XuejiAI(),
                 new LiangzhuAI(),
@@ -6804,6 +6806,141 @@ namespace SanguoshaServer.AI
             }
 
             return new List<Player>();
+        }
+    }
+
+    public class MubingAI : SkillEvent
+    {
+        public MubingAI() : base("mubing")
+        {
+            key = new List<string> { "Yiji:mubing" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
+            {
+                Room room = ai.Room;
+                string[] strs = str.Split(':');
+                Player target = room.FindPlayer(strs[3]);
+                if (ai.GetPlayerTendency(target) != "unknown") ai.UpdatePlayerRelation(player, target, true);
+                if (player == ai.Self)
+                {
+                    List<string> cards = new List<string>(strs[4].Split('+'));
+                    List<int> ids = JsonUntity.StringList2IntList(cards);
+                    foreach (int id in ids)
+                        ai.SetPrivateKnownCards(target, id);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            List<int> ids = new List<int>();
+            Room room = ai.Room;
+            if (room.ContainsTag(Name) && room.GetTag(Name) is List<int> shonws)
+            {
+
+            }
+
+            return ids;
+        }
+
+        public override AskForMoveCardsStruct OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max)
+        {
+            AskForMoveCardsStruct move = new AskForMoveCardsStruct();
+            move.Top = new List<int>(ups);
+            move.Bottom = new List<int>();
+            move.Success = true;
+            Room room = ai.Room;
+            if (room.ContainsTag("mubing_count") && room.GetTag("mubing_count") is int count)
+            {
+                Dictionary<double, List<int>> values = new Dictionary<double, List<int>>();
+                for (int i = 1; i <= max; i++)
+                {
+                    List<List<int>> top = AI.TrustedAI.GetCombinationList(new List<int>(ups), i);
+                    foreach (List<int> comb in top)
+                    {
+                        double value = 0;
+                        double number = 0;
+                        foreach (int id in comb)
+                        {
+                            value += ai.GetUseValue(id, player, Place.PlaceHand);
+                            number += room.GetCard(id).Number;
+                        }
+
+                        if (number <= count)
+                            values[value] = comb;
+                    }
+                }
+
+                if (values.Count > 0)
+                {
+                    List<double> all = new List<double>(values.Keys);
+                    if (all.Count > 1)
+                        all.Sort((x, y) => { return x > y ? -1 : 1; });
+
+                    move.Bottom = values[all[0]];
+                    move.Top.RemoveAll(t => move.Bottom.Contains(t));
+                }
+            }
+
+            return move;
+        }
+
+        public override Player OnYiji(TrustedAI ai, Player player, List<int> ids, ref int id)
+        {
+            KeyValuePair<Player, int> key = ai.GetCardNeedPlayer(ids, null, Place.PlaceHand, Name);
+            if (key.Key != null && key.Value >= 0 && ai.Room.Current == key.Key)
+            {
+                id = key.Value;
+                return key.Key;
+            }
+            if (player.HandcardNum <= 4)
+                return null;
+
+            if (key.Key != null && key.Value >= 0)
+            {
+                id = key.Value;
+                return key.Key;
+            }
+
+            return null;
+        }
+    }
+
+    public class ZhiquAI : SkillEvent
+    {
+        public ZhiquAI() : base("zhiqu")
+        {
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (room.ContainsTag("zhiqu_data") && room.GetTag("zhiqu_data") is DamageStruct damage)
+            {
+                ScoreStruct score = ai.GetDamageScore(damage);
+                return score.Score < 0;
+            }
+
+            return false;
+        }
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            Room room = ai.Room;
+            List<int> ids = player.GetCards("he");
+            int max_number = 0;
+            foreach (int id in ids)
+            {
+                int number = room.GetCard(id).Number;
+                if (number > min) max_number = number;
+            }
+            ids.RemoveAll(t => room.GetCard(t).Number != max_number);
+            if (ids.Count > 1)
+                ai.SortByKeepValue(ref ids, false);
+            return new List<int> { ids[0] };
         }
     }
 
