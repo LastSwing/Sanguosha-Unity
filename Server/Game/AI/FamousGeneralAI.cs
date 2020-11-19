@@ -554,8 +554,8 @@ namespace SanguoshaServer.AI
             List<WrappedCard> result = new List<WrappedCard>();
             if (ids.Count > 0)
             {
-                int sub = -1;
                 List<double> values = ai.SortByKeepValue(ref ids, false);
+                int sub;
                 if (values[0] < 0) sub = ids[0];
                 else
                 {
@@ -608,8 +608,8 @@ namespace SanguoshaServer.AI
                 {
                     if (pattern == Slash.ClassName && !player.HasFlag("huomo_Slash"))
                     {
-                        int sub = -1;
                         List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
                         if (values[0] < 0)
                             sub = ids[0];
                         else
@@ -663,8 +663,8 @@ namespace SanguoshaServer.AI
                     }
                     else if (pattern == Peach.ClassName && !player.HasFlag("huomo_Peach"))
                     {
-                        int sub = -1;
                         List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
                         if (values[0] < 0)
                             sub = ids[0];
                         else
@@ -685,8 +685,8 @@ namespace SanguoshaServer.AI
                     }
                     else if (pattern == Jink.ClassName && !player.HasFlag("huomo_Jink"))
                     {
-                        int sub = -1;
                         List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
                         if (values[0] < 0)
                             sub = ids[0];
                         else

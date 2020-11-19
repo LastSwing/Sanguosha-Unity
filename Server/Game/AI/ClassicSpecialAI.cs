@@ -90,6 +90,7 @@ namespace SanguoshaServer.AI
                 new BeizhanCAI(),
                 new MubingAI(),
                 new ZhiquAI(),
+                new LiushiAI(),
 
                 new XuejiAI(),
                 new LiangzhuAI(),
@@ -6946,6 +6947,71 @@ namespace SanguoshaServer.AI
             if (ids.Count > 1)
                 ai.SortByKeepValue(ref ids, false);
             return new List<int> { ids[0] };
+        }
+    }
+
+    public class LiushiAI : SkillEvent
+    {
+        public LiushiAI() : base("liushi") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            Room room = ai.Room;
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (Slash.IsAvailable(room, player))
+            {
+                List<int> ids = new List<int>();
+                foreach (int id in player.GetCards("he"))
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard) && WrappedCard.IsBlack(card.Suit))
+                        ids.Add(id);
+                }
+                if (ids.Count > 0)
+                {
+                    List<double> values = ai.SortByKeepValue(ref ids, false);
+                    int sub;
+                    if (values[0] < 0) sub = ids[0];
+                    else
+                    {
+                        ai.SortByUseValue(ref ids, false);
+                        sub = ids[0];
+                    }
+
+                    WrappedCard huomo = new WrappedCard(LiushiCard.ClassName) { Skill = Name };
+                    huomo.AddSubCard(sub);
+
+                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = Name };
+                    slash.AddSubCard(sub);
+                    huomo.UserString = Slash.ClassName;
+                    slash.UserString = RoomLogic.CardToString(room, huomo);
+                    result.Add(slash);
+
+
+                    WrappedCard fslash = new WrappedCard(FireSlash.ClassName) { Skill = Name };
+                    fslash.AddSubCard(sub);
+                    huomo.UserString = FireSlash.ClassName;
+                    fslash.UserString = RoomLogic.CardToString(room, huomo);
+                    result.Add(fslash);
+
+                    WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName) { Skill = Name };
+                    tslash.AddSubCard(sub);
+                    huomo.UserString = ThunderSlash.ClassName;
+                    tslash.UserString = RoomLogic.CardToString(room, huomo);
+                    result.Add(tslash);
+                }
+            }
+            return result;
+        }
+
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Place place)
+        {
+            if (card.GetEffectiveId() == -1) return 0;
+
+            if (ai.HasSkill(Name, player) && ai.Room.GetCard(card.GetEffectiveId()).Suit == WrappedCard.CardSuit.Heart)
+                return 1.5;
+
+            return 0;
         }
     }
 
