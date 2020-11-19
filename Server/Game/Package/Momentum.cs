@@ -271,7 +271,7 @@ namespace SanguoshaServer.Package
                     if (p.GetMark("HengjiangInvoke") > 0)
                         room.SetPlayerMark(p, "HengjiangInvoke", 0);
             }
-            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From.Phase == Player.PlayerPhase.Discard
+            else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.From.Phase == PlayerPhase.Discard
                 && (move.Reason.Reason & MoveReason.S_MASK_BASIC_REASON) == MoveReason.S_REASON_DISCARD)
             {
                 move.From.SetFlags("HengjiangDiscarded");

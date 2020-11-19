@@ -167,6 +167,8 @@ namespace SanguoshaServer.Package
                 new Zhiqu(),
                 new ZhiquSecond(),
                 new Diaoling(),
+                new Liushi(),
+                new Zhanwan(),
 
                 new Shenxian(),
                 new Qiangwu(),
@@ -9119,6 +9121,169 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class Liushi : TriggerSkill
+    {
+        public Liushi() : base("liushi")
+        {
+            view_as_skill = new LiushiVS();
+            events = new List<TriggerEvent> { TriggerEvent.Damage };
+            skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && damage.Card.GetSkillName() == Name
+                && damage.To.Alive && damage.To.GetMark(Name) == 0)
+            {
+                damage.To.SetMark(Name, 1);
+                room.SetPlayerStringMark(damage.To, Name, string.Empty);
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class LiushiVS : ViewAsSkill
+    {
+        public LiushiVS() : base("liushi")
+        {
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+            => selected.Count == 0 && to_select.Suit == WrappedCard.CardSuit.Heart;
+
+        public override bool IsEnabledAtPlay(Room room, Player player) => !player.IsNude();
+        public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (cards.Count == 1)
+            {
+                foreach (WrappedCard card in GetGuhuo(room, player))
+                {
+                    card.AddSubCard(cards[0]);
+                    result.Add(card);
+                }
+            }
+
+            return result;
+        }
+
+        private List<WrappedCard> GetGuhuo(Room room, Player player)
+        {
+            WrappedCard wrapped1 = new WrappedCard(Slash.ClassName) { Skill = "_liushi" };
+            wrapped1.DistanceLimited = false;
+            WrappedCard wrapped2 = new WrappedCard(FireSlash.ClassName) { Skill = "_liushi" };
+            wrapped2.DistanceLimited = false;
+            WrappedCard wrapped3 = new WrappedCard(ThunderSlash.ClassName) { Skill = "_liushi" };
+            wrapped3.DistanceLimited = false;
+            List<WrappedCard> result = new List<WrappedCard> { wrapped1, wrapped2, wrapped3 };
+            return result;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count == 1 && cards[0].IsVirtualCard())
+            {
+                string pattern = room.GetRoomState().GetCurrentCardUsePattern();
+                pattern = Engine.GetPattern(pattern).GetPatternString();
+                if (Engine.MatchExpPattern(room, pattern, player, cards[0]))
+                {
+                    WrappedCard hm = new WrappedCard(LiushiCard.ClassName)
+                    {
+                        UserString = cards[0].Name
+                    };
+                    hm.AddSubCard(cards[0]);
+                    return hm;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public class LiushiTar : TargetModSkill
+    {
+        public LiushiTar() : base("#liushi", false) { }
+
+        public override bool IgnoreCount(Room room, Player from, WrappedCard card) => card.GetSkillName() == "liushi";
+    }
+
+    public class LiushiMax : MaxCardsSkill
+    {
+        public LiushiMax() : base("#liushi-max") { }
+
+        public override int GetExtra(Room room, Player target) => target.GetMark("liushi") == 0 ? 0 : -1;
+    }
+
+    public class LiushiCard : SkillCard
+    {
+        public static string ClassName = "LiushiCard";
+        public LiushiCard() : base(ClassName)
+        {
+            will_throw = false;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            WrappedCard wrapped = new WrappedCard(card.UserString);
+            FunctionCard fcard = Engine.GetFunctionCard(card.UserString);
+            return fcard.TargetFilter(room, targets, to_select, Self, wrapped);
+        }
+
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            WrappedCard wrapped = new WrappedCard(card.UserString);
+            FunctionCard fcard = Engine.GetFunctionCard(card.UserString);
+            return fcard.TargetsFeasible(room, targets, Self, wrapped);
+        }
+
+        public override WrappedCard Validate(Room room, CardUseStruct use)
+        {
+            Player player = use.From;
+            CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_PUT, player.Name, "liushi", string.Empty);
+            CardsMoveStruct move = new CardsMoveStruct(new List<int>(use.Card.SubCards), null, Place.DrawPile, reason)
+            {
+                To_pile_name = string.Empty,
+                From = player.Name
+            };
+            List<CardsMoveStruct> moves = new List<CardsMoveStruct> { move };
+            room.MoveCardsAtomic(moves, true);
+
+            room.BroadcastSkillInvoke("liushi", player, use.Card.SkillPosition);
+            room.NotifySkillInvoked(player, "liushi");
+            Thread.Sleep(500);
+            WrappedCard wrapped = new WrappedCard(use.Card.UserString) { Skill = "_liushi" };
+            return wrapped;
+        }
+    }
+
+    public class Zhanwan : TriggerSkill
+    {
+        public Zhanwan() : base("duanwan")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.CardsMoveOneTime, TriggerEvent.EventPhaseEnd };
+            skill_type = SkillType.Replenish;
+            frequency = Frequency.Compulsory;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            base.Record(triggerEvent, room, player, ref data);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            return base.Triggerable(triggerEvent, room, player, ref data, ask_who);
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            return false;
+        }
+    }
 
     public class Qiangwu : TriggerSkill
     {

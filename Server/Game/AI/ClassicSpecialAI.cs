@@ -420,9 +420,6 @@ namespace SanguoshaServer.AI
 
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
-            if (player.HandcardNum < 5)
-                return "draw";
-
             if (choice.Contains("dangxian"))
                 return "dangxian";
             if (choice.Contains("zhiman_jx"))

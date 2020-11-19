@@ -4160,7 +4160,7 @@ namespace SanguoshaServer.Package
             }
             else if (data is CardEffectStruct effect)
             {
-                room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
+                room.BroadcastSkillInvoke("zishou", "male", 2, gsk.General, gsk.SkinId);
                 LogMessage log = new LogMessage
                 {
                     Type = "#ZhichiAvoid",
