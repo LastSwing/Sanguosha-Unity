@@ -816,7 +816,7 @@ namespace SanguoshaServer.Package
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.SetEmotion(effect.From, "savage_assault");
+            room.SetEmotion(effect.To, "savage_assault");
             bool respond = false;
             for (int i = 0; i < effect.BasicEffect.Effect2; i++)
             {
