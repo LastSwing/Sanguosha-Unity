@@ -6964,7 +6964,7 @@ namespace SanguoshaServer.AI
                 foreach (int id in player.GetCards("he"))
                 {
                     WrappedCard card = room.GetCard(id);
-                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard) && WrappedCard.IsBlack(card.Suit))
+                    if (!(Engine.GetFunctionCard(card.Name) is BasicCard) && card.Suit == WrappedCard.CardSuit.Heart)
                         ids.Add(id);
                 }
                 if (ids.Count > 0)
@@ -6981,20 +6981,20 @@ namespace SanguoshaServer.AI
                     WrappedCard huomo = new WrappedCard(LiushiCard.ClassName) { Skill = Name };
                     huomo.AddSubCard(sub);
 
-                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = Name };
+                    WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = Name, DistanceLimited = false };
                     slash.AddSubCard(sub);
                     huomo.UserString = Slash.ClassName;
                     slash.UserString = RoomLogic.CardToString(room, huomo);
                     result.Add(slash);
 
 
-                    WrappedCard fslash = new WrappedCard(FireSlash.ClassName) { Skill = Name };
+                    WrappedCard fslash = new WrappedCard(FireSlash.ClassName) { Skill = Name, DistanceLimited = false };
                     fslash.AddSubCard(sub);
                     huomo.UserString = FireSlash.ClassName;
                     fslash.UserString = RoomLogic.CardToString(room, huomo);
                     result.Add(fslash);
 
-                    WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName) { Skill = Name };
+                    WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName) { Skill = Name, DistanceLimited = false };
                     tslash.AddSubCard(sub);
                     huomo.UserString = ThunderSlash.ClassName;
                     tslash.UserString = RoomLogic.CardToString(room, huomo);

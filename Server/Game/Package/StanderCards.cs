@@ -814,9 +814,13 @@ namespace SanguoshaServer.Package
         {
             return new CardBasicEffect(to, 0, 1, 0);
         }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            room.SetEmotion(card_use.From, "savage_assault");
+            base.Use(room, card_use);
+        }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
-            room.SetEmotion(effect.To, "savage_assault");
             bool respond = false;
             for (int i = 0; i < effect.BasicEffect.Effect2; i++)
             {
