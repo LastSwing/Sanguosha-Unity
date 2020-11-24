@@ -346,7 +346,7 @@ namespace SanguoshaServer.Package
     {
         public Shefu() : base("shefu")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardUsed, TriggerEvent.EventPhaseStart, TriggerEvent.JinkEffect };
+            events = new List<TriggerEvent> { TriggerEvent.CardUsed, TriggerEvent.EventPhaseStart, TriggerEvent.JinkEffect, TriggerEvent.NullificationEffect };
             view_as_skill = new ShefuVS();
             skill_type = SkillType.Wizzard;
         }
@@ -359,10 +359,10 @@ namespace SanguoshaServer.Package
             {
                 triggers.Add(new TriggerStruct(Name, player));
             }
-            else if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.Card != null && use.IsHandcard)
+            else if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.Card != null && use.To.Count > 0 && use.IsHandcard)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is SkillCard || (use.To.Count == 0 && !use.Card.Name.Contains(Nullification.ClassName))) return triggers;
+                if (fcard is SkillCard) return triggers;
 
                 List<Player> chengyus = RoomLogic.FindPlayersBySkillName(room, Name);
                 string card_name = fcard.Name;
@@ -384,6 +384,17 @@ namespace SanguoshaServer.Package
                         triggers.Add(new TriggerStruct(Name, p));
                 }
             }
+            else if (triggerEvent == TriggerEvent.NullificationEffect && data is CardUseStruct nulli_use && nulli_use.IsHandcard)
+            {
+                List<Player> chengyus = RoomLogic.FindPlayersBySkillName(room, Name);
+                string str = string.Format("shefu_{0}", nulli_use.Card.Name);
+                foreach (Player p in chengyus)
+                {
+                    if (p != player && p.Phase == Player.PlayerPhase.NotActive && p.ContainsTag(str)
+                        && p.GetTag(str) is int id && p.GetPile("ambush").Contains(id))
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
 
             return triggers;
         }
@@ -394,7 +405,7 @@ namespace SanguoshaServer.Package
                 room.AskForUseCard(player, "@@shefu", "@shefu", null, -1, FunctionCard.HandlingMethod.MethodUse, true, info.SkillPosition);
             else
             {
-                string card_name;
+                string card_name = string.Empty;
                 if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use)
                 {
                     if (use.To.Count == 0) return new TriggerStruct();
@@ -402,8 +413,10 @@ namespace SanguoshaServer.Package
                     card_name = fcard.Name;
                     if (fcard is Slash) card_name = Slash.ClassName;
                 }
-                else
+                else if (triggerEvent == TriggerEvent.JinkEffect)
                     card_name = Jink.ClassName;
+                else if (triggerEvent == TriggerEvent.NullificationEffect && data is CardUseStruct nulli_use)
+                    card_name = nulli_use.Card.Name;
 
                 string key = string.Format("shefu_{0}", card_name);
                 if (p.ContainsTag(key) && p.GetTag(key) is int id && p.GetPile("ambush").Contains(id))
@@ -433,7 +446,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use)
+            if (data is CardUseStruct use)
             {
                 LogMessage log = new LogMessage
                 {
@@ -445,11 +458,16 @@ namespace SanguoshaServer.Package
                 };
                 room.SendLog(log);
 
-                List<Player> targets = new List<Player>(use.To);
-                foreach (Player p in targets)
-                    room.CancelTarget(ref use, p);
+                if (use.To.Count > 0)
+                {
+                    List<Player> targets = new List<Player>(use.To);
+                    foreach (Player p in targets)
+                        room.CancelTarget(ref use, p);
 
-                data = use;
+                    data = use;
+                }
+                else if (triggerEvent == TriggerEvent.NullificationEffect)
+                    return true;
             }
             else
             {
