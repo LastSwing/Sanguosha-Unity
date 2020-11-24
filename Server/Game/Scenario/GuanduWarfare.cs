@@ -55,6 +55,7 @@ namespace SanguoshaServer.Scenario
                     //技能预亮
                     lord.SetSkillsPreshowed("hd");
                     room.NotifyPlayerPreshow(lord);
+                    room.HandleUsedGeneral(lord.General1);
                 }
             }
 

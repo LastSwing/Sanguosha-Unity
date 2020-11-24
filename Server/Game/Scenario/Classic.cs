@@ -162,6 +162,7 @@ namespace SanguoshaServer.Scenario
             room.NotifyProperty(room.GetClient(lord), lord, "ActualGeneral1");
             room.BroadcastProperty(lord, "Kingdom");
             room.BroadcastProperty(lord, "General1Showed");
+            room.HandleUsedGeneral(lord.General1);
 
             foreach (string skill in Engine.GetGeneralSkills(lord_general, Name, true))
             {
