@@ -359,10 +359,10 @@ namespace SanguoshaServer.Package
             {
                 triggers.Add(new TriggerStruct(Name, player));
             }
-            else if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.Card != null && use.To.Count > 0 && use.IsHandcard)
+            else if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.Card != null && use.IsHandcard)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is SkillCard) return triggers;
+                if (fcard is SkillCard || (use.To.Count == 0 && !use.Card.Name.Contains(Nullification.ClassName))) return triggers;
 
                 List<Player> chengyus = RoomLogic.FindPlayersBySkillName(room, Name);
                 string card_name = fcard.Name;
