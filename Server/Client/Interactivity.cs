@@ -830,10 +830,12 @@ namespace SanguoshaServer
                                 prepends[player.Name].Add(string.Format("{0}:{1}", pile, string.Join("+", JsonUntity.IntList2StringList(ids))));
                         }
                     }
-                    available_cards[player.Name] = new List<WrappedCard>();
+                    List<WrappedCard> available_cards_4_this_player = new List<WrappedCard>();
                     foreach (WrappedCard card in all_cards[player])
                         if (CheckCardAvailable(player, card))
-                            available_cards[player.Name].Add(card);
+                            available_cards_4_this_player.Add(card);
+                    if (available_cards_4_this_player.Count > 0)
+                        available_cards.Add(player.Name, available_cards_4_this_player);
 
                     #region new transfer card
                     if (ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
