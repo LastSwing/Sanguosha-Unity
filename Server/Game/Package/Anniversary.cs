@@ -1917,7 +1917,7 @@ namespace SanguoshaServer.Package
                 {
                     Pattern = "Weapon#Horse",
                     Good = true,
-                    PlayAnimation = false,
+                    PlayAnimation = true,
                     Reason = Name,
                     Who = player
                 };
@@ -1928,7 +1928,7 @@ namespace SanguoshaServer.Package
                 {
                     LogMessage log = new LogMessage
                     {
-                        Type = "#Liegong_add",
+                        Type = "#add_damage",
                         From = target.Name,
                         To = new List<string> { target.Name },
                         Arg = (target.Hp - 1).ToString()

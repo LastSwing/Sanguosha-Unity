@@ -3033,6 +3033,7 @@ namespace SanguoshaServer.Package
                 for (int i = 0; i < Math.Min(min, ids.Count); i++)
                     views.Add(ids[i]);
 
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
                 room.DoGongxin(player, target, views, new List<int>(), Name, "@to-player:" + target.Name, info.SkillPosition);
             }
 

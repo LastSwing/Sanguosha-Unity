@@ -620,7 +620,7 @@ namespace SanguoshaServer.AI
             List<Player> loyalists_n = new List<Player>(), rebels_n = new List<Player>();
             Player lord = null;
 
-            if (self.GetRoleEnum() == PlayerRole.Renegade && room.Round > 1)        //内奸第二回合起自带身份透视
+            if (self.GetRoleEnum() == PlayerRole.Renegade && room.Round > 1 || room.Round > 4)        //内奸第二回合起或游戏4轮后自带身份透视
             {
                 foreach (Player p in room.GetAlivePlayers())
                 {
@@ -755,8 +755,6 @@ namespace SanguoshaServer.AI
                             }
                         }
                     }
-
-                    count = 3;
                 }
 
                 foreach (Player p in room.GetOtherPlayers(self))
@@ -1439,6 +1437,14 @@ namespace SanguoshaServer.AI
         public override void UpdatePlayerIntention(Player player, string role, int intention)
         {
             if (player.GetRoleEnum() == PlayerRole.Lord) return;
+            //作弊，身份场在在游戏4轮以后不再进行判断，直接暴露身份
+            if (room.Round > 4)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    id_tendency[p] = p.Role;
+                return;
+            }
+
             if (player == self)         //记录自己的行为表现
             {
                 if (player.GetRoleEnum() == PlayerRole.Rebel && id_public[player] == "rebel") return;

@@ -2290,7 +2290,7 @@ namespace SanguoshaServer.Package
                 {
                     targets = room.GetOtherPlayers(ask_who);
                     targets.Remove(effect.To);
-                    prompt = "@longdan-slash";
+                    prompt = "@longdan-slash:" + effect.To.Name;
                 }
                 else
                 {
@@ -2299,7 +2299,7 @@ namespace SanguoshaServer.Package
                         if (p != player && p.IsWounded())
                             targets.Add(p);
                     }
-                    prompt = "@longdan-jink";
+                    prompt = "@longdan-jink:" + player.Name;
                 }
 
                 Player target = room.AskForPlayerChosen(ask_who, targets, Name, prompt, true, true, info.SkillPosition);
@@ -4533,7 +4533,7 @@ namespace SanguoshaServer.Package
             if (caiwenji != null)
             {
                 room.SetTag("beige_data", data);
-                bool invoke = room.AskForDiscard(caiwenji, Name, 1, 1, true, true, "@beige", true, info.SkillPosition);
+                bool invoke = room.AskForDiscard(caiwenji, Name, 1, 1, true, true, "@beige:" + player.Name, true, info.SkillPosition);
                 room.RemoveTag("beige_data");
 
                 if (invoke)
