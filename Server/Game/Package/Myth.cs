@@ -2510,28 +2510,37 @@ namespace SanguoshaServer.Package
                     }
 
                     target.SetFlags(Name);
-                    List<string> choices = new List<string> { "draw" };
-                    if (!target.IsNude() && RoomLogic.CanDiscard(room, player, target, "he"))
-                        choices.Add("discard");
 
-                    target.SetFlags("shenfu_target");
-                    string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@shenfu-card-to:" + target.Name });
-                    target.SetFlags("-shenfu_target");
-                    if (choice == "draw")
+                    if (player == target)
                     {
-                        room.DrawCards(target, new DrawCardStruct(1, player, Name));
+                        if (!room.AskForDiscard(player, Name, 1, 1, true, true, "@shenfu-discard-self", false, info.SkillPosition))
+                            room.DrawCards(player, 1, Name);
                     }
                     else
                     {
-                        int card_id;
-                        if (player != target)
-                            card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
+                        List<string> choices = new List<string> { "draw" };
+                        if (!target.IsNude() && RoomLogic.CanDiscard(room, player, target, "he"))
+                            choices.Add("discard");
+
+                        target.SetFlags("shenfu_target");
+                        string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@shenfu-card-to:" + target.Name });
+                        target.SetFlags("-shenfu_target");
+                        if (choice == "draw")
+                        {
+                            room.DrawCards(target, new DrawCardStruct(1, player, Name));
+                        }
                         else
                         {
-                            List<int> ids = room.AskForExchange(player, Name, 1, 1, "@discard-self", string.Empty, "..!", info.SkillPosition);
-                            card_id = ids[0];
+                            int card_id;
+                            if (player != target)
+                                card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
+                            else
+                            {
+                                List<int> ids = room.AskForExchange(player, Name, 1, 1, "@discard-self", string.Empty, "..!", info.SkillPosition);
+                                card_id = ids[0];
+                            }
+                            room.ThrowCard(card_id, target, player);
                         }
-                        room.ThrowCard(card_id, target, player);
                     }
 
                     if (!target.Alive || !player.Alive || target.HandcardNum != target.Hp)

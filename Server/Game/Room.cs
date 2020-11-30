@@ -6694,6 +6694,11 @@ namespace SanguoshaServer.Game
                     return true;
                 }
             }
+            else if (dummy.Count < min_num)
+            {
+                DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
+                return false;
+            }
 
             TrustedAI ai = GetAI(player);
             List<int> to_discard = new List<int>();
