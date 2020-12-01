@@ -2531,14 +2531,7 @@ namespace SanguoshaServer.Package
                         }
                         else
                         {
-                            int card_id;
-                            if (player != target)
-                                card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
-                            else
-                            {
-                                List<int> ids = room.AskForExchange(player, Name, 1, 1, "@discard-self", string.Empty, "..!", info.SkillPosition);
-                                card_id = ids[0];
-                            }
+                            int card_id = room.AskForCardChosen(player, target, "he", Name, false, HandlingMethod.MethodDiscard);
                             room.ThrowCard(card_id, target, player);
                         }
                     }
