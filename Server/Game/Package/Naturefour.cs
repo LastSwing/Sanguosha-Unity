@@ -708,8 +708,10 @@ namespace SanguoshaServer.Package
             if (dongzhuo != null && data is DamageStruct damage && damage.From != null && damage.From.Alive && !damage.Prevented
                 && damage.From.Kingdom == "qun" && damage.From != dongzhuo && damage.Damage > 0)
             {
-                TriggerStruct trigger = new TriggerStruct(Name, damage.From);
-                trigger.Times = damage.Damage;
+                TriggerStruct trigger = new TriggerStruct(Name, damage.From)
+                {
+                    Times = damage.Damage
+                };
                 return trigger;
             }
             return new TriggerStruct();
@@ -1778,7 +1780,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player caiwenji, TriggerStruct info)
         {
-            if (data is DamageStruct damage && player.Alive && caiwenji.Alive)
+            if (data is DamageStruct @struct && player.Alive && caiwenji.Alive)
             {
                 room.SetTag("beige_data", data);
                 bool invoke = room.AskForDiscard(caiwenji, Name, 1, 1, true, true, "@beige:" + player.Name, true, info.SkillPosition);
@@ -1786,7 +1788,7 @@ namespace SanguoshaServer.Package
 
                 if (invoke)
                 {
-                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, caiwenji.Name, ((DamageStruct)data).To.Name);
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, caiwenji.Name, @struct.To.Name);
                     room.BroadcastSkillInvoke(Name, caiwenji, info.SkillPosition);
                     return info;
                 }
@@ -2001,7 +2003,6 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player caopi = room.FindPlayer(info.SkillOwner);
             room.DrawCards(player, new DrawCardStruct(1, ask_who, Name));
             return false;
         }
@@ -3629,7 +3630,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (player.Alive && data is PhaseChangeStruct change)
+            if (player.Alive && data is PhaseChangeStruct)
             {
                 List<Player> targets = (List<Player>)room.GetTag("shensu_invoke" + player.Name);
                 room.RemoveTag("shensu_invoke" + player.Name);
@@ -4172,8 +4173,10 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, Player player)
         {
-            WrappedCard zb = new WrappedCard(ZhibaCard.ClassName);
-            zb.Skill = Name;
+            WrappedCard zb = new WrappedCard(ZhibaCard.ClassName)
+            {
+                Skill = Name
+            };
             return zb;
         }
     }
@@ -4194,8 +4197,10 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, Player player)
         {
-            WrappedCard zb = new WrappedCard(ZhibaCard.ClassName);
-            zb.Skill = Name;
+            WrappedCard zb = new WrappedCard(ZhibaCard.ClassName)
+            {
+                Skill = Name
+            };
             return zb;
         }
     }
@@ -4438,8 +4443,10 @@ namespace SanguoshaServer.Package
                         if (p == info.From) continue;
                         if (base.Triggerable(p, room))
                         {
-                            List<Player> targets = new List<Player>();
-                            targets.Add(info.From);
+                            List<Player> targets = new List<Player>
+                            {
+                                info.From
+                            };
                             triggers.Add(new TriggerStruct(Name, p, targets));
                         }
                     }

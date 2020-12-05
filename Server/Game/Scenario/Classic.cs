@@ -145,9 +145,11 @@ namespace SanguoshaServer.Scenario
             //通知
             if (reserved.TryGetValue(lord, out List<string> lord_reserved) && lord_reserved.Contains(lord_general))
             {
-                LogMessage reserved_log = new LogMessage();
-                reserved_log.Type = "#reserved_pick";
-                reserved_log.From = lord.Name;
+                LogMessage reserved_log = new LogMessage
+                {
+                    Type = "#reserved_pick",
+                    From = lord.Name
+                };
                 room.SendLog(reserved_log);
             }
 
@@ -270,17 +272,21 @@ namespace SanguoshaServer.Scenario
                 //通知
                 if (reserved.TryGetValue(player, out List<string> p_reserved) && p_reserved.Contains(player.General1))
                 {
-                    LogMessage reserved_log = new LogMessage();
-                    reserved_log.Type = "#reserved_pick";
-                    reserved_log.From = player.Name;
+                    LogMessage reserved_log = new LogMessage
+                    {
+                        Type = "#reserved_pick",
+                        From = player.Name
+                    };
                     room.SendLog(reserved_log);
                 }
 
                 if (!options[player].Contains(player.General1))
                 {
-                    LogMessage cheat_log = new LogMessage();
-                    cheat_log.Type = "#cheat_pick";
-                    cheat_log.From = player.Name;
+                    LogMessage cheat_log = new LogMessage
+                    {
+                        Type = "#cheat_pick",
+                        From = player.Name
+                    };
                     room.SendLog(cheat_log);
                 }
             }
@@ -391,7 +397,7 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < room.Clients.Count; i++)
             {
                 Client client = room.Clients[i];
-                if (client.UserID < 0) continue;
+                if (client.UserId < 0) continue;
                 List<string> reserved_generals = new List<string>(client.GeneralReserved);
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
                 reserved.AddRange(reserved_generals);
@@ -401,7 +407,7 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < room.Clients.Count; i++)
             {
                 Client client = room.Clients[i];
-                if (client.UserID < 0) continue;
+                if (client.UserId < 0) continue;
                 if (client.GeneralReserved == null || client.GeneralReserved.Count == 0) continue;
                 client.GeneralReserved.RemoveAll(t => duplicated.Contains(t));
             }
@@ -420,10 +426,10 @@ namespace SanguoshaServer.Scenario
 
             foreach (Client client in room.Clients)
             {
-                if (client.UserID == lord.ClientId)
+                if (client.UserId == lord.ClientId)
                 {
                     lord_client = client;
-                    if (client.UserID >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
+                    if (client.UserId >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
                     {
                         options[lord] = new List<string>();
                         foreach (string general in client.GeneralReserved)
@@ -462,7 +468,7 @@ namespace SanguoshaServer.Scenario
             {
                 foreach (Client client in room.Clients)
                 {
-                    if (client.UserID == lord.ClientId || client.UserID < 0 || client.GeneralReserved == null && client.GeneralReserved.Count == 0) continue;
+                    if (client.UserId == lord.ClientId || client.UserId < 0 || client.GeneralReserved == null && client.GeneralReserved.Count == 0) continue;
                     List<string> reserver_p = new List<string>(client.GeneralReserved);
                     foreach (string general in reserver_p)
                     {
@@ -484,11 +490,11 @@ namespace SanguoshaServer.Scenario
             foreach (Client client in room.Clients)
             {
                 if (client == lord_client) continue;
-                if (client.UserID >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
+                if (client.UserId >= 0 && client.GeneralReserved != null && client.GeneralReserved.Count > 0 && client.GeneralReserved.Count <= 2)
                 {
                     foreach (Player p in room.Players)
                     {
-                        if (p.ClientId == client.UserID)
+                        if (p.ClientId == client.UserId)
                         {
                             options[p] = new List<string>();
                             foreach (string general in client.GeneralReserved)
@@ -596,8 +602,8 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < clients.Count; i++)
             {
                 Client client = clients[i];
-                if (client.Status != Client.GameStatus.bot)
-                    client.Status = Client.GameStatus.online;
+                if (client.Status != Client.GameStatus.Bot)
+                    client.Status = Client.GameStatus.Online;
                 Player player = room_players[i];
                 player.SceenName = client.Profile.NickName;
                 player.Status = client.Status.ToString();
@@ -606,7 +612,7 @@ namespace SanguoshaServer.Scenario
                 else
                     player.Next = room_players[i + 1].Name;
 
-                player.ClientId = client.UserID;
+                player.ClientId = client.UserId;
             }
         }
 
@@ -669,7 +675,7 @@ namespace SanguoshaServer.Scenario
 
         public override string GetPreWinner(Room room, Client client)
         {
-            Player surrender = room.GetPlayers(client.UserID)[0];
+            Player surrender = room.GetPlayers(client.UserId)[0];
             List<string> winners = new List<string>();
             List<Player> players = room.GetAlivePlayers();
             bool lord_dead = false;

@@ -204,7 +204,7 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < room.Clients.Count; i++)
             {
                 Client client = room.Clients[i];
-                if (client.UserID < 0) continue;
+                if (client.UserId < 0) continue;
                 List<string> reserved_generals = client.GeneralReserved;
                 if (reserved_generals == null || reserved_generals.Count == 0) continue;
 
@@ -213,7 +213,7 @@ namespace SanguoshaServer.Scenario
                     for (int y = i + 1; y < room.Clients.Count; y++)
                     {
                         Client client2 = room.Clients[y];
-                        if (client == client2 || client2.UserID < 0 || client2.GeneralReserved == null || client2.GeneralReserved.Count == 0) continue;
+                        if (client == client2 || client2.UserId < 0 || client2.GeneralReserved == null || client2.GeneralReserved.Count == 0) continue;
                         if (client2.GeneralReserved.Contains(general))
                         {
                             client.GeneralReserved.RemoveAll(t => t == general);
@@ -228,7 +228,7 @@ namespace SanguoshaServer.Scenario
                 {
                     foreach (Player p in room.Players)
                     {
-                        if (p.ClientId == client.UserID)
+                        if (p.ClientId == client.UserId)
                         {
                             options[p] = new List<string>();
                             foreach (string general in client.GeneralReserved)
@@ -292,8 +292,8 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < clients.Count; i++)
             {
                 Client client = clients[i];
-                if (client.Status != Client.GameStatus.bot)
-                    client.Status = Client.GameStatus.online;
+                if (client.Status != Client.GameStatus.Bot)
+                    client.Status = Client.GameStatus.Online;
                 Player player = room_players[i];
                 player.SceenName = client.Profile.NickName;
                 player.Status = client.Status.ToString();
@@ -302,7 +302,7 @@ namespace SanguoshaServer.Scenario
                 else
                     player.Next = room_players[i + 1].Name;
 
-                player.ClientId = client.UserID;
+                player.ClientId = client.UserId;
             }
         }
 
@@ -412,7 +412,7 @@ namespace SanguoshaServer.Scenario
                 //    player->setSkillsPreshowed("hd");
                 room.NotifyPlayerPreshow(player);
                 Client client = room.GetClient(player);
-                if (client == null || client.Status == Client.GameStatus.bot)
+                if (client == null || client.Status == Client.GameStatus.Bot)
                 {
                     player.SetSkillsPreshowed("hd");
                 }
@@ -477,7 +477,7 @@ namespace SanguoshaServer.Scenario
 
         public override string GetPreWinner(Room room, Client client)
         {
-            Player surrender = room.GetPlayers(client.UserID)[0];
+            Player surrender = room.GetPlayers(client.UserId)[0];
             List<string> winners = new List<string>();
             string winner_kingdom = string.Empty;
             List<Player> players = room.GetAlivePlayers();

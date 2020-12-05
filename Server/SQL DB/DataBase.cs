@@ -99,7 +99,7 @@ namespace SanguoshaServer
         */
         //获取
 
-        public static void UpdateScore(string UserID, int Score)
+        public static void UpdateScore(string user_id, int score)
         {
             SqlConnection myConnection = new SqlConnection(ConfigurationManager.AppSettings["connectionString"]);
             string sql = "update PlayerList set Score=Score + @Score where UserID=@UserID";
@@ -107,13 +107,13 @@ namespace SanguoshaServer
 
             SqlParameter parameterUserID = new SqlParameter("@UserID", SqlDbType.VarChar)
             {
-                Value = UserID
+                Value = user_id
             };
             myCommand.Parameters.Add(parameterUserID);
 
             SqlParameter parameterScore = new SqlParameter("@Score", SqlDbType.Int)
             {
-                Value = Score
+                Value = score
             };
             myCommand.Parameters.Add(parameterScore);
 

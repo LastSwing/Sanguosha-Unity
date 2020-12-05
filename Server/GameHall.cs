@@ -136,18 +136,18 @@ namespace SanguoshaServer
                 {
                     client.OnDisconnected();
 
-                    if (UId2ClientTable.TryGetValue(client.UserID, out Client current) && current == client)
+                    if (UId2ClientTable.TryGetValue(client.UserId, out Client current) && current == client)
                     {
-                        UId2ClientTable.TryRemove(client.UserID, out remove);
+                        UId2ClientTable.TryRemove(client.UserId, out remove);
                         //广播离线信息
-                        clientList.TryRemove(client.UserID, out string account);
+                        clientList.TryRemove(client.UserId, out string account);
                         //更新到form1
                         UpdateUsers(clientList.ToDictionary(entry => entry.Key, entry => entry.Value));
                         MyData data = new MyData()
                         {
                             Description = PacketDescription.Hall2Cient,
                             Protocol = Protocol.UpdateHallLeave,
-                            Body = new List<string> { client.UserID.ToString() }
+                            Body = new List<string> { client.UserId.ToString() }
                         };
 
                         List<Client> clients = new List<Client>(UId2ClientTable.Values);
@@ -217,7 +217,7 @@ namespace SanguoshaServer
                 same.Session.Close();
 
                 //测试
-                UId2ClientTable.TryRemove(uid, out Client client);
+                UId2ClientTable.TryRemove(uid, out _);
 
                 return true;
             }
@@ -229,7 +229,7 @@ namespace SanguoshaServer
         #region 处理客户端请求
         public void OnRequesting(MsgPackSession session, BinaryRequestInfo requestInfo)
         {
-            MyData data = null;
+            MyData data;
             if (Session2ClientTable.TryGetValue(session, out Client client))
             {
                 try
@@ -334,11 +334,11 @@ namespace SanguoshaServer
                 if (sender is Client temp)
                 {
                     //同名已连接用户强制离线
-                    bool same = HandleSameAccount(temp.UserID);
+                    bool same = HandleSameAccount(temp.UserId);
                     //Add the client to the Hashtable 
-                    UId2ClientTable.TryAdd(temp.UserID, temp);
+                    UId2ClientTable.TryAdd(temp.UserId, temp);
 
-                    OutPut("Client Connected:" + temp.UserID);
+                    OutPut("Client Connected:" + temp.UserId);
 
                     //check last game is over
                     bool reconnect = false;
@@ -371,15 +371,15 @@ namespace SanguoshaServer
             {
                 //update user profile
                 //bring to hall
-                bool proceed = client.GetProfile(!reconnect);
+                bool proceed = client.GetClientProfile(!reconnect);
                 if (!proceed) return;
 
-                clientList.TryAdd(client.UserID, client.Profile.NickName);
+                clientList.TryAdd(client.UserId, client.Profile.NickName);
                 //更新到form1
                 Dictionary<int, string> client_list = clientList.ToDictionary(entry => entry.Key, entry => entry.Value);
                 UpdateUsers(client_list);
 
-                UId2ClientTable.TryGetValue(client.UserID, out Client temp);
+                UId2ClientTable.TryGetValue(client.UserId, out Client temp);
 
                 MyData data = new MyData();
                 if (!reconnect)
@@ -400,7 +400,7 @@ namespace SanguoshaServer
                 {
                     Description = PacketDescription.Hall2Cient,
                     Protocol = Protocol.UpdateHallJoin,
-                    Body = new List<string> { client.UserID.ToString(), client.Profile.NickName, "0" }
+                    Body = new List<string> { client.UserId.ToString(), client.Profile.NickName, "0" }
                 };
 
                 List<Client> clients = new List<Client>(UId2ClientTable.Values);
@@ -462,9 +462,9 @@ namespace SanguoshaServer
                                 else
                                 {
                                     //假如双方有分冷暖阵营，则只有同阵营之间可以通讯
-                                    Game3v3Camp camp = room.GetPlayers(sourcer.UserID)[0].Camp;
+                                    Game3v3Camp camp = room.GetPlayers(sourcer.UserId)[0].Camp;
                                     foreach (Client dest in room.Clients)
-                                        if (dest.GameRoom == room.RoomId && room.GetPlayers(dest.UserID)[0].Camp == camp)
+                                        if (dest.GameRoom == room.RoomId && room.GetPlayers(dest.UserId)[0].Camp == camp)
                                             dest.SendMessage(message);
                                 }
                             }
@@ -635,8 +635,7 @@ namespace SanguoshaServer
                 while (true)
                 {
                     int room_id = Interlocked.Increment(ref room_serial);
-
-                    if (!RId2Room.TryGetValue(room_id, out Room exsited))
+                    if (!RId2Room.TryGetValue(room_id, out _))
                     {
                         Room room = new Room(this, room_id, client, setting);
                         RId2Room.TryAdd(room_id, room);
@@ -662,7 +661,7 @@ namespace SanguoshaServer
         {
             //更新房间号至数据库，以备断线重连
             foreach (Client client in room.Clients)
-                if (client.UserID > 0)
+                if (client.UserId > 0)
                     ClientDBOperation.UpdateGameRoom(client.UserName, client.GameRoom);
 
             if (!Room2Thread.TryGetValue(room, out Thread _thread))
@@ -710,7 +709,7 @@ namespace SanguoshaServer
                 //更新该room下用户的房间号为0
                 foreach (Client client in clients)
                 {
-                    if (client.UserID > 0)
+                    if (client.UserId > 0)
                     {
                         client.GameRoom = 0;
                         ClientDBOperation.UpdateGameRoom(client.UserName, 0);
@@ -730,7 +729,7 @@ namespace SanguoshaServer
                         Room new_room = GetRoom(id);
                         foreach (Client client in clients)
                         {
-                            if (client == host || client.Status != Client.GameStatus.online) continue;
+                            if (client == host || client.Status != Client.GameStatus.Online) continue;
                             new_room.OnClientRequestInter(client, id, room.Setting.PassWord);
                         }
                     }
@@ -786,12 +785,12 @@ namespace SanguoshaServer
         }
         public void AddBot(Client client)
         {
-            UId2ClientTable.TryAdd(client.UserID, client);
+            UId2ClientTable.TryAdd(client.UserId, client);
         }
 
         public void RemoveBot(Client client)
         {
-            UId2ClientTable.TryRemove(client.UserID, out Client remove);
+            UId2ClientTable.TryRemove(client.UserId, out Client remove);
         }
         #endregion
 

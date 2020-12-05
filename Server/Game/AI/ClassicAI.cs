@@ -1696,7 +1696,7 @@ namespace SanguoshaServer.AI
                         if (GetPlayerTendency(to) == "renegade")
                         {
                             if (Process.Contains("<"))
-                                value = value * -0.7;
+                                value *= -0.7;
                         }
                         else
                         {
@@ -1720,7 +1720,7 @@ namespace SanguoshaServer.AI
                                 room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
                                 if (Process.Contains("<"))
                                 {
-                                    value = value * -0.7;
+                                    value *= -0.7;
                                 }
                             }
                         }
@@ -1741,7 +1741,7 @@ namespace SanguoshaServer.AI
                         if (GetPlayerTendency(to) == "renegade")
                         {
                             if (Process.Contains(">"))
-                                value = value * -0.7;
+                                value *= -0.7;
                         }
                         else
                         {
@@ -1765,7 +1765,7 @@ namespace SanguoshaServer.AI
                                 room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
                                 if (Process.Contains(">"))
                                 {
-                                    value = value * -0.7;
+                                    value *= -0.7;
                                 }
                             }
                         }
@@ -1809,8 +1809,7 @@ namespace SanguoshaServer.AI
             bool deadly = false;
             if (damage.Damage > 0 && !to.Removed)
             {
-                double value = 0;
-                value = Math.Min(damage.Damage, to.Hp) * 3.5;
+                double value = Math.Min(damage.Damage, to.Hp) * 3.5;
                 if (IsWeak(to))
                 {
                     value += 4;
@@ -1873,7 +1872,7 @@ namespace SanguoshaServer.AI
                         {
                             if (Process.Contains("<"))
                             {
-                                value = value * -0.7;
+                                value *= -0.7;
                                 if (deadly) value -= 5;
                             }
                         }
@@ -1899,7 +1898,7 @@ namespace SanguoshaServer.AI
                                 room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
                                 if (Process.Contains("<"))
                                 {
-                                    value = value * -0.7;
+                                    value *= -0.7;
                                     if (deadly) value -= 5;
                                 }
                             }
@@ -1957,7 +1956,7 @@ namespace SanguoshaServer.AI
                         {
                             if (Process.Contains(">"))
                             {
-                                value = value * -0.7;
+                                value *= -0.7;
                                 if (deadly) value -= 5;
                             }
                         }
@@ -1983,7 +1982,7 @@ namespace SanguoshaServer.AI
                                 room.Debug(string.Format("player name {0} role {1} maybe {2}", to.ActualGeneral1, to.Role, GetPlayerTendency(to)));
                                 if (Process.Contains(">"))
                                 {
-                                    value = value * -0.7;
+                                    value *= -0.7;
                                     if (deadly) value -= 5;
                                 }
                             }

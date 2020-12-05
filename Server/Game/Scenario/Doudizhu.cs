@@ -46,7 +46,7 @@ namespace SanguoshaServer.Scenario
             foreach (Client client in room.Clients)
             {
                 List<string> args = new List<string> { string.Empty, "userdefine:getlandlord", null };
-                Interactivity inter = room.GetInteractivity(client.UserID);
+                Interactivity inter = room.GetInteractivity(client.UserId);
                 if (inter != null)
                 {
                     inter.CommandArgs = args;
@@ -358,8 +358,8 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < clients.Count; i++)
             {
                 Client client = clients[i];
-                if (client.Status != Client.GameStatus.bot)
-                    client.Status = Client.GameStatus.online;
+                if (client.Status != Client.GameStatus.Bot)
+                    client.Status = Client.GameStatus.Online;
                 Player player = room_players[i];
                 player.SceenName = client.Profile.NickName;
                 player.Status = client.Status.ToString();
@@ -368,7 +368,7 @@ namespace SanguoshaServer.Scenario
                 else
                     player.Next = room_players[i + 1].Name;
 
-                player.ClientId = client.UserID;
+                player.ClientId = client.UserId;
             }
         }
 
@@ -419,7 +419,7 @@ namespace SanguoshaServer.Scenario
 
         public override string GetPreWinner(Room room, Client client)
         {
-            Player surrender = room.GetPlayers(client.UserID)[0];
+            Player surrender = room.GetPlayers(client.UserId)[0];
             List<string> winners = new List<string>();
             List<Player> players = room.GetAlivePlayers();
             bool lord_dead = false;

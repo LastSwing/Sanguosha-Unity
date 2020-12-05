@@ -632,7 +632,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && data is DamageStruct damage)
+            if (base.Triggerable(player, room))
             {
                 TriggerStruct trigger = new TriggerStruct(Name, player);
                 //trigger.times = damage.damage;
@@ -1553,10 +1553,9 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (player != null && player.Alive && RoomLogic.PlayerHasSkill(room, player, Name) && data is DamageStruct damage)
+            if (player != null && player.Alive && RoomLogic.PlayerHasSkill(room, player, Name))
             {
                 TriggerStruct trigger = new TriggerStruct(Name, player);
-                //trigger.times = damage.damage;
                 return trigger;
             }
 
@@ -2318,7 +2317,7 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (triggerEvent == TriggerEvent.SlashMissed && data is SlashEffectStruct effect)
+            if (triggerEvent == TriggerEvent.SlashMissed && data is SlashEffectStruct)
             {
                 Player target = ask_who.ContainsTag(Name) ? room.FindPlayer((string)ask_who.GetTag(Name)) : null;
                 if (target != null)
@@ -2582,7 +2581,7 @@ namespace SanguoshaServer.Package
         }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
-            return RoomLogic.PlayerHasSkill(room, from, Name) ? true : false;
+            return RoomLogic.PlayerHasSkill(room, from, Name);
         }
     }
 
@@ -4629,8 +4628,6 @@ namespace SanguoshaServer.Package
         {
             DeathStruct death = (DeathStruct)data;
             Player target = death.Damage.From;
-            string choice = "head_general";
-
             room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
 
             List<string> choices = new List<string>();
@@ -4639,8 +4636,7 @@ namespace SanguoshaServer.Package
 
             if (!string.IsNullOrEmpty(target.General2) && !target.General2.Contains("sujiang"))
                 choices.Add("deputy_general");
-            choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@duanchang-target:" + target.Name }, target);
-
+            string choice = room.AskForChoice(player, Name, string.Join("+", choices), new List<string> { "@duanchang-target:" + target.Name }, target);
             LogMessage log = new LogMessage
             {
                 Type = choice == "head_general" ? "#DuanchangLoseHeadSkills" : "#DuanchangLoseDeputySkills",
@@ -4661,7 +4657,7 @@ namespace SanguoshaServer.Package
             List<string> skills = choice == "head_general" ? Engine.GetGeneralSkills(target.ActualGeneral1, room.Setting.GameMode, true)
                 : Engine.GetGeneralSkills(target.ActualGeneral2, room.Setting.GameMode, false);
             foreach (string skill in skills)
-                    room.DetachSkillFromPlayer(target, skill, !RoomLogic.PlayerHasShownSkill(room, target, skill), false, choice == "head_general" ? true : false);
+                    room.DetachSkillFromPlayer(target, skill, !RoomLogic.PlayerHasShownSkill(room, target, skill), false, choice == "head_general");
 
             if (death.Damage.From.Alive)
                 room.SetPlayerMark(death.Damage.From, "@duanchang", 1);
@@ -4771,7 +4767,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            bool invoke = RoomLogic.PlayerHasShownSkill(room, player, Name) ? true : room.AskForSkillInvoke(player, Name, data, info.SkillPosition);
+            bool invoke = RoomLogic.PlayerHasShownSkill(room, player, Name) || room.AskForSkillInvoke(player, Name, data, info.SkillPosition);
             if (invoke)
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
@@ -5024,10 +5020,9 @@ namespace SanguoshaServer.Package
                 if (RoomLogic.CanBePindianBy(room, p, jiling))
                     targets.Add(p);
             }
-            Player victim = null;
-            if ((victim = room.AskForPlayerChosen(jiling, targets, Name, "@shuangren", true, true, info.SkillPosition)) != null)
+            Player victim = room.AskForPlayerChosen(jiling, targets, Name, "@shuangren", true, true, info.SkillPosition);
+            if (victim != null)
             {
-                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, jiling, Name, info.SkillPosition);
                 room.BroadcastSkillInvoke(Name, jiling, info.SkillPosition);
                 PindianStruct pd = room.PindianSelect(jiling, victim, "shuangren");
                 room.SetTag("shuangren_pd", pd);
@@ -5152,7 +5147,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player player, TriggerStruct info)
         {
-            bool invoke = RoomLogic.PlayerHasShownSkill(room, player, Name) ? true : room.AskForSkillInvoke(player, Name, (int)triggerEvent, info.SkillPosition);
+            bool invoke = RoomLogic.PlayerHasShownSkill(room, player, Name) || room.AskForSkillInvoke(player, Name, (int)triggerEvent, info.SkillPosition);
             if (invoke)
             {
                 GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
@@ -6786,7 +6781,7 @@ namespace SanguoshaServer.Package
         }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
-            return from.HasFlag("TianyiSuccess") ? true : false;
+            return from.HasFlag("TianyiSuccess");
         }
         public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
         {

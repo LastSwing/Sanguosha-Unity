@@ -979,7 +979,6 @@ namespace SanguoshaServer.AI
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
-            string[] strs = prompt.Split(':');
 
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
             List<Player> targets = new List<Player>();
@@ -1823,11 +1822,11 @@ namespace SanguoshaServer.AI
                     }
                     else if (room.GetCardPlace(card_id) == Place.PlaceHand && !(ai.HasSkill("qianxun_jx", target) && target.HandcardNum > 1))
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
+                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1);
                     }
                     else if (room.GetCardPlace(card_id) == Place.PlaceEquip)
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Player.Place.PlaceEquip) > 0 ? false : true);
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Player.Place.PlaceEquip) <= 0);
                     }
                 }
             }
@@ -2350,7 +2349,7 @@ namespace SanguoshaServer.AI
 
                     if (room.GetCardPlace(card_id) == Place.PlaceEquip)
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) <= 0);
                     }
                     else if (ai.HasSkill("tuntian", target) && target.Phase == PlayerPhase.NotActive)
                         ai.UpdatePlayerRelation(player, target, true);
@@ -3305,7 +3304,6 @@ namespace SanguoshaServer.AI
             foreach (Player p in room.GetOtherPlayers(player))
                 if (p.HandcardNum < less) less = p.HandcardNum;
 
-            List<Player> targets = new List<Player>();
             foreach (Player p in room.GetOtherPlayers(player))
                 if (p.HandcardNum == less && ((ai.IsFriend(p) && !ai.HasSkill("zishu", p)) || (!ai.IsFriend(p) && ai.HasSkill("zishu", p)))) return true;
 
@@ -4094,7 +4092,6 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            Room room = ai.Room;
             if (triggerEvent == TriggerEvent.ChoiceMade && data is string str)
             {
                 List<string> strs = new List<string>(str.Split(':'));
@@ -4178,7 +4175,7 @@ namespace SanguoshaServer.AI
                     else if (place == Place.PlaceHand)
                         ai.UpdatePlayerRelation(player, target, false);
                     else
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) <= 0);
                 }
             }
         }
@@ -4187,7 +4184,6 @@ namespace SanguoshaServer.AI
         {
             if (data is Player target)
             {
-                Room room = ai.Room;
                 ScoreStruct score = ai.FindCards2Discard(player, target, Name, "hej", HandlingMethod.MethodDiscard);
                 if (score.Score > 0) return true;
             }
@@ -6149,7 +6145,6 @@ namespace SanguoshaServer.AI
         public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
         {
             Room room = ai.Room;
-            Player target = room.Current;
 
             List<Player> friends = ai.FriendNoSelf;
             bool black = WrappedCard.IsBlack(room.GetCard(card.GetEffectiveId()).Suit);
@@ -6854,10 +6849,12 @@ namespace SanguoshaServer.AI
 
         public override AskForMoveCardsStruct OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max)
         {
-            AskForMoveCardsStruct move = new AskForMoveCardsStruct();
-            move.Top = new List<int>(ups);
-            move.Bottom = new List<int>();
-            move.Success = true;
+            AskForMoveCardsStruct move = new AskForMoveCardsStruct
+            {
+                Top = new List<int>(ups),
+                Bottom = new List<int>(),
+                Success = true
+            };
             Room room = ai.Room;
             if (room.ContainsTag("mubing_count") && room.GetTag("mubing_count") is int count)
             {
@@ -7105,7 +7102,7 @@ namespace SanguoshaServer.AI
                     {
                         if (ai.GetPlayerTendency(target) != "unknown")
                         {
-                            bool friendly = false;
+                            bool friendly;
                             if (judge.Reason == Lightning.ClassName)
                             {
                                 friendly = judge.Card.Suit == WrappedCard.CardSuit.Spade && judge.Card.Number > 1 && judge.Card.Number < 10;
@@ -7565,7 +7562,7 @@ namespace SanguoshaServer.AI
                 {
                     int card_id = int.Parse(strs[2]);
                     Player target = room.FindPlayer(strs[4]);
-                    ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                    ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) <= 0);
                 }
             }
         }
@@ -7935,11 +7932,13 @@ namespace SanguoshaServer.AI
         public override AskForMoveCardsStruct OnMoveCards(TrustedAI ai, Player player, List<int> ups, List<int> downs, int min, int max)
         {
             Room room = ai.Room;
-            AskForMoveCardsStruct move = new AskForMoveCardsStruct();
-            move.Success = true;
-            move.Top = new List<int>(ups);
-            move.Bottom = new List<int>();
-            if (room.GetTag(Name) is Player target)
+            AskForMoveCardsStruct move = new AskForMoveCardsStruct
+            {
+                Success = true,
+                Top = new List<int>(ups),
+                Bottom = new List<int>()
+            };
+            if (room.GetTag(Name) is Player)
             {
                 if (ups.Count < player.HandcardNum)
                 {
@@ -8051,11 +8050,11 @@ namespace SanguoshaServer.AI
                     }
                     else if (room.GetCardPlace(card_id) == Place.PlaceHand)
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1 ? true : false);
+                        ai.UpdatePlayerRelation(player, target, ai.HasSkill("kongcheng|kongcheng_jx") && target.HandcardNum == 1);
                     }
                     else if (room.GetCardPlace(card_id) == Place.PlaceEquip)
                     {
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) <= 0);
                     }
                 }
             }

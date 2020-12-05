@@ -1570,7 +1570,7 @@ namespace SanguoshaServer
                     int from = _from, to = _to, origin = -1;
                     if (from > 0)
                     {
-                        from = from - 1;
+                        from -= 1;
                         if (available_cards[requestor.Name].Contains(room.GetCard(ups[from])))
                         {
                             card = ups[from];
@@ -1591,7 +1591,7 @@ namespace SanguoshaServer
                     {
                         if (to > 0)
                         {
-                            to = to - 1;
+                            to -= 1;
                             if (ups.Count > to) origin = ups[to];
                             if (to > ups.Count)
                                 ups.Add(card);

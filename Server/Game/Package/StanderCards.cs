@@ -1039,7 +1039,6 @@ namespace SanguoshaServer.Package
             Player victim = room.FindPlayer((string)effect.To.GetTag("collateralVictim"), true);
             effect.To.RemoveTag("collateralVictim");
             if (victim == null) return;
-            WrappedCard weapon = room.GetCard(killer.Weapon.Key);
 
             string prompt = string.Format("collateral-slash:{0}:{1}:{2}", victim.Name, source.Name, RoomLogic.CardToString(room, effect.Card));
 
@@ -2023,7 +2022,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player skill_target, ref object data, Player ask_who, TriggerStruct info)
         {
-            bool draw_card = false;
+            bool draw_card;
             if (!RoomLogic.CanDiscard(room, skill_target, skill_target, "h"))
                 draw_card = true;
             else
@@ -2423,15 +2422,9 @@ namespace SanguoshaServer.Package
                 Arg2 = use.Card.Name
             };
 
-            List<int> ids = room.GetSubCards(use.Card);
-            WrappedCard card = use.Card;
             use.Card.ChangeName(FireSlash.ClassName);
-            bool same = card == use.Card;
-            ids = room.GetSubCards(use.Card);
             if (!use.Card.IsVirtualCard())
                 room.GetCard(use.Card.GetEffectiveId()).ChangeName(FireSlash.ClassName);
-
-            ids = room.GetSubCards(use.Card);
 
             log.Card_str = RoomLogic.CardToString(room, use.Card);
             room.SendLog(log);
@@ -2732,7 +2725,7 @@ namespace SanguoshaServer.Package
         public override int GetCorrect(Room room, Player from, Player to, WrappedCard card = null)
         {
             int correct = 0;
-            Horse horse = null;
+            Horse horse;
             if (from.GetOffensiveHorse() && from.GetMark("Equips_nullified_to_Yourself") == 0
                     && (card == null || !card.SubCards.Contains(from.OffensiveHorse.Key)))
             {

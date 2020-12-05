@@ -10,36 +10,32 @@ namespace SanguoshaServer
     public class ClientEventArgs : EventArgs
     {
         public int Id { set; get; }
-        public bool Bool { set; get; }
+        public bool Kicked { set; get; }
     }
+
     public class Client
     {
         public enum GameStatus {
-            normal,
-            ready,
-            online,
-            offline,
-            bot,
+            Normal,
+            Ready,
+            Online,
+            Offline,
+            Bot,
         }
 
-        public event ConnectDelegate Connected;
-        public event DisconnectDelegate Disconnected;
-        public event LeaveRoomDelegate LeaveRoom;
-        public event GetReadyDelegate GetReady;
-        
-        public delegate void ConnectDelegate(object sender, EventArgs e);
-        public delegate void DisconnectDelegate(object sender, EventArgs e);
-        public delegate void LeaveRoomDelegate(object sender, ClientEventArgs e);
-        public delegate void GetReadyDelegate(object sender, ClientEventArgs e);
+        public event EventHandler<EventArgs> Connected;
+        public event EventHandler<EventArgs> Disconnected;
+        public event EventHandler<ClientEventArgs> LeaveRoom;
+        public event EventHandler<ClientEventArgs> GetReady;
 
         private GameHall hall;
-        private Profile profile;
+        private Profile _profile;
 
-        public int UserID { get; set; }
+        public int UserId { get; set; }
         public string UserName { get; set; }
         public int UserRight { get; set; }
-        public bool IsLogin { get; set; }
-        public Profile Profile => profile;
+        public bool IsLogOn { get; set; }
+        public Profile Profile => _profile;
 
         public string IP { get; }
 
@@ -56,7 +52,7 @@ namespace SanguoshaServer
         }
 
         public MsgPackSession Session { get; }
-        public string RoleReserved { get; set; } = string.Empty;
+        public string RoleReserved { get; set; }
         public List<string> GeneralReserved { get; set; }
         private int game_room = 0;
         private Room room = null;
@@ -66,14 +62,14 @@ namespace SanguoshaServer
         {
             this.hall = hall;
             Session = session;
-            IsLogin = false;
+            IsLogOn = false;
             if (session != null)
             {
                 IP = session.RemoteEndPoint.ToString();
             }
-            this.profile = profile;
+            this._profile = profile;
             if (profile.UId < 0)
-                UserID = profile.UId;
+                UserId = profile.UId;
         }
 
         //bot only
@@ -82,21 +78,21 @@ namespace SanguoshaServer
             this.hall = hall;
             Session = null;
             UserName = profile.NickName;
-            IsLogin = false;
-            this.profile = profile;
+            IsLogOn = false;
+            this._profile = profile;
             if (profile.UId < 0)
-                UserID = profile.UId;
+                UserId = profile.UId;
         }
 
         public override bool Equals(object obj)
         {
             Client other = (Client)obj;
-            return UserID == other.UserID && UserName == other.UserName;
+            return UserId == other.UserId && UserName == other.UserName;
         }
 
         public override int GetHashCode()
         {
-            return UserID.GetHashCode() * UserName.GetHashCode();
+            return UserId.GetHashCode() * UserName.GetHashCode();
         }
 
         #region  向客户端发送信息相关
@@ -269,11 +265,11 @@ namespace SanguoshaServer
         }
 
         //从数据库读取个人信息并发送给客户端
-        public bool GetProfile(bool to_hall = true)
+        public bool GetClientProfile(bool to_hall = true)
         {
             try
             {
-                profile = ClientDBOperation.GetProfile(this, to_hall);
+                _profile = ClientDBOperation.GetProfile(this, to_hall);
                 //首次登录个人信息为空
                 if (Profile.UId <= 0)
                 {
@@ -337,7 +333,7 @@ namespace SanguoshaServer
 
             if (ClientDBOperation.Register(this, id, pwd))
             {
-                hall.OutPut(UserID + "：注册成功");
+                hall.OutPut(UserId + "：注册成功");
 
                 MyData message = new MyData
                 {
@@ -425,10 +421,10 @@ namespace SanguoshaServer
         {
             if (profile.UId == Profile.UId && Engine.CheckShwoAvailable(profile) && CheckTitle(profile.Title))
             {
-                this.profile.Avatar = profile.Avatar;
-                this.profile.Title = profile.Title;
-                this.profile.Frame = profile.Frame;
-                this.profile.Bg = profile.Bg;
+                this._profile.Avatar = profile.Avatar;
+                this._profile.Title = profile.Title;
+                this._profile.Frame = profile.Frame;
+                this._profile.Bg = profile.Bg;
 
                 ClientDBOperation.UpDateProfileAvatar(profile);
 
@@ -438,13 +434,13 @@ namespace SanguoshaServer
 
         public void UpdateProfileGamePlay(Profile profile)
         {
-            if (profile.UId == this.profile.UId)
+            if (profile.UId == this._profile.UId)
             {
-                this.profile.GamePlay = profile.GamePlay;
-                this.profile.Win = profile.Win;
-                this.profile.Lose = profile.Lose;
-                this.profile.Escape = profile.Escape;
-                this.profile.Draw = profile.Draw;
+                this._profile.GamePlay = profile.GamePlay;
+                this._profile.Win = profile.Win;
+                this._profile.Lose = profile.Lose;
+                this._profile.Escape = profile.Escape;
+                this._profile.Draw = profile.Draw;
                 
                 SendProfile2Client();
             }
@@ -452,9 +448,9 @@ namespace SanguoshaServer
 
         public void AddProfileTitle(int title_id)
         {
-            if (!profile.Titles.ContainsKey(title_id))
+            if (!_profile.Titles.ContainsKey(title_id))
             {
-                profile.Titles.Add(title_id, DateTime.Now.ToString());
+                _profile.Titles.Add(title_id, DateTime.Now.ToString());
                 SendProfile2Client();
             }
         }
@@ -465,14 +461,14 @@ namespace SanguoshaServer
             {
                 Description = PacketDescription.Hall2Cient,
                 Protocol = Protocol.UserProfile,
-                Body = new List<string> { JsonUntity.Object2Json(profile) }
+                Body = new List<string> { JsonUntity.Object2Json(_profile) }
             };
 
             SendProfileReply(data);
         }
         private bool CheckTitle(int id)
         {
-            return profile.Titles.ContainsKey(id);
+            return _profile.Titles.ContainsKey(id);
         }
         public void OnDisconnected()
         {
@@ -488,7 +484,7 @@ namespace SanguoshaServer
             ClientEventArgs args = new ClientEventArgs
             {
                 Id = GameRoom,
-                Bool = kicked
+                Kicked = kicked
             };
             LeaveRoom?.Invoke(this, args);
         }
@@ -497,7 +493,7 @@ namespace SanguoshaServer
         {
             ClientEventArgs arg = new ClientEventArgs
             {
-                Bool = ready
+                Kicked = ready
             };
             GetReady?.Invoke(this, arg);
         }

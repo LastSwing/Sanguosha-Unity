@@ -319,11 +319,11 @@ namespace SanguoshaServer.Scenario
                 {
                     Client client = clients[player_index];
                     player_index++;
-                    if (client.UserID > 0)
-                        client.Status = Client.GameStatus.online;
+                    if (client.UserId > 0)
+                        client.Status = Client.GameStatus.Online;
                     player.SceenName = client.Profile.NickName;
                     player.Status = client.Status.ToString();
-                    player.ClientId = client.UserID;
+                    player.ClientId = client.UserId;
                 }
                 else
                 {
@@ -360,7 +360,7 @@ namespace SanguoshaServer.Scenario
 
         public override string GetPreWinner(Room room, Client client)
         {
-            Player surrender = room.GetPlayers(client.UserID)[0];
+            Player surrender = room.GetPlayers(client.UserId)[0];
             List<string> winners = new List<string>();
             Game3v3Camp dead_camp = surrender.Camp;
             foreach (Player p in room.Players)

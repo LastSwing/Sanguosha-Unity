@@ -50,7 +50,7 @@ namespace SanguoshaServer.Scenario
         {
             Player _player = new Player();
             _player.Copy(player);
-            if (player.ClientId == client.UserID)
+            if (player.ClientId == client.UserId)
             {
                 _player.ActualGeneral1 = player.ActualGeneral1;
                 _player.ActualGeneral2 = player.ActualGeneral2;
@@ -138,7 +138,7 @@ namespace SanguoshaServer.Scenario
                     bool open = false;
                     foreach (Player p in room.Players)
                     {
-                        if (p.ClientId == client.UserID && player.GetPileOpener(pile).Contains(p.Name))
+                        if (p.ClientId == client.UserId && player.GetPileOpener(pile).Contains(p.Name))
                         {
                             open = true;
                             break;

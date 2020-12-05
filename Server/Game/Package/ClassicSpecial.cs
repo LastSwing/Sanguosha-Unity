@@ -1865,7 +1865,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is CardUseStruct use && player.Alive && ask_who.Alive && (ask_who == player || RoomLogic.DistanceTo(room, ask_who, player) == 1))
+            if (player.Alive && ask_who.Alive && (ask_who == player || RoomLogic.DistanceTo(room, ask_who, player) == 1))
             {
                 if (room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
                 {
@@ -2736,7 +2736,6 @@ namespace SanguoshaServer.Package
             object data = card_use;
             thread.Trigger(TriggerEvent.PreCardUsed, room, player, ref data);
 
-            card_use = (CardUseStruct)data;
             room.SendLog(log);
 
             room.RoomThread.Trigger(TriggerEvent.CardUsedAnnounced, room, player, ref data);
@@ -3606,7 +3605,6 @@ namespace SanguoshaServer.Package
             object data = card_use;
             thread.Trigger(TriggerEvent.PreCardUsed, room, player, ref data);
 
-            card_use = (CardUseStruct)data;
             room.SendLog(log);
 
             room.RoomThread.Trigger(TriggerEvent.CardUsedAnnounced, room, player, ref data);
@@ -4764,7 +4762,7 @@ namespace SanguoshaServer.Package
         }
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
-            return Engine.GetFunctionCard(card.Name).TypeID == CardType.TypeTrick && RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure() ? true : false;
+            return Engine.GetFunctionCard(card.Name).TypeID == CardType.TypeTrick && RoomLogic.PlayerHasSkill(room, from, "linglong") && !from.GetTreasure();
         }
 
         public override int GetResidueNum(Room room, Player from, WrappedCard card)
@@ -6798,8 +6796,6 @@ namespace SanguoshaServer.Package
             object data = card_use;
             thread.Trigger(TriggerEvent.PreCardUsed, room, player, ref data);
 
-            card_use = (CardUseStruct)data;
-
             room.RoomThread.Trigger(TriggerEvent.CardUsedAnnounced, room, player, ref data);
             room.RoomThread.Trigger(TriggerEvent.CardTargetAnnounced, room, player, ref data);
 
@@ -8676,7 +8672,6 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.Death && data is DeathStruct death)
             {
-                Player current = room.Current;
                 foreach (Player p in room.GetOtherPlayers(death.Who))
                 {
                     if (death.Damage.From != null && p == death.Damage.From)
@@ -8898,7 +8893,7 @@ namespace SanguoshaServer.Package
             int num = 3;
             if (player.GetMark("diaoling") > 0) num++;
             List<int> card_ids = room.GetNCards(num);
-            List<int> gets = new List<int>(), drops = new List<int>();
+            List<int> gets = new List<int>(), drops;
 
             foreach (int id in card_ids)
             {
@@ -9456,7 +9451,6 @@ namespace SanguoshaServer.Package
             List<Player> targets = new List<Player>(card_use.To);
             room.SortByActionOrder(ref targets);
 
-            bool hidden = (TypeID == CardType.TypeSkill && !WillThrow);
             LogMessage log = new LogMessage("#UseCard")
             {
                 From = player.Name,
@@ -9676,7 +9670,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player target = null;
+            Player target;
             if (player == ask_who)
             {
                 target = player;
@@ -9889,9 +9883,11 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player caopi, TriggerStruct info)
         {
-            RecoverStruct recover = new RecoverStruct();
-            recover.Who = player;
-            recover.Recover = 1;
+            RecoverStruct recover = new RecoverStruct
+            {
+                Who = player,
+                Recover = 1
+            };
             room.Recover(caopi, recover, true);
             room.DrawCards(caopi, 1, Name);
 

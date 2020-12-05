@@ -3201,7 +3201,7 @@ namespace SanguoshaServer.Package
             };
             room.SendLog(result);
 
-            int count = 0;
+            int count;
             if (has)
             {
                 count = no.Count;
@@ -3632,8 +3632,10 @@ namespace SanguoshaServer.Package
 
                 if (player.Alive && target.Alive)
                 {
-                    WrappedCard slash = new WrappedCard(ThunderSlash.ClassName);
-                    slash.DistanceLimited = false;
+                    WrappedCard slash = new WrappedCard(ThunderSlash.ClassName)
+                    {
+                        DistanceLimited = false
+                    };
                     if (RoomLogic.IsProhibited(room, player, target, slash) == null)
                         room.UseCard(new CardUseStruct(slash, player, target, false));
                 }
@@ -4861,12 +4863,12 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player player = card_use.From;
-            Player target = null;
+            Player target;
             string choic = room.AskForChoice(player, "fuhai", "counterclockwise+clockwise");
             if (choic == "counterclockwise")
             {
                 target = room.GetNextAlive(player, 1, false);
-                bool succes = true;
+                bool succes;
                 do
                 {
                     while (target != player && (target.IsKongcheng() || target.HasFlag("fuhai")))
@@ -4893,7 +4895,7 @@ namespace SanguoshaServer.Package
             else
             {
                 target = room.GetLastAlive(player, 1, false);
-                bool succes = true;
+                bool succes;
                 do
                 {
                     while (target != player && (target.IsKongcheng() || target.HasFlag("fuhai")))

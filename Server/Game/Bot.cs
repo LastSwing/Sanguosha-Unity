@@ -15,7 +15,7 @@ namespace SanguoshaServer.Game
             List<string> used = new List<string>();
             foreach (Client client in room.Clients)
             {
-                if (client.UserID < 0)
+                if (client.UserId < 0)
                     used.Add(client.Profile.NickName);
             }
 
@@ -47,7 +47,7 @@ namespace SanguoshaServer.Game
         {
             List<Client> ais = new List<Client>();
             foreach (Client client in room.Clients)
-                if (client.UserID < 0)
+                if (client.UserId < 0)
                     ais.Add(client);
 
             if (ais.Count == 0) return;
@@ -512,7 +512,7 @@ namespace SanguoshaServer.Game
         {
             List<Client> ais = new List<Client>();
             foreach (Client client in room.Clients)
-                if (client.UserID < 0)
+                if (client.UserId < 0)
                     ais.Add(client);
 
             if (ais.Count == 0) return;

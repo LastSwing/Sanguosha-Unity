@@ -19,14 +19,14 @@ namespace SanguoshaServer
             {
                 if (dr.Rows[0]["password"].ToString() == Password)
                 {
-                    client.IsLogin = true;
-                    client.UserID = int.Parse(dr.Rows[0]["uid"].ToString());
+                    client.IsLogOn = true;
+                    client.UserId = int.Parse(dr.Rows[0]["uid"].ToString());
                     client.UserName = UserName;
                     client.UserRight = int.Parse(dr.Rows[0]["User_Right"].ToString());
                     client.GameRoom = int.TryParse(dr.Rows[0]["roomID"].ToString(), out int result) ? result : -1;
 
                     //更新LastIP
-                    string sql = string.Format("update account set lastIP = '{1}', status = {2}, login_date = GETDATE() where uid = {0}", client.UserID, client.IP, 1);
+                    string sql = string.Format("update account set lastIP = '{1}', status = {2}, login_date = GETDATE() where uid = {0}", client.UserId, client.IP, 1);
                     DB.UpdateData(sql);
                     
                     return ClientMessage.Connected;
@@ -49,7 +49,7 @@ namespace SanguoshaServer
         #region 从数据库读取个人信息并发送给客户端
         public static Profile GetProfile(Client client, bool to_hall = true)
         {
-            string sql = string.Format("select * from profile where uid = {0}", client.UserID);
+            string sql = string.Format("select * from profile where uid = {0}", client.UserId);
             DataTable dt = DB.GetData(sql);
 
             //首次登录个人信息为空
@@ -68,13 +68,13 @@ namespace SanguoshaServer
             }
             else
             {
-                string title_sql = string.Format("select * from title where uid = {0}", client.UserID);
+                string title_sql = string.Format("select * from title where uid = {0}", client.UserId);
                 DataTable title_dt = DB.GetData(title_sql);
                 Dictionary<int, string> titles = new Dictionary<int, string>();
                 foreach (DataRow row in title_dt.Rows)
                     titles.Add(int.Parse(row["title_id"].ToString()), row["date"].ToString());
 
-                string achieve_sql = string.Format("select * from achieve where uid = {0}", client.UserID);
+                string achieve_sql = string.Format("select * from achieve where uid = {0}", client.UserId);
                 DataTable achieve_dt = DB.GetData(achieve_sql);
                 Dictionary<int, string> achieves = new Dictionary<int, string>();
                 foreach (DataRow row in achieve_dt.Rows)
@@ -117,8 +117,8 @@ namespace SanguoshaServer
                 DataTable dr = DB.LoginDB(id);
                 if (dr.Rows.Count == 1)
                 {
-                    client.IsLogin = true;
-                    client.UserID = int.Parse(dr.Rows[0]["uid"].ToString());
+                    client.IsLogOn = true;
+                    client.UserId = int.Parse(dr.Rows[0]["uid"].ToString());
                     client.UserName = id;
 
                     return true;
@@ -140,7 +140,7 @@ namespace SanguoshaServer
                 return false;
             else
             {
-                string new_sql = string.Format("insert into profile (uid, NickName) values ({0}, '{1}') insert into title values({0}, 0, GETDATE())", client.UserID, NickName);
+                string new_sql = string.Format("insert into profile (uid, NickName) values ({0}, '{1}') insert into title values({0}, 0, GETDATE())", client.UserId, NickName);
                 DB.UpdateData(new_sql);
                 return true;
             }
@@ -204,9 +204,9 @@ namespace SanguoshaServer
             DB.UpdateData(sql);
         }
         //更新用户所在游戏房间信息
-        public static void UpdateGameRoom(string UserID, int RoomId)
+        public static void UpdateGameRoom(string user_id, int room)
         {
-            string sql = string.Format("update account set inGame = {0}, roomID = {1} where account = '{2}'", RoomId > 0 ? 1 : 0, RoomId, UserID);
+            string sql = string.Format("update account set inGame = {0}, roomID = {1} where account = '{2}'", room > 0 ? 1 : 0, room, user_id);
             DB.UpdateData(sql);
         }
 
