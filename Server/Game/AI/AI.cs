@@ -1495,7 +1495,7 @@ namespace SanguoshaServer.AI
                     else
                     {
                         if (!p.IsNude())
-                            others = others + 1;
+                            others += 1;
                     }
                     if (IsEnemy(p, player) && HasSkill("guzheng", p)) erzhang = p;
                 }
@@ -1579,7 +1579,7 @@ namespace SanguoshaServer.AI
                     else
                     {
                         if (!p.IsNude())
-                            others = others + 1;
+                            others += 1;
                     }
                     if (IsEnemy(p, player) && HasSkill("guzheng", p)) erzhang = p;
                 }
@@ -3662,8 +3662,7 @@ namespace SanguoshaServer.AI
             bool deadly = false;
             if (damage.Damage > 0 && !to.Removed)
             {
-                double value = 0;
-                value = Math.Min(damage.Damage, to.Hp) * 3.5;
+                double value = Math.Min(damage.Damage, to.Hp) * 3.5;
                 if (room.BloodBattle && room.Setting.GameMode == "Hegemony") value *= 1.35;                    //鏖战状态下应给予伤害加分
                 if (IsWeak(to))
                 {

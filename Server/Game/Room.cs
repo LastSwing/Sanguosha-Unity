@@ -134,7 +134,7 @@ namespace SanguoshaServer.Game
                     Client bot = new Client(Hall, profile)
                     {
                         GameRoom = RoomId,
-                        Status = Client.GameStatus.Bot,
+                        Status = Client.GameStatus.bot,
                     };
                     Hall.AddBot(bot);
                     Clients.Add(bot);
@@ -1591,7 +1591,7 @@ namespace SanguoshaServer.Game
             //Q_ASSERT(_m_lastMovementId >= 0);
             foreach (Client player in receivers)
             {
-                if (player.Status == Client.GameStatus.Offline) continue;
+                if (player.Status == Client.GameStatus.offline) continue;
                 List<string> arg = new List<string>
                 {
                     moveId.ToString()
@@ -2106,9 +2106,9 @@ namespace SanguoshaServer.Game
                             break;
                         }
                     }
-                    client.Status = Client.GameStatus.Normal;
+                    client.Status = Client.GameStatus.normal;
                     if (GameStarted)
-                        client.Status = Client.GameStatus.Online;
+                        client.Status = Client.GameStatus.online;
 
                     //通知room中的其他玩家
                     RoomMessage.NotifyPlayerJoinorLeave(this, client, true);
@@ -2164,14 +2164,14 @@ namespace SanguoshaServer.Game
                 }
 
                 Host.GameRoom = RoomId;
-                Host.Status = Client.GameStatus.Ready;
+                Host.Status = Client.GameStatus.ready;
                 Host.RoleReserved = string.Empty;
                 Host.GeneralReserved = new List<string>();
 
                 SendRoomSetting2Client(Host);
 
                 //通知客户端当前玩家(client)信息
-                Host.Status = Client.GameStatus.Normal;
+                Host.Status = Client.GameStatus.normal;
 
 
                 //通知room中的其他玩家
@@ -2249,13 +2249,13 @@ namespace SanguoshaServer.Game
             lock (this)
             {
                 Client client = (Client)sender;
-                client.Status = Client.GameStatus.Offline;
+                client.Status = Client.GameStatus.offline;
 
                 bool human_stay = false;
                 List<Client> clients = new List<Client>(Clients);
                 foreach (Client other in clients)
                 {
-                    if (other != client && other.Status != Client.GameStatus.Bot && other.Status != Client.GameStatus.Offline)
+                    if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
                         human_stay = true;
                         break;
@@ -2312,7 +2312,7 @@ namespace SanguoshaServer.Game
                     List<Client> clients = new List<Client>(Clients);
                     foreach (Client other in clients)
                     {
-                        if (other != client && other.Status != Client.GameStatus.Bot && other.Status != Client.GameStatus.Offline)
+                        if (other != client && other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                         {
                             human_stay = true;
                             break;
@@ -2366,7 +2366,7 @@ namespace SanguoshaServer.Game
 
                     if (args.Kicked)
                     {
-                        if (client.Status == Client.GameStatus.Bot)
+                        if (client.Status == Client.GameStatus.bot)
                         {
                             Hall.RemoveBot(client);
                             client = null;
@@ -2423,7 +2423,7 @@ namespace SanguoshaServer.Game
             {
                 foreach (Client other in clients)
                 {
-                    if (other.Status != Client.GameStatus.Bot && other.Status != Client.GameStatus.Offline)
+                    if (other.Status != Client.GameStatus.bot && other.Status != Client.GameStatus.offline)
                     {
                         Host = other;
                         break;
@@ -2516,7 +2516,7 @@ namespace SanguoshaServer.Game
                 if (GameStarted || Host == client) return;
                 lock (this)
                 {
-                    client.Status = ready.Kicked ? Client.GameStatus.Ready : Client.GameStatus.Normal;
+                    client.Status = ready.Kicked ? Client.GameStatus.ready : Client.GameStatus.normal;
                     UpdateClientsInfo();
                 }
             }
@@ -2863,7 +2863,7 @@ namespace SanguoshaServer.Game
                 List<Client> clients = new List<Client>(Clients);
                 foreach (Client c in clients)
                 {
-                    if (c != Host && c.Status != Client.GameStatus.Bot && c.Status != Client.GameStatus.Ready)
+                    if (c != Host && c.Status != Client.GameStatus.bot && c.Status != Client.GameStatus.ready)
                     {
                         check = false;
                         break;
@@ -2971,7 +2971,7 @@ namespace SanguoshaServer.Game
             foreach (Player player in m_players)
             {
                 Client client = Hall.GetClient(player.ClientId);
-                if (client != null && client.Status == Client.GameStatus.Online)
+                if (client != null && client.Status == Client.GameStatus.online)
                 {
                     player.Status = "online";
                     TrustedAI ai = null;
@@ -2981,7 +2981,7 @@ namespace SanguoshaServer.Game
                         ai = new TrustedAI(this, player);
                     player_ai.Add(player, ai);
                 }
-                else if (client == null || client.Status == Client.GameStatus.Bot)
+                else if (client == null || client.Status == Client.GameStatus.bot)
                 {
                     player.Status = "bot";
                     player_ai.Add(player, Scenario.GetAI(this, player));
@@ -3159,7 +3159,7 @@ namespace SanguoshaServer.Game
         {
             lock (this)
             {
-                if (client.Status == Client.GameStatus.Online)
+                if (client.Status == Client.GameStatus.online)
                 {
                     bool trust = false;
 
@@ -3224,7 +3224,7 @@ namespace SanguoshaServer.Game
                     Client bot = new Client(Hall, profile)
                     {
                         GameRoom = RoomId,
-                        Status = Client.GameStatus.Bot,
+                        Status = Client.GameStatus.bot,
                     };
                     Hall.AddBot(bot);
                     Clients.Add(bot);
@@ -3564,7 +3564,7 @@ namespace SanguoshaServer.Game
         public TrustedAI GetAI(Player player, bool ai = false)
         {
             Client client = Hall.GetClient(player.ClientId);
-            if (ai || client == null ||  client.Status == Client.GameStatus.Bot || client.Status == Client.GameStatus.Offline || player.Status == "trust" || player.Status == "escape")
+            if (ai || client == null ||  client.Status == Client.GameStatus.bot || client.Status == Client.GameStatus.offline || player.Status == "trust" || player.Status == "escape")
                 return player_ai[player];
 
             return null;

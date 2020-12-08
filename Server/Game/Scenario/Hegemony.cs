@@ -292,8 +292,8 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < clients.Count; i++)
             {
                 Client client = clients[i];
-                if (client.Status != Client.GameStatus.Bot)
-                    client.Status = Client.GameStatus.Online;
+                if (client.Status != Client.GameStatus.bot)
+                    client.Status = Client.GameStatus.online;
                 Player player = room_players[i];
                 player.SceenName = client.Profile.NickName;
                 player.Status = client.Status.ToString();
@@ -412,7 +412,7 @@ namespace SanguoshaServer.Scenario
                 //    player->setSkillsPreshowed("hd");
                 room.NotifyPlayerPreshow(player);
                 Client client = room.GetClient(player);
-                if (client == null || client.Status == Client.GameStatus.Bot)
+                if (client == null || client.Status == Client.GameStatus.bot)
                 {
                     player.SetSkillsPreshowed("hd");
                 }

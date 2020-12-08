@@ -122,6 +122,7 @@
     <Compile Include="Game\AI\ClassicSpecialAI.cs" />
     <Compile Include="Game\AI\ClassicYingAI.cs" />
     <Compile Include="Game\AI\FamousGeneralAI.cs" />
+    <Compile Include="Game\AI\AllianceAI.cs" />
     <Compile Include="Game\AI\HegemonySpecialAI.cs" />
     <Compile Include="Game\AI\MobileAI.cs" />
     <Compile Include="Game\AI\MythAI.cs" />
@@ -164,6 +165,7 @@
     <Compile Include="Game\Package\Authority.cs" />
     <Compile Include="Game\Package\Formation.cs" />
     <Compile Include="Game\Package\GuanduCards.cs" />
+    <Compile Include="Game\Package\AllianceLimited.cs" />
     <Compile Include="Game\Package\GuanduLimited.cs" />
     <Compile Include="Game\Package\Mobile.cs" />
     <Compile Include="Game\Package\Myth.cs" />
@@ -182,6 +184,7 @@
     <Compile Include="Game\RoomCard.cs" />
     <Compile Include="Game\RoomLogic.cs" />
     <Compile Include="Game\RoomMessage.cs" />
+    <Compile Include="Game\Scenario\Alliance.cs" />
     <Compile Include="Game\Scenario\Doudizhu.cs" />
     <Compile Include="Game\Scenario\Classic.cs" />
     <Compile Include="Game\Scenario\GuanduWarfare.cs" />

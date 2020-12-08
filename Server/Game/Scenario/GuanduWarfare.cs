@@ -320,7 +320,7 @@ namespace SanguoshaServer.Scenario
                     Client client = clients[player_index];
                     player_index++;
                     if (client.UserId > 0)
-                        client.Status = Client.GameStatus.Online;
+                        client.Status = Client.GameStatus.online;
                     player.SceenName = client.Profile.NickName;
                     player.Status = client.Status.ToString();
                     player.ClientId = client.UserId;

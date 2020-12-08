@@ -358,8 +358,8 @@ namespace SanguoshaServer.Scenario
             for (int i = 0; i < clients.Count; i++)
             {
                 Client client = clients[i];
-                if (client.Status != Client.GameStatus.Bot)
-                    client.Status = Client.GameStatus.Online;
+                if (client.Status != Client.GameStatus.bot)
+                    client.Status = Client.GameStatus.online;
                 Player player = room_players[i];
                 player.SceenName = client.Profile.NickName;
                 player.Status = client.Status.ToString();
@@ -602,7 +602,6 @@ namespace SanguoshaServer.Scenario
         }
         protected override void OnBuryVictim(Room room, Player player, ref object data)
         {
-            DeathStruct death = (DeathStruct)data;
             room.BuryPlayer(player);
             if (player.GetRoleEnum() == PlayerRole.Rebel)
             {

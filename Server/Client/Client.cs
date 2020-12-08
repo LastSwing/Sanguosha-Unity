@@ -16,11 +16,11 @@ namespace SanguoshaServer
     public class Client
     {
         public enum GameStatus {
-            Normal,
-            Ready,
-            Online,
-            Offline,
-            Bot,
+            normal,
+            ready,
+            online,
+            offline,
+            bot,
         }
 
         public event EventHandler<EventArgs> Connected;

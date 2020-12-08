@@ -729,7 +729,7 @@ namespace SanguoshaServer
                         Room new_room = GetRoom(id);
                         foreach (Client client in clients)
                         {
-                            if (client == host || client.Status != Client.GameStatus.Online) continue;
+                            if (client == host || client.Status != Client.GameStatus.online) continue;
                             new_room.OnClientRequestInter(client, id, room.Setting.PassWord);
                         }
                     }

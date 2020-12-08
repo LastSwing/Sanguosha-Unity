@@ -1043,7 +1043,7 @@ namespace SanguoshaServer.AI
                     Player target = room.FindPlayer(strs[4]);
 
                     if (room.GetCardPlace(card_id) == Place.PlaceEquip)
-                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) > 0 ? false : true);
+                        ai.UpdatePlayerRelation(player, target, ai.GetKeepValue(card_id, target, Place.PlaceEquip) <= 0);
                     else
                         ai.UpdatePlayerRelation(player, target, false);
                 }
