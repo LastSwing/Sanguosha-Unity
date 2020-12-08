@@ -79,7 +79,7 @@ namespace SanguoshaServer.Scenario
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "longxiangjun";
                         break;
                     case 1:
-                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "fanchou";
+                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "fanchou_al";
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "hubenjun";
                         break;
                     case 2:
@@ -87,7 +87,7 @@ namespace SanguoshaServer.Scenario
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "fengyaojun";
                         break;
                     case 3:
-                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "dongyue";
+                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "dongyue_al";
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "baoluejun";
                         break;
                     case 4:
@@ -97,7 +97,7 @@ namespace SanguoshaServer.Scenario
                         break;
                     case 5:
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = "feixiongjun_2";
-                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "guosi";
+                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "guosi_al";
                         room.Players[4].General1 = room.Players[4].ActualGeneral1 = "feixiongjun_1";
                         break;
                 }
@@ -185,15 +185,7 @@ namespace SanguoshaServer.Scenario
                         generalName = reply[0];
 
                     if (!success || (!options[player].Contains(generalName) && room.GetClient(player).UserRight < 3))
-                    {
-                        TrustedAI ai = room.GetAI(player);
-                        if (ai != null && ai is AllianceAI)
-                        {
-                            generalName = GeneralSelector.GetGeneral(room, options[player], player.GetRoleEnum(), player);
-                        }
-                        else
-                            generalName = options[player][0];
-                    }
+                        generalName = options[player][0];
 
                     player.General1 = generalName;
                     player.ActualGeneral1 = generalName;
@@ -562,7 +554,7 @@ namespace SanguoshaServer.Scenario
             bool enemy_win = true;
             foreach (Player p in room.Players)
             {
-                if (p.GetRoleEnum() == Player.PlayerRole.Lord && !p.Alive && p.Camp == Game3v3Camp.S_CAMP_COOL)
+                if (p.GetRoleEnum() == Player.PlayerRole.Lord && !p.Alive && p.Camp == Game3v3Camp.S_CAMP_WARM)
                 {
                     alli_win = true;
                     break;

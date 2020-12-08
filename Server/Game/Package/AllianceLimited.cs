@@ -8,9 +8,9 @@ using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Package
 {
-    public class AllianceLimited : GeneralPackage
+    public class AllianceGeneral : GeneralPackage
     {
-        public AllianceLimited() : base("AllianceLimited")
+        public AllianceGeneral() : base("AllianceGeneral")
         {
             skills = new List<Skill> {
                 new Jielue(),
@@ -127,7 +127,7 @@ namespace SanguoshaServer.Package
                 {
                     if (p.Camp == ask_who.Camp)
                     {
-                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, p.Name);
+                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, p.Name);
                         players.Add(p);
                     }
                 }
