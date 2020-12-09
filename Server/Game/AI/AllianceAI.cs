@@ -4,8 +4,8 @@ using SanguoshaServer.Game;
 using SanguoshaServer.Package;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.RegularExpressions;
+using static CommonClass.Game.Player;
 using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.AI
@@ -292,8 +292,7 @@ namespace SanguoshaServer.AI
             bool deadly = false;
             if (damage.Damage > 0 && !to.Removed)
             {
-                double value = 0;
-                value = Math.Min(damage.Damage, to.Hp) * 3.5;
+                double value = Math.Min(damage.Damage, to.Hp) * 3.5;
                 if (IsWeak(to))
                 {
                     value += 4;
@@ -303,7 +302,7 @@ namespace SanguoshaServer.AI
                             int over_damage = damage.Damage - to.Hp;
                             for (int i = 1; i <= over_damage; i++)
                             {
-                                double x = HasSkill("buqu", to) ? 1 / Math.Pow(i, 2) : (double)8 / Math.Pow(i, 2);
+                                double x = HasSkill("buqu|buqu_jx", to) ? 1 / Math.Pow(i, 2) : 8 / Math.Pow(i, 2);
                                 value += x;
                             }
                         }
@@ -447,8 +446,6 @@ namespace SanguoshaServer.AI
                 {
                     if (p.GetRoleEnum() == Player.PlayerRole.Lord)
                         PlayersLevel[p] = 4;
-                    else if (p.Alive && p.GetMark("@gd_liang") > 0)
-                        PlayersLevel[p] = 5;
                     else
                         PlayersLevel[p] = 3;
                 }
@@ -497,6 +494,21 @@ namespace SanguoshaServer.AI
 
         public override WrappedCard AskForCard(string reason, string pattern, string prompt, object data)
         {
+            if (HasSkill("aocai") && Self.Phase == PlayerPhase.NotActive && self.GetPile("#aocai").Count == 0           //傲才耦合
+                && (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
+                || room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
+            {
+                WrappedCard aocai = new WrappedCard(AocaiCard.ClassName) { Skill = "aocai" };
+                WrappedCard slash = new WrappedCard(Slash.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, slash)) return aocai;
+                WrappedCard jink = new WrappedCard(Jink.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, jink)) return aocai;
+                WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, ana)) return aocai;
+                WrappedCard peach = new WrappedCard(Peach.ClassName);
+                if (Engine.MatchExpPattern(room, pattern, self, peach)) return aocai;
+            }
+
             UseCard card = Engine.GetCardUsage(reason);
             if (card != null)
                 return card.OnResponding(this, self, pattern, prompt, data).Card;
@@ -510,7 +522,7 @@ namespace SanguoshaServer.AI
         public override WrappedCard AskForCardShow(Player requestor, string reason, object data)
         {
             UseCard card = Engine.GetCardUsage(reason);
-            WrappedCard result = null;
+            WrappedCard result;
             if (card != null)
             {
                 result = card.OnCardShow(this, self, requestor, data);
@@ -533,16 +545,50 @@ namespace SanguoshaServer.AI
         {
             FunctionCard f_peach = Peach.Instance;
             FunctionCard f_ana = Analeptic.Instance;
-            if (self != dying & IsFriend(dying) && (CanSave(dying, 1 - dying.Hp) || dying.GetRoleEnum() == Player.PlayerRole.Lord))
+            WrappedCard result = null;
+
+            if (self != dying)
             {
-                if (dying.GetRoleEnum() != Player.PlayerRole.Lord && dying.IsNude() && !MaySave(dying) && !HasSkill(MasochismSkill))
+                if ((HasSkill("niepan", dying) && dying.GetMark("@nirvana") > 0) || (HasSkill("fuli", dying) && dying.GetMark("@fuli") > 0)
+                    || (HasSkill("jizhao", dying) && dying.GetMark("@jizhao") > 0)) return null;
+                if (HasSkill("buqu|buqu_jx", dying) && dying.GetPile("buqu").Count <= 4 && room.GetFront(self, dying) == self)
                     return null;
 
-                List<WrappedCard> peaches = GetCards(Peach.ClassName, self);
-                foreach (WrappedCard card in peaches)
+                bool will_save = false;
+                if (dying.GetRoleEnum() == PlayerRole.Lord && self.Camp == dying.Camp)
+                    will_save = true;
+
+                if (!will_save && IsFriend(dying) && CanSave(dying, 1 - dying.Hp))
                 {
-                    if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
-                        return card;
+                    if (dying.IsNude() && !MaySave(dying) && !HasSkill(MasochismSkill, dying)) return null;
+                    will_save = true;
+                }
+
+                if (will_save)
+                {
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (HasSkill("chunlao") && Analeptic.Instance.IsAvailable(room, dying, ana))                            //醇醪要在这里判断
+                    {
+                        List<int> ids = self.GetPile("chun");
+                        if (ids.Count > 0)
+                        {
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true, UserString = dying.Name };
+                            result.AddSubCard(ids[0]);
+                        }
+                    }
+
+                    if (result == null)
+                    {
+                        List<WrappedCard> peaches = GetCards(Peach.ClassName, self);
+                        foreach (WrappedCard card in peaches)
+                        {
+                            if (f_peach.IsAvailable(room, self, card) && Engine.IsProhibited(room, self, dying, card) == null)
+                            {
+                                result = card;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             else if (self == dying)
@@ -556,7 +602,6 @@ namespace SanguoshaServer.AI
                         peaches.Add(card);
 
                 double best = -1000;
-                WrappedCard result = null;
                 foreach (WrappedCard card in peaches)
                 {
                     double value = GetUseValue(card, self);
@@ -568,10 +613,22 @@ namespace SanguoshaServer.AI
                     }
                 }
 
-                return result;
+                if (result == null)
+                {
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (HasSkill("chunlao") && Analeptic.Instance.IsAvailable(room, dying, ana))                            //醇醪要在这里判断
+                    {
+                        List<int> ids = self.GetPile("chun");
+                        if (ids.Count > 0)
+                        {
+                            result = new WrappedCard(ChunlaoCard.ClassName) { Skill = "chunlao", Mute = true, UserString = dying.Name };
+                            result.AddSubCard(ids[0]);
+                        }
+                    }
+                }
             }
 
-            return null;
+            return result;
         }
 
         public override string AskForChoice(string skill_name, string choice, object data)
@@ -706,23 +763,65 @@ namespace SanguoshaServer.AI
             result = new List<int>();
             if (optional) return result;
 
-           SortByKeepValue(ref ids, false);
+            List<double> values = SortByKeepValue(ref ids, false);
             for (int i = 0; i < min_num; i++)
                 result.Add(ids[i]);
 
             if (result.Count < discard_num)
             {
-                for (int i = result.Count - 1; i < Math.Min(result.Count, ids.Count); i++)
+                for (int i = result.Count - 1; i < Math.Min(discard_num, ids.Count); i++)
                 {
-                    if (ids[i] < 0)
+                    if (values[i] < 0)
                         result.Add(ids[i]);
                     else
                         break;
                 }
             }
 
-            return result;
+            if (reason == "gamerule" && HasSkill("yinbing"))
+            {
+                bool trick = false;
+                List<int> rest = new List<int>(self.GetCards("h"));
+                rest.RemoveAll(t => result.Contains(t));
+                foreach (int id in rest)
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeBasic && card.Name != Nullification.ClassName)
+                    {
+                        trick = true;
+                        break;
+                    }
+                }
 
+                if (!trick && rest.Count > 2)
+                {
+                    int keep = -1;
+                    foreach (int id in result)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeBasic)
+                        {
+                            keep = id;
+                            break;
+                        }
+                    }
+
+                    if (keep > -1)
+                    {
+                        foreach (int id in ids)
+                        {
+                            if (!result.Contains(id))
+                            {
+                                result.Add(id);
+                                result.Remove(keep);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
 
         public override int AskForCardChosen(Player who, string flags, string reason, HandlingMethod method, List<int> disabled_ids)
@@ -752,9 +851,16 @@ namespace SanguoshaServer.AI
 
         private readonly Dictionary<string, string> prompt_keys = new Dictionary<string, string> {
             { "collateral-slash", Collateral.ClassName },
-            { "@tiaoxin-slash", "tiaoxin" },
+            { "@tiaoxin_jx-slash", "tiaoxin_jx" },
             { "@luanwu-slash", "luanwu" },
-            { "@yuanlue", "yuanlue" },
+            { "@kill_victim", BeltsheChao.ClassName },
+            { "@kangkai-use", "kangkai" },
+            { "@lianji-slash", "lianji" },
+            { "@jianji", "jianji" },
+            { "@zhongyong-slash", "zhongyong" },
+            { "@zhuhai-slash", "zhuhai" },
+            { "@sheque-slash", "sheque" },
+            { "@fangong-slash", "fangong" },
         };
 
         public override CardUseStruct AskForUseCard(string pattern, string prompt, FunctionCard.HandlingMethod method)
@@ -783,6 +889,21 @@ namespace SanguoshaServer.AI
             }
             else
             {
+                if (HasSkill("aocai") && Self.Phase == PlayerPhase.NotActive && self.GetPile("#aocai").Count == 0           //傲才耦合
+                    && (room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE
+                    || room.GetRoomState().GetCurrentCardUseReason() == CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE))
+                {
+                    WrappedCard aocai = new WrappedCard(AocaiCard.ClassName) { Skill = "aocai" };
+                    WrappedCard slash = new WrappedCard(Slash.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, slash)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard jink = new WrappedCard(Jink.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, jink)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard ana = new WrappedCard(Analeptic.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, ana)) return new CardUseStruct(aocai, self, new List<Player>());
+                    WrappedCard peach = new WrappedCard(Peach.ClassName);
+                    if (Engine.MatchExpPattern(room, pattern, self, peach)) return new CardUseStruct(aocai, self, new List<Player>());
+                }
+
                 if (!string.IsNullOrEmpty(room.GetRoomState().GetCurrentResponseSkill()))
                 {
                     string skill_name = room.GetRoomState().GetCurrentResponseSkill();
@@ -878,8 +999,21 @@ namespace SanguoshaServer.AI
             Choice[HegNullification.ClassName] = null;
             if (!to.Alive) return null;
 
+            if (real.From != null && HasSkill("funan", real.From) && !IsFriend(real.From) && (real.From.GetMark("funan") > 0 || room.GetSubCards(real.Card).Count > 0))
+                return null;
+
             List<WrappedCard> nullcards = GetCards(Nullification.ClassName, self);
             if (nullcards.Count == 0)
+                return null;
+
+            if (trick.Name == SavageAssault.ClassName && IsFriend(to) && positive)
+            {
+                Player menghuo = FindPlayerBySkill("huoshou");
+                if (menghuo != null && RoomLogic.PlayerHasShownSkill(room, menghuo, "huoshou") && IsFriend(to, menghuo) && HasSkill("zhiman|zhiman_jx", menghuo))
+                    return null;
+            }
+
+            if (from != null && IsFriend(to, from) && IsFriend(to) && positive && HasSkill("zhiman|zhiman_jx"))
                 return null;
 
             int null_num = nullcards.Count;
@@ -890,6 +1024,21 @@ namespace SanguoshaServer.AI
                     null_card = c;
 
             if (null_card == null) return null;
+
+            FunctionCard fcard = Engine.GetFunctionCard(trick.Name);
+            if (HasSkill("kongcheng|kongcheng_jx") && self.IsLastHandCard(null_card) && fcard is SingleTargetTrick)
+            {
+                //bool heg = (int)room.GetTag("NullifyingTimes") == 0 && null_card.Name == HegNullification.ClassName || (bool)room.GetTag("HegNullificationValid");
+                if (positive && IsFriend(to) && IsEnemy(from))
+                {
+                    return null_card;
+                }
+                else if (!positive && IsFriend(from))
+                {
+                    return null_card;
+                }
+            }
+
 
             if (null_num > 1)
             {
@@ -902,7 +1051,7 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
-            if (RoomLogic.IsCardLimited(room, self, null_card, FunctionCard.HandlingMethod.MethodUse)) return null;
+            if (RoomLogic.IsCardLimited(room, self, null_card, HandlingMethod.MethodUse)) return null;
 
             if (null_num == 1 && HasSkill("kanpo") && self.Phase == Player.PlayerPhase.NotActive && self.IsLastHandCard(null_card))
             {
@@ -932,7 +1081,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in GetFriends(self))
                     {
-                        if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) && !HasSkill("guanxing|yizhi|shensu|qiaobian") && p.HandcardNum >= p.Hp
+                        if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) && !HasSkill("guanxing|yizhi|shensu|shensu_jx|qiaobian") && p.HandcardNum >= p.Hp
                             && (trick.Name != Indulgence.ClassName) || p.Name != to.Name)
                         {
                             keep = true;
@@ -972,6 +1121,122 @@ namespace SanguoshaServer.AI
                 return e.OnMoveCards(this, self, new List<int>(upcards), new List<int>(downcards), min_num, max_num);
 
             return base.AskForMoveCards(upcards, downcards, reason, min_num, max_num);
+        }
+    }
+
+    public class AllianceGeneralAI : AIPackage
+    {
+        public AllianceGeneralAI() : base("AllianceGeneral")
+        {
+            events = new List<SkillEvent>
+            {
+                new FangongAI(),
+                new KuangxiAI(),
+                new YaowuSPAI(),
+                new BaoyingAI(),
+                new HuyingAI(),
+            };
+            use_cards = new List<UseCard>
+            {
+                new KuangxiCardAI(),
+            };
+        }
+    }
+
+    public class FangongAI : SkillEvent
+    {
+        public FangongAI() : base("fangong")
+        {
+        }
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            Room room = ai.Room;
+
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+            List<Player> targets = new List<Player>();
+            foreach (Player p in room.GetOtherPlayers(player))
+                if (p.HasFlag("SlashAssignee")) targets.Add(p);
+
+            List<ScoreStruct> values = ai.CaculateSlashIncome(player, null, targets);
+            if (values.Count > 0 && values[0].Score > 0)
+            {
+                use.Card = values[0].Card;
+                use.To = values[0].Players;
+            }
+
+            return use;
+        }
+    }
+
+    public class KuangxiAI : SkillEvent
+    {
+        public KuangxiAI() : base("kuangxi")
+        { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (!player.HasFlag(Name) && player.Hp > 1)
+                return new List<WrappedCard> { new WrappedCard(KuangxiCard.ClassName) { Skill = Name } };
+            return new List<WrappedCard>();
+        }
+    }
+
+    public class KuangxiCardAI : UseCard
+    {
+        public KuangxiCardAI() : base(KuangxiCard.ClassName)
+        { }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            Room room = ai.Room;
+            List<Player> enemies = ai.GetEnemies(player);
+            foreach (Player p in enemies)
+            {
+                if (ai.HasSkill("buqu_jx", p) || (ai.HasSkill("niepan", p) && p.GetMark("@nirvana") > 0) || (ai.HasSkill("fuli", p) && p.GetMark("@fuli") > 0)) continue;
+                if (p.Hp == 1 || (p.Hp == 2 && player.Hp > p.Hp))
+                {
+                    use.Card = card;
+                    use.To.Add(p);
+                    return;
+                }
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 0;
+        }
+    }
+    public class YaowuSPAI : SkillEvent
+    {
+        public YaowuSPAI() : base("yaowu_sp")
+        {
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data) => "recover";
+    }
+
+    public class BaoyingAI : SkillEvent
+    {
+        public BaoyingAI() : base("baoying") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+    }
+
+    public class HuyingAI : SkillEvent
+    {
+        public HuyingAI() : base("huying") { }
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            List<int> ids = new List<int>();
+            foreach (int id in player.GetCards("h"))
+            {
+                if (ai.Room.GetCard(id).Name.Contains(Slash.ClassName))
+                {
+                    ids.Add(id);
+                    break;
+                }
+            }
+
+            return ids;
         }
     }
 }

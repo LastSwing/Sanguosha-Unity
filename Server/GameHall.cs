@@ -561,7 +561,7 @@ namespace SanguoshaServer
                         break;
                     case Protocol.GeneralReserved:
                         if (client.UserRight >= 2 && RId2Room.TryGetValue(client.GameRoom, out room) && !room.GameStarted
-                            && (room.Setting.GameMode == "Classic" || room.Setting.GameMode == "Hegemony") && data.Body.Count <= 2)
+                            && (room.Setting.GameMode == "Classic" || room.Setting.GameMode == "Hegemony" || room.Setting.GameMode == "Alliance") && data.Body.Count <= 2)
                         {
                             client.GeneralReserved = data.Body;
                         }

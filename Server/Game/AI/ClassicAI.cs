@@ -2594,7 +2594,7 @@ namespace SanguoshaServer.AI
         public override WrappedCard AskForCardShow(Player requestor, string reason, object data)
         {
             UseCard card = Engine.GetCardUsage(reason);
-            WrappedCard result = null;
+            WrappedCard result;
             if (card != null)
             {
                 result = card.OnCardShow(this, self, requestor, data);
@@ -3262,7 +3262,7 @@ namespace SanguoshaServer.AI
                 {
                     foreach (Player p in GetFriends(self))
                     {
-                        if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) && !HasSkill("guanxing|yizhi|shensu|qiaobian") && p.HandcardNum >= p.Hp
+                        if (RoomLogic.PlayerContainsTrick(room, p, Indulgence.ClassName) && !HasSkill("guanxing|yizhi|shensu_jx|qiaobian") && p.HandcardNum >= p.Hp
                             && (trick.Name != Indulgence.ClassName) || p.Name != to.Name)
                         {
                             keep = true;

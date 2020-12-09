@@ -1698,6 +1698,18 @@ namespace SanguoshaServer.Package
         {
             skill_type = SkillType.Defense;
         }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && data is DamageStruct damage)
+            {
+                TriggerStruct trigger = new TriggerStruct(Name, player);
+                trigger.Times = damage.Damage;
+                return trigger;
+            }
+
+            return new TriggerStruct();
+        }
+
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition) && data is DamageStruct damage)

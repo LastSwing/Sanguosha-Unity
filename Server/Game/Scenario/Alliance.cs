@@ -5,6 +5,7 @@ using SanguoshaServer.AI;
 using SanguoshaServer.Game;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using static SanguoshaServer.Game.Skill;
 
 namespace SanguoshaServer.Scenario
@@ -184,7 +185,14 @@ namespace SanguoshaServer.Scenario
                     else
                         generalName = reply[0];
 
-                    if (!success || (!options[player].Contains(generalName) && room.GetClient(player).UserRight < 3))
+                    if (!success)
+                    {
+                        if (client == null)
+                            continue;
+                        else
+                            generalName = options[player][0];
+                    }
+                    else if (!string.IsNullOrEmpty(generalName) && !options[player].Contains(generalName) && room.GetClient(player).UserRight < 3)
                         generalName = options[player][0];
 
                     player.General1 = generalName;
@@ -207,27 +215,81 @@ namespace SanguoshaServer.Scenario
                 room.HandleUsedGeneral(player.General1);
             }
 
-            countdown = new Countdown
+            foreach (Player player in options.Keys)
             {
-                Max = room.Setting.GetCommandTimeout(CommandType.S_COMMAND_MULTIPLE_CHOICE, ProcessInstanceType.S_CLIENT_INSTANCE),
-                Type = Countdown.CountdownType.S_COUNTDOWN_USE_SPECIFIED
-            };
-            room.NotifyMoveFocus(players, countdown);
-            room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_MULTIPLE_CHOICE);
-            room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
+                if (string.IsNullOrEmpty(player.General1))
+                {
+                    Player human = null;
+                    foreach (Player p2 in options.Keys)
+                    {
+                        if (p2 != player)
+                        {
+                            human = p2;
+                            break;
+                        }
+                    }
+                    string generalName = room.AskForGeneral(human, options[player], null, true, Name, null, true);
+
+                    player.General1 = generalName;
+                    player.ActualGeneral1 = generalName;
+                    player.Kingdom = Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom;
+                    player.General1Showed = true;
+
+                    room.BroadcastProperty(player, "General1");
+                    room.NotifyProperty(room.GetClient(player), player, "ActualGeneral1");
+                    room.BroadcastProperty(player, "Kingdom");
+                    room.BroadcastProperty(player, "General1Showed");
+                    player.PlayerGender = Engine.GetGeneral(player.General1, room.Setting.GameMode).GeneralGender;
+                    room.BroadcastProperty(player, "PlayerGender");
+
+                    player.SetSkillsPreshowed("hd");
+                    room.NotifyPlayerPreshow(player);
+                    List<string> names = new List<string> { player.General1 };
+                    room.SetTag(player.Name, names);
+                    room.HandleUsedGeneral(player.General1);
+                }
+            }
         }
 
         private void AssignGeneralsForPlayers(Room room, out Dictionary<Player, List<string>> options)
         {
             options = new Dictionary<Player, List<string>>();
-            List<string> generals = new List<string>(room.Generals);
+            List<string> generals = new List<string>(room.Generals), reserved = new List<string>();
+
+            for (int i = 0; i < room.Clients.Count; i++)
+            {
+                Client client = room.Clients[i];
+                if (client.UserId < 0) continue;
+                List<string> reserved_generals = new List<string>(client.GeneralReserved);
+                if (reserved_generals == null || reserved_generals.Count == 0) continue;
+                reserved.AddRange(reserved_generals);
+            }
+
+            List<string> duplicated = reserved.GroupBy(x => x).Where(x => x.Count() > 1).Select(x => x.Key).ToList();
+            for (int i = 0; i < room.Clients.Count; i++)
+            {
+                Client client = room.Clients[i];
+                if (client.UserId < 0) continue;
+                if (client.GeneralReserved == null || client.GeneralReserved.Count == 0) continue;
+                client.GeneralReserved.RemoveAll(t => duplicated.Contains(t));
+                generals.RemoveAll(t => client.GeneralReserved.Contains(t));
+            }
+
 
             foreach (Player player in room.Players)
             {
                 if (player.Camp == Game3v3Camp.S_CAMP_COOL && player.General1 != "sunjian_jx")
                 {
                     List<string> choices = new List<string>();
-                    for (int i = 0; i < 6; i++)
+                    Client client = room.GetClient(player);
+                    if (client != null && client.UserId >= 0 && client.GeneralReserved != null)
+                    {
+                        choices.AddRange(client.GeneralReserved);
+                        client.GeneralReserved = null;
+                    }
+
+                    int count = 6 - choices.Count;
+                    for (int i = 0; i < count; i++)
                     {
                         Shuffle.shuffle(ref generals);
                         choices.Add(generals[0]);
@@ -325,7 +387,7 @@ namespace SanguoshaServer.Scenario
                 }
 
                 int max_hp = Engine.GetGeneral(general1_name, room.Setting.GameMode).DoubleMaxHp;
-                if (room.Players.Count == 8 && player.Camp == Game3v3Camp.S_CAMP_COOL && player.GetRoleEnum() != Player.PlayerRole.Lord)
+                if (room.Players.Count == 8 && player.Camp == Game3v3Camp.S_CAMP_WARM && player.GetRoleEnum() != Player.PlayerRole.Lord)
                     max_hp--;
                 player.MaxHp = max_hp;
                 player.Hp = player.MaxHp;

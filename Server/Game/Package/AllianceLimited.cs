@@ -69,7 +69,16 @@ namespace SanguoshaServer.Package
                 room.SendCompulsoryTriggerLog(player, name, true);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
 
-                List<int> ids = room.AskForCardsChosen(player, damage.To, new List<string> { "hej^false^get", "hej^false^get", "hej^false^get" }, Name);
+                Player target = damage.To;
+                List<string> handle = new List<string>();
+                if (!target.IsKongcheng() && RoomLogic.CanGetCard(room, player, target, "h"))
+                    handle.Add("h^false^get");
+                if (target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
+                    handle.Add("e^false^get");
+                if (target.JudgingArea.Count > 0 && RoomLogic.CanGetCard(room, player, target, "j"))
+                    handle.Add("j^false^get");
+
+                List<int> ids = room.AskForCardsChosen(player, damage.To, handle, Name);
                 if (ids.Count > 0)
                     room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, damage.To.Name, Name, string.Empty), false);
 
@@ -116,7 +125,7 @@ namespace SanguoshaServer.Package
                 Good = true,
                 Reason = Name,
                 PlayAnimation = true,
-                Who = ask_who,
+                Who = player,
             };
             room.Judge(ref judge);
 
@@ -127,7 +136,7 @@ namespace SanguoshaServer.Package
                 {
                     if (p.Camp == ask_who.Camp)
                     {
-                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, p.Name);
+                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, p.Name);
                         players.Add(p);
                     }
                 }
@@ -265,9 +274,9 @@ namespace SanguoshaServer.Package
             FunctionCard fcard = Engine.GetFunctionCard(card.Name);
             if (!(fcard is SkillCard) && lord != null && to != null && from != null && from.Camp != to.Camp && lord.Camp == to.Camp)
             {
-                foreach (Player p in room.GetAlivePlayers())
+                foreach (Player p in room.GetOtherPlayers(to))
                 {
-                    if (p.Camp == to.Camp && p != to && p.Hp >= to.Hp)
+                    if (p != to && p.Hp <= to.Hp)
                         return false;
                 }
                 return true;
@@ -296,13 +305,14 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.CardFinished && player != null && player.Alive && data is CardUseStruct use && use.Card != null)
+            if (triggerEvent == TriggerEvent.CardFinished && player != null && player.Alive && data is CardUseStruct use && use.Card != null && use.Card.Name != Jink.ClassName)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (!(fcard is SkillCard))
                 {
                     foreach (Player p in use.To)
-                        if (player.Camp != p.Camp && base.Triggerable(p, room)) triggers.Add(new TriggerStruct(Name, p));
+                        if (player.Camp != p.Camp && base.Triggerable(p, room))
+                            triggers.Add(new TriggerStruct(Name, p));
                 }
             }
 
@@ -417,7 +427,8 @@ namespace SanguoshaServer.Package
                 LogMessage log = new LogMessage
                 {
                     Type = "#kuangxi-lose",
-                    From = dying.Damage.From.Name
+                    From = dying.Damage.From.Name,
+                    Arg = Name
                 };
 
                 dying.Damage.From.SetFlags(Name);
@@ -463,7 +474,7 @@ namespace SanguoshaServer.Package
             Player player = card_use.From, target = card_use.To[0];
             room.LoseHp(player);
             if (target.Alive)
-                room.Damage(new DamageStruct(Name, player, target));
+                room.Damage(new DamageStruct("kuangxi", player, target));
         }
     }
 
