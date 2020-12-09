@@ -648,7 +648,7 @@ namespace SanguoshaServer.Scenario
         protected override void OnBuryVictim(Room room, Player player, ref object data)
         {
             room.BuryPlayer(player);
-            if (player.Camp == Game3v3Camp.S_CAMP_COOL)
+            if (player.Camp == Game3v3Camp.S_CAMP_COOL && data is DeathStruct death && death.Damage.From == null && death.Damage.From.Camp != player.Camp)
             {
                 foreach (Player p in room.Players)
                 {

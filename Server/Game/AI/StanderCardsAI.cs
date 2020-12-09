@@ -4683,7 +4683,7 @@ namespace SanguoshaServer.AI
         {
             double value = 0;
             Room room = ai.Room;
-            if (ai.HasSkill("gangzhi|shixin", player)) return 10;
+            if (ai.HasSkill("gangzhi|gangzhi_classic|shixin", player)) return 10;
             List<Player> enemies = ai.GetEnemies(player);
             if (ai.GetFriends(player).Count + enemies.Count == room.AliveCount() && enemies.Count == 1 && ai.HasSkill("jueqing|gangzhi_classic", enemies[0])) return 8;
             if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx|benyu|jianxiong|jianxiong_jx|huituo|chengxiang", player))

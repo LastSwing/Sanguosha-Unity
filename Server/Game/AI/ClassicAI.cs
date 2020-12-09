@@ -2476,7 +2476,7 @@ namespace SanguoshaServer.AI
         public override double ChainDamage(DamageStruct damage)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi", damage.To) || (damage.From != null && HasSkill("jueqing|gangzhi_classic", damage.From)))
+                || HasSkill("gangzhi|gangzhi_classic", damage.To) || (damage.From != null && HasSkill("jueqing|gangzhi_classic", damage.From)))
                 return 0;
 
             List<Player> players = GetSpreadTargets(damage);

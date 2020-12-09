@@ -491,7 +491,7 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (player.Alive && player.HasFlag("Global_Dying"))
+            if (player.Alive && player.HasFlag("Global_Dying") && player.Hp < 1)
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
                     if (p.Camp == player.Camp && p.GetMark(limit_mark) > 0) triggers.Add(new TriggerStruct(Name, p));
@@ -504,9 +504,9 @@ namespace SanguoshaServer.Package
             if (room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
+                //room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
-                room.SetPlayerMark(ask_who, Name, 0);
+                room.SetPlayerMark(ask_who, limit_mark, 0);
                 return info;
             }
 

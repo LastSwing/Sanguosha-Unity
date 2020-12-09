@@ -269,7 +269,7 @@ namespace SanguoshaServer.AI
                 Chain = _damage.Chain
             };
 
-            if (!HasSkill("gangzhi", damage.To))
+            if (!HasSkill("gangzhi_classic", damage.To))
                 damage.Damage = DamageEffect(damage, step);
 
             Player from = damage.From;
@@ -283,7 +283,7 @@ namespace SanguoshaServer.AI
                 DoDamage = true
             };
 
-            if (!HasSkill("gangzhi", damage.To))
+            if (!HasSkill("gangzhi_classic", damage.To))
                 damage.Damage = DamageEffect(damage, DamageStruct.DamageStep.Done);
             damage.Steped = DamageStruct.DamageStep.Done;
             result_score.Damage = damage;
@@ -311,7 +311,7 @@ namespace SanguoshaServer.AI
                 }
 
                 //刚直应该这里就停止计算
-                if (HasSkill("gangzhi", to))
+                if (HasSkill("gangzhi_classic", to))
                 {
                     if (IsFriend(to)) value = -value;
                     if (priority_enemies.Contains(to) && value > 0)
