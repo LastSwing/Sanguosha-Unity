@@ -117,6 +117,7 @@ namespace SanguoshaServer
             
             callbacks[CommandType.S_COMMAND_SKILL_MOVECARDS] = new Action<List<string>>(OnGuanxingRespond);
             callbacks[CommandType.S_COMMAND_SKILL_SORTCARDS] = new Action<List<string>>(OnSortCardRespond);
+            callbacks[CommandType.S_COMMAND_GENERAL_PICK] = new Action<List<string>>(OnGeneralPickRespond);
         }
 
         public bool ControlGame(MyData data)
@@ -1523,6 +1524,10 @@ namespace SanguoshaServer
                 {
                     packet.Add(JsonUntity.Object2Json(guanxing));
                 }
+                else if (type == CommandType.S_COMMAND_GENERAL_PICK)
+                {
+                    packet.AddRange(ClientReply);
+                }
             }
 
             viewas_card = null;
@@ -1751,6 +1756,41 @@ namespace SanguoshaServer
             {
                 room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
                 GetPacket2Client(false);
+            }
+
+            mutex.ReleaseMutex();
+        }
+
+        private void OnGeneralPickRespond(List<string> args)
+        {
+            mutex.WaitOne();
+            RequestType type = (RequestType)Enum.Parse(typeof(RequestType), args[0]);
+            bool error = false;
+
+            if (type == RequestType.S_REQUEST_CARD && args.Count == 3)
+            {
+                ClientReply = new List<string> { args[2] };
+                List<string> arg = new List<string> { args[1], args[2], string.Empty };
+                room.DoBroadcastNotify(CommandType.S_COMMAND_GENERAL_PICK, arg, room.GetClient(ClientId));
+            }
+            else if (type == RequestType.S_REQUEST_SWITCH_CARDS && args.Count == 4)
+            {
+                if (ClientReply != null && ClientReply.Count == 1 && ClientReply[0] == args[3])
+                    ClientReply = new List<string> { args[2] };
+                List<string> arg = new List<string> { args[1], args[2], args[3] };
+                room.DoBroadcastNotify(CommandType.S_COMMAND_GENERAL_PICK, arg, room.GetClient(ClientId));
+            }
+            else if (type == RequestType.S_REQUEST_SYS_BUTTON && args.Count == 2)
+            {
+                ClientReply = new List<string> { args[1] };
+                Reply2Server(true);
+            }
+            else
+                error = true;
+
+            if (error)
+            {
+                room.Debug(string.Format("request type: {0} got error message {1}", ExpectedReplyCommand.ToString(), JsonUntity.Object2Json(args)));
             }
 
             mutex.ReleaseMutex();

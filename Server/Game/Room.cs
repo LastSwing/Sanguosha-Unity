@@ -2629,7 +2629,7 @@ namespace SanguoshaServer.Game
                                 if (_waitHandle.SafeWaitHandle != null && !_waitHandle.SafeWaitHandle.IsClosed)
                                     _waitHandle.Set();
                             }
-                            else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL)
+                            else if (reply_command == CommandType.S_COMMAND_CHOOSE_GENERAL || reply_command == CommandType.S_COMMAND_GENERAL_PICK)
                                 OnChooseGeneralReply(player);
                         }
                     }

@@ -140,17 +140,17 @@ namespace SanguoshaServer.Scenario
             AssignGeneralsForPlayers(room, out Dictionary<Player, List<string>> options);
             //选将      
             List<Interactivity> receivers = new List<Interactivity>();
+            Dictionary<string, List<string>> choose = new Dictionary<string, List<string>>();
+            foreach (Player player in options.Keys)
+                choose[player.Name] = options[player];
+
             foreach (Player player in options.Keys)
             {
                 player.SetTag("generals", JsonUntity.Object2Json(options[player]));
                 List<string> args = new List<string>
                 {
                     player.Name,
-                    string.Empty,
-                    JsonUntity.Object2Json(options[player]),
-                    true.ToString(),
-                    true.ToString(),
-                    false.ToString()
+                    JsonUntity.Object2Json(choose),
                 };
                 Interactivity client = room.GetInteractivity(player);
                 if (client != null)
@@ -163,11 +163,11 @@ namespace SanguoshaServer.Scenario
 
             Countdown countdown = new Countdown
             {
-                Max = room.Setting.GetCommandTimeout(CommandType.S_COMMAND_CHOOSE_GENERAL, ProcessInstanceType.S_CLIENT_INSTANCE),
+                Max = room.Setting.GetCommandTimeout(CommandType.S_COMMAND_GENERAL_PICK, ProcessInstanceType.S_CLIENT_INSTANCE),
                 Type = Countdown.CountdownType.S_COUNTDOWN_USE_SPECIFIED
             };
             room.NotifyMoveFocus(players, countdown);
-            room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_CHOOSE_GENERAL);
+            room.DoBroadcastRequest(receivers, CommandType.S_COMMAND_GENERAL_PICK);
             room.DoBroadcastNotify(CommandType.S_COMMAND_UNKNOWN, new List<string> { false.ToString() });
 
             //给AI和超时的玩家自动选择武将
@@ -547,32 +547,19 @@ namespace SanguoshaServer.Scenario
 
         public override List<Interactivity> CheckSurrendAvailable(Room room)
         {
-            List<Interactivity> clients = new List<Interactivity>();
-            int cool = 0, warm = 0;
-            Interactivity cool_lord = null;
-            Interactivity warm_lord = null;
-            foreach (Player p in room.GetAlivePlayers())
+            List<Interactivity> clients = new List<Interactivity>(), alives = new List<Interactivity>();
+            foreach (Player p in room.Players)
             {
-                if (p.Camp == Game3v3Camp.S_CAMP_COOL)
+                if (p.Camp == Game3v3Camp.S_CAMP_COOL && p.ClientId > 0)
                 {
-                    if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
-                        cool_lord = room.GetInteractivity(p.ClientId);
-                    cool++;
-                }
-                else
-                {
-                    if (p.GetRoleEnum() == Player.PlayerRole.Lord && p.ClientId > 0)
-                        warm_lord = room.GetInteractivity(p.ClientId);
-                    warm++;
+                    Interactivity inter = room.GetInteractivity(p.ClientId);
+                    clients.Add(inter);
+                    if (p.Alive)
+                        alives.Add(inter);
                 }
             }
 
-            if (warm == 1 && warm_lord != null)
-                clients.Add(warm_lord);
-            if (cool == 1 && cool_lord != null)
-                clients.Add(cool_lord);
-
-            return clients;
+            return alives.Count <= 1 ? clients : new List<Interactivity>();
         }
     }
 
@@ -648,7 +635,7 @@ namespace SanguoshaServer.Scenario
         protected override void OnBuryVictim(Room room, Player player, ref object data)
         {
             room.BuryPlayer(player);
-            if (player.Camp == Game3v3Camp.S_CAMP_COOL && data is DeathStruct death && death.Damage.From == null && death.Damage.From.Camp != player.Camp)
+            if (player.Camp == Game3v3Camp.S_CAMP_COOL && data is DeathStruct death && (death.Damage.From == null || death.Damage.From.Camp != player.Camp))
             {
                 foreach (Player p in room.Players)
                 {
