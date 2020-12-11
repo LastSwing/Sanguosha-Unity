@@ -11019,10 +11019,16 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player skill_target, ref object data, Player player, TriggerStruct info)
         {
-            if (!skill_target.IsNude() && player.Alive && skill_target.Hp > 0 && room.AskForSkillInvoke(player, Name, skill_target, info.SkillPosition))
+            if (!skill_target.IsNude() && player.Alive && skill_target.Hp > 0)
             {
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                return info;
+                room.SetTag(Name, data);
+                bool invoke = room.AskForSkillInvoke(player, Name, skill_target, info.SkillPosition);
+                room.RemoveTag(Name);
+                if (invoke)
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    return info;
+                }
             }
             return new TriggerStruct();
         }

@@ -559,7 +559,7 @@ namespace SanguoshaServer.Scenario
                 }
             }
 
-            return alives.Count <= 1 ? clients : new List<Interactivity>();
+            return alives.Count <= 1 ? alives : new List<Interactivity>();
         }
     }
 
