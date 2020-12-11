@@ -276,7 +276,7 @@ namespace SanguoshaServer.Package
             {
                 foreach (Player p in room.GetOtherPlayers(to))
                 {
-                    if (p != to && p.Hp <= to.Hp)
+                    if (p.Hp <= to.Hp && to.Camp == p.Camp)
                         return false;
                 }
                 return true;
