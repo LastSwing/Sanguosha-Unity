@@ -490,12 +490,18 @@ namespace SanguoshaServer.AI
             return "cancel";
         }
 
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
-        {
-            if (data is Player target)
-                return ai.IsFriend(target);
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
 
-            return false;
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            List<Player> players = ai.FriendNoSelf;
+            if (players.Count > 0)
+            {
+                ai.SortByDefense(ref players);
+                return new List<Player> { players[0] };
+            }
+
+            return new List<Player>();
         }
     }
 
@@ -3237,6 +3243,19 @@ namespace SanguoshaServer.AI
             }
 
             return new List<Player>();
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target && ai.Room.GetTag(Name) is CardUseStruct use)
+            {
+                if (ai.IsEnemy(target))
+                    return true;
+                else if (!ai.IsEnemy(target) && (target.IsKongcheng() || ai.GetKnownCards(target).Count == target.HandcardNum) && !ai.IsCardEffect(use.Card, target, player))
+                    return true;
+            }
+
+            return false;
         }
 
         public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)

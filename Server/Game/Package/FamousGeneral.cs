@@ -149,7 +149,7 @@ namespace SanguoshaServer.Package
                 new Danxin(),
                 new Zhongjian(),
                 new Caishi(),
-                new CaishiMax(),
+                new CaishiProhibit(),
                 new Guizao(),
                 new Jiyu(),
                 new Junxing(),
@@ -7164,115 +7164,230 @@ namespace SanguoshaServer.Package
             }
         }
     }
-
-    public class Zhongjian : ViewAsSkill
+    
+    public class Zhongjian : TriggerSkill
     {
-        public Zhongjian() : base("zhongjian") { }
+        public Zhongjian() : base("zhongjian")
+        {
+            frequency = Frequency.Compulsory;
+            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.Damaged, TriggerEvent.EventPhaseChanging, TriggerEvent.TurnStart, TriggerEvent.Death };
+            view_as_skill = new ZhongjianVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.HasFlag("zhongjian_target"))
+                        p.SetFlags("-zhongjian_target");
+                }
+            }
+            else if (triggerEvent == TriggerEvent.TurnStart || triggerEvent == TriggerEvent.Death)
+            {
+                ClearZhongjian(room, player);
+            }
+        }
+
+        private void ClearZhongjian(Room room, Player xxy)
+        {
+            if (xxy.ContainsTag("zhongjian_discard") && xxy.GetTag("zhongjian_discard") is List<string> names)
+            {
+                xxy.RemoveTag("zhongjian_discard");
+                foreach (string player_name in names)
+                {
+                    Player player = room.FindPlayer(player_name);
+                    if (player != null)
+                    {
+                        int mark = player.GetMark("zhongjian_discard");
+                        mark--;
+                        player.SetMark("zhongjian_discard", mark);
+                        if (mark == 0)
+                            room.RemovePlayerStringMark(player, "zhongjian_discard");
+                        else
+                            room.SetPlayerStringMark(player, "zhongjian_discard", mark.ToString());
+                    }
+                }
+            }
+            if (xxy.ContainsTag("zhongjian_draw") && xxy.GetTag("zhongjian_discard") is List<string> _names)
+            {
+                xxy.RemoveTag("zhongjian_draw");
+                foreach (string player_name in _names)
+                {
+                    Player player = room.FindPlayer(player_name);
+                    if (player != null)
+                    {
+                        int mark = player.GetMark("zhongjian_draw");
+                        mark--;
+                        player.SetMark("zhongjian_draw", mark);
+                        if (mark == 0)
+                            room.RemovePlayerStringMark(player, "zhongjian_draw");
+                        else
+                            room.SetPlayerStringMark(player, "zhongjian_draw", mark.ToString());
+                    }
+                }
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.Damage && player.Alive && player.GetMark("zhongjian_discard") > 0)
+            {
+                List<Player> xxy = RoomLogic.FindPlayersBySkillName(room, Name);
+                foreach (Player p in xxy)
+                {
+                    if (p.ContainsTag("zhongjian_discard") && p.GetTag("zhongjian_discard") is List<string> names && names.Contains(player.Name))
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Damaged && player.Alive && player.GetMark("zhongjian_draw") > 0)
+            {
+                List<Player> xxy = RoomLogic.FindPlayersBySkillName(room, Name);
+                foreach (Player p in xxy)
+                {
+                    if (p.ContainsTag("zhongjian_draw") && p.GetTag("zhongjian_draw") is List<string> names && names.Contains(player.Name))
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+
+            return triggers;
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+            if (triggerEvent == TriggerEvent.Damage)
+            {
+                if (ask_who.GetTag("zhongjian_discard") is List<string> names)
+                {
+                    names.Remove(player.Name);
+                    if (names.Count == 0)
+                        ask_who.RemoveTag("zhongjian_discard");
+                    else
+                        ask_who.SetTag("zhongjian_discard", names);
+                }
+
+                int mark = player.GetMark("zhongjian_discard");
+                mark--;
+                player.SetMark("zhongjian_discard", mark);
+                if (mark == 0)
+                    room.RemovePlayerStringMark(player, "zhongjian_discard");
+                else
+                    room.SetPlayerStringMark(player, "zhongjian_discard", mark.ToString());
+
+                room.AskForDiscard(player, Name, 2, 2, false, true, "@zhongjian-discard");
+            }
+            else
+            {
+                if (ask_who.GetTag("zhongjian_draw") is List<string> names)
+                {
+                    names.Remove(player.Name);
+                    if (names.Count == 0)
+                        ask_who.RemoveTag("zhongjian_draw");
+                    else
+                        ask_who.SetTag("zhongjian_draw", names);
+                }
+
+                int mark = player.GetMark("zhongjian_draw");
+                mark--;
+                player.SetMark("zhongjian_draw", mark);
+                if (mark == 0)
+                    room.RemovePlayerStringMark(player, "zhongjian_draw");
+                else
+                    room.SetPlayerStringMark(player, "zhongjian_draw", mark.ToString());
+
+                room.DrawCards(player, new DrawCardStruct(2, ask_who, Name));
+            }
+
+            if (ask_who.Alive) room.DrawCards(ask_who, 1, Name);
+
+            return false;
+        }
+    }
+
+    public class ZhongjianVS : ZeroCardViewAsSkill
+    {
+        public ZhongjianVS() : base("zhongjian") { }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.HasFlag("caishi") && !player.HasUsed(ZhongjianCard.ClassName) && !player.IsKongcheng();
+            return player.UsedTimes(ZhongjianCard.ClassName) < 1 + (player.HasFlag("zhongjian_time") ? 1 : 0);
         }
 
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        public override WrappedCard ViewAs(Room room, Player player)
         {
-            if (!player.HasFlag("caishi_reduce") && selected.Count > 0 || selected.Count > 1) return false;
-            return room.GetCardPlace(to_select.Id) == Place.PlaceHand;
-        }
-
-        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
-        {
-            if (cards.Count > 0)
-            {
-                WrappedCard zj = new WrappedCard(ZhongjianCard.ClassName) { Skill = Name };
-                zj.AddSubCards(cards);
-                return zj;
-            }
-
-            return null;
+            return new WrappedCard(ZhongjianCard.ClassName) { Skill = Name };
         }
     }
 
     public class ZhongjianCard : SkillCard
     {
         public static string ClassName = "ZhongjianCard";
-        public ZhongjianCard() : base(ClassName) { will_throw = false; }
+
+        public ZhongjianCard() : base(ClassName)
+        {
+        }
+
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && to_select != Self && !to_select.IsKongcheng();
+            return targets.Count == 0 && !to_select.HasFlag("zhongjian_target");
         }
+
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            return targets.Count == 1;
+        }
+
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player player = card_use.From, target = card_use.To[0];
-            room.ShowCards(player, card_use.Card.SubCards, "zhongjian");
+            target.SetFlags("zhongjian_target");
 
-            List<int> cards = new List<int>();
-            target.SetFlags("continuous_card_chosen");
-            room.SetTag("askforCardsChosen", target.GetCards("h"));
-            int count = 3 + (player.HasFlag("caishi_max") ? 1 : 0);
-            string prompt;
-            do
+
+            target.SetFlags("zhongjian-tar");
+            string choice = room.AskForChoice(player, "zhongjian", "discard+draw", new List<string> { "@zhongjian-choice:" + target.Name }, target);
+            target.SetFlags("-zhongjian_tar");
+
+            if (choice == "discard")
             {
-                cards.Add(room.AskForCardChosen(player, target, "h", "zhongjian", false, HandlingMethod.MethodNone, cards));
-                prompt = string.Format("@zhongjian:{0}::{1}:{2}", target.Name, count, cards.Count);
+                target.AddMark("zhongjian_discard");
+                room.SetPlayerStringMark(target, "zhongjian_discard", target.GetMark("zhongjian_discard").ToString());
 
-            }
-            while (cards.Count < count && cards.Count < target.GetCardCount(false) && room.AskForSkillInvoke(player, "zhongjian", prompt, card_use.Card.SkillPosition));
-            target.SetFlags("-continuous_card_chosen");
-            room.RemoveTag("askforCardsChosen");
+                List<string> names = new List<string>();
+                if (player.ContainsTag("zhongjian_discard"))
+                    names = (List<string>)player.GetTag("zhongjian_discard");
+                names.Add(target.Name);
+                player.SetTag("zhongjian_discard", names);
 
-            room.ShowCards(target, cards, "zhongjian");
-
-            int draw = 0, damage = 0, discard = 0;
-
-            foreach (int id in cards)
-            {
-                WrappedCard from = room.GetCard(id);
-                foreach (int id2 in card_use.Card.SubCards)
+                LogMessage log = new LogMessage()
                 {
-                    WrappedCard card = room.GetCard(id2);
-                    if (card.Suit == from.Suit)
-                    {
-                        draw++;
-                    }
-                    if (card.Number == from.Number)
-                    {
-                        damage++;
-                    }
-                    if (card.Suit != from.Suit && card.Number != from.Number)
-                    {
-                        discard++;
-                    }
-                }
+                    Type = "#zhongjian-discard",
+                    From = player.Name,
+                    To = new List<string> { target.Name }
+                };
+                room.SendLog(log);
             }
-            /*
-            foreach (int id in cards)
+            else
             {
-                WrappedCard from = room.GetCard(id);
-                bool suit = false, number = false;
-                foreach (int id2 in card_use.Card.SubCards)
+                target.AddMark("zhongjian_draw");
+                room.SetPlayerStringMark(target, "zhongjian_draw", target.GetMark("zhongjian_draw").ToString());
+
+                List<string> names = new List<string>();
+                if (player.ContainsTag("zhongjian_draw"))
+                    names = (List<string>)player.GetTag("zhongjian_draw");
+                names.Add(target.Name);
+                player.SetTag("zhongjian_draw", names);
+
+                LogMessage log = new LogMessage
                 {
-                    WrappedCard card = room.GetCard(id2);
-                    if (!suit && card.Suit == from.Suit)
-                    {
-                        draw++;
-                        suit = true;
-                    }
-                    if (!number && card.Number == from.Number)
-                    {
-                        damage++;
-                        number = true;
-                    }
-                }
-                if (!suit && !number)
-                    discard++;
+                    Type = "#zhongjian-draw",
+                    From = player.Name,
+                    To = new List<string> { target.Name }
+                };
+                room.SendLog(log);
             }
-            */
-            if (draw > 0) room.DrawCards(player, draw, "zhongjian");
-            if (damage > 0 && player.Alive && target.Alive)
-                room.Damage(new DamageStruct("zhongjian", player, target, damage));
-            if (discard > 0 && player.Alive && !player.IsKongcheng())
-                room.AskForDiscard(player, "zhongjian", discard, discard, false, false, "@zhongjian-discard:::" + discard.ToString(), false, card_use.Card.SkillPosition);
         }
     }
 
@@ -7280,75 +7395,79 @@ namespace SanguoshaServer.Package
     {
         public Caishi() : base("caishi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseProceeding };
+            events = new List<TriggerEvent> { TriggerEvent.AfterDrawNCards };
         }
-
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Draw && base.Triggerable(player, room))
-                return new TriggerStruct(Name, player);
+            if (base.Triggerable(player, room) && data is List<int> ids && ids.Count == 2)
+            {
+                bool check = true;
+                foreach (int id in ids)
+                {
+                    if (room.GetCardOwner(id) != player || room.GetCardPlace(id) != Place.PlaceHand)
+                    {
+                        check = false;
+                        break;
+                    }
+                }
+                if (check)
+                    return new TriggerStruct(Name, player);
+            }
 
             return new TriggerStruct();
         }
 
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.EventPhaseProceeding && player.Phase == PlayerPhase.Draw && data is int count)
-            {
-                if (player.HasFlag("caishi_reduce") && count > 0)
-                    count--;
-                else if (player.HasFlag(Name))
-                    count += 2;
-                data = count;
-            }
-        }
-
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            string choice = room.AskForChoice(player, Name, "reduce+max+draw+cancel");
-            if (choice != "cancel")
+            if (data is List<int> ids && room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
             {
-                LogMessage log = new LogMessage
-                {
-                    From = player.Name,
-                    Arg = "zhongjian"
-                };
-                switch (choice)
-                {
-                    case "reduce":
-                        player.SetFlags("caishi_reduce");
-                        log.Type = "#caishi_reduce";
-                        break;
-                    case "max":
-                        log.Type = "#caishi_max";
-                        player.SetFlags("caishi_max");
-                        break;
-                    case "draw":
-                        log.Type = "#caishi_draw";
-                        player.SetFlags(Name);
-                        break;
-                }
-                room.NotifySkillInvoked(player, Name);
+                room.ShowCards(player, ids, Name);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                room.SendLog(log);
                 return info;
             }
-
             return new TriggerStruct();
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            if (data is List<int> ids)
+            {
+                bool same = room.GetCard(ids[0]).Suit == room.GetCard(ids[1]).Suit;
+                if (same)
+                {
+                    player.SetFlags("zhongjian_time");
+                }
+                else
+                {
+                    player.SetFlags(Name);
+                    if (player.Alive && player.IsWounded())
+                    {
+                        RecoverStruct recover = new RecoverStruct
+                        {
+                            Recover = 1,
+                            Who = player
+                        };
+                        room.Recover(player, recover, true);
+                    }
+                }
+
+            }
             return false;
         }
     }
 
-    public class CaishiMax : MaxCardsSkill
+    public class CaishiProhibit : ProhibitSkill
     {
-        public CaishiMax() : base("#caishi") { }
-        public override int GetExtra(Room room, Player target)
+        public CaishiProhibit() : base("#caishi") { }
+        public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
-            return target.HasFlag("caishi_max") ? -1 : 0;
+            if (from != null && from == to && from.HasFlag("caishi"))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                return !(fcard is SkillCard);
+            }
+
+            return false;
         }
     }
 
@@ -10383,6 +10502,26 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
+
+            if (lengtong.Alive && lengtong.Phase != PlayerPhase.NotActive)
+            {
+                tos.RemoveAll(t => !t.Alive);
+                Player target = null;
+                lengtong.SetFlags(Name);
+                if (tos.Count == 1)
+                {
+                    if (room.AskForSkillInvoke(lengtong, Name, "@xuanfeng-single:" + tos[0].Name, info.SkillPosition))
+                        target = tos[0];
+                }
+                else if (tos.Count > 1)
+                {
+                    target = room.AskForPlayerChosen(lengtong, tos, Name, "@xuanfeng-damage", true, false, info.SkillPosition);
+                }
+                lengtong.SetFlags("-xuanfeng");
+
+                if (target != null) room.Damage(new DamageStruct(Name, lengtong, target));
+            }
+
             return false;
         }
     }

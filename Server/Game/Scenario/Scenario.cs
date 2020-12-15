@@ -255,9 +255,10 @@ namespace SanguoshaServer.Scenario
                 case PlayerPhase.Draw:
                     {
                         int num = (int)data;
+                        object draws = new List<int>();
                         if (num > 0)
-                            room.DrawCards(player, num, "gamerule");
-                        room.RoomThread.Trigger(TriggerEvent.AfterDrawNCards, room, player, ref data);
+                            draws = room.DrawCards(player, num, "gamerule");
+                        room.RoomThread.Trigger(TriggerEvent.AfterDrawNCards, room, player, ref draws);
 
                         break;
                     }

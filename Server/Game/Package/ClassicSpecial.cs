@@ -2900,9 +2900,19 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use)
             {
+                Player target = null;
                 room.SetTag(Name, data);
-                Player target = room.AskForPlayerChosen(player, use.To, Name, "@lingren", true, true, info.SkillPosition);
+                if (use.To.Count == 1)
+                {
+                    if (room.AskForSkillInvoke(player, Name, use.To[0], info.SkillPosition))
+                        target = use.To[0];
+                }
+                else
+                {
+                    target = room.AskForPlayerChosen(player, use.To, Name, "@lingren", true, true, info.SkillPosition);
+                }
                 room.RemoveTag(Name);
+
                 if (target != null)
                 {
                     player.SetFlags(Name);
@@ -9977,9 +9987,10 @@ namespace SanguoshaServer.Package
                 if (target.Alive)
                     room.DrawCards(target, new DrawCardStruct(1, player, Name));
 
-                foreach (Player p in room.GetAlivePlayers())
-                    if (p.ActualGeneral1 == "guansuo")
-                        room.DrawCards(p, new DrawCardStruct(1, player, Name));
+                if (player.GetMark("xushen") > 0)
+                    foreach (Player p in room.GetAlivePlayers())
+                        if (p.ActualGeneral1 == "guansuo")
+                            room.DrawCards(p, new DrawCardStruct(1, player, Name));
             }
 
             return false;
@@ -9990,199 +10001,177 @@ namespace SanguoshaServer.Package
     {
         public Xushen() : base("xushen")
         {
-            events = new List<TriggerEvent> { TriggerEvent.HpRecover, TriggerEvent.AskForPeachesDone };
+            events = new List<TriggerEvent> { TriggerEvent.Dying, TriggerEvent.QuitDying };
             frequency = Frequency.Limited;
             limit_mark = "@xu";
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.HpRecover && data is RecoverStruct recover && recover.Who != null && player.HasFlag("Global_Dying")
-                && recover.Who.Alive && !player.HasFlag(Name) && player.GetMark(limit_mark) > 0 && player.Hp > 0)
+            if (triggerEvent == TriggerEvent.QuitDying && player.GetMark(Name) == 1 && player.Alive)
             {
-                player.SetFlags(Name);
-                if (recover.Who != null && recover.Who.IsMale() && recover.Who.Alive)
-                    recover.Who.SetMark(Name, 1);
-            }
-            else if (triggerEvent == TriggerEvent.AskForPeachesDone && player.HasFlag(Name))
-                player.SetFlags("-xushen");
-        }
-
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
-        {
-            if (triggerEvent == TriggerEvent.AskForPeachesDone && base.Triggerable(player, room) && player.GetMark(limit_mark) > 0)
-            {
-                Player guansuo = null, target = null;
+                player.AddMark(Name);
+                Player guansuo = null;
                 foreach (Player p in room.GetOtherPlayers(player))
                 {
-                    if (p.GetMark(Name) > 0)
-                        target = p;
                     if (p.ActualGeneral1 == "guansuo")
                         guansuo = p;
                 }
 
-                if (guansuo == null && target != null)
-                    return new TriggerStruct(Name, player);
+                if (guansuo == null)
+                {
+                    Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@xushen-change", true, true);
+                    if (target != null)
+                    {
+                        room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                        if (room.AskForChoice(target, Name, "change+cancel") == "change")
+                        {
+                            if (target.GetMark("@duanchang") > 0)
+                            {
+                                target.DuanChang = string.Empty;
+                                room.BroadcastProperty(target, "DuanChang");
+                                room.SetPlayerMark(target, "@duanchang", 0);
+                            }
+
+                            string from_general = target.ActualGeneral1;
+                            if (!from_general.Contains("sujiang"))
+                            {
+                                room.DoAnimate(AnimateType.S_ANIMATE_REMOVE, target.Name, true.ToString());
+                                room.HandleUsedGeneral("-" + from_general);
+                            }
+
+                            room.HandleUsedGeneral("guansuo");
+                            target.ActualGeneral1 = target.General1 = "guansuo";
+                            target.HeadSkinId = 0;
+                            target.Kingdom = "shu";
+                            target.PlayerGender = Gender.Male;
+                            room.BroadcastProperty(target, "Kingdom");
+                            room.BroadcastProperty(target, "HeadSkinId");
+                            room.BroadcastProperty(target, "PlayerGender");
+                            room.NotifyProperty(room.GetClient(target), target, "ActualGeneral1");
+                            room.BroadcastProperty(target, "General1");
+
+                            int max = 4;
+                            if (target.GetRoleEnum() == PlayerRole.Lord)
+                                max = 4 + (room.Players.Count > 4 && target.GetRoleEnum() == PlayerRole.Lord ? 1 : 0);
+
+                            if (max > target.MaxHp)
+                            {
+                                int count = max - target.MaxHp;
+                                target.MaxHp = max;
+                                room.BroadcastProperty(target, "MaxHp");
+                                LogMessage log = new LogMessage
+                                {
+                                    Type = "$GainMaxHp",
+                                    From = target.Name,
+                                    Arg = count.ToString()
+                                };
+                                room.SendLog(log);
+                                room.RoomThread.Trigger(TriggerEvent.MaxHpChanged, room, target);
+                            }
+                            else if (max < target.MaxHp)
+                            {
+                                room.LoseMaxHp(target, target.MaxHp - max);
+                            }
+
+                            List<string> skills = target.GetSkills(true, false);
+                            foreach (string skill in skills)
+                            {
+                                Skill _s = Engine.GetSkill(skill);
+                                if (_s != null && !_s.Attached_lord_skill)
+                                    room.DetachSkillFromPlayer(target, skill, false, target.GetAcquiredSkills().Contains(skill), true);
+                            }
+
+                            foreach (string skill in Engine.GetGeneralRelatedSkills("guansuo", room.Setting.GameMode))
+                            {
+                                if (!room.Skills.Contains(skill))
+                                {
+                                    room.Skills.Add(skill);
+                                    Skill main = Engine.GetSkill(skill);
+                                    if (main is TriggerSkill tskill)
+                                        room.RoomThread.AddTriggerSkill(tskill);
+                                }
+
+                                foreach (Skill _skill in Engine.GetRelatedSkills(skill))
+                                {
+                                    if (!room.Skills.Contains(_skill.Name))
+                                    {
+                                        room.Skills.Add(_skill.Name);
+                                        if (_skill is TriggerSkill tskill)
+                                            room.RoomThread.AddTriggerSkill(tskill);
+                                    }
+                                }
+                            }
+
+                            foreach (string skill_name in Engine.GetGeneralSkills("guansuo", room.Setting.GameMode, true))
+                            {
+                                if (!room.Skills.Contains(skill_name))
+                                {
+                                    room.Skills.Add(skill_name);
+                                    Skill main = Engine.GetSkill(skill_name);
+                                    if (main is TriggerSkill tskill)
+                                        room.RoomThread.AddTriggerSkill(tskill);
+                                }
+
+                                foreach (Skill _skill in Engine.GetRelatedSkills(skill_name))
+                                {
+                                    if (!room.Skills.Contains(_skill.Name))
+                                    {
+                                        room.Skills.Add(_skill.Name);
+                                        if (_skill is TriggerSkill tskill)
+                                            room.RoomThread.AddTriggerSkill(tskill);
+                                    }
+                                }
+
+                                room.AddPlayerSkill(target, skill_name);
+                            }
+
+                            room.SendPlayerSkillsToOthers(target);
+                            room.FilterCards(target, target.GetCards("he"), true);
+                        }
+
+                        if (target.Alive) room.DrawCards(target, new DrawCardStruct(3, player, Name));
+                    }
+                }
             }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.Dying && base.Triggerable(player, room) && player.GetMark(limit_mark) > 0)
+                return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player target = null;
-            foreach (Player p in room.GetOtherPlayers(player))
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
             {
-                if (p.GetMark(Name) > 0)
-                {
-                    target = p;
-                    break;
-                }
-            }
-            if (room.AskForSkillInvoke(player, Name, target, info.SkillPosition))
+                room.RemovePlayerMark(player, limit_mark);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.DoSuperLightbox(player, info.SkillPosition, Name);
                 return info;
+            }
 
             return new TriggerStruct();
         }
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.RemovePlayerMark(player, limit_mark);
-            room.NotifySkillInvoked(player, Name);
-            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-            room.DoSuperLightbox(player, info.SkillPosition, Name);
-
-            Player target = null;
-            foreach (Player p in room.GetOtherPlayers(player))
+            player.SetMark(Name, 1);
+            if (player.IsWounded())
             {
-                if (p.GetMark(Name) > 0)
+                RecoverStruct recover = new RecoverStruct
                 {
-                    target = p;
-                    target.SetMark(Name, 0);
-                    break;
-                }
+                    Recover = 1,
+                    Who = player
+                };
+                room.Recover(player, recover, true);
             }
-
-            if (room.AskForChoice(target, Name, "change+cancel") == "change")
-            {
-                if (target.GetMark("@duanchang") > 0)
-                {
-                    target.DuanChang = string.Empty;
-                    room.BroadcastProperty(target, "DuanChang");
-                    room.SetPlayerMark(target, "@duanchang", 0);
-                }
-
-                string from_general = target.ActualGeneral1;
-                if (!from_general.Contains("sujiang"))
-                {
-                    room.DoAnimate(AnimateType.S_ANIMATE_REMOVE, target.Name, true.ToString());
-                    room.HandleUsedGeneral("-" + from_general);
-                }
-
-                room.HandleUsedGeneral("guansuo");
-                target.ActualGeneral1 = target.General1 = "guansuo";
-                target.HeadSkinId = 0;
-                target.Kingdom = "shu";
-                room.BroadcastProperty(target, "Kingdom");
-                room.BroadcastProperty(target, "HeadSkinId");
-                room.NotifyProperty(room.GetClient(target), target, "ActualGeneral1");
-                room.BroadcastProperty(target, "General1");
-
-                int max = 4;
-                if (target.GetRoleEnum() == PlayerRole.Lord)
-                    max = 4 + (room.Players.Count > 4 && target.GetRoleEnum() == PlayerRole.Lord ? 1 : 0);
-
-                if (max > target.MaxHp)
-                {
-                    int count = max - target.MaxHp;
-                    target.MaxHp = max;
-                    room.BroadcastProperty(target, "MaxHp");
-                    LogMessage log = new LogMessage
-                    {
-                        Type = "$GainMaxHp",
-                        From = target.Name,
-                        Arg = count.ToString()
-                    };
-                    room.SendLog(log);
-                    room.RoomThread.Trigger(TriggerEvent.MaxHpChanged, room, target);
-                }
-                else if (max < target.MaxHp)
-                {
-                    room.LoseMaxHp(target, target.MaxHp - max);
-                }
-
-                List<string> skills = target.GetSkills(true, false);
-                foreach (string skill in skills)
-                {
-                    Skill _s = Engine.GetSkill(skill);
-                    if (_s != null && !_s.Attached_lord_skill)
-                        room.DetachSkillFromPlayer(target, skill, false, target.GetAcquiredSkills().Contains(skill), true);
-                }
-
-                foreach (string skill in Engine.GetGeneralRelatedSkills("guansuo", room.Setting.GameMode))
-                {
-                    if (!room.Skills.Contains(skill))
-                    {
-                        room.Skills.Add(skill);
-                        Skill main = Engine.GetSkill(skill);
-                        if (main is TriggerSkill tskill)
-                            room.RoomThread.AddTriggerSkill(tskill);
-                    }
-
-                    foreach (Skill _skill in Engine.GetRelatedSkills(skill))
-                    {
-                        if (!room.Skills.Contains(_skill.Name))
-                        {
-                            room.Skills.Add(_skill.Name);
-                            if (_skill is TriggerSkill tskill)
-                                room.RoomThread.AddTriggerSkill(tskill);
-                        }
-                    }
-                }
-
-                foreach (string skill_name in Engine.GetGeneralSkills("guansuo", room.Setting.GameMode, true))
-                {
-                    if (!room.Skills.Contains(skill_name))
-                    {
-                        room.Skills.Add(skill_name);
-                        Skill main = Engine.GetSkill(skill_name);
-                        if (main is TriggerSkill tskill)
-                            room.RoomThread.AddTriggerSkill(tskill);
-                    }
-
-                    foreach (Skill _skill in Engine.GetRelatedSkills(skill_name))
-                    {
-                        if (!room.Skills.Contains(_skill.Name))
-                        {
-                            room.Skills.Add(_skill.Name);
-                            if (_skill is TriggerSkill tskill)
-                                room.RoomThread.AddTriggerSkill(tskill);
-                        }
-                    }
-
-                    room.AddPlayerSkill(target, skill_name);
-                }
-
-                room.SendPlayerSkillsToOthers(target);
-                room.FilterCards(target, target.GetCards("he"), true);
-            }
-
-            if (target.Alive) room.DrawCards(target, new DrawCardStruct(3, player, Name));
 
             if (player.Alive)
-            {
-                if (player.IsWounded())
-                {
-                    RecoverStruct recover = new RecoverStruct
-                    {
-                        Recover = 1,
-                        Who = player
-                    };
-                    room.Recover(player, recover, true);
-                }
-
                 room.HandleAcquireDetachSkills(player, "zhennan", true);
-            }
 
             return false;
         }
@@ -10233,22 +10222,28 @@ namespace SanguoshaServer.Package
     {
         public Zhennan() : base("zhennan")
         {
-            events = new List<TriggerEvent> { TriggerEvent.TargetConfirmed };
+            events = new List<TriggerEvent> { TriggerEvent.TargetChosen };
             skill_type = SkillType.Attack;
         }
 
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (data is CardUseStruct use && base.Triggerable(player, room))
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (data is CardUseStruct use)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is TrickCard && use.To.Count > 1) return new TriggerStruct(Name, player);
+                if (fcard is TrickCard && use.To.Count > 1)
+                {
+                    List<Player> bsn = RoomLogic.FindPlayersBySkillName(room, Name);
+                    foreach (Player p in bsn)
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
             }
 
-            return new TriggerStruct();
+            return triggers;
         }
 
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player user, ref object data, Player player, TriggerStruct info)
         {
             Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@zhennan", true, true, info.SkillPosition);
             if (target != null)
@@ -10261,7 +10256,7 @@ namespace SanguoshaServer.Package
             return new TriggerStruct();
         }
 
-        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player user, ref object data, Player player, TriggerStruct info)
         {
             Player target = room.FindPlayer(player.GetTag(Name).ToString());
             player.RemoveTag(Name);
