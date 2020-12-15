@@ -7258,11 +7258,13 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+            int count = 1;
             if (triggerEvent == TriggerEvent.Damage)
             {
                 if (ask_who.GetTag("zhongjian_discard") is List<string> names)
                 {
-                    names.Remove(player.Name);
+                    count = names.FindAll(t => t == player.Name).Count;
+                    names.RemoveAll(t => t == player.Name);
                     if (names.Count == 0)
                         ask_who.RemoveTag("zhongjian_discard");
                     else
@@ -7270,20 +7272,21 @@ namespace SanguoshaServer.Package
                 }
 
                 int mark = player.GetMark("zhongjian_discard");
-                mark--;
+                mark -= count;
                 player.SetMark("zhongjian_discard", mark);
                 if (mark == 0)
                     room.RemovePlayerStringMark(player, "zhongjian_discard");
                 else
                     room.SetPlayerStringMark(player, "zhongjian_discard", mark.ToString());
 
-                room.AskForDiscard(player, Name, 2, 2, false, true, "@zhongjian-discard");
+                room.AskForDiscard(player, Name, 2 * count, 2 * count, false, true, "@zhongjian-discard");
             }
             else
             {
                 if (ask_who.GetTag("zhongjian_draw") is List<string> names)
                 {
-                    names.Remove(player.Name);
+                    count = names.FindAll(t => t == player.Name).Count;
+                    names.RemoveAll(t => t == player.Name);
                     if (names.Count == 0)
                         ask_who.RemoveTag("zhongjian_draw");
                     else
@@ -7291,17 +7294,17 @@ namespace SanguoshaServer.Package
                 }
 
                 int mark = player.GetMark("zhongjian_draw");
-                mark--;
+                mark -= count;
                 player.SetMark("zhongjian_draw", mark);
                 if (mark == 0)
                     room.RemovePlayerStringMark(player, "zhongjian_draw");
                 else
                     room.SetPlayerStringMark(player, "zhongjian_draw", mark.ToString());
 
-                room.DrawCards(player, new DrawCardStruct(2, ask_who, Name));
+                room.DrawCards(player, new DrawCardStruct(2 * count, ask_who, Name));
             }
 
-            if (ask_who.Alive) room.DrawCards(ask_who, 1, Name);
+            if (ask_who.Alive) room.DrawCards(ask_who, count, Name);
 
             return false;
         }

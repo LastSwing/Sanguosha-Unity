@@ -101,7 +101,7 @@ namespace SanguoshaServer.AI
             int half = cards.Count / 2;
             for (int i = 1; i <= half; i++)
             {
-                List<List<int>> top = AI.TrustedAI.GetCombinationList(new List<int>(cards), i);
+                List<List<int>> top = TrustedAI.GetCombinationList(new List<int>(cards), i);
                 foreach (List<int> combine in top)
                 {
                     int top_count = 0;
@@ -110,9 +110,9 @@ namespace SanguoshaServer.AI
 
                     List<int> others = new List<int>(cards);
                     others.RemoveAll(t => combine.Contains(t));
-                    for (int i2 = 1; i2 < others.Count; i2++)
+                    for (int i2 = 1; i2 <= others.Count; i2++)
                     {
-                        List<List<int>> down = AI.TrustedAI.GetCombinationList(new List<int>(others), i2);
+                        List<List<int>> down = TrustedAI.GetCombinationList(new List<int>(others), i2);
                         foreach (List<int> combine2 in down)
                         {
                             int down_count = 0;
