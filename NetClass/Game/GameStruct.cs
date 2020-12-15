@@ -885,15 +885,14 @@ namespace CommonClass.Game
 
         public float GetCommandTimeout(CommonClassLibrary.CommandType command, ProcessInstanceType instance)
         {
-            float timeOut = 0;
-
+            float timeOut;
             if (command == CommonClassLibrary.CommandType.S_COMMAND_NULLIFICATION)
             {
                 timeOut = NullTime * 1000;
             }
             else
             {
-                if (command == CommonClassLibrary.CommandType.S_COMMAND_CHOOSE_GENERAL)
+                if (command == CommonClassLibrary.CommandType.S_COMMAND_CHOOSE_GENERAL || command == CommonClassLibrary.CommandType.S_COMMAND_GENERAL_PICK)
                     timeOut = ControlTime * 1500;
                 else if (command == CommonClassLibrary.CommandType.S_COMMAND_SKILL_MOVECARDS
                     || command == CommonClassLibrary.CommandType.S_COMMAND_ARRANGE_GENERAL)

@@ -9964,7 +9964,11 @@ namespace SanguoshaServer.Package
 
             if (targets.Count > 0)
             {
-                Player target = room.AskForPlayerChosen(player, targets, Name, "@wuniang", true, true, info.SkillPosition);
+                Player target = null;
+                if (targets.Count == 1 && room.AskForSkillInvoke(player, Name, targets[0], info.SkillPosition))
+                    target = targets[0];
+                else if (targets.Count > 1)
+                    target = room.AskForPlayerChosen(player, targets, Name, "@wuniang", true, true, info.SkillPosition);
                 if (target != null)
                 {
                     player.SetTag(Name, target.Name);

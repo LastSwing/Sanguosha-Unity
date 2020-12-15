@@ -454,7 +454,7 @@ namespace SanguoshaServer.AI
             List<ScoreStruct> scores = new List<ScoreStruct>();
             foreach (Player p in targets)
             {
-                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "he", FunctionCard.HandlingMethod.MethodGet);
+                ScoreStruct score = ai.FindCards2Discard(player, p, Name, "he", HandlingMethod.MethodGet);
                 scores.Add(score);
             }
             if (scores.Count > 0)
@@ -467,6 +467,31 @@ namespace SanguoshaServer.AI
             if (guansuo != null && targets.Contains(guansuo)) return new List<Player> { guansuo };
 
             return new List<Player>();
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target)
+            {
+                Room room = ai.Room;
+                Player guansuo = null;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.ActualGeneral1 == "guansuo")
+                    {
+                        if (!ai.IsFriend(p))
+                            return false;
+                        else
+                            guansuo = p;
+                    }
+                }
+
+                ScoreStruct score = ai.FindCards2Discard(player, target, Name, "he", HandlingMethod.MethodGet);
+                if (score.Score > 0) return true;
+                if (guansuo == target) return true;
+            }
+
+            return false;
         }
     }
 

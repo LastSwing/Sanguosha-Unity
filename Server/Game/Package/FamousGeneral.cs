@@ -7210,7 +7210,7 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
-            if (xxy.ContainsTag("zhongjian_draw") && xxy.GetTag("zhongjian_discard") is List<string> _names)
+            if (xxy.ContainsTag("zhongjian_draw") && xxy.GetTag("zhongjian_draw") is List<string> _names)
             {
                 xxy.RemoveTag("zhongjian_draw");
                 foreach (string player_name in _names)
@@ -7345,8 +7345,7 @@ namespace SanguoshaServer.Package
             Player player = card_use.From, target = card_use.To[0];
             target.SetFlags("zhongjian_target");
 
-
-            target.SetFlags("zhongjian-tar");
+            target.SetFlags("zhongjian_tar");
             string choice = room.AskForChoice(player, "zhongjian", "discard+draw", new List<string> { "@zhongjian-choice:" + target.Name }, target);
             target.SetFlags("-zhongjian_tar");
 

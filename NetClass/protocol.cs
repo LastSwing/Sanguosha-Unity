@@ -242,7 +242,7 @@ namespace CommonClassLibrary
         S_COMMAND_UPDATE_PRIVATE_PILE,
         S_COMMAND_UPDATE_CARD_FOOTNAME,
         S_COMMAND_SHOWDISTANCE,
-        S_COMMAND_GENERAL_PICK
+        S_COMMAND_GENERAL_PICK,
     };
 
     public enum GameEventType
