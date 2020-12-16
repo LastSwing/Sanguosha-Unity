@@ -2459,7 +2459,7 @@ namespace SanguoshaServer.Package
 
             bool ingame = (bool)room.GetTag(string.Format("zhuren_{0}", card_name));
             List<int> ids = new List<int>();
-            if (!ingame && Shuffle.random(card.Number, 18))
+            if (!ingame && Shuffle.random(card.Number, 15))
             {
                 foreach (int card_id in room.RoomCards)
                 {
