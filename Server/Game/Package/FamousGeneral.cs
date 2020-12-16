@@ -7421,7 +7421,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (data is List<int> ids && room.AskForSkillInvoke(player, Name, null, info.SkillPosition))
+            if (data is List<int> ids && room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
             {
                 room.ShowCards(player, ids, Name);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);

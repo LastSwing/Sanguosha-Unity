@@ -984,7 +984,12 @@ namespace SanguoshaServer.AI
                     double adjust = 0;                                               //if not move only once,
                     if (!onebyone)
                     {                                                //must ajust for xiaoji/xuanlue  **for now
-                        if (HasSkill("xiaoji|xuanfeng", player)) adjust += 6;
+                        if (HasSkill("xiaoji", player)) adjust += 6;
+                        if (HasSkill("xuanfeng", player))
+                        {
+                            adjust += 6;
+                            if (player.Phase != PlayerPhase.NotActive) adjust += 4;
+                        }
                         if (HasSkill("xuanlue", player)) adjust += 3;
                     }
                     for (int i = 0; i < Math.Min(values.Count, times - result.Count); i++)
@@ -1169,7 +1174,12 @@ namespace SanguoshaServer.AI
                 double adjust = 0;                                               //if not move only once,
                 if (!onebyone)
                 {                                                //must ajust for xiaoji/xuanlue  **for now
-                    if (HasSkill("xiaoji|xuanfeng", player)) adjust += 6;
+                    if (HasSkill("xiaoji", player)) adjust += 6;
+                    if (HasSkill("xuanfeng", player))
+                    {
+                        adjust += 6;
+                        if (player.Phase != PlayerPhase.NotActive) adjust += 4;
+                    }
                     if (HasSkill("xuanlue", player)) adjust += 3;
                 }
                 if ((HasSkill("lianying", player) && (Reason == Dismantlement.ClassName || Reason == Snatch.ClassName || times - result.Count >= player.HandcardNum))
