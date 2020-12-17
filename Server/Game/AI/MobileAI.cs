@@ -21,6 +21,7 @@ namespace SanguoshaServer.AI
                 //new ZhongzuoAI(),
                 new TongquAI(),
                 new WanlanAI(),
+                new KuangcaiAI(),
 
                 new YixiangAI(),
                 new YirangAI(),
@@ -32,6 +33,8 @@ namespace SanguoshaServer.AI
                 new WeifengAI(),
 
                 new WuyuanAI(),
+
+                new FenyinAI(),
             };
 
             use_cards = new List<UseCard>
@@ -952,6 +955,36 @@ namespace SanguoshaServer.AI
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 4;
+        }
+    }
+
+    public class KuangcaiAI : SkillEvent
+    {
+        public KuangcaiAI() : base("kuangcai") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+    }
+
+    public class FenyinAI : SkillEvent
+    {
+        public FenyinAI() : base("fenyin") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            WrappedCard card = use.Card;
+            if (!(Engine.GetFunctionCard(card.Name) is SkillCard) && player.GetMark(Name) > 0)
+            {
+                if ((card.Name == IronChain.ClassName || card.Name == GDFighttogether.ClassName) && use.To.Count == 0) return 0;
+                int color = 1;
+                if (WrappedCard.IsBlack(card.Suit))
+                    color = 2;
+                else if (WrappedCard.IsRed(card.Suit))
+                    color = 2;
+
+                if (color != player.GetMark(Name))
+                    return 3.5;
+            }
+
+            return 0;
         }
     }
 }
