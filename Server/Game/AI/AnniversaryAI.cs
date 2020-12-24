@@ -32,6 +32,11 @@ namespace SanguoshaServer.AI
                 new ZhuilieAI(),
 
                 new TunanAI(),
+                new ManyiAI(),
+                new MansiAI(),
+                new SouyingAI(),
+                new XiliAI(),
+                new ZhanyuanAI(),
 
                 new GuolunAI(),
                 new SongSangAI(),
@@ -815,6 +820,111 @@ namespace SanguoshaServer.AI
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
             return 9;
+        }
+    }
+
+    public class ManyiAI : SkillEvent
+    {
+        public ManyiAI() : base("manyi") { }
+        public override bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to)
+        {
+            if (ai.HasSkill(Name, to) && card != null && card.Name == SavageAssault.ClassName)
+                return false;
+
+            return true;
+        }
+    }
+
+    public class MansiAI : SkillEvent
+    {
+        public MansiAI() : base("mansi") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            List<WrappedCard> cards = new List<WrappedCard>();
+            if (!player.IsKongcheng() && !player.HasUsed("ViewAsSkill_mansiCard"))
+            {
+                Room room = ai.Room;
+                bool invoke = true;
+                foreach (int id in player.GetCards("h"))
+                {
+                    WrappedCard card = room.GetCard(id);
+                    if (RoomLogic.IsCardLimited(room, player, card, HandlingMethod.MethodUse))
+                        invoke = false;
+                }
+
+                if (invoke)
+                {
+                    WrappedCard card = new WrappedCard(SavageAssault.ClassName) { Skill = Name };
+                    card.AddSubCards(player.GetCards("h"));
+                    cards.Add(card);
+                }
+
+                return cards;
+            }
+            return cards;
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, CardUseStruct use)
+        {
+            if (use.Card != null && use.Card.Name == SavageAssault.ClassName && use.Card.GetSkillName() == Name)
+                return -10;
+
+            return 0;
+        }
+    }
+
+    public class XiliAI : SkillEvent
+    {
+        public XiliAI() : base("xili") { }
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            Room room = ai.Room;
+            if (room.GetTag(Name) is DamageStruct damage && ai.IsFriend(damage.From))
+            {
+                ai.SortByKeepValue(ref ids, false);
+                if (ai.IsEnemy(damage.To))
+                {
+                    return new List<int> { ids[0] };
+                }
+                else
+                {
+                    DamageStruct new_damage = new DamageStruct(damage.Reason, damage.From, damage.To, damage.Damage + 1, damage.Nature)
+                    {
+                        Card = damage.Card,
+                        Chain = damage.Chain,
+                        Transfer = damage.Transfer,
+                        TransferReason = damage.TransferReason
+                    };
+                    if (ai.GetDamageScore(damage).Score >= ai.GetDamageScore(new_damage).Score)
+                        return new List<int> { ids[0] };
+                }
+            }
+
+            return new List<int>();
+        }
+    }
+
+    public class SouyingAI : SkillEvent
+    {
+        public SouyingAI() : base("souying"){}
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            return base.OnDiscard(ai, player, ids, min, max, option);
+        }
+    }
+
+    public class ZhanyuanAI : SkillEvent
+    {
+        public ZhanyuanAI() : base("zhanyuan") { }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            ai.SortByDefense(ref targets);
+            foreach (Player p in targets)
+                if (ai.IsFriend(p)) return new List<Player> { p };
+
+            return new List<Player>();
         }
     }
 

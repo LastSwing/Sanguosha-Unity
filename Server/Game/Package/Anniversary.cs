@@ -2814,7 +2814,10 @@ namespace SanguoshaServer.Package
         {
             if (data is DamageStruct damage)
             {
-                if (room.AskForDiscard(ask_who, Name, 1, 1, true, true, string.Format("@xili:{0}:{1}", player.Name, damage.To.Name), true, info.SkillPosition))
+                room.SetTag(Name, data);
+                bool invoke = room.AskForDiscard(ask_who, Name, 1, 1, true, true, string.Format("@xili:{0}:{1}", player.Name, damage.To.Name), true, info.SkillPosition);
+                room.RemoveTag(Name);
+                if (invoke)
                 {
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                     room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
