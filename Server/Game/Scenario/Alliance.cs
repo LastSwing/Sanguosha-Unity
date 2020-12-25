@@ -26,7 +26,7 @@ namespace SanguoshaServer.Scenario
             List<Player> players = new List<Player>();
             if (room.Players.Count == 8)
             {
-                List<string> soldiers = new List<string> { "longxiangjun", "hubenjun", "baoluejun", "fengyaojun", "feixiongjun_1", "feixiongjun_2" };
+                List<string> soldiers = new List<string> { "longxiangjun", "hubenjun", "baoluejun", "fengyaojun", "feixiongjun", "tanlangjun" };
                 Shuffle.shuffle(ref soldiers);
 
                 room.Players[1].General1 = room.Players[1].ActualGeneral1 = soldiers[0];
@@ -84,7 +84,7 @@ namespace SanguoshaServer.Scenario
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "hubenjun";
                         break;
                     case 2:
-                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "niudong_al";
+                        room.Players[3].General1 = room.Players[3].ActualGeneral1 = "dongxie_al";
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "fengyaojun";
                         break;
                     case 3:
@@ -92,14 +92,14 @@ namespace SanguoshaServer.Scenario
                         room.Players[2].General1 = room.Players[2].ActualGeneral1 = room.Players[4].General1 = room.Players[4].ActualGeneral1 = "baoluejun";
                         break;
                     case 4:
-                        room.Players[2].General1 = room.Players[2].ActualGeneral1 = "feixiongjun_2";
+                        room.Players[2].General1 = room.Players[2].ActualGeneral1 = "tanlangjun";
                         room.Players[3].General1 = room.Players[3].ActualGeneral1 = "lijue_al";
-                        room.Players[4].General1 = room.Players[4].ActualGeneral1 = "feixiongjun_1";
+                        room.Players[4].General1 = room.Players[4].ActualGeneral1 = "feixiongjun";
                         break;
                     case 5:
-                        room.Players[2].General1 = room.Players[2].ActualGeneral1 = "feixiongjun_2";
+                        room.Players[2].General1 = room.Players[2].ActualGeneral1 = "tanlangjun";
                         room.Players[3].General1 = room.Players[3].ActualGeneral1 = "guosi_al";
-                        room.Players[4].General1 = room.Players[4].ActualGeneral1 = "feixiongjun_1";
+                        room.Players[4].General1 = room.Players[4].ActualGeneral1 = "feixiongjun";
                         break;
                 }
 
@@ -386,11 +386,12 @@ namespace SanguoshaServer.Scenario
                     room.NotifyPlayerPreshow(player);
                 }
 
-                int max_hp = Engine.GetGeneral(general1_name, room.Setting.GameMode).DoubleMaxHp;
+                General g = Engine.GetGeneral(general1_name, room.Setting.GameMode);
+                int max_hp = g.DoubleMaxHp;
                 if (room.Players.Count == 8 && player.Camp == Game3v3Camp.S_CAMP_WARM && player.GetRoleEnum() != Player.PlayerRole.Lord)
                     max_hp--;
                 player.MaxHp = max_hp;
-                player.Hp = player.MaxHp;
+                player.Hp = Math.Max(1, player.MaxHp + g.Head_max_hp_adjusted_value);
 
                 room.BroadcastProperty(player, "MaxHp");
                 room.BroadcastProperty(player, "Hp");

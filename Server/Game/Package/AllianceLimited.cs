@@ -504,7 +504,7 @@ namespace SanguoshaServer.Package
             if (room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-                //room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
+                room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                 room.SetPlayerMark(ask_who, limit_mark, 0);
                 return info;
