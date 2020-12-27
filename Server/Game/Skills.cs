@@ -205,16 +205,13 @@ namespace SanguoshaServer.Game
         public TriggerSkill(string name) : base(name)
         {
         }
-        virtual public int GetPriority()
-        {
-            return 3;
-        }
+        virtual public int Priority => 3;
         virtual public double GetDynamicPriority(TriggerEvent e)
         {
             if (priority.Keys.Contains(e))
                 return priority[e];
             else
-                return GetPriority();
+                return Priority;
         }
         //     double getCurrentPriority() const
         //     {
@@ -364,7 +361,7 @@ namespace SanguoshaServer.Game
     public class WeaponSkill : TriggerSkill
     {
         public WeaponSkill(string name) : base(name) { }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;
@@ -398,7 +395,7 @@ namespace SanguoshaServer.Game
 
         public ArmorSkill(string name) : base(name) { }
 
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;
@@ -464,7 +461,7 @@ namespace SanguoshaServer.Game
 
         public TreasureSkill(string name) : base(name) { }
 
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override bool Triggerable(Player target, Room room)
         {
             if (target == null) return false;

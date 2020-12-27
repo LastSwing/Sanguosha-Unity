@@ -2787,7 +2787,7 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.CardFinished };
             skill_type = SkillType.Replenish;
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName))
@@ -3592,7 +3592,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.CardUsed, TriggerEvent.CardResponded, TriggerEvent.EventPhaseChanging };
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -4766,7 +4766,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardsMoveOneTime);
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
@@ -10535,10 +10535,7 @@ namespace SanguoshaServer.Package
             events.Add(TriggerEvent.EventPhaseEnd);
         }
 
-        public override int GetPriority()
-        {
-            return -2;
-        }
+        public override int Priority => -2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -11670,7 +11667,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardsMoveOneTime);
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;

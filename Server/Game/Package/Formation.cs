@@ -657,7 +657,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Discard && player.HasFlag("ShengxiDamageInPlayPhase"))
@@ -1210,7 +1210,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.NotActive)

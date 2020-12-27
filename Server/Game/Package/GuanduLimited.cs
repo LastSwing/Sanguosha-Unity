@@ -1343,7 +1343,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.EventPhaseChanging);
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)

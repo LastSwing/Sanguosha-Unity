@@ -2620,7 +2620,7 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging };
         }
 
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {

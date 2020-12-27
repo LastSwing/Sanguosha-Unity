@@ -386,10 +386,7 @@ namespace SanguoshaServer.Package
             events.Add(TriggerEvent.EventPhaseEnd);
         }
 
-        public override int GetPriority()
-        {
-            return 0;
-        }
+        public override int Priority => 0;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {

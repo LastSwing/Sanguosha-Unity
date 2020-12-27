@@ -182,8 +182,8 @@ namespace SanguoshaServer.Scenario
                 TriggerEvent.ChoiceMade, TriggerEvent.GeneralShown, TriggerEvent.BeforeCardsMove, TriggerEvent.Death, TriggerEvent.CardsMoveOneTime
             };
         }
-        
-        public override int GetPriority() => 0;
+
+        public override int Priority => 0;
         public abstract string GetWinner(Room room);
         public override bool Triggerable(Player player, Room room)
         {

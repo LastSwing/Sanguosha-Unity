@@ -968,7 +968,7 @@ namespace SanguoshaServer.Package
             events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.TargetConfirmed };
         }
 
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {

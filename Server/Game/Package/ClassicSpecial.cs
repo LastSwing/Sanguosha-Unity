@@ -3878,7 +3878,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseEnd };
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (player != null && player.Phase == PlayerPhase.Discard && player.ContainsTag("WeidiToGet"))
@@ -6035,7 +6035,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardsMoveOneTime);
         }
-        public override int GetPriority() => -1;
+        public override int Priority => -1;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
@@ -7262,7 +7262,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardFinished);
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -8725,7 +8725,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.NotActive)
@@ -12654,7 +12654,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.TargetChoosing);
         }
-        public override int GetPriority() => 2;
+        public override int Priority => 2;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
