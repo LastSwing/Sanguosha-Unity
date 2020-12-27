@@ -9506,6 +9506,9 @@ namespace SanguoshaServer.Game
             }
 
             SendLog(log);
+
+            object data = index;
+            RoomThread.Trigger(TriggerEvent.EquipBolished, this, player, ref data);
         }
 
         public void AbolishJudgingArea(Player player, string skill)

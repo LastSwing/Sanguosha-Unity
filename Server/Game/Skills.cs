@@ -115,6 +115,8 @@ namespace SanguoshaServer.Game
         GeneralStartRemove, // For Official Hegemony mode
         GeneralRemoved, // For Official Hegemony mode
 
+        EquipBolished,
+
         DFDebut, // for Dragon Phoenix Debut
 
         NumOfEvents,
