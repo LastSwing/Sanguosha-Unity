@@ -5002,7 +5002,7 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@zuide", true, true, info.SkillPosition);
+            Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@zhuide", true, true, info.SkillPosition);
             if (target != null)
             {
                 player.SetTag(Name, target.Name);
