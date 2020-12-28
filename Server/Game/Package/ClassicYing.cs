@@ -1689,7 +1689,7 @@ namespace SanguoshaServer.Package
 
                 if (count == 0)
                 {
-                    Player target = room.AskForPlayerChosen(zhuge, room.GetOtherPlayers(zhuge), Name, "@zuilun", false, true, info.SkillPosition);
+                    Player target = room.AskForPlayerChosen(zhuge, room.GetOtherPlayers(zhuge), Name, "@zuilun-lose", false, true, info.SkillPosition);
                     room.LoseHp(zhuge);
                     if (target.Alive)
                         room.LoseHp(target);
