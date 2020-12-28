@@ -452,7 +452,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.GetMark(Name) == 1 && player.HasFlag("zhanyi_basic")
                 && (use.Card.Name.Contains(Slash.ClassName) || use.Card.Name == Peach.ClassName
-                || (use.Card.Name == Analeptic.ClassName && player.HasFlag("Global_Dying") && use.To.Contains(player))))
+                || use.Card.Name == Analeptic.ClassName))
             {
                 return new TriggerStruct(Name, player);
             }
@@ -491,15 +491,18 @@ namespace SanguoshaServer.Package
                 }
                 else
                 {
-                    LogMessage log = new LogMessage
+                    if (use.Card.Name != Analeptic.ClassName || player.HasFlag("Global_Dying"))
                     {
-                        Type = "#card-recover",
-                        From = player.Name,
-                        Arg = Name,
-                        Arg2 = use.Card.Name
-                    };
+                        LogMessage log = new LogMessage
+                        {
+                            Type = "#card-recover",
+                            From = player.Name,
+                            Arg = Name,
+                            Arg2 = use.Card.Name
+                        };
 
-                    room.SendLog(log);
+                        room.SendLog(log);
+                    }
                 }
             }
             else if (triggerEvent == TriggerEvent.TrickCardCanceling)
@@ -1152,6 +1155,7 @@ namespace SanguoshaServer.Package
         {
             skill_type = SkillType.Masochism;
             events = new List<TriggerEvent> { TriggerEvent.Dying };
+            frequency = Frequency.Compulsory;
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)

@@ -666,7 +666,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                room.AddPlayerMark(effect.To, "drank");
+                room.AddPlayerMark(effect.To, "drank", 1 + effect.ExDamage);
             }
         }
         public override void CheckTargetModSkillShow(Room room, CardUseStruct use)

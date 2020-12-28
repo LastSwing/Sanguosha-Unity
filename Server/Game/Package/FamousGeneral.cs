@@ -3278,8 +3278,8 @@ namespace SanguoshaServer.Package
                     {
                         if ((fcard is Slash && p == use.From) || (fcard is Peach && !p.IsWounded())
                             || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                            || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == use.From))
-                            || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From))
+                            || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == use.From || p.IsAllNude()))
+                            || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From || p.IsAllNude()))
                             || (fcard is Duel && p == use.From) || ((fcard is ArcheryAttack || fcard is SavageAssault) && p == use.From)) continue;
                         targets.Add(p);
                     }

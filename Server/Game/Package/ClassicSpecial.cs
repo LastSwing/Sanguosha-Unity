@@ -2374,7 +2374,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.MaxHp > room.AliveCount() && player.IsWounded())
+            if (player.Phase == PlayerPhase.Start && base.Triggerable(player, room) && player.GetMark(Name) == 0 && player.MaxHp > room.AliveCount())
             {
                 return new TriggerStruct(Name, player);
             }
@@ -4446,8 +4446,8 @@ namespace SanguoshaServer.Package
                     if ((fcard is Peach && !p.IsWounded())
                         || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
                         || (fcard is FireAttack && p.IsKongcheng())
-                        || (fcard is Snatch && !Snatch.Instance.ExtratargetFilter(room, use.To, p, player, use.Card))
-                        || (fcard is Dismantlement && !RoomLogic.CanDiscard(room, player, p, "hej"))) continue;
+                        || (fcard is Snatch && !Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, use.Card))
+                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p.IsAllNude()))) continue;
 
                     if (p.GetMark("@kui") > 0 && !use.To.Contains(p) && RoomLogic.IsProhibited(room, player, p, use.Card) == null)
                         targets.Add(p);
@@ -5895,9 +5895,10 @@ namespace SanguoshaServer.Package
                 foreach (Player p in room.GetAlivePlayers())
                 {
                     if ((fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                        || ((fcard is Slash || fcard is SavageAssault || fcard is ArcheryAttack) && p == player)
-                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == player))
-                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == player))) continue;
+                        || ((fcard is SavageAssault || fcard is ArcheryAttack) && p == player)
+                        || (fcard is Slash && !Slash.Instance.TargetFilter(room, new List<Player>(), p, player, use.Card))
+                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && !Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, use.Card))
+                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == player || p.IsAllNude()))) continue;
 
                     if (!use.To.Contains(p) && RoomLogic.IsProhibited(room, player, p, use.Card) == null)
                         targets.Add(p);
@@ -8455,8 +8456,8 @@ namespace SanguoshaServer.Package
                         if ((fcard is Slash && p == use.From) || (fcard is Peach && !p.IsWounded())
                             || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
                             || (fcard is FireAttack && p.IsKongcheng())
-                            || (fcard is Snatch && !Snatch.Instance.ExtratargetFilter(room, use.To, p, player, use.Card))
-                            || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From))
+                            || (fcard is Snatch && !Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, use.Card))
+                            || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From || p.IsAllNude()))
                             || (fcard is Duel && p == use.From)
                             || ((fcard is ArcheryAttack || fcard is SavageAssault) && p == use.From)) continue;
                         targets.Add(p);
@@ -11493,8 +11494,8 @@ namespace SanguoshaServer.Package
                     else if (RoomLogic.IsProhibited(room, use.From, p, use.Card) == null)
                     {
                         if ((fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
-                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == use.From))
-                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From))
+                        || (fcard is FireAttack && p.IsKongcheng()) || (fcard is Snatch && (!RoomLogic.CanGetCard(room, player, p, "hej") || p == use.From || p.IsAllNude()))
+                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p == use.From || p.IsAllNude()))
                         || (fcard is Duel && p == use.From) || ((fcard is ArcheryAttack || fcard is SavageAssault) && p == use.From)) continue;
                         targets.Add(p);
                     }

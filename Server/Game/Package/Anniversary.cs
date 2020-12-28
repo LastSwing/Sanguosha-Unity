@@ -4626,8 +4626,8 @@ namespace SanguoshaServer.Package
                     if ((fcard is Peach && !p.IsWounded())
                         || (fcard is IronChain && !p.Chained && !RoomLogic.CanBeChainedBy(room, player, p))
                         || (fcard is FireAttack && p.IsKongcheng())
-                        || (fcard is Snatch && !Snatch.Instance.ExtratargetFilter(room, use.To, p, player, use.Card))
-                        || (fcard is Dismantlement && !RoomLogic.CanDiscard(room, player, p, "hej"))) continue;
+                        || (fcard is Snatch && !Snatch.Instance.TargetFilter(room, new List<Player>(), p, player, use.Card))
+                        || (fcard is Dismantlement && (!RoomLogic.CanDiscard(room, player, p, "hej") || p.IsAllNude()))) continue;
 
                     if (!use.To.Contains(p) && RoomLogic.IsProhibited(room, player, p, use.Card) == null)
                         targets.Add(p);
