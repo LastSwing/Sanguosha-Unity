@@ -5179,7 +5179,7 @@ namespace SanguoshaServer.Package
             {
                 string pattern = room.GetRoomState().GetCurrentCardUsePattern();
                 pattern = Engine.GetPattern(pattern).GetPatternString();
-                if (Engine.MatchExpPattern(room, pattern, player, cards[0]))
+                if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_PLAY || Engine.MatchExpPattern(room, pattern, player, cards[0]))
                 {
                     WrappedCard hm = new WrappedCard(HuomoCard.ClassName)
                     {

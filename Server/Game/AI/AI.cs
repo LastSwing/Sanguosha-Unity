@@ -4723,6 +4723,7 @@ namespace SanguoshaServer.AI
                 }
             }
             //hegemony addition marks
+            /*
             if (self.GetMark("@companion") > 0)
             {
                 SkillEvent e = Engine.GetSkillEvent("companion");
@@ -4753,7 +4754,7 @@ namespace SanguoshaServer.AI
                         cards.AddRange(skill_cards);
                 }
             }
-
+            */
             SkillEvent transfer = Engine.GetSkillEvent("transfer");
             {
                 if (transfer != null)

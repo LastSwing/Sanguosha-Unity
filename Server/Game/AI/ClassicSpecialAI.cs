@@ -7338,7 +7338,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.HasFlag(Name))
+            if (!player.HasFlag(Name))
                 return new List<WrappedCard> { new WrappedCard(DuwuCard.ClassName) { Skill = Name } };
 
             return new List<WrappedCard>();

@@ -368,7 +368,7 @@ namespace SanguoshaServer.Package
                 JudgeStruct judge = new JudgeStruct
                 {
                     Good = true,
-                    Pattern = ".|spade#club",
+                    Pattern = ".|spade#.|club",
                     PlayAnimation = true,
                     Reason = Name,
                     Who = target,

@@ -2886,6 +2886,18 @@ namespace SanguoshaServer.Game
             PreparePlayers();
 
             //加载本局游戏技能
+            foreach (Skill skill in Engine.GetCardPackSkills())
+            {
+                if (!Skills.Contains(skill.Name))
+                {
+                    Skills.Add(skill.Name);
+
+                    foreach (Skill _skill in Engine.GetRelatedSkills(skill.Name))
+                        if (!Skills.Contains(_skill.Name))
+                            Skills.Add(_skill.Name);
+                }
+            }
+
             foreach (Player p in Players)
             {
                 foreach (string skill in Engine.GetGeneralSkills(p.ActualGeneral1, Setting.GameMode))

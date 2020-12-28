@@ -53,6 +53,7 @@ namespace SanguoshaServer.Game
         private static List<AttackRangeSkill> attackrange_skills = new List<AttackRangeSkill>();
         private static List<InvalidSkill> invalid_skills = new List<InvalidSkill>();
         private static List<TriggerSkill> global_trigger_skills = new List<TriggerSkill>();
+        private static List<Skill> card_pack_skills = new List<Skill>();
         private static readonly List<TriggerSkill> public_trigger_skills = new List<TriggerSkill>();
 
         private static Dictionary<string, CardPattern> patterns = new Dictionary<string, CardPattern>();
@@ -127,12 +128,12 @@ namespace SanguoshaServer.Game
                         CardPackage pack = (CardPackage)Activator.CreateInstance(t);
                         foreach (FunctionCard card in pack.Cards)
                         {
-                            System.Diagnostics.Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated card {0} in  package {1}", card.Name, pack.Name));
+                            Debug.Assert(!function_cards.ContainsKey(card.Name), string.Format("duplicated card {0} in  package {1}", card.Name, pack.Name));
                             if (!function_cards.ContainsKey(card.Name))
                                 function_cards.Add(card.Name, card);
                         }
 
-                        AddSkills(pack.Skills);
+                        AddSkills(pack.Skills, true);
                         foreach (Skill skill in pack.Skills)
                         {
                             if (skill is TriggerSkill trigger)
@@ -739,11 +740,17 @@ namespace SanguoshaServer.Game
         #endregion
 
         #region 技能相关
-        public static void AddSkills(List<Skill> all_skills)
+        public static void AddSkills(List<Skill> all_skills, bool card_pack = false)
         {
             foreach (Skill skill in all_skills)
             {
-                System.Diagnostics.Debug.Assert(!skills.ContainsKey(skill.Name), string.Format("duplicated skill {0}", skill.Name));
+                Debug.Assert(!skills.ContainsKey(skill.Name), string.Format("duplicated skill {0}", skill.Name));
+                if (card_pack && skill != null && !card_pack_skills.Contains(skill))
+                {
+                    card_pack_skills.Add(skill);
+                    //Debug.Assert(skill.Name != "transfer", skill.Name);
+                }
+
                 if (skill == null || skills.ContainsKey(skill.Name))
                 {
                     continue;
@@ -1016,7 +1023,7 @@ namespace SanguoshaServer.Game
         }
 
         public static List<TriggerSkill> GetGlobalTriggerSkills() => global_trigger_skills;
-
+        public static List<Skill> GetCardPackSkills() => card_pack_skills;
         public static List<UseCard> GetCardUsages()
         {
             return new List<UseCard>(ai_card_event.Values);

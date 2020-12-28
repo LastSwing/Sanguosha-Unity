@@ -5056,7 +5056,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.HandcardNum < RoomLogic.GetMaxCards(ai.Room, player))
+            if (player.GetMark("@megatama") > 0 && player.HandcardNum < RoomLogic.GetMaxCards(ai.Room, player))
             {
                 return new List<WrappedCard> { new WrappedCard(MegatamaCard.ClassName) { Skill = Name } };
             }
@@ -5112,7 +5112,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.GetMark("companion") == 0) return null;
+            if (player.GetMark("@companion") == 0) return null;
 
             if (player.IsWounded() || (ai.GetOverflow(player) == 0 && !(player.IsKongcheng() && ai.NeedKongcheng(player))))
             {
@@ -5224,7 +5224,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.MaxHp - player.HandcardNum >= 2 && !(player.IsKongcheng() && ai.NeedKongcheng(player)))
+            if (player.GetMark("@pioneer") > 0 && player.MaxHp - player.HandcardNum >= 2 && !(player.IsKongcheng() && ai.NeedKongcheng(player)))
             {
                 return new List<WrappedCard> { new WrappedCard(PioneerCard.ClassName) { Skill = Name } };
             }
