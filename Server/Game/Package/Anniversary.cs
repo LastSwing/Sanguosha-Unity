@@ -4318,7 +4318,7 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.From.Alive)
+            if (triggerEvent == TriggerEvent.PreDamageDone && data is DamageStruct damage && damage.From != null && damage.From.Alive)
             {
                 List<string> names = new List<string>();
                 if (damage.From.ContainsTag(Name))
