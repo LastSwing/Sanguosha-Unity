@@ -780,11 +780,10 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.Pindian };
         }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (!base.Triggerable(player, room)) return new TriggerStruct();
-
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play && !player.IsKongcheng())
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play && !player.IsKongcheng())
             {
                 bool can_invoke = false;
                 List<Player> other_players = room.GetOtherPlayers(player);
@@ -797,15 +796,17 @@ namespace SanguoshaServer.Package
                     }
                 }
 
-                return can_invoke ? new TriggerStruct(Name, player) : new TriggerStruct();
+                if (can_invoke) triggers.Add(new TriggerStruct(Name, player));
             }
-            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd && pd.Reason == Name && pd.From == player && pd.Tos[0].Alive)
+            else if (triggerEvent == TriggerEvent.Pindian && data is PindianStruct pd)
             {
-                int card_id = pd.From_card.Id;
-                if (room.GetCardPlace(card_id) == Place.PlaceTable)
-                    return new TriggerStruct(Name, player);
+                int index = pd.Index;
+                if (base.Triggerable(pd.From, room) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
+                    triggers.Add(new TriggerStruct(Name, player));
+                if (base.Triggerable(pd.Tos[index], room) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
+                    triggers.Add(new TriggerStruct(Name, pd.Tos[index]));
             }
-            return new TriggerStruct();
+            return triggers;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
@@ -828,13 +829,18 @@ namespace SanguoshaServer.Package
             }
             else if (data is PindianStruct pd)
             {
-                room.SetTag(Name, pd.Tos[0]);
-                bool invoke = room.AskForSkillInvoke(player, Name, "@fenglue-give:" + pd.Tos[0].Name, info.SkillPosition);
-                room.RemoveTag(Name);
-                if (invoke)
+                int index = pd.Index;
+                Player target = ask_who == player ? pd.Tos[index] : player;
+                if (target.Alive)
                 {
-                    //room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                    return info;
+                    room.SetTag(Name, target);
+                    bool invoke = room.AskForSkillInvoke(ask_who, Name, "@fenglue-give:" + target.Name, info.SkillPosition);
+                    room.RemoveTag(Name);
+                    if (invoke)
+                    {
+                        //room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        return info;
+                    }
                 }
             }
 
@@ -884,9 +890,11 @@ namespace SanguoshaServer.Package
             }
             else if (data is PindianStruct pindian)
             {
-                int card_id = pindian.From_card.Id;
-                if (room.GetCardPlace(card_id) == Place.PlaceTable && pindian.Tos[0].Alive)
-                    room.ObtainCard(pindian.Tos[0], card_id);
+                int index = pindian.Index;
+                Player target = ask_who == player ? pindian.Tos[index] : player;
+                int card_id = ask_who == player ? pindian.From_card.Id : pindian.To_cards[index].Id;
+                if (room.GetCardPlace(card_id) == Place.PlaceTable && target.Alive)
+                    room.ObtainCard(target, card_id);
             }
 
             return false;

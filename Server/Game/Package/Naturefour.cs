@@ -4462,7 +4462,7 @@ namespace SanguoshaServer.Package
                     else if (room.GetCard(pd.To_cards[index].Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.To_cards[index].Id) == Place.PlaceTable)
                         triggers.Add(new TriggerStruct(Name, player));
                 }
-                else if (base.Triggerable(pd.Tos[index], room))
+                if (base.Triggerable(pd.Tos[index], room))
                 {
                     if (room.GetCard(pd.From_card.Id).Name.Contains(Slash.ClassName) && room.GetCardPlace(pd.From_card.Id) == Place.PlaceTable)
                         triggers.Add(new TriggerStruct(Name, pd.Tos[index]));

@@ -2496,7 +2496,7 @@ namespace SanguoshaServer.Package
 
             bool ingame = (bool)room.GetTag(string.Format("zhuren_{0}", card_name));
             List<int> ids = new List<int>();
-            if (!ingame && Shuffle.random(card.Number, 15))
+            if (!ingame && (card.Name == Lightning.ClassName || Shuffle.random(87 + card.Number, 100)))
             {
                 foreach (int card_id in room.RoomCards)
                 {
@@ -2830,17 +2830,23 @@ namespace SanguoshaServer.Package
     {
         public Xili() : base("xili")
         {
-            events.Add(TriggerEvent.DamageCaused);
+            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Attack;
         }
-
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                foreach (Player p in room.GetOtherPlayers(player))
+                    if (p.HasFlag(Name)) p.SetFlags("-xili");
+        }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (data is DamageStruct damage && room.Current == player && base.Triggerable(player, room) && damage.To.Alive && !RoomLogic.PlayerHasSkill(room, damage.To, Name))
+            if (triggerEvent == TriggerEvent.DamageCaused && data is DamageStruct damage && room.Current == player
+                && base.Triggerable(player, room) && damage.To.Alive && !RoomLogic.PlayerHasSkill(room, damage.To, Name))
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    if (p != player)
+                    if (p != player && !p.HasFlag(Name))
                         triggers.Add(new TriggerStruct(Name, p));
             }
 
@@ -2856,6 +2862,7 @@ namespace SanguoshaServer.Package
                 room.RemoveTag(Name);
                 if (invoke)
                 {
+                    ask_who.SetFlags(Name);
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
                     room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
                     return info;

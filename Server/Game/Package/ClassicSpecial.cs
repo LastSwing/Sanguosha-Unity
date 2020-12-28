@@ -9900,7 +9900,6 @@ namespace SanguoshaServer.Package
                 Recover = 1
             };
             room.Recover(caopi, recover, true);
-            room.DrawCards(caopi, 1, Name);
 
             string choice = caopi.GetTag(Name).ToString();
             caopi.RemoveTag(Name);
@@ -9910,6 +9909,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
+                room.DrawCards(caopi, 1, Name);
                 room.HandleAcquireDetachSkills(caopi, choice, true);
             }
 
@@ -12893,7 +12893,7 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && player.HasFlag("canshi_sh"))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (fcard is Slash || fcard.TypeID == CardType.TypeTrick)
+                if (fcard is Slash || (fcard.TypeID == CardType.TypeTrick && !(fcard is DelayedTrick)))
                     return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && player.HasFlag("canshi_sh"))

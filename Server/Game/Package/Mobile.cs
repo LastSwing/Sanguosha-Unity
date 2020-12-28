@@ -944,8 +944,10 @@ namespace SanguoshaServer.Package
             filter_pattern = "..";
         }
 
-        public override bool IsEnabledAtPlay(Room room, Player player) => false;
-        public override bool IsEnabledAtResponse(Room room, Player player, string pattern) => pattern.Contains("@tongqu");
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern.Contains("@tongqu");
+        }
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
             WrappedCard tq = new WrappedCard(TongquCard.ClassName) { Skill = Name };

@@ -5200,6 +5200,7 @@ namespace SanguoshaServer.Package
         public HuomoCard() : base(ClassName)
         {
             will_throw = false;
+            handling_method = HandlingMethod.MethodNone;
         }
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
