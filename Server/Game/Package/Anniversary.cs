@@ -4612,7 +4612,7 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Finish)
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.CardTargetAnnounced && player.GetMark(Name) > 0 && player.Phase != PlayerPhase.NotActive
-                && data is CardUseStruct use && use.To.Count == 1)
+                && data is CardUseStruct use && use.To.Count == 1 && use.Card.Name != Collateral.ClassName)
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard.TypeID == CardType.TypeTrick && !(fcard is DelayedTrick) || fcard is Slash)

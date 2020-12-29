@@ -484,7 +484,7 @@ namespace SanguoshaServer.Package
                     {
                         Type = "#card-damage",
                         From = player.Name,
-                        Arg = Name,
+                        Arg = "zhanyi",
                         Arg2 = use.Card.Name
                     };
                     room.SendLog(log);
@@ -497,7 +497,7 @@ namespace SanguoshaServer.Package
                         {
                             Type = "#card-recover",
                             From = player.Name,
-                            Arg = Name,
+                            Arg = "zhanyi",
                             Arg2 = use.Card.Name
                         };
 
