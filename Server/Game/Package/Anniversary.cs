@@ -4142,9 +4142,9 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.From != null && damage.Card != null && damage.Card.GetSkillName() == Name)
             {
-                player.SetFlags(Name);
+                damage.Card.SetFlags(Name);
             }
-            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.Card.GetSkillName() == Name && !player.HasFlag(Name) && use.AddHistory)
+            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.Card.GetSkillName() == Name && !use.Card.HasFlag(Name) && use.AddHistory)
             {
                 use.AddHistory = false;
                 player.AddHistory(use.Card.Name, -1);
@@ -4160,7 +4160,7 @@ namespace SanguoshaServer.Package
 
     public class NiluanVS : OneCardViewAsSkill
     {
-        public NiluanVS() : base("niluan") { filter_pattern = ".|black"; }
+        public NiluanVS() : base("niluan") { filter_pattern = ".|black"; response_or_use = true; }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
@@ -4203,7 +4203,7 @@ namespace SanguoshaServer.Package
 
     public class Weiwu : OneCardViewAsSkill
     {
-        public Weiwu() : base("weiwu") { filter_pattern = ".|red"; }
+        public Weiwu() : base("weiwu") { filter_pattern = ".|red"; response_or_use = true; }
 
         public override bool IsEnabledAtPlay(Room room, Player player) => player.UsedTimes("ViewAsSkill_weiwuCard") == 0;
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
@@ -4412,7 +4412,20 @@ namespace SanguoshaServer.Package
         {
             filter_pattern = ".!";
         }
-        public override bool IsEnabledAtPlay(Room room, Player player) => !player.IsNude() && !player.HasUsed(CixiaoCard.ClassName);
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            bool invoke = false;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.GetMark("foster_son") > 0)
+                {
+                    invoke = true;
+                    break;
+                }
+            }
+
+            return invoke && !player.IsNude() && !player.HasUsed(CixiaoCard.ClassName);
+        }
 
         public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
@@ -4625,7 +4638,9 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart)
             {
+                player.SetFlags(Name);
                 Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@jieying_hf", true, true, info.SkillPosition);
+                player.SetFlags("-jieying_hf");
                 if (target != null)
                 {
                     room.SetTag(Name, target);
@@ -4786,7 +4801,9 @@ namespace SanguoshaServer.Package
                     ask_who.SetMark(Name, 1);
                     if (!ask_who.IsKongcheng() && player.Alive)
                     {
+                        player.SetFlags("weipo_target");
                         List<int> ids = room.AskForExchange(ask_who, Name, 1, 1, "@weipo:" + player.Name, string.Empty, ".", info.SkillPosition);
+                        player.SetFlags("-weipo_target");
                         room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, ask_who.Name, player.Name, Name, string.Empty), false);
                     }
                 }
