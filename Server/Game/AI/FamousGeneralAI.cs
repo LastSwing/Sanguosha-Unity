@@ -7315,12 +7315,15 @@ namespace SanguoshaServer.AI
             {
                 foreach (Player p in targets)
                 {
-                    scores.Add(ai.FindCards2Discard(player, p, Name, "he", HandlingMethod.MethodDiscard));
+                    ScoreStruct score = ai.FindCards2Discard(player, p, Name, "he", HandlingMethod.MethodDiscard);
+                    score.Players = new List<Player> { p };
+                    if (player.Phase != PlayerPhase.NotActive && ai.IsEnemy(p)) score.Score += 3;
+                    scores.Add(score);
                 }
                 if (scores.Count > 0)
                 {
                     scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
-                    for (int i = 1; i < Math.Min(2, scores.Count); i++)
+                    for (int i = 0; i < Math.Min(2, scores.Count); i++)
                         players.AddRange(scores[i].Players);
 
                     if (players.Count == 1 && ai.IsFriend(players[0]))
