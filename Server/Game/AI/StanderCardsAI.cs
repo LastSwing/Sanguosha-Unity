@@ -1248,9 +1248,7 @@ namespace SanguoshaServer.AI
                 else if (ai.IsFriend(to))
                 {
                     bool use = false;
-                    if (to.HasTreasure(JadeSeal.ClassName))
-                        use = true;
-                    else if (to.HasTreasure(WoodenOx.ClassName))
+                    if (to.HasTreasure(JadeSeal.ClassName) || to.HasTreasure(WoodenOx.ClassName) || to.HasTreasure(ClassicWoodenOx.ClassName))
                         use = true;
                     else if (to.HasArmor(PeaceSpell.ClassName) && !RoomLogic.PlayerHasSkill(room, to, "wendao"))
                         use = true;
