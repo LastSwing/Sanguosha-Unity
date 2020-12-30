@@ -4246,7 +4246,7 @@ namespace SanguoshaServer.Package
                 && use.Card.Name.Contains(Slash.ClassName) && room.GetTag(Name) is List<Player> targets)
             {
                 foreach (Player p in use.To)
-                    if (targets.Contains(p))
+                    if (targets.Contains(p) && !p.IsNude() && RoomLogic.CanDiscard(room, player, p, "he"))
                         return new TriggerStruct(Name, player);
             }
             return new TriggerStruct();
@@ -4274,7 +4274,7 @@ namespace SanguoshaServer.Package
                 room.SortByActionOrder(ref players);
                 foreach (Player p in players)
                 {
-                    if (p.Alive && player.Alive)
+                    if (p.Alive && player.Alive && !p.IsNude() && RoomLogic.CanDiscard(room, player, p, "he"))
                     {
                         room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, p.Name);
                         List<int> ids = room.AskForCardsChosen(player, p, new List<string> { "he^false^discard", "he^false^discard"}, Name);

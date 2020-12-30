@@ -1235,7 +1235,15 @@ namespace SanguoshaServer.AI
             if (positive)
             {
                 if ((RoomLogic.PlayerContainsTrick(room, to, Indulgence.ClassName) || RoomLogic.PlayerContainsTrick(room, to, SupplyShortage.ClassName))
-                        && ai.IsFriend(to) && to.IsNude()) return result;
+                        && ai.IsFriend(to) && to.IsNude())
+                {
+                    if ((to.HasTreasure(WoodenOx.ClassName) || to.HasTreasure(ClassicWoodenOx.ClassName)) && ai.Self == to)
+                    {
+                        result.Null = true;
+                        return result;
+                    }
+                    return result;
+                }
 
                 if (ai.IsEnemy(from) && ai.IsFriend(from, to) && RoomLogic.GetPlayerCards(room, to, "j").Count > 0)
                 {

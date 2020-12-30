@@ -626,9 +626,9 @@ namespace SanguoshaServer.Package
 
                 if (targets.Count > 0)
                 {
-                    room.SetTag(Name, data);
+                    room.SetTag("extra_target_skill", data);
                     Player target = room.AskForPlayerChosen(player, targets, Name, string.Format("@WaterSword:::{0}", use.Card.Name), true, true, info.SkillPosition);
-                    room.RemoveTag(Name);
+                    room.RemoveTag("extra_target_skill");
                     if (target != null)
                     {
                         use.To.Add(target);
