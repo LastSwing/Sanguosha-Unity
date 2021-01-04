@@ -54,6 +54,7 @@ namespace SanguoshaServer.Package
                 new Chengzhao(),
                 new Jinfan(),
                 new Sheque(),
+                new ShequeTag(),
                 new Weifeng(),
                 new ZhiyanXH(),
                 new ZhiyanPro(),
@@ -110,6 +111,7 @@ namespace SanguoshaServer.Package
                 { "zhilue", new List<string> { "#zhilue" } },
                 { "xuewei", new List<string> { "#xuewei" } },
                 { "tongqu", new List<string> { "#tongqu-draw" } },
+                { "sheque", new List<string> { "#sheque" } },
             };
         }
     }
@@ -2532,6 +2534,19 @@ namespace SanguoshaServer.Package
             }
 
             return new TriggerStruct();
+        }
+    }
+
+    public class ShequeTag : TargetModSkill
+    {
+        public ShequeTag() : base("#sheque", false) { }
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseStruct.CardUseReason reason, string pattern)
+        {
+            if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && to.HasFlag("SlashAssignee")
+                && (room.GetRoomState().GetCurrentResponseSkill() == "sheque" || pattern == "Slash:sheque"))
+                return true;
+
+            return false;
         }
     }
 
