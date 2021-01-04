@@ -4959,7 +4959,7 @@ namespace SanguoshaServer.Package
             };
 
             room.Judge(ref judge);
-            player.SetMark(Name, judge.Card.Number);
+            player.SetMark(Name, judge.JudgeNumber);
             room.AskForUseCard(player, "@@jijing", "@jijing:::" + judge.Card.Number.ToString(), null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
             return false;
         }

@@ -6066,7 +6066,7 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.JudgeResult && data is JudgeStruct judge)
+            if (triggerEvent == TriggerEvent.JudgeResult && data is JudgeStruct)
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
                     if (p.GetMark(Falu.suits[0]) > 0)
