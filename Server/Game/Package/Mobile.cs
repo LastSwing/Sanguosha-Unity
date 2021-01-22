@@ -67,7 +67,6 @@ namespace SanguoshaServer.Package
                 new Yizan(),
                 new Longyuan(),
                 new Zhiyi(),
-                new ZhiyiTar(),
                 new Duoduan(),
                 new Gongshun(),
                 new Jimeng(),
@@ -103,7 +102,7 @@ namespace SanguoshaServer.Package
                 { "qiancong", new List<string>{ "#qiancong", "#qiancong-tar" } },
                 { "zhanyi", new List<string>{ "#zhanyi" } },
                 { "zhaoxin", new List<string> { "#zhaoxin-clear" } },
-                { "zhiyi", new List<string> { "#zhiyi" } },
+                //{ "zhiyi", new List<string> { "#zhiyi" } },
                 { "yizheng", new List<string> { "#yizheng" } },
                 { "zhouxuan", new List<string> { "#zhouxuan" } },
                 { "fengji", new List<string> { "#fengji" } },
@@ -3286,7 +3285,7 @@ namespace SanguoshaServer.Package
     {
         public Zhiyi() : base("zhiyi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging, TriggerEvent.CardUsed, TriggerEvent.CardResponded };
             frequency = Frequency.Compulsory;
             view_as_skill = new ZhiyiVS();
         }
@@ -3295,33 +3294,36 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
-                player.SetFlags("-zhiyi");
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.ContainsTag(Name)) p.RemoveTag(Name);
+            }
+            else if (base.Triggerable(player, room) && (triggerEvent == TriggerEvent.CardUsed || triggerEvent == TriggerEvent.CardResponded))
+            {
+                WrappedCard card = triggerEvent == TriggerEvent.CardUsed ? ((CardUseStruct)data).Card : ((CardResponseStruct)data).Card;
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (fcard is BasicCard)
+                {
+                    List<string> cards = new List<string>();
+                    string card_name = card.Name.Contains(Slash.ClassName) ? Slash.ClassName : card.Name;
+                    if (player.ContainsTag(Name))
+                        cards = (List<string>)player.GetTag(Name);
+                    if (!cards.Contains(card_name)) cards.Add(card_name);
+
+                    player.SetTag(Name, cards);
+                }
             }
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct _use)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Finish)
             {
-                if (player.ContainsTag(Name) && player.Alive && player.GetTag(Name) is WrappedCard card && _use.Card == card)
-                    triggers.Add(new TriggerStruct(Name, player));
-
-                foreach (Player p in room.GetOtherPlayers(player))
+                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
                 {
-                    if (p.ContainsTag(Name) && p.ContainsTag("zhiyi_resp") && p.GetTag("zhiyi_resp") is WrappedCard resp_card && _use.Card == resp_card)
+                    if (p.ContainsTag(Name) && p.GetTag(Name) is List<string>)
                         triggers.Add(new TriggerStruct(Name, p));
                 }
-            }
-            else if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && !player.HasFlag(Name) && data is CardUseStruct use)
-            {
-                if (Engine.GetFunctionCard(use.Card.Name) is BasicCard)
-                    triggers.Add(new TriggerStruct(Name, player));
-            }
-            else if (triggerEvent == TriggerEvent.CardResponded && base.Triggerable(player, room) && !player.HasFlag(Name) && data is CardResponseStruct resp)
-            {
-                if (Engine.GetFunctionCard(resp.Card.Name) is BasicCard)
-                    triggers.Add(new TriggerStruct(Name, player));
             }
 
             return triggers;
@@ -3329,53 +3331,11 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if ((triggerEvent == TriggerEvent.CardUsed || triggerEvent == TriggerEvent.CardResponded))
-            {
-                player.SetFlags(Name);
-                WrappedCard card = null;
-                bool can_use = true;
-                if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use)
-                    card = use.Card;
-                else if (data is CardResponseStruct resp)
-                {
-                    card = resp.Card;
-                    if (card.Name == Jink.ClassName || resp.Data == null || !(resp.Data is CardEffectStruct effect) || effect.Card == null)
-                        can_use = false;
-                }
-
-                List<string> choices = new List<string> { "draw" };
-                if (can_use) choices.Add("use");
-
-                string choice = room.AskForChoice(player, Name, string.Join("+", choices));
-                room.SendCompulsoryTriggerLog(player, Name);
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                if (choice == "draw")
-                {
-                    room.DrawCards(player, 1, Name);
-                }
-                else
-                {
-                    player.SetTag(Name, card);
-                    if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Data is CardEffectStruct effect)
-                        player.SetTag("zhiyi_resp", effect.Card);
-
-                    LogMessage log = new LogMessage("$zhiyi")
-                    {
-                        From = player.Name,
-                        Card_str = RoomLogic.CardToString(room, card)
-                    };
-                    room.SendLog(log);
-                }
-            }
-            else if (triggerEvent == TriggerEvent.CardFinished && ask_who.GetTag(Name) is WrappedCard card)
-            {
-                ask_who.RemoveTag("zhiyi_resp");
-                ask_who.RemoveTag(Name);
-                ask_who.SetTag(Name, card.Name);
-                room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi:::" + card.Name, null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
-
-                ask_who.RemoveTag(Name);
-            }
+            room.SendCompulsoryTriggerLog(player, Name);
+            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            WrappedCard card = room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi", null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
+            if (card == null)
+                room.DrawCards(ask_who, 1, Name);
 
             return false;
         }
@@ -3407,23 +3367,31 @@ namespace SanguoshaServer.Package
         public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
         {
             List<WrappedCard> result = new List<WrappedCard>();
-            WrappedCard card = new WrappedCard((string)player.GetTag(Name));
-            card.Skill = "_zhiyi";
-            result.Add(card);
+            List<string> record = (List<string>)player.GetTag(Name);
+            foreach (string card_name in record)
+            {
+                if (card_name == Slash.ClassName)
+                {
+                    WrappedCard card = new WrappedCard(card_name);
+                    card.Skill = "_zhiyi";
+                    result.Add(card);
+
+                    WrappedCard fire = new WrappedCard(FireSlash.ClassName);
+                    fire.Skill = "_zhiyi";
+                    result.Add(fire);
+
+                    WrappedCard thunder = new WrappedCard(ThunderSlash.ClassName);
+                    thunder.Skill = "_zhiyi";
+                    result.Add(thunder);
+                }
+                else
+                {
+                    WrappedCard card = new WrappedCard(card_name);
+                    card.Skill = "_zhiyi";
+                    result.Add(card);
+                }
+            }
             return result;
-        }
-    }
-
-    public class ZhiyiTar : TargetModSkill
-    {
-        public ZhiyiTar() : base("#zhiyi", false)
-        {
-            pattern = Analeptic.ClassName;
-        }
-
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
-        {
-            return pattern == "@@zhiyi" ? true : false;
         }
     }
 
