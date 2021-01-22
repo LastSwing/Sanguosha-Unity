@@ -3331,8 +3331,8 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            room.SendCompulsoryTriggerLog(player, Name);
-            room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            room.SendCompulsoryTriggerLog(ask_who, Name);
+            room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
             WrappedCard card = room.AskForUseCard(ask_who, "@@zhiyi", "@zhiyi", null, -1, HandlingMethod.MethodUse, false, info.SkillPosition);
             if (card == null)
                 room.DrawCards(ask_who, 1, Name);
