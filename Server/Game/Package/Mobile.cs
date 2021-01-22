@@ -3304,10 +3304,9 @@ namespace SanguoshaServer.Package
                 if (fcard is BasicCard)
                 {
                     List<string> cards = new List<string>();
-                    string card_name = card.Name.Contains(Slash.ClassName) ? Slash.ClassName : card.Name;
                     if (player.ContainsTag(Name))
                         cards = (List<string>)player.GetTag(Name);
-                    if (!cards.Contains(card_name)) cards.Add(card_name);
+                    if (!cards.Contains(card.Name)) cards.Add(card.Name);
 
                     player.SetTag(Name, cards);
                 }
@@ -3370,26 +3369,9 @@ namespace SanguoshaServer.Package
             List<string> record = (List<string>)player.GetTag(Name);
             foreach (string card_name in record)
             {
-                if (card_name == Slash.ClassName)
-                {
-                    WrappedCard card = new WrappedCard(card_name);
-                    card.Skill = "_zhiyi";
-                    result.Add(card);
-
-                    WrappedCard fire = new WrappedCard(FireSlash.ClassName);
-                    fire.Skill = "_zhiyi";
-                    result.Add(fire);
-
-                    WrappedCard thunder = new WrappedCard(ThunderSlash.ClassName);
-                    thunder.Skill = "_zhiyi";
-                    result.Add(thunder);
-                }
-                else
-                {
-                    WrappedCard card = new WrappedCard(card_name);
-                    card.Skill = "_zhiyi";
-                    result.Add(card);
-                }
+                WrappedCard card = new WrappedCard(card_name);
+                card.Skill = "_zhiyi";
+                result.Add(card);
             }
             return result;
         }

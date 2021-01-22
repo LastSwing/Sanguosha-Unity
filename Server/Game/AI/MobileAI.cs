@@ -584,9 +584,47 @@ namespace SanguoshaServer.AI
     {
         public ZhiyiAI() : base("zhiyi") { }
 
-        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
-            return "draw";
+            CardUseStruct use = new CardUseStruct();
+            if (player.GetTag(Name) is List<string> cards)
+            {
+                List<WrappedCard> slashes = new List<WrappedCard>();
+                foreach (string card_name in cards)
+                {
+                    if (card_name.Contains(Slash.ClassName))
+                    {
+                        WrappedCard card = new WrappedCard(card_name);
+                        card.Skill = "_zhiyi";
+                        slashes.Add(card);
+                    }
+                }
+                if (slashes.Count > 0)
+                {
+                    List<ScoreStruct> values = ai.CaculateSlashIncome(player, slashes);
+                    if (values.Count > 0 && values[0].Score > 3)
+                    {
+                        use.From = player;
+                        use.Card = values[0].Card;
+                        use.To = values[0].Players;
+                        return use;
+                    }
+                }
+
+                if (cards.Contains(Peach.ClassName))
+                {
+                    WrappedCard card = new WrappedCard(Peach.ClassName);
+                    card.Skill = "_zhiyi";
+                    if (Peach.Instance.IsAvailable(ai.Room, player, card))
+                    {
+                        use.From = player;
+                        use.Card = card;
+                        return use;
+                    }
+                }
+            }
+
+            return use;
         }
     }
 
