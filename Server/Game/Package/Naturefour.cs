@@ -1381,6 +1381,13 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.GameStart, TriggerEvent.EventPhaseStart, TriggerEvent.EventLoseSkill, TriggerEvent.Death };
             skill_type = SkillType.Wizzard;
+            priority = new Dictionary<TriggerEvent, double>
+            {
+                { TriggerEvent.GameStart, 3 },
+                { TriggerEvent.EventPhaseStart, 3 },
+                { TriggerEvent.EventLoseSkill, 3 },
+                { TriggerEvent.Death, -1 },
+            };
         }
 
         public static void Acquiregenerals(Room room, Player zuoci, int n)
