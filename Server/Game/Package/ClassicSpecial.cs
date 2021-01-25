@@ -4855,7 +4855,7 @@ namespace SanguoshaServer.Package
             {
                 room.SetTag("extra_target_skill", data);                   //for AI
                 List<Player> players = room.AskForPlayersChosen(player, targets, Name, 0, Math.Max(1, player.GetLostHp()),
-                    string.Format("@extra_targets1:::{0}:{1}", use.Card.Name, player.GetLostHp()), true, info.SkillPosition);
+                    string.Format("@extra_targets1:::{0}:{1}", use.Card.Name, Math.Max(1, player.GetLostHp())), true, info.SkillPosition);
                 room.RemoveTag("extra_target_skill");
                 if (players.Count > 0)
                 {
