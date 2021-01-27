@@ -2181,7 +2181,23 @@ namespace SanguoshaServer.AI
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             int count = player.GetMark(Name);
-            return base.OnResponding(ai, player, pattern, prompt, data);
+            CardUseStruct use = new CardUseStruct();
+            Room room = ai.Room;
+            List<int> cards = player.GetCards("h");
+            ai.SortByKeepValue(ref cards, false);
+            foreach (int id in cards)
+            {
+                if (room.GetCard(id).Number == count && RoomLogic.CanDiscard(room, player, player, id) && ai.GetKeepValue(id, player) <= 4)
+                {
+                    WrappedCard ms = new WrappedCard(JijingCard.ClassName) { Skill = Name, Mute = true };
+                    ms.AddSubCard(id);
+                    use.From = player;
+                    use.Card = ms;
+                    return use;
+                }
+            }
+
+            return use;
         }
     }
 
