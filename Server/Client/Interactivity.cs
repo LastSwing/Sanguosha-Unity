@@ -19,6 +19,7 @@ namespace SanguoshaServer
     public class Interactivity : IDisposable
     {
         private Room room;
+        private ViewAsSkill transfer;
         public int ClientId { get; private set; }
         public List<string> CommandArgs { get; set; }
         public bool IsClientResponseReady { get; set; }
@@ -42,6 +43,7 @@ namespace SanguoshaServer
             yiji_skill = new YijiViewAsSkill();
             exchange_skill = new ExchangeSkill();
             IntelSelect = inter_select;
+            transfer = Engine.GetViewAsSkill("transfer");
         }
 
         private readonly Dictionary<CommandType, Action<List<string>>> callbacks = new Dictionary<CommandType, Action<List<string>>>();
@@ -840,7 +842,7 @@ namespace SanguoshaServer
 
                     #region new transfer card
                     if (ExpectedReplyCommand == CommandType.S_COMMAND_PLAY_CARD
-                        && Engine.GetViewAsSkill("transfer").IsAvailable(room, player, room.GetRoomState().GetCurrentCardUseReason(), string.Empty))
+                        && transfer.IsAvailable(room, player, room.GetRoomState().GetCurrentCardUseReason(), string.Empty))
                     {
                         if (available_head_skills.ContainsKey(player.Name))
                             available_head_skills[player.Name].Add("transfer");
@@ -856,6 +858,7 @@ namespace SanguoshaServer
                                     Mute = true
                                 };
                                 transfer.AddSubCard(card.Id);
+                                if (!available_cards.ContainsKey(player.Name)) available_cards.Add(player.Name, new List<WrappedCard>());
                                 available_cards[player.Name].Add(transfer);
                             }
                         }
