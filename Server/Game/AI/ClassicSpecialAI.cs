@@ -4997,23 +4997,27 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetViewAsCards(TrustedAI ai, string pattern, Player player)
         {
-            if (pattern == Peach.ClassName && ai.HasSkill(Name, player) && player.GetMark("@houtu") > 0 && player.HasFlag("Global_Dying") && !player.IsKongcheng())
+            if (pattern == Peach.ClassName && ai.HasSkill(Name, player) && player.GetMark("@houtu") > 0 && player.Phase == PlayerPhase.NotActive)
             {
-                if (ai.Self != player)
-                    return new List<WrappedCard> { new WrappedCard(Peach.ClassName) };
-                else
+                List<int> ids = player.GetCards("h");
+                ids.AddRange(player.GetHandPile());
+                if (ids.Count > 0)
                 {
-                    List<int> ids = player.GetCards("h");
-                    ai.SortByKeepValue(ref ids, false);
-                    WrappedCard peach = new WrappedCard(Peach.ClassName);
-                    foreach (int id in ids)
+                    if (ai.Self != player)
+                        return new List<WrappedCard> { new WrappedCard(Peach.ClassName) };
+                    else
                     {
-                        if (!RoomLogic.IsHandCardLimited(ai.Room, player, HandlingMethod.MethodUse))
+                        ai.SortByKeepValue(ref ids, false);
+                        WrappedCard peach = new WrappedCard(Peach.ClassName);
+                        foreach (int id in ids)
                         {
-                            WrappedCard zy = new WrappedCard(ZhenyiCard.ClassName);
-                            zy.AddSubCard(id);
-                            peach.UserString = RoomLogic.CardToString(ai.Room, zy);
-                            return new List<WrappedCard> { peach };
+                            if (ai.Room.GetCard(id).Name != Peach.ClassName && !RoomLogic.IsHandCardLimited(ai.Room, player, HandlingMethod.MethodUse))
+                            {
+                                WrappedCard zy = new WrappedCard(ZhenyiCard.ClassName);
+                                zy.AddSubCard(id);
+                                peach.UserString = RoomLogic.CardToString(ai.Room, zy);
+                                return new List<WrappedCard> { peach };
+                            }
                         }
                     }
                 }

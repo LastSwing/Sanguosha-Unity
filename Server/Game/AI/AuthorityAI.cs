@@ -799,14 +799,14 @@ namespace SanguoshaServer.AI
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             List<WrappedCard> result = new List<WrappedCard>();
-            if (!player.HasUsed("XuanhuoCard") && ai.GetOverflow(player) >= 2)
+            if (!player.HasUsed(XuanhuoCard.ClassName) && ai.GetOverflow(player) >= 1)
             {
                 List<Player> fazhengs = RoomLogic.FindPlayersBySkillName(ai.Room, "xuanhuo");
                 foreach (Player p in fazhengs)
                 {
                     if (RoomLogic.PlayerHasShownSkill(ai.Room, p, "xuanhuo") && RoomLogic.IsFriendWith(ai.Room, player, p))
                     {
-                        WrappedCard card = new WrappedCard("XuanhuoCard");
+                        WrappedCard card = new WrappedCard(XuanhuoCard.ClassName);
                         result.Add(card);
                         break;
                     }
@@ -827,37 +827,11 @@ namespace SanguoshaServer.AI
             if (choice.Contains("longdan_fz")) return "longdan_fz";
             return string.Empty;
         }
-        public override int OnPickAG(TrustedAI ai, Player player, List<int> card_ids, bool refusable)
-        {
-            Player target = null;
-            List<Player> fazhengs = RoomLogic.FindPlayersBySkillName(ai.Room, "xuanhuo");
-            foreach (Player p in fazhengs)
-            {
-                if (RoomLogic.PlayerHasShownSkill(ai.Room, p, "xuanhuo") && RoomLogic.IsFriendWith(ai.Room, player, p))
-                {
-                    target = p;
-                    break;
-                }
-            }
-
-            int result = -1;
-            double best = 0;
-            foreach (int id in card_ids)
-            {
-                double value = ai.GetKeepValue(id, target, Player.Place.PlaceHand);
-                if (value > best)
-                {
-                    best = value;
-                    result = id;
-                }
-            }
-            return result;
-        }
     }
 
     public class XuanhuoCardAI : UseCard
     {
-        public XuanhuoCardAI() : base("XuanhuoCard") { }
+        public XuanhuoCardAI() : base(XuanhuoCard.ClassName) { }
 
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
         {
@@ -897,7 +871,6 @@ namespace SanguoshaServer.AI
             List<int> ids = player.GetCards("h");
             ai.SortByUseValue(ref ids, false);
             card.AddSubCard(ids[0]);
-            card.AddSubCard(ids[1]);
             use.Card = card;
         }
     }

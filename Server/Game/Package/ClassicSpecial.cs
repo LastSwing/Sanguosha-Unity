@@ -880,6 +880,7 @@ namespace SanguoshaServer.Package
         {
             Player target = card_use.To[0];
             card_use.From.SetTag("bifa_target", target.Name);
+            card_use.From.SetMark("bifa", card_use.Card.GetEffectiveId());
         }
     }
     public class BifaViewAsSkill : OneCardViewAsSkill
@@ -962,17 +963,37 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Finish && !player.IsKongcheng())
+            if (base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Finish)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            WrappedCard card = room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, FunctionCard.HandlingMethod.MethodNone, true, info.SkillPosition);
-            if (card != null)
+            bool all = true;
+            foreach (Player p in room.GetAlivePlayers())
             {
-                player.SetMark(Name, card.GetEffectiveId());
+                if (p.GetMark(string.Format("songci_{0}", player.Name)) == 0)
+                {
+                    all = false;
+                    break;
+                }
+            }
+
+            if (!all)
+            {
+                if (!player.IsKongcheng())
+                {
+                    WrappedCard card = room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
+                    if (card != null)
+                    {
+                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        return info;
+                    }
+                }
+            }
+            else if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }
@@ -981,14 +1002,24 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            Player target = room.FindPlayer(player.GetTag("bifa_target").ToString());
-            player.RemoveTag("bifa_target");
-            if (target != null && target.Alive)
+            if (!player.ContainsTag("bifa_target"))
             {
-                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
-                int id = player.GetMark(Name);
-                target.SetTag(string.Format("BifaSource{0}", id), player.Name);
-                room.AddToPile(target, Name, id, false);
+                room.DrawCards(player, 1, Name);
+                if (player.Alive && !player.IsKongcheng())
+                    room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
+            }
+
+            if (player.ContainsTag("bifa_target"))
+            {
+                Player target = room.FindPlayer(player.GetTag("bifa_target").ToString());
+                player.RemoveTag("bifa_target");
+                if (target != null && target.Alive)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                    int id = player.GetMark(Name);
+                    target.SetTag(string.Format("BifaSource{0}", id), player.Name);
+                    room.AddToPile(target, Name, id, false);
+                }
             }
 
             return false;
@@ -1003,7 +1034,7 @@ namespace SanguoshaServer.Package
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && to_select.GetMark(string.Format("songci_{0}", Self.Name)) == 0 && to_select.HandcardNum != to_select.Hp;
+            return targets.Count == 0 && to_select.GetMark(string.Format("songci_{0}", Self.Name)) == 0;
         }
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
@@ -1017,7 +1048,7 @@ namespace SanguoshaServer.Package
                 room.BroadcastSkillInvoke("songci", "male", 2, gsk.General, gsk.SkinId);
                 room.AskForDiscard(effect.To, "songci", 2, 2, false, true);
             }
-            else if (handcard_num < hp)
+            else
             {
                 room.BroadcastSkillInvoke("songci", "male", 1, gsk.General, gsk.SkinId);
                 room.DrawCards(effect.To, new DrawCardStruct(2, effect.From, "songci"));
@@ -6151,30 +6182,16 @@ namespace SanguoshaServer.Package
                     break;
                 case TriggerEvent.DamageCaused when data is DamageStruct damage:
                     {
-                        JudgeStruct judge = new JudgeStruct
+                        LogMessage log = new LogMessage
                         {
-                            Pattern = ".|black",
-                            Negative = false,
-                            Good = true,
-                            Reason = Name,
-                            PlayAnimation = true,
-                            Who = player
+                            Type = "#AddDamage",
+                            From = player.Name,
+                            To = new List<string> { damage.To.Name },
+                            Arg = Name,
+                            Arg2 = (++damage.Damage).ToString()
                         };
-                        room.Judge(ref judge);
-
-                        if (judge.IsGood())
-                        {
-                            LogMessage log = new LogMessage
-                            {
-                                Type = "#AddDamage",
-                                From = player.Name,
-                                To = new List<string> { damage.To.Name },
-                                Arg = Name,
-                                Arg2 = (++damage.Damage).ToString()
-                            };
-                            room.SendLog(log);
-                            data = damage;
-                        }
+                        room.SendLog(log);
+                        data = damage;
                     }
                     break;
                 case TriggerEvent.Damaged:
@@ -6221,12 +6238,21 @@ namespace SanguoshaServer.Package
             filter_pattern = ".";
             response_or_use = true;
         }
-        public override bool IsEnabledAtPlay(Room room, Player player) => false;
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            if (player.Phase == PlayerPhase.NotActive && player.GetMark(Falu.suits[1]) > 0)
+            {
+                WrappedCard peach = new WrappedCard(Peach.ClassName);
+                FunctionCard fcard = Peach.Instance;
+                return fcard.IsAvailable(room, player, peach);
+            }
+            return false;
+        }
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
             WrappedCard peach = new WrappedCard(Peach.ClassName);
             FunctionCard fcard = Peach.Instance;
-            if (player.HasFlag("Global_Dying") && player.GetMark(Falu.suits[1]) > 0
+            if (player.Phase == PlayerPhase.NotActive && player.GetMark(Falu.suits[1]) > 0
                 && room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE && fcard.IsAvailable(room, player, peach))
             {
                 return Engine.MatchExpPattern(room, pattern, player, peach);

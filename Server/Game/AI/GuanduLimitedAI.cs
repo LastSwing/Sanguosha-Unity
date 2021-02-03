@@ -1086,6 +1086,10 @@ namespace SanguoshaServer.AI
     {
         public BifaAI() : base("bifa") { }
 
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return true;
+        }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
@@ -1146,7 +1150,7 @@ namespace SanguoshaServer.AI
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
             foreach (Player p in ai.Room.GetAlivePlayers())
-                if (p.GetMark("songci_" + player.Name) == 0 && p.HandcardNum != p.Hp)
+                if (p.GetMark("songci_" + player.Name) == 0)
                     return new List<WrappedCard> { new WrappedCard(SongciCard.ClassName) { Skill = Name, Mute = true } };
 
             return new List<WrappedCard>();
@@ -1162,7 +1166,7 @@ namespace SanguoshaServer.AI
             {
                 if (p.GetMark("songci_" + player.Name) == 0 && p.HandcardNum != p.Hp)
                 {
-                    if (ai.IsFriend(p) && p.HandcardNum < p.Hp)
+                    if (ai.IsFriend(p) && p.HandcardNum <= p.Hp)
                     {
                         use.Card = card;
                         use.To.Add(p);

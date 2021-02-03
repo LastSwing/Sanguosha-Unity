@@ -1656,6 +1656,7 @@ namespace SanguoshaServer.Package
         public XuanhuoCard() : base(ClassName)
         {
             target_fixed = true;
+            will_throw = true;
         }
 
         public override void OnCardAnnounce(Room room, CardUseStruct card_use, bool ignore_rule)
@@ -1670,18 +1671,11 @@ namespace SanguoshaServer.Package
                     break;
                 }
             }
-            List<int> ids = new List<int>(card_use.Card.SubCards);
-            room.FillAG("xuanhuovs", ids, card_use.From, null, null, "@xuanhuo-give:" + target.Name);
-            int id = room.AskForAG(card_use.From, ids, false, "xuanhuo");
-            room.ClearAG(card_use.From);
-            List<int> card_ids = new List<int> { id };
-            room.ObtainCard(target, ref card_ids, new CardMoveReason(MoveReason.S_REASON_GIVE, card_use.From.Name, target.Name, "xuanhuo"), false);
-
             GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, target, "xuanhuo");
             room.BroadcastSkillInvoke("xuanhuo", "male", -1, gsk.General, gsk.SkinId);
 
-            ids.Remove(id);
-            room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, card_use.From.Name), card_use.From);
+            List<int> ids = new List<int>(card_use.Card.SubCards);
+            room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, card_use.From.Name, "xuanhuo", string.Empty), card_use.From);
 
             List<string> skills = new List<string> { "wusheng_fz", "paoxiao_fz", "tieqi_fz", "longdan_fz", "liegong_fz", "kuanggu_fz" };
             foreach (Player p in room.GetAlivePlayers())
@@ -1707,21 +1701,22 @@ namespace SanguoshaServer.Package
                 target.Result = result;
 
                 string choice = room.AskForChoice(card_use.From, "xuanhuo", string.Join("+", skills));
-                room.HandleAcquireDetachSkills(card_use.From, choice);
                 card_use.From.SetFlags("xuanhuo");
+                room.HandleAcquireDetachSkills(card_use.From, choice);
             }
         }
     }
 
-    public class XuanhuoVS : ViewAsSkill
+    public class XuanhuoVS : OneCardViewAsSkill
     {
         public XuanhuoVS() : base("xuanhuovs")
         {
+            filter_pattern = ".!";
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            if (!player.HasUsed("XuanhuoCard") && player.HandcardNum >= 2)
+            if (!player.HasUsed(XuanhuoCard.ClassName) && player.HandcardNum > 0)
             {
                 List<Player> fazhengs = RoomLogic.FindPlayersBySkillName(room, "xuanhuo");
                 foreach (Player p in fazhengs)
@@ -1732,21 +1727,11 @@ namespace SanguoshaServer.Package
             return false;
         }
 
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            return selected.Count < 2 && room.GetCardPlace(to_select.Id) == Place.PlaceHand;
-        }
-
-        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
-        {
-            if (cards.Count == 2)
-            {
-                WrappedCard card = new WrappedCard(XuanhuoCard.ClassName);
-                card.AddSubCards(cards);
-                return card;
-            }
-
-            return null;
+            WrappedCard xh = new WrappedCard(XuanhuoCard.ClassName);
+            xh.AddSubCard(card);
+            return xh;
         }
     }
 
