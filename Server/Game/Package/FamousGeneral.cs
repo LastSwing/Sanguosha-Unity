@@ -740,7 +740,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                WrappedCard slash = new WrappedCard(card_use.Card.UserString) { Skill = "xuanhuo_jx" };
+                WrappedCard slash = new WrappedCard(card_use.Card.UserString) { Skill = "_xuanhuo_jx" };
                 Player target = null;
                 foreach (Player p in room.GetOtherPlayers(diaochan))
                 {
@@ -777,7 +777,7 @@ namespace SanguoshaServer.Package
                 {
                     if (slasher.Alive && !slasher.IsNude())
                     {
-                        ids = room.AskForCardsChosen(player, slasher, new List<string> { "he^false^get", "he^false^get" }, Name);
+                        ids = room.AskForCardsChosen(player, slasher, new List<string> { "he^false^get", "he^false^get" }, "xuanhuo_jx");
                         if (ids.Count > 0)
                             room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, slasher.Name, "xuanhuo_jx", string.Empty), false);
                     }
@@ -801,7 +801,15 @@ namespace SanguoshaServer.Package
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.To != null && move.From.Alive
                 && base.Triggerable(move.To, room) && move.To_place == Place.PlaceHand && move.Card_ids.Count >= 2)
-                return new TriggerStruct(Name, move.To);
+            {
+                int count = 0;
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if (move.From_places[i] == Place.PlaceHand || move.From_places[i] == Place.PlaceEquip)
+                        count++;
+                }
+                if (count >= 2) return new TriggerStruct(Name, move.To);
+            }
 
             return new TriggerStruct();
         }

@@ -4312,7 +4312,7 @@ namespace SanguoshaServer.AI
             {
                 Player target = use.To[0];
                 if (ai.GetPlayerTendency(target) != "unknown")
-                    ai.UpdatePlayerRelation(player, target, false);
+                    ai.UpdatePlayerRelation(player, target, true);
             }
         }
     }

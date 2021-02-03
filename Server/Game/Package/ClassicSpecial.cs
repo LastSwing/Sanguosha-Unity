@@ -6235,19 +6235,13 @@ namespace SanguoshaServer.Package
     {
         public ZhenyiVS() : base("zhenyi")
         {
-            filter_pattern = ".";
             response_or_use = true;
         }
-        public override bool IsEnabledAtPlay(Room room, Player player)
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
         {
-            if (player.Phase == PlayerPhase.NotActive && player.GetMark(Falu.suits[1]) > 0)
-            {
-                WrappedCard peach = new WrappedCard(Peach.ClassName);
-                FunctionCard fcard = Peach.Instance;
-                return fcard.IsAvailable(room, player, peach);
-            }
-            return false;
+            return room.GetCardPlace(to_select.Id) == Place.PlaceHand || player.GetHandPile().Contains(to_select.Id);
         }
+        public override bool IsEnabledAtPlay(Room room, Player player) => false;
         public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
         {
             WrappedCard peach = new WrappedCard(Peach.ClassName);
