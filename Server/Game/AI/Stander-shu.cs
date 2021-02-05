@@ -256,13 +256,13 @@ namespace SanguoshaServer.AI
                 }
             }
 
-            WrappedCard peach = new WrappedCard(Peach.ClassName) { Skill = "_rend" };
+            WrappedCard peach = new WrappedCard(Peach.ClassName) { Skill = "_rende" };
             if (Peach.Instance.IsAvailable(room, player, peach))
             {
                 use.Card = peach;
                 return use;
             }
-            WrappedCard ana = new WrappedCard(Analeptic.ClassName) { Skill = "_rend" };
+            WrappedCard ana = new WrappedCard(Analeptic.ClassName) { Skill = "_rende" };
             if (Analeptic.Instance.IsAvailable(room, player, peach))
             {
                 use.Card = ana;

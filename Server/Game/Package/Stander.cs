@@ -1735,7 +1735,8 @@ namespace SanguoshaServer.Package
 
     public class RendeCard : SkillCard
     {
-        public RendeCard() : base("RendeCard")
+        public static string ClassName = "RendeCard";
+        public RendeCard() : base(ClassName)
         {
             will_throw = false;
         }
@@ -1794,7 +1795,7 @@ namespace SanguoshaServer.Package
             }
             else
             {
-                WrappedCard rende_card = new WrappedCard("RendeCard");
+                WrappedCard rende_card = new WrappedCard(RendeCard.ClassName);
                 rende_card.AddSubCards(cards);
                 rende_card.Skill = Name;
                 rende_card.ShowSkill = Name;

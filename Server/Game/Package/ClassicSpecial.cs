@@ -973,6 +973,7 @@ namespace SanguoshaServer.Package
             WrappedCard card = room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
             if (card != null)
             {
+                room.NotifySkillInvoked(player, Name);
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }
