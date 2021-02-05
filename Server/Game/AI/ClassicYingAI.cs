@@ -1044,7 +1044,7 @@ namespace SanguoshaServer.AI
             if (room.GetTag("congjian_jx") is CardUseStruct current_use && !player.IsNude())
             {
                 List<Player> targets = new List<Player>();
-                foreach (Player p in use.To)
+                foreach (Player p in current_use.To)
                     if (p != player && ai.IsFriend(p)) targets.Add(p);
 
                 if (targets.Count > 0)
