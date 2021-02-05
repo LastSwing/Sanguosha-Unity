@@ -963,36 +963,15 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Finish)
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Finish && !player.IsKongcheng())
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            bool all = true;
-            foreach (Player p in room.GetAlivePlayers())
-            {
-                if (p.GetMark(string.Format("songci_{0}", player.Name)) == 0)
-                {
-                    all = false;
-                    break;
-                }
-            }
-
-            if (!all)
-            {
-                if (!player.IsKongcheng())
-                {
-                    WrappedCard card = room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
-                    if (card != null)
-                    {
-                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                        return info;
-                    }
-                }
-            }
-            else if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            WrappedCard card = room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
+            if (card != null)
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
@@ -1002,13 +981,6 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (!player.ContainsTag("bifa_target"))
-            {
-                room.DrawCards(player, 1, Name);
-                if (player.Alive && !player.IsKongcheng())
-                    room.AskForUseCard(player, "@@bifa", "@bifa-remove", null, -1, HandlingMethod.MethodNone, true, info.SkillPosition);
-            }
-
             if (player.ContainsTag("bifa_target"))
             {
                 Player target = room.FindPlayer(player.GetTag("bifa_target").ToString());
@@ -1056,11 +1028,46 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Songci : ZeroCardViewAsSkill
+    public class Songci : TriggerSkill
     {
         public Songci() : base("songci")
         {
+            events.Add(TriggerEvent.EventPhaseStart);
+            view_as_skill = new SongciVS();
             skill_type = SkillType.Wizzard;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (base.Triggerable(player, room) && player.Phase == Player.PlayerPhase.Finish)
+            {
+                bool all = true;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.GetMark(string.Format("songci_{0}", player.Name)) == 0)
+                    {
+                        all = false;
+                        break;
+                    }
+                }
+                if (all)
+                {
+                    room.SendCompulsoryTriggerLog(player, Name);
+                    room.DrawCards(player, 1, Name);
+                }
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class SongciVS : ZeroCardViewAsSkill
+    {
+        public SongciVS() : base("songci")
+        {
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {

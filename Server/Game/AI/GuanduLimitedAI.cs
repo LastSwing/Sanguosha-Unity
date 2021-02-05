@@ -1086,10 +1086,6 @@ namespace SanguoshaServer.AI
     {
         public BifaAI() : base("bifa") { }
 
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
-        {
-            return true;
-        }
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;

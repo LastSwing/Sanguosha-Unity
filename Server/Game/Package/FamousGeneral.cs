@@ -798,7 +798,13 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct damage && damage.From != null && damage.From != player && damage.From.Alive && base.Triggerable(player, room))
-                return new TriggerStruct(Name, player);
+            {
+                TriggerStruct trigger = new TriggerStruct(Name, player)
+                {
+                    Times = damage.Damage
+                };
+                return trigger;
+            }
             else if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && move.To != null && move.From.Alive
                 && base.Triggerable(move.To, room) && move.To_place == Place.PlaceHand && move.Card_ids.Count >= 2)
             {
@@ -807,6 +813,7 @@ namespace SanguoshaServer.Package
                 {
                     if (move.From_places[i] == Place.PlaceHand || move.From_places[i] == Place.PlaceEquip)
                         count++;
+                    if (count >= 2) break;
                 }
                 if (count >= 2) return new TriggerStruct(Name, move.To);
             }
