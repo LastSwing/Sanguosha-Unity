@@ -1366,6 +1366,12 @@ namespace SanguoshaServer
                         room.DoNotify(room.GetClient(ClientId), CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
                         "lijian", JsonUntity.Object2Json(lijian_targets) });
                     }
+                    else if ((fcard is XuanhuoJXCard || fcard is Collateral) && selected_targets.Count > 1)
+                    {
+                        List<string> lijian_targets = new List<string> { selected_targets[1].Name };
+                        room.DoNotify(room.GetClient(ClientId), CommandType.S_COMMAND_LOG_EVENT, new List<string>{ GameEventType.S_GAME_EVENT_CLIENT_TIP.ToString(), true.ToString(),
+                        Collateral.ClassName, JsonUntity.Object2Json(lijian_targets) });
+                    }
 
                     if (fcard.TargetsFeasible(room, targets, player, viewas_card))
                         ok_enable = true;
