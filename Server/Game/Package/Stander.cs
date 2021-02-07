@@ -6855,14 +6855,7 @@ namespace SanguoshaServer.Package
                 Thread.Sleep(1000);
             }
             else
-            {
-                RecoverStruct recover = new RecoverStruct
-                {
-                    Recover = 1 - player.Hp,
-                    Who = player,
-                };
-                room.Recover(player, recover, true);
-            }
+                room.Recover(player, 1 - player.Hp);
 
             return false;
         }

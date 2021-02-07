@@ -50,6 +50,9 @@ namespace SanguoshaServer.Package
                 new YinjuEffect(),
                 new ZhuilieTar(),
                 new Zhuilie(),
+                new Pianchong(),
+                new PianchongDraw(),
+                new Zunwei(),
 
                 new Tunan(),
                 new TunanTag(),
@@ -154,6 +157,7 @@ namespace SanguoshaServer.Package
                 new CixiaoCard(),
                 new MinsiCard(),
                 new JijingCard(),
+                new ZunweiCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -184,6 +188,7 @@ namespace SanguoshaServer.Package
                 { "jieying_hf", new List<string>{ "#jieying_hf-tar", "#jieying_hf-pro" } },
                 { "minsi", new List<string>{ "#minsi-tar", "#minsi-max" } },
                 { "dushi", new List<string>{ "#dushi" } },
+                { "pianchong", new List<string>{ "#pianchong" } },
             };
         }
     }
@@ -761,12 +766,7 @@ namespace SanguoshaServer.Package
             {
                 int max = Math.Min(player.HandcardNum, player.MaxHp);
                 int count = max - player.Hp;
-                RecoverStruct recover = new RecoverStruct
-                {
-                    Recover = count,
-                    Who = player
-                };
-                room.Recover(player, recover, true);
+                room.Recover(player, count);
             }
             return false;
         }
@@ -1479,14 +1479,7 @@ namespace SanguoshaServer.Package
                         p.RemoveTag("weilu_hp");
                         int n = Math.Min(count, p.GetLostHp());
                         if (n > 0)
-                        {
-                            RecoverStruct recover = new RecoverStruct
-                            {
-                                Recover = n,
-                                Who = p
-                            };
-                            room.Recover(p, recover, true);
-                        }
+                            room.Recover(p, n);
                     }
                 }
             }
@@ -2013,6 +2006,230 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class Pianchong : TriggerSkill
+    {
+        public Pianchong() : base("pianchong")
+        {
+            events.Add(TriggerEvent.EventPhaseStart);
+            skill_type = SkillType.Wizzard;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw)
+                return new TriggerStruct(Name, player);
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<int> ids = new List<int>();
+            if (room.DrawPile.Count < 2) room.SwapPile();
+            bool black = false;
+            bool red = false;
+            foreach (int id in room.DrawPile)
+            {
+                bool b = WrappedCard.IsBlack(room.GetCard(id).Suit);
+                if (!black && b)
+                {
+                    ids.Add(id);
+                    black = true;
+                }
+                else if (!red && !b)
+                {
+                    ids.Add(id);
+                    red = true;
+                }
+                if (red && black) break;
+            }
+
+            room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_DRAW, player.Name, Name, string.Empty), false);
+            if (player.Alive)
+            {
+                string choice = room.AskForChoice(player, Name, "black+red", new List<string> { "@pianchong" });
+                int mark = choice == "black" ? 1 : 2;
+                player.SetMark(Name, mark);
+                room.SetPlayerStringMark(player, Name, choice);
+            }
+
+            return true;
+        }
+    }
+    public class PianchongDraw : TriggerSkill
+    {
+        public PianchongDraw() : base("#pianchong")
+        {
+            events= new List<TriggerEvent> { TriggerEvent.TurnStart, TriggerEvent.CardsMoveOneTime };
+            frequency = Frequency.Compulsory;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.TurnStart && player.GetMark("pianchong") > 0)
+            {
+                player.SetMark("pianchong", 0);
+                room.RemovePlayerStringMark(player, "pianchong");
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move && move.From != null && (move.From_places.Contains(Place.PlaceEquip)
+                || move.From_places.Contains(Place.PlaceHand)) && move.From.GetMark("pianchong") > 0 && (move.To != move.From || move.To_place != Place.PlaceHand))
+            {
+                bool black = move.From.GetMark("pianchong") == 1;
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if ((move.From_places[i] == Place.PlaceEquip || move.From_places[i] == Place.PlaceHand)
+                        && WrappedCard.IsBlack(room.GetCard(move.Card_ids[i]).Suit) == black)
+                        return new TriggerStruct(Name, move.From);
+                }
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardsMoveOneTimeStruct move)
+            {
+                room.SendCompulsoryTriggerLog(ask_who, "pianchong");
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, "pianchong", info.SkillPosition);
+                room.BroadcastSkillInvoke("pianchong", "male", 2, gsk.General, gsk.SkinId);
+                List<int> ids = new List<int>();
+
+                bool black = move.From.GetMark("pianchong") == 1;
+                int count = 0;
+                for (int i = 0; i < move.Card_ids.Count; i++)
+                {
+                    if ((move.From_places[i] == Place.PlaceEquip || move.From_places[i] == Place.PlaceHand)
+                        && WrappedCard.IsBlack(room.GetCard(move.Card_ids[i]).Suit) == black)
+                        count++;
+                }
+
+                if (room.DrawPile.Count < count) room.SwapPile();
+                foreach (int id in room.DrawPile)
+                {
+                    if (WrappedCard.IsRed(room.GetCard(id).Suit) == black)
+                    {
+                        ids.Add(id);
+                        count--;
+                    }
+                    if (count == 0) break;
+                }
+
+                room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_DRAW, player.Name, "pianchong", string.Empty), false);
+            }
+            
+            return false;
+        }
+    }
+
+    public class Zunwei : ZeroCardViewAsSkill
+    {
+        public Zunwei() : base("zunwei") {}
+        public override bool IsEnabledAtPlay(Room room, Player player) => player.GetMark("zunwei_1") == 0 || player.GetMark("zunwei_2") == 0 || (player.GetMark("zunwei_3") == 0 && player.GetLostHp() > 0);
+
+        public override WrappedCard ViewAs(Room room, Player player) => new WrappedCard(ZunweiCard.ClassName) { Skill = Name };
+    }
+
+    public class ZunweiCard : SkillCard
+    {
+        public static string ClassName = "ZunweiCard";
+        public ZunweiCard() : base(ClassName)
+        {
+        }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (targets.Count == 0 && Self != to_select)
+            {
+                if ((Self.GetMark("zunwei_1") == 0 && to_select.HandcardNum > Self.HandcardNum)
+                    || (Self.GetMark("zunwei_3") == 0 && to_select.Hp > Self.Hp && Self.GetLostHp() > 0))
+                    return true;
+                else if (Self.GetMark("zunwei_2") == 0 && to_select.GetEquips().Count > Self.GetEquips().Count)
+                {
+                    for (int i = 0; i < 5; i++)
+                        if (Self.CanPutEquip(i)) return true;
+                }
+            }
+
+            return false;
+        }
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From, target = card_use.To[0];
+            bool handcard = false;
+            bool equip = false;
+            bool hp = false;
+
+            if (player.GetMark("zunwei_1") == 0 && target.HandcardNum > player.HandcardNum)
+                handcard = true;
+            if (player.GetMark("zunwei_3") == 0 && target.Hp > player.Hp && player.GetLostHp() > 0)
+                hp = true;
+            if (player.GetMark("zunwei_2") == 0 && target.GetEquips().Count > player.GetEquips().Count)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    if (player.CanPutEquip(i))
+                    {
+                        equip = true;
+                        break;
+                    }
+                }
+            }
+            List<string> choices = new List<string>();
+            if (handcard) choices.Add("handcard");
+            if (equip) choices.Add("equip");
+            if (hp) choices.Add("hp");
+            string choice = room.AskForChoice(player, "zunwei", string.Join("+", choices), new List<string> { "@to-player:" + target.Name }, target);
+            if (choice == "handcard")
+            {
+                player.SetMark("zunwei_1", 1);
+                int count = Math.Min(5, target.HandcardNum - player.HandcardNum);
+                room.DrawCards(player, count, "zunwei");
+            }
+            else if (choice == "equip")
+            {
+                player.SetMark("zunwei_2", 1);
+                int count = target.GetEquips().Count - player.GetEquips().Count;
+
+                while (count > 0)
+                {
+                    int card_id = -1;
+                    foreach (int id in room.DrawPile)
+                    {
+                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                        if (fcard is EquipCard card && player.CanPutEquip((int)card.EquipLocation()))
+                        {
+                            card_id = id;
+                            break;
+                        }
+                    }
+                    if (card_id >= 0)
+                    {
+                        count--;
+                        room.UseCard(new CardUseStruct(room.GetCard(card_id), player, new List<Player>()));
+                    }
+                    else
+                        break;
+                }
+            }
+            else
+            {
+                player.SetMark("zunwei_3", 1);
+                int count = Math.Min(player.GetLostHp(), target.Hp - player.Hp);
+                room.Recover(player, count);
+            }
+        }
+    }
     public class Tunan : ViewAsSkill
     {
         public Tunan() : base("tunan")
@@ -4063,12 +4280,7 @@ namespace SanguoshaServer.Package
                 room.SendLog(log);
 
                 room.RoomThread.Trigger(TriggerEvent.MaxHpChanged, room, player);
-                RecoverStruct recover = new RecoverStruct
-                {
-                    Who = player,
-                    Recover = 1
-                };
-                room.Recover(player, recover, true);
+                room.Recover(player, 1);
 
                 bool all = true;
                 for (int i = 0; i < 5; i++)
@@ -5011,14 +5223,7 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             if (player.IsWounded())
-            {
-                RecoverStruct recover = new RecoverStruct
-                {
-                    Who = player,
-                    Recover = 1
-                };
-                room.Recover(player, recover, true);
-            }
+                room.Recover(player, 1);
         }
     }
 

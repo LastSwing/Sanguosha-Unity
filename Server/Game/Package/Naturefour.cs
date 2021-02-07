@@ -2614,14 +2614,7 @@ namespace SanguoshaServer.Package
             if (result == "draw")
                 room.DrawCards(player, 1, Name);
             else
-            {
-                RecoverStruct recover = new RecoverStruct
-                {
-                    Who = player,
-                    Recover = 1
-                };
-                room.Recover(player, recover, true);
-            }
+                room.Recover(player, 1);
 
             return false;
         }

@@ -442,6 +442,18 @@ namespace SanguoshaServer.Game
 
             return null;
         }
+
+        public void Recover(Player player, int count = 1)
+        {
+            if (player.GetLostHp() == 0 || !player.Alive)
+                return;
+
+            RecoverStruct recover = new RecoverStruct();
+            recover.Recover = count;
+            recover.Who = player;
+            Recover(player, recover, true);
+        }
+
         public void Recover(Player player, RecoverStruct recover_struct, bool set_emotion = false)
         {
             if (player.GetLostHp() == 0 || !player.Alive)

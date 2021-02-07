@@ -1417,12 +1417,7 @@ namespace SanguoshaServer.Package
 
             if (player.Hp < 2)
             {
-                RecoverStruct rec = new RecoverStruct
-                {
-                    Recover = 2 - player.Hp,
-                    Who = player
-                };
-                room.Recover(player, rec);
+                room.Recover(player, 2 - player.Hp);
             }
 
             room.HandleAcquireDetachSkills(player, "-shouyue|rende");
