@@ -6278,7 +6278,7 @@ namespace SanguoshaServer.AI
             ai.Number[Name] = 4;
             foreach (Player p in enemies)
             {
-                if (ai.HasArmorEffect(p, EightDiagram.ClassName))
+                if (p.GetPile("incantation").Count == 0 && ai.HasArmorEffect(p, EightDiagram.ClassName))
                 {
                     foreach (int id in ids)
                     {
@@ -6297,7 +6297,7 @@ namespace SanguoshaServer.AI
             ai.Number[Name] = 1;
             foreach (Player p in enemies)
             {
-                if (ai.HasSkill("luoshen|luoshen_jx", p))
+                if (p.GetPile("incantation").Count == 0 && ai.HasSkill("luoshen|luoshen_jx", p))
                 {
                     foreach (int id in ids)
                     {
@@ -6315,7 +6315,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in enemies)
             {
-                if (ai.HasSkill("luoshen|luoshen_jx", p))
+                if (p.GetPile("incantation").Count == 0 && ai.HasSkill("luoshen|luoshen_jx", p))
                 {
                     foreach (int id in ids)
                     {
@@ -6333,7 +6333,7 @@ namespace SanguoshaServer.AI
 
             foreach (Player p in enemies)
             {
-                if (p.JudgingArea.Count > 0)
+                if (p.GetPile("incantation").Count == 0 && p.JudgingArea.Count > 0)
                 {
                     int judge = p.JudgingArea[0];
                     WrappedCard trick = room.GetCard(judge);
@@ -6380,7 +6380,7 @@ namespace SanguoshaServer.AI
                 ai.SortByHandcards(ref enemies);
                 foreach (Player p in enemies)
                 {
-                    if (!ai.WillSkipPlayPhase(p))
+                    if (p.GetPile("incantation").Count == 0 && !ai.WillSkipPlayPhase(p))
                     {
                         card.AddSubCard(ids[0]);
                         use.Card = card;
