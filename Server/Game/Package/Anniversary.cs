@@ -2126,7 +2126,7 @@ namespace SanguoshaServer.Package
                     if (count == 0) break;
                 }
 
-                room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_DRAW, player.Name, "pianchong", string.Empty), false);
+                room.ObtainCard(ask_who, ref ids, new CardMoveReason(MoveReason.S_REASON_DRAW, ask_who.Name, "pianchong", string.Empty), false);
             }
             
             return false;
