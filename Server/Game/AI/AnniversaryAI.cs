@@ -30,6 +30,8 @@ namespace SanguoshaServer.AI
                 new YinjuAI(),
                 new QianxinZGAI(),
                 new ZhuilieAI(),
+                new PianchongAI(),
+                new ZunweiAI(),
 
                 new TunanAI(),
                 new ManyiAI(),
@@ -87,6 +89,7 @@ namespace SanguoshaServer.AI
                 new CixiaoCardAI(),
                 new NiluanCardAI(),
                 new YujueCardAI(),
+                new ZunweiCardAI(),
             };
         }
     }
@@ -675,6 +678,98 @@ namespace SanguoshaServer.AI
             }
             return value;
         }
+    }
+
+    public class PianchongAI : SkillEvent
+    {
+        public PianchongAI() : base("pianchong")
+        {}
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            int red = 0, black = 0;
+            foreach (int id in player.GetCards("h"))
+            {
+                if (WrappedCard.IsBlack(ai.Room.GetCard(id).Suit))
+                    black++;
+                else
+                    red++;
+            }
+
+            if (red >= black) return "red";
+            else return "black";
+        }
+    }
+
+    public class ZunweiAI : SkillEvent
+    {
+        public ZunweiAI() : base("zunwei") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (!player.HasUsed(ZunweiCard.ClassName))
+            {
+                ai.Target[Name] = null;
+                Room room = ai.Room;
+                if (player.GetMark("zunwei_3") == 0 && player.GetLostHp() >= 2)
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (p.Hp - player.Hp >= player.GetLostHp())
+                        {
+                            result.Add(new WrappedCard(ZunweiCard.ClassName) { Skill = Name });
+                            ai.Target[Name] = p;
+                            ai.Choice[Name] = "hp";
+                            break;
+                        }
+                    }
+                }
+                if (ai.Target[Name] == null && player.GetMark("zunwei_1") == 0)
+                {
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (p.HandcardNum - player.HandcardNum >= 3)
+                        {
+                            result.Add(new WrappedCard(ZunweiCard.ClassName) { Skill = Name });
+                            ai.Target[Name] = p;
+                            ai.Choice[Name] = "handcard";
+                            break;
+                        }
+                    }
+                }
+                if (ai.Target[Name] == null && player.GetMark("zunwei_2") == 0)
+                {
+                    int count = player.GetEquips().Count;
+                    foreach (Player p in room.GetOtherPlayers(player))
+                    {
+                        if (p.GetEquips().Count - count >= 2)
+                        {
+                            result.Add(new WrappedCard(ZunweiCard.ClassName) { Skill = Name });
+                            ai.Target[Name] = p;
+                            ai.Choice[Name] = "equip";
+                            break;
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data) => ai.Choice[Name];
+    }
+
+    public class ZunweiCardAI : UseCard
+    {
+        public ZunweiCardAI() : base(ZunweiCard.ClassName) { }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            use.Card = card;
+            use.To.Add(ai.Target["zunwei"]);
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 9;
     }
 
     public class TunanAI : SkillEvent
