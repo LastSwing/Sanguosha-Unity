@@ -2387,8 +2387,9 @@ namespace SanguoshaServer.AI
                     score.Players = new List<Player> { p };
                     if (ai.IsFriend(p)) score.Score -= 2.5;
 
+                    double chain_score = ai.ChainDamage(damage);
                     if (score.DoDamage && score.Score > 0 && p.Chained)
-                        score.Score += ai.ChainDamage(damage);
+                        score.Score += chain_score;
 
                     //计算命中率
                     double rate = 0;
@@ -2436,9 +2437,9 @@ namespace SanguoshaServer.AI
                     }
 
                     score.Score *= rate;
-                    if (player == p)
+                    if (player == p && chain_score <= 0)
                         score.Score -= 2;
-                    if (ai.IsFriend(p) && score.Score > 0)              //尽量不要火攻自己人
+                    else if (ai.IsFriend(p) && score.Score > 0)              //尽量不要火攻自己人
                         score.Score /= 3;
 
                     if (adjust > 0 && score.Score < 0)
@@ -2493,7 +2494,7 @@ namespace SanguoshaServer.AI
                     foreach (ScoreStruct score in scores)
                     {
                         Player target = score.Players[0];
-                        if (score.Score > 0 && !player.HasFlag("FireAttackFailedPlayer_" + target.Name))
+                        if (score.Score > 0 && !player.HasFlag("FireAttackFailedPlayer_" + target.Name) && !ai.IsFriend(target))
                         {
                             use.Card = card;
                             use.To = score.Players;
