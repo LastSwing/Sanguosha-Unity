@@ -60,6 +60,9 @@ namespace SanguoshaServer.Package
                 new ZhiyanPro(),
                 new Zhilue(),
                 new ZhilueMax(),
+                new Juliao(),
+                new Taomie(),
+                new TaomieEffect(),
 
                 new Renshi(),
                 new Wuyuan(),
@@ -111,6 +114,7 @@ namespace SanguoshaServer.Package
                 { "xuewei", new List<string> { "#xuewei" } },
                 { "tongqu", new List<string> { "#tongqu-draw" } },
                 { "sheque", new List<string> { "#sheque" } },
+                { "taomie", new List<string> { "#taomie" } },
             };
         }
     }
@@ -2955,6 +2959,205 @@ namespace SanguoshaServer.Package
         public override int GetExtra(Room room, Player target)
         {
             return target.GetMark("zhilue");
+        }
+    }
+
+    public class Juliao : DistanceSkill
+    {
+        public Juliao() : base("juliao")
+        {
+        }
+
+        public override int GetCorrect(Room room, Player from, Player to, WrappedCard card = null)
+        {
+            if (to != null && RoomLogic.PlayerHasShownSkill(room, to, Name) && from != null)
+            {
+                int count = Zishou.GetAliveKingdoms(room);
+                return count - 1;
+            }
+            return 0;
+        }
+    }
+
+    public class Taomie : TriggerSkill
+    {
+        public Taomie() : base("taomie")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.Damaged, TriggerEvent.Death, TriggerEvent.EventLoseSkill };
+            skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.Death && player.ContainsTag(Name) && player.GetTag(Name) is string target)
+            {
+                player.RemoveTag(Name);
+                Player old_one = room.FindPlayer(target);
+                if (old_one != null)
+                {
+                    old_one.SetMark(Name, 0);
+                    room.RemovePlayerStringMark(old_one, Name);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct _info && _info.Info == Name
+                && player.ContainsTag(Name) && player.GetTag(Name) is string old)
+            {
+                player.RemoveTag(Name);
+                Player old_one = room.FindPlayer(old);
+                if (old_one != null)
+                {
+                    old_one.SetMark(Name, 0);
+                    room.RemovePlayerStringMark(old_one, Name);
+                }
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room))
+            {
+                Player target = null;
+                if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.To.Alive && damage.To.GetMark(Name) == 0)
+                    target = damage.To;
+                else if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct _damage && _damage.From.Alive && _damage.From.GetMark(Name) == 0)
+                    target = _damage.From;
+
+                if (target != null)
+                    return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = null;
+            if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.To.Alive && damage.To.GetMark(Name) == 0)
+                target = damage.To;
+            else if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct _damage && _damage.From.Alive && _damage.From.GetMark(Name) == 0)
+                target = _damage.From;
+
+            if (room.AskForSkillInvoke(player, Name, target, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            Player target = null;
+            if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.To.Alive && damage.To.GetMark(Name) == 0)
+                target = damage.To;
+            else if (triggerEvent == TriggerEvent.Damaged && data is DamageStruct _damage && _damage.From.Alive && _damage.From.GetMark(Name) == 0)
+                target = _damage.From;
+
+            if (player.ContainsTag(Name) && player.GetTag(Name) is string old)
+            {
+                Player old_one = room.FindPlayer(old);
+                if (old_one != null)
+                {
+                    old_one.SetMark(Name, 0);
+                    room.RemovePlayerStringMark(old_one, Name);
+                }
+            }
+            player.SetTag(Name, target.Name);
+            target.SetMark(Name, 1);
+            room.SetPlayerStringMark(target, Name, string.Empty);
+
+            return false;
+        }
+    }
+
+    public class TaomieEffect : TriggerSkill
+    {
+        public TaomieEffect() : base("#taomie")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.DamageDone };
+            frequency = Frequency.Compulsory;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.DamageDone && player.HasFlag("taomie") && player.GetMark("taomie") > 0)
+            {
+                player.SetFlags("-taomie");
+                player.SetMark("taomie", 0);
+                room.RemovePlayerStringMark(player, "taomie");
+            }
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.DamageCaused && base.Triggerable(player, room) && player.ContainsTag("taomie") && player.GetTag("taomie") is string target
+                && data is DamageStruct damage && damage.To.GetMark("taomie") > 0 && target ==  damage.To.Name)
+            {
+                return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<string> choices = new List<string> { "damage" };
+            if (data is DamageStruct damage)
+            {
+                if (!damage.To.IsAllNude())
+                {
+                    choices.Add("get");
+                    choices.Add("all");
+                }
+                string choice = room.AskForChoice(player, "taomie", string.Join("+", choices), new List<string> { "@to-player:" + damage.To.Name }, damage.To);
+                bool get =false, dam = false;
+                switch (choice)
+                {
+                    case "get":
+                        get = true;
+                        break;
+                    case "damage":
+                        dam = true;
+                        break;
+                    case "all":
+                        get = true;
+                        dam = true;
+                        player.RemoveTag("taomie");
+                        damage.To.SetFlags("taomie");
+                        break;
+                }
+
+                if (dam)
+                {
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#AddDamage",
+                        From = player.Name,
+                        To = new List<string> { damage.To.Name },
+                        Arg = Name,
+                        Arg2 = (++damage.Damage).ToString()
+                    };
+                    room.SendLog(log);
+
+                    data = damage;
+                }
+                if (get)
+                {
+                    int id = room.AskForCardChosen(player, damage.To, "hej", "taomie", false, HandlingMethod.MethodGet);
+                    List<int> ids = new List<int> { id };
+                    room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, damage.To.Name, "taomie", string.Empty), false);
+                    if (player.Alive && room.GetCardOwner(id) == player && room.GetCardPlace(id) == Place.PlaceHand)
+                    {
+                        List<Player> targets = room.GetOtherPlayers(damage.To);
+                        targets.Remove(player);
+                        Player target = room.AskForPlayerChosen(player, targets, "taomie", "@taomie-give:::" + room.GetCard(id).Name, true, false, info.SkillPosition);
+                        if (target != null)
+                            room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "taomie", string.Empty), false);
+                    }
+                }
+            }
+
+            return false;
         }
     }
 

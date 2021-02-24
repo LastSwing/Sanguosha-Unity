@@ -1090,24 +1090,27 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
-            List<int> ids= player.GetCards("h");
-            ai.SortByKeepValue(ref ids, false);
-            List<Player> targets = ai.GetEnemies(player);
-            ai.SortByDefense(ref targets, false);
-            foreach (Player p in targets)
+            if (!player.IsKongcheng())
             {
-                if (p.GetPile(Name).Count == 0)
+                List<int> ids = player.GetCards("h");
+                ai.SortByKeepValue(ref ids, false);
+                List<Player> targets = ai.GetEnemies(player);
+                ai.SortByDefense(ref targets, false);
+                foreach (Player p in targets)
                 {
-                    foreach (int id in ids)
+                    if (p.GetPile(Name).Count == 0)
                     {
-                        FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
-                        if (fcard is EquipCard || fcard is Slash || fcard is Jink || fcard is Lightning)
+                        foreach (int id in ids)
                         {
-                            WrappedCard card = new WrappedCard(BifaCard.ClassName) { Skill = Name };
-                            card.AddSubCard(id);
-                            use.Card = card;
-                            use.To.Add(p);
-                            return use;
+                            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                            if (fcard is EquipCard || fcard is Slash || fcard is Jink || fcard is Lightning)
+                            {
+                                WrappedCard card = new WrappedCard(BifaCard.ClassName) { Skill = Name };
+                                card.AddSubCard(id);
+                                use.Card = card;
+                                use.To.Add(p);
+                                return use;
+                            }
                         }
                     }
                 }
