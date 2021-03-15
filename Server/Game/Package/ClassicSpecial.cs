@@ -11862,7 +11862,7 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardFinished && player.GetMark(Name) == 2 && !player.HasFlag(Name) && player.Phase == PlayerPhase.Play)
             {
                 foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    if (p != player && !p.IsKongcheng())
+                    if (p != player && !p.IsNude())
                         triggers.Add(new TriggerStruct(Name, p));
             }
 
