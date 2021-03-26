@@ -1445,6 +1445,7 @@ namespace SanguoshaServer.AI
             if (ai.HasSkill("yingzi_zhouyu")) n++;
             if (ai.HasSkill("yingziextra")) n++;
             if (player.HasTreasure(JadeSeal.ClassName)) n++;
+            if (ai.HasSkill("dujin")) n += player.GetEquips().Count / 2 + 1;
 
             check = 5 - n - 2 - player.HandcardNum;
             if (check < 0)
@@ -1534,6 +1535,7 @@ namespace SanguoshaServer.AI
             int count = player.HandcardNum + draw + 2;
             if (player.HasTreasure(JadeSeal.ClassName))
                 count++;
+            if (ai.HasSkill("dujin")) count += player.GetEquips().Count / 2 + 1;
 
             if (count > 5)
             {

@@ -977,7 +977,7 @@ namespace SanguoshaServer.AI
 
         public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
         {
-            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && ai.Self != player)
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && ai.Self != player && player.Phase == PlayerPhase.NotActive)
             {
                 string[] strs = str.Split(':');
                 Room room = ai.Room;
@@ -993,29 +993,25 @@ namespace SanguoshaServer.AI
         public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
             Room room = ai.Room;
-            Player target = room.Current;
-            if (!ai.HasSkill("zhixi", target) && ai.IsEnemy(target))
+            if (player.Phase == PlayerPhase.Finish)
             {
                 List<int> ids = new List<int>();
-                string _pattern = pattern.Substring(1, pattern.Length - 1);
                 foreach (int id in player.GetCards("he"))
-                    if (RoomLogic.CanDiscard(room, player, player, id) && Engine.MatchExpPattern(room, _pattern, player, room.GetCard(id)))
+                    if (!(Engine.GetFunctionCard(room.GetCard(id).Name) is BasicCard))
                         ids.Add(id);
 
                 if (ids.Count > 0)
                 {
                     List<double> values = ai.SortByKeepValue(ref ids, false);
-                    if (values[0] < 0)
-                        return new List<int> { ids[0] };
-
-                    if (values[0] < 2.5 && target.HandcardNum > 4)
-                        return new List<int> { ids[0] };
-                    if (target.HandcardNum - target.Hp >= 2 && values[0] < 4)
-                        return new List<int> { ids[0] };
-                    WrappedCard slash = new WrappedCard(Slash.ClassName);
-                    if (ai.IsCardEffect(slash, target, player) && ai.SlashIsEffective(slash, target).Score > 4 && values[0] < 3.5)
+                    if (values[0] < 4 )
                         return new List<int> { ids[0] };
                 }
+            }
+            else
+            {
+                Player target = room.Current;
+                if (!ai.HasSkill("zhixi", target) && ai.IsEnemy(target))
+                    return new List<int>(player.GetPile(Name)[0]);
             }
 
             return new List<int>();
@@ -3401,7 +3397,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (player.HasUsed(HuaiyiCard.ClassName)) return new List<WrappedCard>();
+            if (player.UsedTimes(HuaiyiCard.ClassName) >= 1 + (player.HasFlag(Name) ? 1 : 0)) return new List<WrappedCard>();
             ai.Choice[Name] = string.Empty;
             ai.Number[Name] = 2.8;
             List<int> ids = player.GetCards("h");
@@ -3488,6 +3484,8 @@ namespace SanguoshaServer.AI
                     }
                 }
             }
+            else
+                return new List<WrappedCard> { new WrappedCard(HuaiyiCard.ClassName) { Skill = Name } };
 
             return new List<WrappedCard>();
         }

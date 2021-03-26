@@ -4798,6 +4798,9 @@ namespace SanguoshaServer.AI
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
+            if (data is CardUseStruct use && use.Card.Name == Slash.ClassName)
+                return ai.IsEnemy(use.To[0]);
+
             return true;
         }
     }

@@ -1890,6 +1890,7 @@ namespace SanguoshaServer.AI
             if (player.GetMark("@tangerine") > 0) count++;
             if (player.GetMark("duliang") > 0) count++;
             if (player.GetMark("@rob") > 0) count++;
+            if (ai.HasSkill("dujin")) count += player.GetEquips().Count / 2 + 1;
 
             if (count > 5)
             {

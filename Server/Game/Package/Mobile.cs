@@ -3075,13 +3075,13 @@ namespace SanguoshaServer.Package
     {
         public TaomieEffect() : base("#taomie")
         {
-            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.DamageDone };
+            events = new List<TriggerEvent> { TriggerEvent.DamageCaused, TriggerEvent.DamageComplete };
             frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.DamageDone && player.HasFlag("taomie") && player.GetMark("taomie") > 0)
+            if (triggerEvent == TriggerEvent.DamageComplete && player.HasFlag("taomie") && player.GetMark("taomie") > 0)
             {
                 player.SetFlags("-taomie");
                 player.SetMark("taomie", 0);

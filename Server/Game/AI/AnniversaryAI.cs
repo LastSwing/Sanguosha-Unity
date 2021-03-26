@@ -72,6 +72,8 @@ namespace SanguoshaServer.AI
                 new WeiwuAI(),
                 new YujueAI(),
                 new TuxinAI(),
+                new LiangyingClassicAI(),
+                new ShishouAI(),
             };
 
             use_cards = new List<UseCard>
@@ -2696,6 +2698,77 @@ namespace SanguoshaServer.AI
         {
             if (damage.From != null && damage.From.GetMark(Name) > 0)
                 damage.Damage++;
+        }
+    }
+
+    public class LiangyingClassicAI : SkillEvent
+    {
+        public LiangyingClassicAI() : base("liangying_classic") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return true;
+        }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            List<int> ids = player.GetPile("#liangying");
+            List<int> hands = player.GetCards("h");
+            hands.RemoveAll(t => !ids.Contains(t));
+            if (ai.GetOverflow(player) > player.HandcardNum - hands.Count)
+                ids.RemoveAll(t => !hands.Contains(t));
+
+            Room room = ai.Room;
+            CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
+
+            List<Player> targets = new List<Player>();
+            foreach (Player p in ai.FriendNoSelf)
+                if (p.HasFlag(Name)) targets.Add(p);
+
+            if (ids.Count > 0 && targets.Count > 0)
+            {
+                KeyValuePair<Player, int> pair = ai.GetCardNeedPlayer(ids, targets);
+                if (pair.Key != null)
+                {
+                    use.Card = new WrappedCard(LiangyingClassicCard.ClassName) { Skill = Name };
+                    use.Card.AddSubCard(pair.Value);
+                    use.To.Add(pair.Key);
+                    return use;
+                }
+
+                if (ai.GetOverflow(player) > 0)
+                {
+                    ai.SortByDefense(ref targets, false);
+                    ai.SortByUseValue(ref ids);
+                    use.Card = new WrappedCard(LiangyingClassicCard.ClassName) { Skill = Name };
+                    use.Card.AddSubCard(ids[0]);
+                    use.To.Add(targets[0]);
+                    return use;
+                }
+            }
+
+            return use;
+        }
+    }
+
+    public class ShishouAI : SkillEvent
+    {
+        public ShishouAI() : base("shishou") { }
+        public override ScoreStruct GetDamageScore(TrustedAI ai, DamageStruct damage)
+        {
+            ScoreStruct score = new ScoreStruct();
+            if (ai.HasSkill(Name, damage.To) && damage.To.GetMark("@gd_liang") > 0 && damage.Nature == DamageStruct.DamageNature.Fire)
+            {
+                int count = Math.Min(damage.Damage, damage.To.GetMark("@gd_liang"));
+                double value = 4 * count;
+                if (count >= damage.To.GetMark("@gd_liang")) value += 10;
+                if (ai.IsFriend(damage.To))
+                    value = -value;
+
+                score.Score = value;
+            }
+
+            return score;
         }
     }
 }

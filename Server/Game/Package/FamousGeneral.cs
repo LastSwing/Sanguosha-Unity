@@ -6811,52 +6811,65 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName) && player.ContainsTag(Name) && player.Phase == PlayerPhase.Play)
-                player.RemoveTag(Name);
-            else if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Phase == PlayerPhase.Play && player.ContainsTag(Name))
-                player.RemoveTag(Name);
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.Phase == PlayerPhase.Play)
             {
-                player.SetFlags("-sidi");
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is Slash && player.ContainsTag("sidi_slash"))
+                    player.RemoveTag("sidi_slash");
+                else if (fcard.IsNDTrick() && player.ContainsTag("sidi_trick"))
+                    player.RemoveTag("sidi_trick");
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Phase == PlayerPhase.Play)
+            {
+                if (player.ContainsTag("sidi_slash"))
+                    player.RemoveTag("sidi_slash");
+                if (player.ContainsTag("sidi_trick"))
+                    player.RemoveTag("sidi_trick");
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play
+                && player.ContainsTag("sidi_color") && player.GetTag("sidi_color") is List<string> colors)
+            {
+                player.RemoveTag("sidi_color");
                 RoomLogic.RemovePlayerCardLimitation(player, Name);
+                foreach (string color in colors)
+                    room.RemovePlayerMark(player, "@qianxi_" + color);
             }
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play)
+            if (triggerEvent == TriggerEvent.EventPhaseStart)
             {
-                foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                    if (p != player && !p.IsNude() && p.GetEquips().Count > 0)
-                        triggers.Add(new TriggerStruct(Name, p));
+                if (player.Phase == PlayerPhase.Play)
+                {
+                    foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                        if (p != player && p.GetPile(Name).Count > 0)
+                            triggers.Add(new TriggerStruct(Name, p));
+                }
+                else if (player.Phase == PlayerPhase.Finish && base.Triggerable(player, room) && !player.IsNude())
+                    triggers.Add(new TriggerStruct(Name, player));
             }
 
             return triggers;
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (player.Alive && ask_who.Alive && ask_who.GetEquips().Count > 0)
+            if (player.Phase == PlayerPhase.Finish)
             {
-                bool red = false, black = false;
-                foreach (int id in ask_who.GetEquips())
+                List<int> ids = room.AskForExchange(player, Name, 1, 0, "@sidi-put", string.Empty, "^BasicCard", info.SkillPosition);
+                if (ids.Count > 0)
                 {
-                    WrappedCard card = room.GetCard(id);
-                    if (WrappedCard.IsRed(card.Suit))
-                        red = true;
-                    else
-                        black = true;
+                    room.NotifySkillInvoked(player, Name);
+                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                    room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                    room.AddToPile(player, Name, ids);
+                    return info;
                 }
-
-                string pattern;
-                if (red && black)
-                    pattern = "^BasicCard!";
-                else if (red)
-                    pattern = "^BasicCard|red!";
-                else
-                    pattern = "^BasicCard|black!";
-
-                List<int> ids = room.AskForExchange(ask_who, Name, 1, 0, "@sidi:" + player.Name, string.Empty, pattern, info.SkillPosition);
+            }
+            else if (player.Alive && ask_who.Alive)
+            {
+                List<int> ids = room.AskForExchange(ask_who, Name, 1, 0, "@sidi:" + player.Name, Name, ".|.|.|sidi", info.SkillPosition);
                 if (ids.Count == 1)
                 {
                     room.ThrowCard(ref ids, ask_who, null, Name);
@@ -6875,24 +6888,30 @@ namespace SanguoshaServer.Package
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player target, ref object data, Player ask_who, TriggerStruct info)
         {
-            string color = target.GetTag(Name).ToString();
-            target.RemoveTag(Name);
-            string pattern = string.Format(".|{0}$0", color);
-            room.AddPlayerMark(target, "@qianxi_" + color);
-            RoomLogic.SetPlayerCardLimitation(target, Name, "use,response", pattern, true);
-            target.SetFlags(Name);
-            LogMessage log = new LogMessage
+            if (target.Phase == PlayerPhase.Play)
             {
-                Type = "#NoColor",
-                From = target.Name,
-                Arg = "no_suit_" + color,
-                Arg2 = Name
-            };
-            room.SendLog(log);
+                string color = target.GetTag(Name).ToString();
+                target.RemoveTag(Name);
+                string pattern = string.Format(".|{0}$0", color);
+                room.AddPlayerMark(target, "@qianxi_" + color);
+                RoomLogic.SetPlayerCardLimitation(target, Name, "use,response", pattern, true);
+                LogMessage log = new LogMessage
+                {
+                    Type = "#NoColor",
+                    From = target.Name,
+                    Arg = "no_suit_" + color,
+                    Arg2 = Name
+                };
+                room.SendLog(log);
 
-            List<string> names = target.ContainsTag(Name) ? (List<string>)target.GetTag(Name) : new List<string>();
-            names.Add(ask_who.Name);
-            target.SetTag(Name, names);
+                List<string> names = target.ContainsTag(Name) ? (List<string>)target.GetTag(Name) : new List<string>();
+                List<string> colors = target.ContainsTag("sidi_color") ? (List<string>)target.GetTag("sidi_color") : new List<string>();
+                if (!colors.Contains(color)) colors.Add(color);
+                target.SetTag("sidi_color", colors);
+                names.Add(ask_who.Name);
+                target.SetTag("sidi_slash", names);
+                target.SetTag("sidi_trick", names);
+            }
 
             return false;
         }
@@ -6913,21 +6932,41 @@ namespace SanguoshaServer.Package
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> triggers = new List<TriggerStruct>();
-            if (player.Alive && player.Phase == PlayerPhase.Play && player.ContainsTag("sidi") && player.GetTag("sidi") is List<string> names)
+            if (player.Alive && player.Phase == PlayerPhase.Play)
             {
-                List<Player> targets = new List<Player>();
-                foreach (string name in names)
+                if (player.ContainsTag("sidi_slash") && player.GetTag("sidi_slash") is List<string> names)
                 {
-                    Player target = room.FindPlayer(name);
-                    if (target != null)
-                        targets.Add(target);
-                }
+                    List<Player> targets = new List<Player>();
+                    foreach (string name in names)
+                    {
+                        Player target = room.FindPlayer(name);
+                        if (target != null)
+                            targets.Add(target);
+                    }
 
-                if (targets.Count > 0)
+                    if (targets.Count > 0)
+                    {
+                        room.SortByActionOrder(ref targets);
+                        foreach (Player p in targets)
+                            triggers.Add(new TriggerStruct(Name, p));
+                    }
+                }
+                else if (player.ContainsTag("sidi_trick") && player.GetTag("sidi_trick") is List<string> _names)
                 {
-                    room.SortByActionOrder(ref targets);
-                    foreach (Player p in targets)
-                        triggers.Add(new TriggerStruct(Name, p));
+                    List<Player> targets = new List<Player>();
+                    foreach (string name in _names)
+                    {
+                        Player target = room.FindPlayer(name);
+                        if (target != null)
+                            targets.Add(target);
+                    }
+
+                    if (targets.Count > 0)
+                    {
+                        room.SortByActionOrder(ref targets);
+                        foreach (Player p in targets)
+                            triggers.Add(new TriggerStruct(Name, p));
+                    }
                 }
             }
 
@@ -6936,11 +6975,19 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (ask_who.Alive && player.Alive)
+            if (player.ContainsTag("sidi_slash") && ask_who.Alive && player.Alive)
             {
                 WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = "sidi", DistanceLimited = false };
                 if (RoomLogic.IsProhibited(room, ask_who, player, slash) == null)
                     room.UseCard(new CardUseStruct(slash, ask_who, player));
+            }
+            if (player.ContainsTag("sidi_trick") && ask_who.Alive)
+            {
+                room.SendCompulsoryTriggerLog(ask_who, "sidi");
+
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, "sidi", info.SkillPosition);
+                room.BroadcastSkillInvoke("sidi", "male", 2, gsk.General, gsk.SkinId);
+                room.DrawCards(ask_who, 2, "sidi");
             }
 
             return false;
@@ -8543,15 +8590,32 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Huaiyi : ZeroCardViewAsSkill
+    public class Huaiyi : TriggerSkill
     {
         public Huaiyi() : base("huaiyi")
+        {
+            events.Add(TriggerEvent.EventPhaseChanging);
+            view_as_skill = new HuaiyiVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.HasFlag(Name))
+                player.SetFlags("-huaiyi");
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    public class HuaiyiVS : ZeroCardViewAsSkill
+    {
+        public HuaiyiVS() : base("huaiyi")
         {
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.IsKongcheng() && !player.HasUsed(HuaiyiCard.ClassName);
+            return !player.IsKongcheng() && player.UsedTimes(HuaiyiCard.ClassName) < 1 + (player.HasFlag(Name) ? 1 : 0);
         }
 
         public override WrappedCard ViewAs(Room room, Player player)
@@ -8589,7 +8653,7 @@ namespace SanguoshaServer.Package
 
                 if (black.Count > 0 && red.Count > 0)
                 {
-                    List<int> discard = new List<int>();
+                    List<int> discard;
                     if (room.AskForChoice(player, "huaiyi", "red+black") == "red")
                     {
                         discard = red;
@@ -8628,6 +8692,11 @@ namespace SanguoshaServer.Package
                         if (moves.Count > 1 && player.Alive)
                             room.LoseHp(player);
                     }
+                }
+                else
+                {
+                    player.SetFlags("huaiyi");
+                    room.DrawCards(player, 1, "huaiyi");
                 }
             }
         }

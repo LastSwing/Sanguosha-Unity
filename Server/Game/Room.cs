@@ -10065,7 +10065,7 @@ namespace SanguoshaServer.Game
                 DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
                 ChangePlayerGeneral2(player, "anjiang");
 
-                DisconnectSkillsFromOthers(player);
+                DisconnectSkillsFromOthers(player, false);
 
                 if (!player.General1Showed)
                 {

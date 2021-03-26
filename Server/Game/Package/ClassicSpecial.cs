@@ -5393,6 +5393,13 @@ namespace SanguoshaServer.Package
             {
                 room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
                 room.LoseHp(ask_who, ask_who.GetMark("@flame"));
+
+                if (ask_who.Alive && ask_who.GetMark("@flame") > 2)
+                {
+                    room.LoseMaxHp(ask_who, 2);
+                    if (ask_who.Alive)
+                        room.DrawCards(ask_who, 2, Name);
+                }
             }
 
             return false;
@@ -5411,7 +5418,8 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (triggerEvent == TriggerEvent.CardUsed && base.Triggerable(player, room) && data is CardUseStruct use
-                && (use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName) && player.Hp < room.Round)
+                && (use.Card.Name == ArcheryAttack.ClassName || use.Card.Name == SavageAssault.ClassName
+                || (use.Card.Name == Slash.ClassName && use.Card.Suit == WrappedCard.CardSuit.Spade)) && player.IsWounded())
             {
                 return new TriggerStruct(Name, player);
             }
@@ -5436,7 +5444,6 @@ namespace SanguoshaServer.Package
         {
             if (data is CardUseStruct use)
             {
-
                 LogMessage log = new LogMessage
                 {
                     Type = "#hanyong",
@@ -5448,6 +5455,9 @@ namespace SanguoshaServer.Package
                 use.ExDamage++;
                 data = use;
             }
+
+            if (machao.Hp > room.Round)
+                room.AddPlayerMark(machao, "@flame");
 
             return false;
         }

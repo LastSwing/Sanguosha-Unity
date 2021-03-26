@@ -20,6 +20,8 @@ namespace SanguoshaServer.AI
                 new YuanyuAI(),
                 new WeichengAI(),
                 new DaoshuAI(),
+                new ZhiweiAI(),
+                new ZhenteAI(),
             };
             use_cards = new List<UseCard>
             {
@@ -382,6 +384,38 @@ namespace SanguoshaServer.AI
                     return;
                 }
             }
+        }
+    }
+
+    public class ZhiweiAI : SkillEvent
+    {
+        public ZhiweiAI() : base("zhiwei") { }
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            ai.SortByDefense(ref targets);
+            foreach (Player p in targets)
+                if (ai.IsFriend(p)) return new List<Player> { p };
+            return new List<Player>();
+        }
+    }
+
+    public class ZhenteAI : SkillEvent
+    {
+        public ZhenteAI() : base("zhente") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is CardUseStruct use)
+            {
+                if (use.Card.Name != Edict.ClassName && use.Card.Name != KnownBoth.ClassName && ai.IsCardEffect(use.Card, player, use.From))
+                {
+                    if (ai.IsWeak(player))
+                        return true;
+                    else if (!ai.IsFriend(use.From))
+                        return true;
+                }
+            }
+
+            return false;
         }
     }
 }

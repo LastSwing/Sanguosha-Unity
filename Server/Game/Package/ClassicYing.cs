@@ -1221,7 +1221,7 @@ namespace SanguoshaServer.Package
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
             if (triggerEvent == TriggerEvent.GameStart)
             {
-                room.DrawCards(player, 1, Name);
+                room.DrawCards(player, 2, Name);
                 List<int> ids = room.AskForExchange(player, Name, 1, 1, "@mingren-pile", string.Empty, ".", info.SkillPosition);
                 room.AddToPile(player, Name, ids);
             }
@@ -1303,7 +1303,7 @@ namespace SanguoshaServer.Package
                 {
                     WrappedCard mr = room.GetCard(from.GetPile("mingren")[0]);
                     WrappedCard use = move.Reason.Card;
-                    if (Engine.GetFunctionCard(mr.Name).TypeID == Engine.GetFunctionCard(use.Name).TypeID)
+                    if (WrappedCard.IsBlack(mr.Suit) == WrappedCard.IsBlack(use.Suit) && use.Suit != WrappedCard.CardSuit.NoSuit)
                         return new TriggerStruct(Name, from);
                 }
             }
@@ -1338,7 +1338,7 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class ZhenliangVS : ViewAsSkill
+    public class ZhenliangVS : OneCardViewAsSkill
     {
         public ZhenliangVS() : base("zhenliang")
         {
@@ -1349,7 +1349,7 @@ namespace SanguoshaServer.Package
             return player.GetPile("mingren").Count > 0 && !player.HasUsed(ZhenliangCard.ClassName) && player.GetMark(Name) == 0 && !player.IsNude();
         }
 
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        public override bool ViewFilter(Room room, WrappedCard to_select, Player player)
         {
             List<int> pile = player.GetPile("mingren");
             bool black = WrappedCard.IsBlack(room.GetCard(pile[0]).Suit);
@@ -1357,16 +1357,11 @@ namespace SanguoshaServer.Package
             return !RoomLogic.IsCardLimited(room, player, to_select, FunctionCard.HandlingMethod.MethodDiscard) && WrappedCard.IsBlack(to_select.Suit) == black;
         }
 
-        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
         {
-            if (cards.Count >= 1)
-            {
-                WrappedCard zl = new WrappedCard(ZhenliangCard.ClassName) { Skill = Name };
-                zl.AddSubCards(cards);
-                return zl;
-            }
-
-            return null;
+            WrappedCard zl = new WrappedCard(ZhenliangCard.ClassName) { Skill = Name };
+            zl.AddSubCard(card);
+            return zl;
         }
     }
 
