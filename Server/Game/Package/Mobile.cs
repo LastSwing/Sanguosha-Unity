@@ -32,6 +32,9 @@ namespace SanguoshaServer.Package
                 new Tongqu(),
                 new TongquDraw(),
                 new Wanlan(),
+                new QiaiMobile(),
+                new ShanxiWC(),
+                new ShanxiEffect(),
 
                 new Zhaohuo(),
                 new Yixiang(),
@@ -105,6 +108,8 @@ namespace SanguoshaServer.Package
                 new DuoyiCard(),
                 new JianzhanCard(),
                 new ShamengCard(),
+                new QiaiCard(),
+                new ShanxiWCCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -125,6 +130,7 @@ namespace SanguoshaServer.Package
                 { "sheque", new List<string> { "#sheque" } },
                 { "taomie", new List<string> { "#taomie" } },
                 { "fubi", new List<string> { "#fubi" } },
+                { "shanxi_wc", new List<string> { "#shanxi_wc" } },
             };
         }
     }
@@ -1163,6 +1169,212 @@ namespace SanguoshaServer.Package
             room.SendLog(log);
 
             return true;
+        }
+    }
+
+
+    public class QiaiMobile : OneCardViewAsSkill
+    {
+        public QiaiMobile() : base("qiai_mobile")
+        {
+            filter_pattern = "^BasicCard";
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return !player.HasUsed(QiaiCard.ClassName);
+        }
+
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard qa = new WrappedCard(QiaiCard.ClassName) { Skill = Name };
+            qa.AddSubCard(card);
+            return qa;
+        }
+    }
+
+    public class QiaiCard : SkillCard
+    {
+        public static string ClassName = "QiaiCard";
+        public QiaiCard() : base(ClassName)
+        {
+            will_throw = false;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && Self != to_select;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            List<int> ids = new List<int>(card_use.Card.SubCards);
+            Player target = card_use.To[0], player = card_use.From;
+            room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "qiai_mobile", string.Empty));
+            if (target.Alive && player.Alive)
+            {
+                List<string> choices = new List<string> { "draw" };
+                if (player.IsWounded())
+                    choices.Add("recover");
+
+                string choice = room.AskForChoice(target, "qiai_mobile", string.Join("+", choices), new List<string> { "@to-player:" + player.Name }, player);
+                if (choice == "draw")
+                    room.DrawCards(player, 2, "qiai_mobile");
+                else
+                    room.Recover(player);
+            }
+        }
+    }
+
+    public class ShanxiWC : TriggerSkill
+    {
+        public ShanxiWC() : base("shanxi_wc")
+        {
+            events.Add(TriggerEvent.EventPhaseStart);
+            skill_type = SkillType.Attack;
+            view_as_skill = new ShanxiWCVS();
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
+                return new TriggerStruct(Name, player);
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            List<Player> targets = room.GetOtherPlayers(player);
+            targets.RemoveAll(t => t.GetMark(Name) > 0);
+            if (targets.Count > 0)
+            {
+                Player target = room.AskForPlayerChosen(player, targets, Name, "@shanxi_wc", true, true, info.SkillPosition);
+                if (target != null)
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.SetTag(Name, target);
+                    return info;
+                }
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.GetTag(Name) is Player target)
+            {
+                room.RemoveTag(Name);
+                target.AddMark(Name);
+                if (player.ContainsTag("shanxi_target") && player.GetTag("shanxi_target") is string target_name)
+                {
+                    Player old = room.FindPlayer(target_name);
+                    if (old != null)
+                    {
+                        old.RemoveTag("shanxi_from");
+                        old.SetMark(Name, 0);
+                        room.RemovePlayerStringMark(old, Name);
+                    }
+                }
+
+                player.SetTag("shanxi_target", target.Name);
+                target.SetTag("shanxi_from", player.Name);
+                room.SetPlayerStringMark(target, Name, string.Empty);
+            }
+            return false;
+        }
+    }
+
+    public class ShanxiWCVS : ViewAsSkill
+    {
+        public ShanxiWCVS() : base("shanxi_wc")
+        {
+            response_pattern = "@@shanxi_wc";
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player) => selected.Count < 2;
+
+        public override bool IsAvailable(Room room, Player invoker, CardUseReason reason, string pattern, string position = null)
+        {
+            return reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && pattern == response_pattern;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count == 2)
+            {
+                WrappedCard sx = new WrappedCard(ShanxiWCCard.ClassName);
+                sx.AddSubCards(cards);
+                return sx;
+            }
+            return null;
+        }
+    }
+
+    public class ShanxiWCCard : SkillCard
+    {
+        public static string ClassName = "ShanxiWCCard";
+        public ShanxiWCCard() : base(ClassName)
+        {
+            target_fixed = true;
+            will_throw = false;
+        }
+
+        public override void OnUse(Room room, CardUseStruct card_use)
+        {
+        }
+    }
+
+
+    public class ShanxiEffect :TriggerSkill
+    {
+        public ShanxiEffect() : base("#shanxi_wc")
+        {
+            events.Add(TriggerEvent.HpRecover);
+            frequency = Frequency.Compulsory;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player.Alive && player.GetMark("shanxi_wc") > 0 && !player.HasFlag("Global_Dying") && player.ContainsTag("shanxi_from")
+                && player.GetTag("shanxi_from") is string from_name)
+            {
+                Player from = room.FindPlayer(from_name);
+                if (from != null)
+                {
+                    return new TriggerStruct(Name, player);
+                }
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.GetTag("shanxi_from") is string from_name)
+            {
+                LogMessage log = new LogMessage
+                {
+                    Type = "#shanxi_wc",
+                    From = player.Name
+                };
+                room.SendLog(log);
+
+                Player from = room.FindPlayer(from_name);
+                bool give = false;
+                if (player.GetCardCount(true) >= 2)
+                {
+                    WrappedCard card = room.AskForUseCard(player, "@@shanxi_wc", "@shanxi_give:" + from_name, null);
+                    if (card != null)
+                    {
+                        List<int> ids = new List<int>(card.SubCards);
+                        give = true;
+                        room.ObtainCard(from, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, from.Name, string.Empty), false);
+                    }
+                }
+                if (!give)
+                    room.LoseHp(player);
+            }
+
+                return false;
         }
     }
 
@@ -3319,7 +3531,7 @@ namespace SanguoshaServer.Package
             Player target = card_use.To[0], player = card_use.From, victim = null;
             if (card_use.To.Count > 1)
                 victim = card_use.To[1];
-            List<string> descriptions = new List<string> { "@jianzhan:" + player.Name, "@jianzhan-draw" };
+            List<string> descriptions = new List<string> { "@jianzhan" , "@jianzhan-draw:" + player.Name };
             List<string> choices = new List<string> { "draw" };
             if (victim != null)
             {
@@ -4595,59 +4807,6 @@ namespace SanguoshaServer.Package
                 room.Recover(pangtong, 1 - pangtong.Hp);
 
             return false;
-        }
-    }
-
-    public class QiaiMobile : OneCardViewAsSkill
-    {
-        public QiaiMobile() : base("qiai_mobile")
-        {
-            filter_pattern = "^BasicCard";
-        }
-
-        public override bool IsEnabledAtPlay(Room room, Player player)
-        {
-            return !player.HasUsed(QiaiCard.ClassName);
-        }
-
-        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
-        {
-            WrappedCard qa = new WrappedCard(QiaiCard.ClassName) { Skill = Name };
-            qa.AddSubCard(card);
-            return qa;
-        }
-    }
-
-    public class QiaiCard : SkillCard
-    {
-        public static string ClassName = "QiaiCard";
-        public QiaiCard() : base(ClassName)
-        {
-            will_throw = false;
-        }
-
-        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
-        {
-            return targets.Count == 0 && Self != to_select;
-        }
-
-        public override void Use(Room room, CardUseStruct card_use)
-        {
-            List<int> ids = new List<int>(card_use.Card.SubCards);
-            Player target = card_use.To[0], player = card_use.From;
-            room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "qiai_mobile", string.Empty));
-            if (target.Alive && player.Alive)
-            {
-                List<string> choices = new List<string> { "draw" };
-                if (player.IsWounded())
-                    choices.Add("recover");
-
-                string choice = room.AskForChoice(target, "qiai_mobile", string.Join("+", choices), new List<string> { "@to-player:" + player.Name }, player);
-                if (choice == "draw")
-                    room.DrawCards(player, 2, "qiai_mobile");
-                else
-                    room.Recover(player);
-            }
         }
     }
 
