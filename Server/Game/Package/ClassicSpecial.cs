@@ -215,6 +215,8 @@ namespace SanguoshaServer.Package
                 new Yuxu(),
                 new YuxuDiscard(),
                 new Shijian(),
+                new Youlong(),
+                new Luanfeng(),
 
                 new Hongyuan(),
                 new Huanshi(),
@@ -291,6 +293,7 @@ namespace SanguoshaServer.Package
                 new ZhoufuCard(),
                 new LianzhuCard(),
                 new LiushiCard(),
+                new YoulongCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -11902,7 +11905,394 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Hongyuan : DrawCardsSkill
+    public class Youlong : TriggerSkill
+    {
+        public Youlong() : base("youlong")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.EventAcquireSkill, TriggerEvent.EventLoseSkill };
+            view_as_skill = new YoulongVS();
+            skill_type = SkillType.Wizzard;
+            turn = true;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventAcquireSkill && data is InfoStruct info && info.Info == Name)
+            {
+                room.SetTurnSkillState(player, Name, false, info.Head ? "head" : "deputy");
+            }
+            else if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct _info && _info.Info == Name)
+            {
+                room.RemoveTurnSkill(player);
+                player.SetMark("youlong_trick", 0);
+                player.SetMark("youlong_basic", 0);
+                List<string> guhuo = ViewAsSkill.GetGuhuoCards(room, "bt");
+                foreach (string card_name in guhuo)
+                {
+                    if (card_name.Contains(Slash.ClassName))
+                        player.SetMark("youlong_Slash", 0);
+                    else
+                        player.SetMark("youlong_" + card_name, 0);
+                }
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class YoulongVS : ViewAsSkill
+    {
+        public YoulongVS() : base("youlong")
+        {
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            int count = player.GetMark("youlong") == 0 ? 1 : 2;
+            if (((count == 1 && player.GetMark("youlong_trick") < room.Round) || (count == 2 && player.GetMark("youlong_basic") < room.Round))
+                && GetGuhuoCardNames(room, player).Count > 0)
+            {
+                for (int i = 0; i < 5; i++)
+                    if (!player.EquipIsBaned(i)) return true;
+            }
+            return false;
+        }
+
+        public override bool IsEnabledAtNullification(Room room, Player player)
+        {
+            if (player.GetMark("youlong") == 0 && player.GetMark("youlong_Nullification") == 0 && player.GetMark("youlong_trick") < room.Round)
+            {
+                for (int i = 0; i < 5; i++)
+                    if (!player.EquipIsBaned(i)) return true;
+            }
+            return false;
+        }
+
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
+        {
+            if (player.GetMark("youlong") == 1 && player.GetMark("youlong_basic") < room.Round
+                && room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE_USE)
+            {
+                bool equip = false;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!player.EquipIsBaned(i))
+                    {
+                        equip = true;
+                        break;
+                    }
+                }
+
+                if (equip)
+                {
+                    foreach (string card_name in GetGuhuoCardNames(room, player))
+                    {
+                        WrappedCard card = new WrappedCard(card_name);
+                        if (Engine.MatchExpPattern(room, pattern, player, card))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (cards.Count == 0)
+            {
+                if (room.GetRoomState().GetCurrentCardUsePattern() == "Nullification")
+                    result.Add(new WrappedCard(Nullification.ClassName) { Skill = "_youlong" });
+                else
+                    foreach (string card_name in GetGuhuoCardNames(room, player))
+                        result.Add(new WrappedCard(card_name) { Skill = "_youlong" });
+            }
+            return result;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count == 1 && cards[0].IsVirtualCard())
+            {
+                return new WrappedCard(YoulongCard.ClassName) { Skill = Name, Mute = true, UserString = cards[0].Name };
+            }
+            return null;
+        }
+
+        private List<string> GetGuhuoCardNames(Room room, Player player)
+        {
+            List<string> cards = new List<string>();
+
+            int count = player.GetMark("youlong") == 0 ? 1 : 2;
+            List<string> guhuo = GetGuhuoCards(room, count == 1 ? "t" : "b");
+            foreach (string card_name in guhuo)
+            {
+                if (card_name.Contains(Slash.ClassName))
+                {
+                    if (player.GetMark("youlong_Slash") == 0)
+                        cards.Add(card_name);
+                }
+                else
+                {
+                    if (player.GetMark("youlong_" + card_name) == 0)
+                        cards.Add(card_name);
+                }
+            }
+
+            return cards;
+        }
+    }
+
+    public class YoulongCard : SkillCard
+    {
+        public static string ClassName = "YoulongCard";
+        public YoulongCard() : base(ClassName)
+        {
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            WrappedCard real = new WrappedCard(card.UserString);
+            real.AddSubCard(card);
+            real = RoomLogic.ParseUseCard(room, real);
+            FunctionCard fcard = Engine.GetFunctionCard(real.Name);
+            return fcard.TargetFilter(room, targets, to_select, Self, real);
+        }
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            WrappedCard real = new WrappedCard(card.UserString);
+            real.AddSubCard(card);
+            real = RoomLogic.ParseUseCard(room, real);
+            FunctionCard fcard = Engine.GetFunctionCard(real.Name);
+            return fcard.TargetsFeasible(room, targets, Self, real);
+        }
+
+        public override WrappedCard Validate(Room room, CardUseStruct use)
+        {
+            Player player = use.From;
+            int count = player.GetMark("youlong") == 0 ? 1 : 2;
+            player.SetMark("youlong", count == 1 ? 1 : 0);
+            if (count == 1)
+                player.SetMark("youlong_trick", room.Round);
+            else
+                player.SetMark("youlong_basic", room.Round);
+
+            room.BroadcastSkillInvoke("youlong", player, use.Card.SkillPosition);
+
+            List<string> choices = new List<string>();
+            for (int i = 0; i < 5; i++)
+            {
+                if (!player.EquipIsBaned(i))
+                {
+                    switch (i)
+                    {
+                        case 0:
+                            choices.Add("Weapon");
+                            break;
+                        case 1:
+                            choices.Add("Armor");
+                            break;
+                        case 2:
+                            choices.Add("DefensiveHorse");
+                            break;
+                        case 3:
+                            choices.Add("OffensiveHorse");
+                            break;
+                        case 4:
+                            choices.Add("Treasure");
+                            break;
+                    }
+                }
+            }
+
+            string choice = room.AskForChoice(player, "youlong", string.Join("+", choices), new List<string> { "@youlong" });
+            int index = -1;
+            switch (choice)
+            {
+                case "Weapon":
+                    index = 0;
+                    break;
+                case "Armor":
+                    index = 1;
+                    break;
+                case "DefensiveHorse":
+                    index = 2;
+                    break;
+                case "OffensiveHorse":
+                    index = 3;
+                    break;
+                case "Treasure":
+                    index = 4;
+                    break;
+            }
+            room.AbolisheEquip(player, index, Name);
+            if (player.Alive)
+            {
+                string card_name = use.Card.UserString;
+                if (card_name.Contains(Slash.ClassName))
+                    player.SetMark("youlong_Slash", 1);
+                else
+                    player.SetMark("youlong_" + card_name, 1);
+                room.SetTurnSkillState(player, "youlong", count == 1, use.Card.SkillPosition);
+
+                WrappedCard card = new WrappedCard(use.Card.UserString) { Skill = "_youlong" };
+                return card;
+            }
+            else
+                return null;
+        }
+
+        public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
+        {
+            int count = player.GetMark("youlong") == 0 ? 1 : 2;
+            player.SetMark("youlong", count == 1 ? 1 : 0);
+            if (count == 1)
+                player.SetMark("youlong_trick", room.Round);
+            else
+                player.SetMark("youlong_basic", room.Round);
+
+            room.BroadcastSkillInvoke("youlong", player, card.SkillPosition);
+            List<string> choices = new List<string>();
+            for (int i = 0; i < 5; i++)
+            {
+                if (!player.EquipIsBaned(i))
+                {
+                    switch (i)
+                    {
+                        case 0:
+                            choices.Add("Weapon");
+                            break;
+                        case 1:
+                            choices.Add("Armor");
+                            break;
+                        case 2:
+                            choices.Add("DefensiveHorse");
+                            break;
+                        case 3:
+                            choices.Add("OffensiveHorse");
+                            break;
+                        case 4:
+                            choices.Add("Treasure");
+                            break;
+                    }
+                }
+            }
+
+            string choice = room.AskForChoice(player, "youlong", string.Join("+", choices), new List<string> { "@youlong" });
+            int index = -1;
+            switch (choice)
+            {
+                case "Weapon":
+                    index = 0;
+                    break;
+                case "Armor":
+                    index = 1;
+                    break;
+                case "DefensiveHorse":
+                    index = 2;
+                    break;
+                case "OffensiveHorse":
+                    index = 3;
+                    break;
+                case "Treasure":
+                    index = 4;
+                    break;
+            }
+            room.AbolisheEquip(player, index, Name);
+            if (player.Alive)
+            {
+                string card_name = card.UserString;
+                if (card_name.Contains(Slash.ClassName))
+                    player.SetMark("youlong_Slash", 1);
+                else
+                    player.SetMark("youlong_" + card_name, 1);
+                room.SetTurnSkillState(player, "youlong", count == 1, card.SkillPosition);
+
+                WrappedCard new_card = new WrappedCard(card.UserString) { Skill = "_youlong" };
+                return new_card;
+            }
+            else
+                return null;
+        }
+    }
+
+    public class Luanfeng : TriggerSkill
+    {
+        public Luanfeng() : base("luanfeng")
+        {
+            events.Add(TriggerEvent.Dying);
+            skill_type = SkillType.Recover;
+            frequency = Frequency.Limited;
+            limit_mark = "@luanfeng";
+        }
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            List<Player> dacongming = RoomLogic.FindPlayersBySkillName(room, Name);
+            foreach (Player p in dacongming)
+            {
+                if (p.GetMark(limit_mark) > 0 && p.MaxHp <= player.MaxHp)
+                    triggers.Add(new TriggerStruct(Name, p));
+            }
+
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (player.Hp < 1 && room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                room.RemovePlayerMark(ask_who, limit_mark);
+                room.DoSuperLightbox(ask_who, info.SkillPosition, Name);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            int count = Math.Min(player.MaxHp - player.Hp, 3 - player.Hp);
+            RecoverStruct recover = new RecoverStruct();
+            recover.Who = ask_who;
+            recover.Recover = count;
+            room.Recover(player, recover, true);
+
+            int recover_count = 0;
+            if (player.Alive)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    if (room.RecoverEquip(player, i))
+                        recover_count++;
+                }
+            }
+
+            if (player.Alive && player.HandcardNum < 6 - recover_count)
+                room.DrawCards(player, new DrawCardStruct(6 - recover_count - player.HandcardNum, ask_who, Name));
+
+            if (player.Alive && player == ask_who)
+            {
+                List<string> guhuo = ViewAsSkill.GetGuhuoCards(room, "bt");
+                foreach (string card_name in guhuo)
+                {
+                    if (card_name.Contains(Slash.ClassName))
+                        player.SetMark("youlong_Slash", 0);
+                    else
+                        player.SetMark("youlong_" + card_name, 0);
+                }
+            }
+
+            return false;
+        }
+    }
+
+        public class Hongyuan : DrawCardsSkill
     {
         public Hongyuan() : base("hongyuan")
         {

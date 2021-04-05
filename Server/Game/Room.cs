@@ -9535,6 +9535,47 @@ namespace SanguoshaServer.Game
             RoomThread.Trigger(TriggerEvent.EquipBolished, this, player, ref data);
         }
 
+        public bool RecoverEquip(Player player, int index)
+        {
+            if (index >= 5 || !player.EquipIsBaned(index)) return false;
+
+            player.RecoverEquip(index);
+            List<string> args = new List<string>
+                {
+                    GameEventType.S_GAME_EVENT_EQUIP_ABOLISH.ToString(),
+                    player.Name,
+                    index.ToString(),
+                    "false"
+                };
+            DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
+
+            LogMessage log = new LogMessage("#abolish-recover")
+            {
+                From = player.Name,
+            };
+            switch (index)
+            {
+                case 0:
+                    log.Arg = "Weapon";
+                    break;
+                case 1:
+                    log.Arg = "Armor";
+                    break;
+                case 2:
+                    log.Arg = "DefensiveHorse";
+                    break;
+                case 3:
+                    log.Arg = "OffensiveHorse";
+                    break;
+                case 4:
+                    log.Arg = "Treasure";
+                    break;
+            }
+
+            SendLog(log);
+            return true;
+        }
+
         public void AbolishJudgingArea(Player player, string skill)
         {
             if (!player.JudgingAreaAvailable) return;
