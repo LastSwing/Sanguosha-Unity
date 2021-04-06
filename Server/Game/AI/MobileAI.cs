@@ -1421,7 +1421,7 @@ namespace SanguoshaServer.AI
             else
             {
                 string[] choices = choice.Split('+');
-                return choices[choice.Length - 1];
+                return choices[choices.Length - 2];
             }
         }
     }
