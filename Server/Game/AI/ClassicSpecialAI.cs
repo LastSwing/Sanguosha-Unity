@@ -117,6 +117,7 @@ namespace SanguoshaServer.AI
                 new JianjiAI(),
                 new YuxuAI(),
                 new ShijianAI(),
+                new LuanfengAI(),
 
                 new HongyuanAI(),
                 new HuanshiAI(),
@@ -1748,6 +1749,20 @@ namespace SanguoshaServer.AI
                 }
             }
             return new List<int>();
+        }
+    }
+
+    public class LuanfengAI : SkillEvent
+    {
+        public LuanfengAI() : base("luanfen") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target && ai.IsFriend(target))
+            {
+                if (target != player && target.GetRoleEnum() != PlayerRole.Lord) return false;
+                return true;
+            }
+            return false;
         }
     }
 
