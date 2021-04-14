@@ -22,7 +22,6 @@ namespace SanguoshaServer.AI
                 new MoshiAI(),
                 new ShanjiaAI(),
                 new GusheAI(),
-                new JiciAI(),
                 new QizhiAI(),
                 new JinquAI(),
                 new KangkaiAI(),
@@ -2214,7 +2213,7 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            if (!player.IsKongcheng() && player.UsedTimes(GusheCard.ClassName) < 1 + player.GetMark("jici"))
+            if (!player.IsKongcheng() && player.GetMark(Name) + player.GetMark("@she") < 7)
                 return new List<WrappedCard> { new WrappedCard(GusheCard.ClassName) { Skill = Name } };
 
             return new List<WrappedCard>();
@@ -2365,17 +2364,7 @@ namespace SanguoshaServer.AI
             return 3.2;
         }
     }
-
-    public class JiciAI : SkillEvent
-    {
-        public JiciAI() : base("jici") { }
-
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
-        {
-            return true;
-        }
-    }
-
+    
     public class QizhiAI : SkillEvent
     {
         public QizhiAI() : base("qizhi")

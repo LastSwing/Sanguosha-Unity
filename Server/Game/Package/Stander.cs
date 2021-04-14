@@ -4611,8 +4611,6 @@ namespace SanguoshaServer.Package
         {
             if (player != null && RoomLogic.PlayerHasSkill(room, player, Name) && data is DeathStruct death && death.Damage.From != null)
             {
-
-
                 Player target = death.Damage.From;
                 if (!(target.General1.Contains("sujiang") && target.General2.Contains("sujiang")))
                     return new TriggerStruct(Name, player);

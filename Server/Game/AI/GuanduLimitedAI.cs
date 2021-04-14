@@ -1674,7 +1674,7 @@ namespace SanguoshaServer.AI
         {
             Room room = ai.Room;
             CardUseStruct use = new CardUseStruct(null, player, new List<Player>());
-            List<int> ids = player.GetCards("h");
+            List<int> ids = player.GetCards("he");
             ai.SortByKeepValue(ref ids);
             int id = -1;
             foreach (int i in ids)
@@ -1811,7 +1811,7 @@ namespace SanguoshaServer.AI
                 ScoreStruct score = ai.GetDamageScore(_damage);
 
                 List<int> ids = new List<int>(), discount = new List<int>();
-                foreach (int id in player.GetCards("h"))
+                foreach (int id in player.GetCards("he"))
                     if (RoomLogic.CanDiscard(room, player, player, id))
                         ids.Add(id);
 

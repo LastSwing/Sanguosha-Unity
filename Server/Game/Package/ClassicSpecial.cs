@@ -23,6 +23,7 @@ namespace SanguoshaServer.Package
             {
                 new Shefu(),
                 new ShefuClear(),
+                new ShefuInvalid(),
                 new Benyu(),
                 new Mashu("guanyu_sp"),
                 new Nuzhan(),
@@ -298,7 +299,7 @@ namespace SanguoshaServer.Package
 
             related_skills = new Dictionary<string, List<string>>
             {
-                { "shefu", new List<string>{ "#shefu-clear"} },
+                { "shefu", new List<string>{ "#shefu-clear", "#shefu-invalid"} },
                 { "nuzhan", new List<string>{ "#nuzhan" } },
                 { "qiangwu", new List<string>{ "#qiangwu-tar" } },
                 { "huxiao", new List<string>{ "#huxiao-tar" } },
@@ -405,7 +406,7 @@ namespace SanguoshaServer.Package
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player p, TriggerStruct info)
         {
             if (triggerEvent == TriggerEvent.EventPhaseStart)
-                room.AskForUseCard(player, "@@shefu", "@shefu", null, -1, FunctionCard.HandlingMethod.MethodUse, true, info.SkillPosition);
+                room.AskForUseCard(player, "@@shefu", "@shefu", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
             else
             {
                 string card_name = string.Empty;
@@ -449,6 +450,7 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
+            if (player == room.Current) player.SetFlags(Name);
             if (data is CardUseStruct use)
             {
                 LogMessage log = new LogMessage
@@ -504,10 +506,7 @@ namespace SanguoshaServer.Package
 
         public override GuhuoType GetGuhuoType() => GuhuoType.PopUpBox;
 
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
-        {
-            return selected.Count == 0 && room.GetCardPlace(to_select.Id) == Player.Place.PlaceHand;
-        }
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player) => selected.Count == 0;
         public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
         {
             List<WrappedCard> result = new List<WrappedCard>();
@@ -555,6 +554,19 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class ShefuInvalid : InvalidSkill
+    {
+        public ShefuInvalid() : base("#shefu-invalid") { }
+
+        public override bool Invalid(Room room, Player player, string skill)
+        {
+            Skill s = Engine.GetSkill(skill);
+            if (s == null || s.SkillFrequency == Frequency.Compulsory || s.Attached_lord_skill) return false;
+            if (player.HasEquip(skill)) return false;
+            return player.HasFlag("shefu");
+        }
+    }
+
     public class ShefuCard : SkillCard
     {
         public static string ClassName = "ShefuCard";
@@ -597,10 +609,10 @@ namespace SanguoshaServer.Package
             {
                 if (damage.From.HandcardNum > player.HandcardNum && player.HandcardNum < 5)
                     return new TriggerStruct(Name, player);
-                else if (player.HandcardNum > damage.From.HandcardNum)
+                else if (player.GetCardCount(true) > damage.From.HandcardNum)
                 {
                     int count = 0;
-                    foreach (int id in player.GetCards("h"))
+                    foreach (int id in player.GetCards("he"))
                         if (RoomLogic.CanDiscard(room, player, player, id)) count++;
                     if (count > damage.From.HandcardNum)
                         return new TriggerStruct(Name, player);
@@ -624,15 +636,15 @@ namespace SanguoshaServer.Package
                         invoke = true;
                     }
                 }
-                else if (player.HandcardNum > damage.From.HandcardNum)
+                else if (player.GetCardCount(true) > damage.From.HandcardNum)
                 {
                     int count = 0;
-                    foreach (int id in player.GetCards("h"))
+                    foreach (int id in player.GetCards("he"))
                         if (RoomLogic.CanDiscard(room, player, player, id)) count++;
                     if (count > damage.From.HandcardNum)
                     {
                         room.SetTag(Name, data);
-                        invoke = room.AskForDiscard(player, Name, damage.From.HandcardNum + 1, damage.From.HandcardNum + 1, true, false, string.Format("@benyu::{0}:{1}", damage.From.Name, damage.From.HandcardNum + 1), true, info.SkillPosition);
+                        invoke = room.AskForDiscard(player, Name, damage.From.HandcardNum + 1, damage.From.HandcardNum + 1, true, true, string.Format("@benyu::{0}:{1}", damage.From.Name, damage.From.HandcardNum + 1), true, info.SkillPosition);
                         room.RemoveTag(Name);
 
                         if (invoke)
@@ -1706,17 +1718,33 @@ namespace SanguoshaServer.Package
         }
     }
 
-
-
-    public class Gushe : ZeroCardViewAsSkill
+    public class Gushe : TriggerSkill
     {
         public Gushe() : base("gushe")
+        {
+            skill_type = SkillType.Attack;
+            view_as_skill = new GusheVS();
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                player.SetMark(Name, 0);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    public class GusheVS : ZeroCardViewAsSkill
+    {
+        public GusheVS() : base("gushe")
         {
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return !player.IsKongcheng() && player.UsedTimes(GusheCard.ClassName) < 1 + player.GetMark("jici");
+            return !player.IsKongcheng() && player.GetMark(Name) + player.GetMark("@she") < 7;
         }
         public override WrappedCard ViewAs(Room room, Player player)
         {
@@ -1745,7 +1773,7 @@ namespace SanguoshaServer.Package
         {
             Player player = card_use.From;
             PindianStruct pd = room.PindianSelect(player, card_use.To, "gushe", null);
-            
+
             for (int i = 0; i < card_use.To.Count; i++)
             {
                 room.Pindian(ref pd, i);
@@ -1762,6 +1790,7 @@ namespace SanguoshaServer.Package
                 else
                     loser.Add(player);
 
+                if (!loser.Contains(player)) player.AddMark("gushe");
                 foreach (Player p in loser)
                 {
                     if (p.Alive)
@@ -1803,6 +1832,44 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
+
+            //激词的获得点数最大的卡牌要放在这里
+            if (player.HasFlag("jici") && player.Alive)
+            {
+                player.SetFlags("-jici");
+                int max_id = -1, max_number = 0;
+                if (pd.From_card.Number > max_number)
+                {
+                    max_number = pd.From_card.Number;
+                    max_id = pd.From_card.Id;
+                }
+                foreach (WrappedCard card in pd.To_cards)
+                {
+                    if (card.Number > max_number)
+                    {
+                        max_number = card.Number;
+                        max_id = card.Id;
+                    }
+                }
+
+                //匹配是否唯一最大
+                bool same = false;
+                if (pd.From_card.Number == max_number && pd.From_card.Id != max_id)
+                {
+                    same = true;
+                }
+                foreach (WrappedCard card in pd.To_cards)
+                {
+                    if (card.Number == max_number && card.Id != max_id)
+                    {
+                        same = true;
+                        break;
+                    }
+                }
+
+                if (!same && max_id > -1  && room.GetCardPlace(max_id) == Place.DiscardPile)
+                    room.ObtainCard(player, room.GetCard(max_id), new CardMoveReason(MoveReason.S_REASON_RECYCLE, player.Name, "jici", string.Empty));
+            }
         }
     }
 
@@ -1810,15 +1877,12 @@ namespace SanguoshaServer.Package
     {
         public Jici() : base("jici")
         {
-            events = new List<TriggerEvent> { TriggerEvent.PindianVerifying, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.PindianVerifying, TriggerEvent.Pindian, TriggerEvent.Death };
+            frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.GetMark(Name) > 0)
-            {
-                player.SetMark(Name, 0);
-            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -1828,34 +1892,32 @@ namespace SanguoshaServer.Package
             {
                 return new TriggerStruct(Name, player);
             }
-            return new TriggerStruct();
-        }
-        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
-        {
-            bool invoke = true;
-            if (data is PindianStruct pindian)
+            else if (player != null && RoomLogic.PlayerHasSkill(room, player, Name) && data is DeathStruct death && death.Damage.From != null && death.Damage.From.Alive)
             {
-                if (pindian.From_number < player.GetMark("@she"))
-                    invoke = room.AskForSkillInvoke(player, Name, "@jici:::" + player.GetMark("@she").ToString(), info.SkillPosition);
-                else
-                    room.NotifySkillInvoked(player, Name);
-
-                if (invoke)
-                {
-                    GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
-                    room.BroadcastSkillInvoke(Name, "male", pindian.From_number < player.GetMark("@she") ? 1 : 2, gsk.General, gsk.SkinId);
-                    return info;
-                }
+                return new TriggerStruct(Name, player);
             }
 
             return new TriggerStruct();
         }
+
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player sunce, TriggerStruct info)
         {
-            PindianStruct pindian = (PindianStruct)data;
-            int count = player.GetMark("@she");
-            if (pindian.From_number < count)
+            room.SendCompulsoryTriggerLog(player, Name);
+            if (triggerEvent == TriggerEvent.Death && data is DeathStruct death)
             {
+                Player target = death.Damage.From;
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                int count = 7 - player.GetMark("@she");
+                if (count > 0 && !target.IsNude())
+                    room.AskForDiscard(target, Name, count, count, false, true, string.Format("@jici-discard:{0}::{1}", player.Name, count));
+                if (target.Alive) room.LoseHp(target);
+            }
+            else
+            {
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+
+                PindianStruct pindian = (PindianStruct)data;
+                int count = player.GetMark("@she");
                 pindian.From_number = Math.Min(13, pindian.From_number + count);
                 data = pindian;
                 LogMessage log = new LogMessage
@@ -1865,18 +1927,8 @@ namespace SanguoshaServer.Package
                     Arg = pindian.From_number.ToString()
                 };
                 room.SendLog(log);
-            }
-            else
-            {
-                LogMessage log = new LogMessage
-                {
-                    From = player.Name,
-                    Type = "#gushe-add",
-                    Arg = "gushe"
-                };
-                room.SendLog(log);
 
-                player.AddMark(Name);
+                player.SetFlags(Name);
             }
 
             return false;
