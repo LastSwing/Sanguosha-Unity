@@ -55,7 +55,6 @@ namespace SanguoshaServer.Package
                 new SanyaoCard(),
                 new YongjinCard(),
                 //new DiaoduequipCard(),
-                new DiaoduCard(),
                 new LianziCard(),
                 new FlamemapCard(),
                 new YiguiCard(),
@@ -1820,13 +1819,19 @@ namespace SanguoshaServer.Package
     {
         public Diaodu() : base("diaodu")
         {
-            view_as_skill = new DiaoduVS();
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.CardUsed, TriggerEvent.EventPhaseChanging };
             skill_type = SkillType.Replenish;
         }
 
         public override bool CanPreShow() => true;
-
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasFlag(Name)) p.SetFlags("-diaodu");
+            }
+        }
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             List<TriggerStruct> result = new List<TriggerStruct>();
@@ -1838,7 +1843,7 @@ namespace SanguoshaServer.Package
                     List<Player> lfs = RoomLogic.FindPlayersBySkillName(room, Name);
                     foreach (Player p in lfs)
                     {
-                        if (RoomLogic.IsFriendWith(room, player, p))
+                        if (RoomLogic.IsFriendWith(room, player, p) && !p.HasFlag(Name))
                             result.Add(new TriggerStruct(Name, player, p));
                     }
                 }
@@ -1861,64 +1866,43 @@ namespace SanguoshaServer.Package
                 if (ask_who != owner) room.NotifySkillInvoked(owner, Name);
                 room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, info.SkillOwner, player.Name);
                 room.BroadcastSkillInvoke(Name, owner, info.SkillPosition);
+                owner.SetFlags(Name);
                 return info;
             }
             else if (triggerEvent == TriggerEvent.EventPhaseStart)
-                room.AskForUseCard(player, "@@diaodu", "@diaodu", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+            {
+                List<Player> targets = new List<Player>();
+                foreach (Player p in room.GetAlivePlayers())
+                    if (RoomLogic.IsFriendWith(room, player, p) && p.HasEquip() && RoomLogic.CanGetCard(room, player, p, "e"))
+                        targets.Add(p);
+
+                if (targets.Count > 0)
+                {
+                    player.SetFlags("diaodu_start");
+                    Player target = room.AskForPlayerChosen(player, targets, Name, "@diaodu", true, true, info.SkillPosition);
+                    player.SetFlags("-diaodu_start");
+                    if (target != null)
+                    {
+                        room.SetTag(Name, target);
+                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        return info;
+                    }
+                }
+            }
 
             return new TriggerStruct();
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             if (triggerEvent == TriggerEvent.CardUsed && ask_who.Alive)
+            {
                 room.DrawCards(ask_who, 1, Name);
-
-            return false;
-        }
-    }
-
-    public class DiaoduVS : ViewAsSkill
-    {
-        public DiaoduVS() : base("diaodu") { response_pattern = "@@diaodu"; }
-        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
-        {
-            return selected.Count == 0 && Engine.GetFunctionCard(to_select.Name) is EquipCard;
-        }
-
-        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
-        {
-            WrappedCard card = new WrappedCard(DiaoduCard.ClassName)
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && room.GetTag(Name) is Player target)
             {
-                Skill = Name,
-                ShowSkill = Name
-            };
-            card.AddSubCards(cards);
-
-            return card;
-        }
-    }
-
-    public class DiaoduCard : SkillCard
-    {
-        public static string ClassName = "DiaoduCard";
-        public DiaoduCard() : base(ClassName)
-        { }
-
-        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
-        {
-            if (targets.Count > 0 || to_select == Self) return false;
-
-            return card.SubCards.Count == 0 && to_select.HasEquip() && RoomLogic.IsFriendWith(room, to_select, Self)
-                && RoomLogic.CanGetCard(room, Self, to_select, "e") || card.SubCards.Count == 1;
-        }
-
-        public override void Use(Room room, CardUseStruct card_use)
-        {
-            Player player = card_use.From;
-            Player target = card_use.To[0];
-            if (card_use.Card.SubCards.Count == 0 && target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
-            {
-                int id = room.AskForCardChosen(player, target, "e", "diaodu", false, HandlingMethod.MethodGet); List<int> ids = new List<int> { id };
+                room.RemoveTag(Name);
+                int id = room.AskForCardChosen(player, target, "e", "diaodu", false, HandlingMethod.MethodGet);
+                List<int> ids = new List<int> { id };
                 room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, "diaodu", string.Empty));
 
                 if (ids.Count == 1 && room.GetCardPlace(ids[0]) == Place.PlaceHand && room.GetCardOwner(ids[0]) == player)
@@ -1926,31 +1910,24 @@ namespace SanguoshaServer.Package
                     List<Player> targets = room.GetOtherPlayers(target);
                     targets.Remove(player);
 
-                    player.SetTag("diaodu", id);
-                    Player second = room.AskForPlayerChosen(player, targets, "diaodu", "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, card_use.Card.SkillPosition);
-                    player.RemoveTag("diaodu");
+                    player.SetTag(Name, id);
+                    Player second = room.AskForPlayerChosen(player, targets, "diaodu", "@diaodu-give:::" + room.GetCard(ids[0]).Name, true, false, info.SkillPosition);
+                    player.RemoveTag(Name);
                     if (second != null)
                     {
-                        ResultStruct result = card_use.From.Result;
-                        result.Assist += card_use.Card.SubCards.Count;
-                        card_use.From.Result = result;
+                        ResultStruct result = player.Result;
+                        result.Assist += 1;
+                        player.Result = result;
 
                         room.ObtainCard(second, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, second.Name, "diaodu", string.Empty));
                     }
                 }
             }
-            else if (card_use.Card.SubCards.Count == 1)
-            {
-                ResultStruct result = card_use.From.Result;
-                result.Assist += 1;
-                card_use.From.Result = result;
 
-                List<int> ids = new List<int>(card_use.Card.SubCards);
-                room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "diaodu", string.Empty));
-            }
+            return false;
         }
     }
-
+    
     public class Diancai : TriggerSkill
     {
         public Diancai() : base("diancai")

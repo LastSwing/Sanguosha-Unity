@@ -5940,7 +5940,7 @@ namespace SanguoshaServer.Package
     {
         public Luanzhan() : base("luanzhan")
         {
-            events = new List<TriggerEvent> { TriggerEvent.CardTargetAnnounced, TriggerEvent.TargetChosen, TriggerEvent.Damage,
+            events = new List<TriggerEvent> { TriggerEvent.CardTargetAnnounced, TriggerEvent.TargetChosen, TriggerEvent.Damage, TriggerEvent.Damaged,
                 TriggerEvent.GameStart, TriggerEvent.EventLoseSkill, TriggerEvent.EventAcquireSkill };
             skill_type = SkillType.Attack;
         }
@@ -5956,7 +5956,7 @@ namespace SanguoshaServer.Package
             }
             else if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct _info && _info.Info == Name)
                 room.RemovePlayerStringMark(player, Name);
-            else if (triggerEvent == TriggerEvent.Damage)
+            else if ((triggerEvent == TriggerEvent.Damage || triggerEvent == TriggerEvent.Damaged) && base.Triggerable(player, room))
             {
                 player.AddMark(Name);
                 if (player.StringMarks.ContainsKey(Name))
@@ -5968,9 +5968,10 @@ namespace SanguoshaServer.Package
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is Slash || (fcard is TrickCard && WrappedCard.IsBlack(use.Card.Suit) && !(fcard is DelayedTrick) && !(fcard is Nullification)))
                 {
-                    player.SetMark(Name, 0);
+                    int count = player.GetMark(Name) / 2;
+                    player.SetMark(Name, count);
                     if (player.StringMarks.ContainsKey(Name))
-                        room.SetPlayerStringMark(player, Name, "0");
+                        room.SetPlayerStringMark(player, Name, count.ToString());
                 }
             }
         }

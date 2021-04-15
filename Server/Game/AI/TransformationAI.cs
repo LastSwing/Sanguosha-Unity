@@ -1052,197 +1052,115 @@ namespace SanguoshaServer.AI
         {
             return true;
         }
-
-        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
-        {
-            CardUseStruct use = new CardUseStruct
-            {
-                From = player,
-                To = new List<Player>()
-            };
-            Room room = ai.Room;
-            List<int> ids = new List<int>();
-            foreach (int id in player.GetCards("he"))
-            {
-                if (Engine.GetFunctionCard(room.GetCard(id).Name) is EquipCard)
-                    ids.Add(id);
-            }
-            if (ids.Count > 0)
-            {
-                ai.SortByKeepValue(ref ids);
-                if (ai.GetKeepValue(ids[0], player) < 0)
-                {
-                    foreach (Player p in room.GetOtherPlayers(player))
-                    {
-                        if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && ai.IsFriend(p))
-                        {
-                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                            use.Card.AddSubCard(ids[0]);
-                            use.To.Add(p);
-                            return use;
-                        }
-                    }
-
-                    foreach (Player p in room.GetOtherPlayers(player))
-                    {
-                        if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(ids[0]), p) == null)
-                        {
-                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                            use.Card.AddSubCard(ids[0]);
-                            use.To.Add(p);
-                            return use;
-                        }
-                    }
-                }
-            }
-
-            double best_value = 0;
-            Player target = null;
-            List<Player> targets = new List<Player>();
-            foreach (Player p in room.GetOtherPlayers(player))
-            {
-                if (RoomLogic.IsFriendWith(room, p, player) && RoomLogic.CanGetCard(room, player, p, "e"))
-                    targets.Add(p);
-            }
-            foreach (Player p in targets)
-            {
-                foreach (int card_id in player.GetEquips())
-                {
-                    if (RoomLogic.CanGetCard(room, player, p, card_id))
-                    {
-                        double v = ai.GetKeepValue(card_id, p, Player.Place.PlaceEquip);
-                        if (v < best_value)
-                        {
-                            best_value = v;
-                            target = p;
-                        }
-                    }
-                }
-            }
-            if (target != null)
-            {
-                use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                use.To.Add(target);
-                return use;
-            }
-
-            foreach (Player p in targets)
-            {
-                foreach (int card_id in player.GetEquips())
-                {
-                    if (!RoomLogic.CanGetCard(room, player, p, card_id)) continue;
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
-                    if (fcard is Weapon || fcard is OffensiveHorse)
-                    {
-                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                        use.To.Add(p);
-                        return use;
-                    }
-                }
-            }
-
-            foreach (Player p in targets)
-            {
-                foreach (int card_id in player.GetEquips())
-                {
-                    if (!RoomLogic.CanGetCard(room, player, p, card_id)) continue;
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
-                    if ((fcard is Armor || fcard is DefensiveHorse || fcard is SpecialEquip) && ai.GetEnemisBySeat(p) == 0)
-                    {
-                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                        use.To.Add(p);
-                        return use;
-                    }
-                }
-            }
-
-            foreach (Player p in targets)
-            {
-                foreach (int card_id in player.GetEquips())
-                {
-                    if (!RoomLogic.CanGetCard(room, player, p, card_id)) continue;
-                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
-                    if (fcard is Treasure)
-                    {
-                        if (fcard is WoodenOx && p.GetPile("wooden_ox").Count > 0 || ai.GetSameEquip(room.GetCard(card_id), player) != null) continue;
-                        List<int> self_ids = player.GetCards("h");
-                        self_ids.AddRange(player.GetHandPile());
-                        foreach (int _id in self_ids)
-                            if (Engine.GetFunctionCard(room.GetCard(_id).Name) is Treasure)
-                                continue;
-
-                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                        use.To.Add(p);
-                        return use;
-                    }
-                }
-            }
-
-            foreach (Player p in room.GetOtherPlayers(player))
-            {
-                if (ai.HasSkill(TrustedAI.LoseEquipSkill, p) && p.GetEquips().Count > 0 && RoomLogic.IsFriendWith(room, player, p))
-                {
-                    if (p.GetOffensiveHorse() && RoomLogic.CanGetCard(room, player, p, p.OffensiveHorse.Key))
-                    {
-                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                        use.To.Add(p);
-                        return use;
-                    }
-                    if (p.GetWeapon() && RoomLogic.CanGetCard(room, player, p, p.Weapon.Key))
-                    {
-                        use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                        use.To.Add(p);
-                        return use;
-                    }
-
-                    foreach (Player p2 in ai.GetFriends(player))
-                    {
-                        if (p2 != p && ai.HasSkill(TrustedAI.LoseEquipSkill, p2))
-                        {
-                            use.Card = new WrappedCard(DiaoduCard.ClassName) { Skill = Name, ShowSkill = Name };
-                            use.To.Add(p);
-                            return use;
-                        }
-                    }
-                }
-            }
-
-            return use;
-        }
-
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> target, int min, int max)
         {
-            if (ai.HasSkill(TrustedAI.LoseEquipSkill)) return new List<Player>();
-            foreach (Player p in target)
-                if (ai.IsFriend(p) && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
-                    return new List<Player> { p };
-
             Room room = ai.Room;
-            int id = (int)player.GetTag(Name);
-            if (Engine.GetFunctionCard(room.GetCard(id).Name) is EquipCard fequip)
+            if (player.HasFlag("diaodu_start"))
             {
-                WrappedCard equip = ai.GetSameEquip(room.GetCard(id), player);
-                if (equip != null)
+                double best_value = 0;
+                Player friend = null;
+                List<Player> targets = new List<Player>();
+                foreach (Player p in room.GetAlivePlayers())
                 {
-                    foreach (Player p in target)
-                        if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(id), p) == null)
-                            return new List<Player> { p };
+                    if (RoomLogic.IsFriendWith(room, p, player) && RoomLogic.CanGetCard(room, player, p, "e"))
+                        targets.Add(p);
                 }
-                List<int> ids = player.GetCards("h");
-                ids.AddRange(player.GetHandPile());
-                foreach (int card_id in ids)
+                foreach (Player p in targets)
                 {
-                    if (card_id == id) continue;
-                    if (Engine.GetFunctionCard(room.GetCard(card_id).Name) is EquipCard _fequip)
+                    foreach (int card_id in player.GetEquips())
                     {
-                        if (_fequip.EquipLocation() == fequip.EquipLocation()
-                            || (fequip.EquipLocation() == EquipCard.Location.SpecialLocation && _fequip.EquipLocation() == EquipCard.Location.DefensiveHorseLocation)
-                            || (_fequip.EquipLocation() == EquipCard.Location.SpecialLocation && (fequip.EquipLocation() == EquipCard.Location.DefensiveHorseLocation
-                            || fequip.EquipLocation() == EquipCard.Location.OffensiveHorseLocation)))
+                        if (RoomLogic.CanGetCard(room, player, p, card_id))
                         {
-                            foreach (Player p in target)
-                                if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(id), p) == null)
-                                    return new List<Player> { p };
+                            double v = ai.GetKeepValue(card_id, p, Player.Place.PlaceEquip);
+                            if (v < best_value)
+                            {
+                                best_value = v;
+                                friend = p;
+                            }
+                        }
+                    }
+                }
+                if (friend != null) return new List<Player> { friend };
+
+                if (player.HasEquip() && (!player.HasEquip(WoodenOx.ClassName) || player.GetPile("wooden_ox").Count == 0 || player.GetEquips().Count > 1))
+                    return new List<Player> { player };
+
+                bool equip = false;
+                foreach (int id in player.GetCards("h"))
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(id).Name);
+                    if (fcard is EquipCard)
+                    {
+                        equip = true;
+                        break;
+                    }
+                }
+                if (!equip)
+                {
+                    foreach (Player p in targets)
+                    {
+                        foreach (int card_id in p.GetEquips())
+                        {
+                            if (!RoomLogic.CanGetCard(room, player, p, card_id)) continue;
+                            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
+                            if ((fcard is Armor || fcard is DefensiveHorse || fcard is SpecialEquip) && ai.GetEnemisBySeat(p) == 0)
+                                return new List<Player> { p };
+                        }
+                    }
+
+                    foreach (Player p in targets)
+                    {
+                        foreach (int card_id in p.GetEquips())
+                        {
+                            if (!RoomLogic.CanGetCard(room, player, p, card_id)) continue;
+                            FunctionCard fcard = Engine.GetFunctionCard(room.GetCard(card_id).Name);
+                            if (fcard is Treasure)
+                            {
+                                if (fcard is WoodenOx && p.GetPile("wooden_ox").Count > 0 || ai.GetSameEquip(room.GetCard(card_id), player) != null) continue;
+                                List<int> self_ids = player.GetCards("h");
+                                self_ids.AddRange(player.GetHandPile());
+                                foreach (int _id in self_ids)
+                                    if (Engine.GetFunctionCard(room.GetCard(_id).Name) is Treasure)
+                                        continue;
+                                return new List<Player> { p };
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (ai.HasSkill(TrustedAI.LoseEquipSkill)) return new List<Player>();
+                foreach (Player p in target)
+                    if (ai.IsFriend(p) && (ai.HasSkill(TrustedAI.LoseEquipSkill, p) || ai.HasSkill(TrustedAI.NeedEquipSkill, p)))
+                        return new List<Player> { p };
+                
+                int id = (int)player.GetTag(Name);
+                if (Engine.GetFunctionCard(room.GetCard(id).Name) is EquipCard fequip)
+                {
+                    WrappedCard equip = ai.GetSameEquip(room.GetCard(id), player);
+                    if (equip != null)
+                    {
+                        foreach (Player p in target)
+                            if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(id), p) == null)
+                                return new List<Player> { p };
+                    }
+                    List<int> ids = player.GetCards("h");
+                    ids.AddRange(player.GetHandPile());
+                    foreach (int card_id in ids)
+                    {
+                        if (card_id == id) continue;
+                        if (Engine.GetFunctionCard(room.GetCard(card_id).Name) is EquipCard _fequip)
+                        {
+                            if (_fequip.EquipLocation() == fequip.EquipLocation()
+                                || (fequip.EquipLocation() == EquipCard.Location.SpecialLocation && _fequip.EquipLocation() == EquipCard.Location.DefensiveHorseLocation)
+                                || (_fequip.EquipLocation() == EquipCard.Location.SpecialLocation && (fequip.EquipLocation() == EquipCard.Location.DefensiveHorseLocation
+                                || fequip.EquipLocation() == EquipCard.Location.OffensiveHorseLocation)))
+                            {
+                                foreach (Player p in target)
+                                    if (ai.IsFriend(p) && ai.GetSameEquip(room.GetCard(id), p) == null)
+                                        return new List<Player> { p };
+                            }
                         }
                     }
                 }
