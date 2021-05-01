@@ -2264,6 +2264,9 @@ namespace SanguoshaServer.Package
             room.SetPlayerMark(player, Name, 1);
             room.SendCompulsoryTriggerLog(player, Name);
 
+            room.SetPlayerMark(player, "kunfen_description_index", 1);
+            room.RefreshSkill(player);
+
             room.LoseMaxHp(player);
             RecoverStruct recover = new RecoverStruct
             {
@@ -9221,6 +9224,10 @@ namespace SanguoshaServer.Package
             room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
             room.DoSuperLightbox(player, info.SkillPosition, Name);
             room.SetPlayerMark(player, Name, 1);
+
+            room.SetPlayerMark(player, "mubing_description_index", 1);
+            room.RefreshSkill(player);
+
             room.SendCompulsoryTriggerLog(player, Name);
             room.RemovePlayerStringMark(player, Name);
             List<string> choices = new List<string> { "draw" };

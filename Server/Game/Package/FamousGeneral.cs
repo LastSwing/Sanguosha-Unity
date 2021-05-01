@@ -176,6 +176,7 @@ namespace SanguoshaServer.Package
                 new Chunlao(),
                 new Pojun(),
                 new Gongqi(),
+                new GongqiTar(),
                 new Jiefan(),
                 new Danshou(),
                 new Duodao(),
@@ -246,7 +247,7 @@ namespace SanguoshaServer.Package
                 { "shenduan", new List<string>{ "#shenduan-clear" } },
                 { "mingjian", new List<string>{ "#mingjian-tar", "#mingjian-max" } },
                 { "quanji", new List<string>{ "#quanji-max" } },
-                //{ "zishou", new List<string>{ "#zishou-prohibit" } },
+                { "gongqi", new List<string>{ "#gongqi-tar" } },
                 { "zishou", new List<string>{ "#zishou" } },
                 { "zongshi", new List<string>{ "#zongshi-max" } },
                 { "xianzhen", new List<string>{ "#xianzhen-tar", "#xianzhen-max" } },
@@ -4987,15 +4988,48 @@ namespace SanguoshaServer.Package
         public Jueqing() : base("jueqing")
         {
             frequency = Frequency.Compulsory;
-            events.Add(TriggerEvent.Predamage);
+            events = new List<TriggerEvent> { TriggerEvent.Predamage, TriggerEvent.DamageCaused, TriggerEvent.DamageComplete };
             skill_type = SkillType.Attack;
         }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.DamageComplete && data is DamageStruct damage && damage.From != null && damage.From.HasFlag(Name))
+            {
+                damage.From.SetFlags("-jueqing");
+                room.SetPlayerMark(damage.From, string.Format("{0}_description_index", Name), 1);
+                room.RefreshSkill(damage.From);
+            }
+        }
+
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is DamageStruct damage && base.Triggerable(player, room))
+            if (triggerEvent == TriggerEvent.Predamage && base.Triggerable(player, room) && player.GetMark(Name) > 0)
             {
                 return new TriggerStruct(Name, player);
             }
+            else if (triggerEvent == TriggerEvent.DamageCaused && data is DamageStruct damage && base.Triggerable(player, room) && player.Hp >= damage.Damage && player.GetMark(Name) == 0)
+            {
+                return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.DamageCaused && data is DamageStruct damage)
+            {
+                room.SetTag(Name, data);
+                bool invoke = room.AskForSkillInvoke(player, Name, damage.To, info.SkillPosition);
+                room.RemoveTag(Name);
+                if (invoke)
+                {
+                    room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, damage.To.Name);
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    return info;
+                }
+            }
+            else if (triggerEvent == TriggerEvent.Predamage)
+                return info;
+
             return new TriggerStruct();
         }
 
@@ -5003,10 +5037,31 @@ namespace SanguoshaServer.Package
         {
             if (data is DamageStruct damage)
             {
-                room.SendCompulsoryTriggerLog(player, Name);
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
-                room.LoseHp(damage.To, damage.Damage);
-                return true;
+                if (triggerEvent == TriggerEvent.Predamage)
+                {
+                    room.SendCompulsoryTriggerLog(player, Name);
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.LoseHp(damage.To, damage.Damage);
+                    return true;
+                }
+                else
+                {
+                    player.SetMark(Name, 1);
+                    player.SetFlags(Name);
+                    room.LoseHp(player, damage.Damage);
+                    damage.Damage *= 2;
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#AddDamage",
+                        From = player.Name,
+                        To = new List<string> { damage.To.Name },
+                        Arg = Name,
+                        Arg2 = (damage.Damage).ToString()
+                    };
+                    room.SendLog(log);
+
+                    data = damage;
+                }
             }
 
             return false;
@@ -7348,6 +7403,9 @@ namespace SanguoshaServer.Package
                     From = target.Name
                 };
                 room.SendLog(log);
+
+                room.SetPlayerMark(target, "danxin_description_index", target.GetMark(Name));
+                room.RefreshSkill(target);
             }
         }
     }
@@ -11426,13 +11484,24 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class GongqiCard:SkillCard
+    public class GongqiCard : SkillCard
 {
         public static string ClassName = "GongqiCard";
         public GongqiCard() : base(ClassName)
         {
             target_fixed = true;
         }
+
+        public override void OnUse(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            WrappedCard.CardSuit suit = room.GetCard(card_use.Card.SubCards[0]).Suit;
+            string suit_string = WrappedCard.GetSuitIcon(suit);
+            player.SetTag("gongqi", suit);
+            room.SetPlayerStringMark(player, "gongqi", suit_string);
+            base.OnUse(room, card_use);
+        }
+
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player source = card_use.From;
@@ -11459,9 +11528,29 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Gongqi : OneCardViewAsSkill
+    public class Gongqi : TriggerSkill
     {
         public Gongqi() : base("gongqi")
+        {
+            events.Add(TriggerEvent.EventPhaseChanging);
+            view_as_skill = new GongqiVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.ContainsTag(Name))
+            {
+                player.RemoveTag(Name);
+                room.RemovePlayerStringMark(player, Name);
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    public class GongqiVS : OneCardViewAsSkill
+    {
+        public GongqiVS() : base("gongqi")
         {
             filter_pattern = ".!";
         }
@@ -11474,6 +11563,21 @@ namespace SanguoshaServer.Package
             WrappedCard gq = new WrappedCard(GongqiCard.ClassName) { Skill = Name, Mute = true };
             gq.AddSubCard(card);
             return gq;
+        }
+    }
+
+    public class GongqiTar : TargetModSkill
+    {
+        public GongqiTar() : base("#gongqi-tar", false)
+        {
+        }
+
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
+        {
+            if (from != null && from.ContainsTag("gongqi") && from.GetTag("gongqi") is WrappedCard.CardSuit suit && suit == RoomLogic.GetCardSuit(room, card))
+                return 999;
+
+            return 0;
         }
     }
 
@@ -11490,7 +11594,7 @@ namespace SanguoshaServer.Package
         }
         public override void OnUse(Room room, CardUseStruct card_use)
         {
-            room.SetPlayerMark(card_use.From, "@rescue", 0);
+            if (room.Round > 1) room.SetPlayerMark(card_use.From, "@rescue", 0);
             room.BroadcastSkillInvoke("jiefan", card_use.From, card_use.Card.SkillPosition);
             room.DoSuperLightbox(card_use.From, card_use.Card.SkillPosition, "jiefan");
 
@@ -11526,7 +11630,7 @@ namespace SanguoshaServer.Package
         }
         public override bool IsEnabledAtPlay(Room room, Player player)
         {
-            return player.GetMark(limit_mark) >= 1;
+            return !player.HasUsed(JiefanCard.ClassName) && player.GetMark(limit_mark) >= 1;
         }
         public override WrappedCard ViewAs(Room room, Player player)
         {
@@ -12499,6 +12603,10 @@ namespace SanguoshaServer.Package
                     {
                         player.SetMark("xingxue", 1);
                         player.SetMark("yanzhu", 1);
+
+                        room.SetPlayerMark(player, "xingxue_description_index", 1);
+                        room.SetPlayerMark(player, "yanzhu_description_index", 1);
+                        room.RefreshSkill(player);
                     }
                 }
                 else

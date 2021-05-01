@@ -1641,7 +1641,7 @@ namespace SanguoshaServer.AI
             if (damage.Steped < DamageStruct.DamageStep.Done && step <= DamageStruct.DamageStep.Done)
             {
                 if (damage.Card != null && damage.Card.HasFlag("chijie")) return 0;
-                if (damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && HasSkill("renshi", to)) return 0;
+                if (damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && HasSkill("renshi", to) && to.IsWounded()) return 1;
                 if (damage.Card != null && HasSkill("wuyan", to))
                 {
                     FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
@@ -3780,9 +3780,10 @@ namespace SanguoshaServer.AI
         public virtual bool IsSpreadStarter(DamageStruct damage, bool for_self = true)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi|gangzhi_classic|lixun", damage.To) || (damage.From != null && HasSkill("jueqing|gangzhi_classic", damage.From)))
+                || HasSkill("gangzhi|gangzhi_classic|lixun", damage.To) || (damage.From != null && HasSkill("gangzhi_classic", damage.From))
+                || (damage.From != null && HasSkill("jueqing", damage.From) && damage.From.GetMark("jueqing") > 0))
                 return false;
-            if (damage.Card != null && HasSkill("renshi", damage.To) && damage.Card.Name.Contains(Slash.ClassName)) return false;
+            if (damage.Card != null && HasSkill("renshi", damage.To) && damage.Card.Name.Contains(Slash.ClassName) && damage.To.IsWounded()) return false;
 
             List<Player> players = GetSpreadTargets(damage);
             return players.Count > 0;
@@ -3791,7 +3792,8 @@ namespace SanguoshaServer.AI
         public virtual double ChainDamage(DamageStruct damage)
         {
             if (damage.To == null || !damage.To.Alive || !damage.To.Chained || damage.Chain || damage.Damage <= 0 || damage.Nature == DamageStruct.DamageNature.Normal
-                || HasSkill("gangzhi|gangzhi_classic", damage.To) || (damage.From != null && HasSkill("jueqing|gangzhi_classic", damage.From)))
+                || HasSkill("gangzhi|gangzhi_classic", damage.To) || (damage.From != null && HasSkill("gangzhi_classic", damage.From))
+                || (damage.From != null && HasSkill("jueqing", damage.From) && damage.From.GetMark("jueqing") > 0))
                 return 0;
 
             List<Player> players = GetSpreadTargets(damage);
@@ -4243,7 +4245,7 @@ namespace SanguoshaServer.AI
             Player from = damage.From;
             Player to = damage.To;
 
-            if (from == null || HasSkill("jueqing|gangzhi_classic", from)) return false;
+            if (from == null || HasSkill("gangzhi_classic", from) || (HasSkill("jueqing", from) && from.GetMark("jueqing") > 0)) return false;
 
             if (!HasSkill("tianxiang|tianxiang_jx", to) || damage.Damage <= 0 || IsFriend(to)
                 || (GetKnownCards(to).Count == to.HandcardNum && GetKnownCardsNums(".|heart", "h", to, self) == 0)

@@ -10188,6 +10188,16 @@ namespace SanguoshaServer.Game
                 GameEventType.S_GAME_EVENT_SKILL_TURN.ToString(),
                 player.Name,
             };
+            DoNotify(GetClient(player), CommandType.S_COMMAND_LOG_EVENT, arg);
+        }
+
+        public void RefreshSkill(Player player)
+        {
+            List<string> arg = new List<string>
+            {
+                GameEventType.S_GAME_EVENT_REFRESH_SKILLS.ToString(),
+                player.Name,
+            };
             DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, arg);
         }
 

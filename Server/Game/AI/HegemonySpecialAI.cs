@@ -15,6 +15,9 @@ namespace SanguoshaServer.AI
             {
                 new TunchuAI(),
                 new ShuliangAI(),
+                new QiaoAI(),
+                new ChengshangAI(),
+
                 new DujinAI(),
                 new GuishuAI(),
                 new YuanyuAI(),
@@ -113,6 +116,24 @@ namespace SanguoshaServer.AI
 
             return new List<int>();
         }
+    }
+
+    public class QiaoAI : SkillEvent
+    {
+        public QiaoAI() : base("qiao") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (data is Player target && !ai.IsFriend(target))
+                return true;
+
+            return false;
+        }
+    }
+
+    public class ChengshangAI : SkillEvent
+    {
+        public ChengshangAI() : base("chengshang") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
     }
 
     public class DujinAI : SkillEvent

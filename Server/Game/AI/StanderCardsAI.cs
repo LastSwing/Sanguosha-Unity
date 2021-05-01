@@ -108,7 +108,8 @@ namespace SanguoshaServer.AI
                             {
                                 ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
                             }
-                            else if (ai.HasSkill(TrustedAI.MasochismSkill, p) && ai.HasSkill("jueqing|gangzhi_classic", player))
+                            else if (ai.HasSkill(TrustedAI.MasochismSkill, p) && (ai.HasSkill("gangzhi_classic", player)
+                                || ai.HasSkill("jueqing", player) && player.GetMark("jueqing") > 0))
                             {
                                 ai.UpdatePlayerRelation(player, p, false);
                             }
@@ -4692,7 +4693,9 @@ namespace SanguoshaServer.AI
             Room room = ai.Room;
             if (ai.HasSkill("gangzhi|gangzhi_classic|shixin", player)) return 10;
             List<Player> enemies = ai.GetEnemies(player);
-            if (ai.GetFriends(player).Count + enemies.Count == room.AliveCount() && enemies.Count == 1 && ai.HasSkill("jueqing|gangzhi_classic", enemies[0])) return 8;
+            if (ai.GetFriends(player).Count + enemies.Count == room.AliveCount() && enemies.Count == 1 && (ai.HasSkill("gangzhi_classic", enemies[0])
+                || (ai.HasSkill("jueqing", enemies[0]) && enemies[0].GetMark("jueqing") > 0)))
+                return 8;
             if (ai.HasSkill("liangying|fangzhu|jieming|jieming_jx|benyu|jianxiong|jianxiong_jx|huituo|chengxiang", player))
                 value -= 10;
 

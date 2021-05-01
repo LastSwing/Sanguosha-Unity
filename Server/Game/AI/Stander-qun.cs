@@ -1681,7 +1681,8 @@ namespace SanguoshaServer.AI
                                 {
                                     ai.UpdatePlayerIntention(player, ai.GetPlayerTendency(p), 60);
                                 }
-                                else if (ai.HasSkill(TrustedAI.MasochismSkill, p) && ai.HasSkill("jueqing|gangzhi_classic", player))
+                                else if (ai.HasSkill(TrustedAI.MasochismSkill, p) && (ai.HasSkill("gangzhi_classic", player)
+                                    || ai.HasSkill("jueqing", player) && player.GetMark("jueqing") > 0))
                                 {
                                     ai.UpdatePlayerRelation(player, p, false);
                                 }

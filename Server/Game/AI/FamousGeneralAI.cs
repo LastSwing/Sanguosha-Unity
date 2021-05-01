@@ -22,6 +22,7 @@ namespace SanguoshaServer.AI
                 new XingshuaiAI(),
                 new ZhenlieAI(),
                 new MijiAI(),
+                new JueqingAI(),
                 new ShangshiAI(),
                 new QuanjiAI(),
                 new PaiyiAI(),
@@ -422,6 +423,75 @@ namespace SanguoshaServer.AI
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             return true;
+        }
+    }
+
+    public class JueqingAI : SkillEvent
+    {
+        public JueqingAI() : base("jueqing") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player from, object data)
+        {
+            Room room = ai.Room;
+            if (data is Player to && ai.IsEnemy(to) && room.GetTag(Name) is DamageStruct damage)
+            {
+                if (damage.Card != null && damage.Card.HasFlag("chijie")) return false;
+                if (damage.Card != null && damage.Card.Name.Contains(Slash.ClassName) && ai.HasSkill("renshi", to) && to.IsWounded()) return false;
+                if (damage.Card != null && ai.HasSkill("wuyan", to))
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
+                    if (fcard is TrickCard) return false;
+                }
+                if (damage.Nature == DamageStruct.DamageNature.Fire && damage.To.GetMark("@gale") > 0) damage.Damage++;
+                if (damage.Nature != DamageStruct.DamageNature.Thunder && damage.To.GetMark("@fog") > 0) return false;
+                if (damage.To.GetMark("@tangerine") > 0) return false;
+                if (damage.Nature == DamageStruct.DamageNature.Fire && ai.HasSkill("shixin", damage.To)) return false;
+                if (ai.HasSkill("yinshi", damage.To) && damage.To.GetMark("@dragon") == 0 && to.GetMark("@phenix") == 0
+                    && !damage.To.EquipIsBaned(1) && !damage.To.GetArmor() && (damage.Card != null && Engine.GetFunctionCard(damage.Card.Name).TypeID == CardType.TypeTrick
+                    || damage.Nature != DamageStruct.DamageNature.Normal))
+                    return false;
+                if (ai.HasSkill("andong", to) && from != null && from != to && from != to)
+                {
+                    int count = from.HandcardNum;
+                    if (damage.Card != null)
+                    {
+                        foreach (int id in damage.Card.SubCards)
+                            if (room.GetCardOwner(id) == from && room.GetCardPlace(id) == Place.PlaceHand)
+                                count--;
+                    }
+                    if (count <= 0) return false;
+
+                    if (ai.IsFriend(from, to) && (!to.HasFlag("andong") || damage.Chain))
+                        return false;
+                }
+
+                if (damage.From != null && damage.From.Alive && ai.HasSkill("gongqing", damage.To) && damage.Damage > 1)
+                {
+                    bool weapon = true;
+                    if (damage.Card != null && damage.Card.SubCards.Contains(damage.From.Weapon.Key))
+                        weapon = false;
+                    int range = RoomLogic.GetAttackRange(room, damage.From, weapon);
+                    if (range < 3) return false;
+                }
+
+                bool armor_ignore = false;
+                if (from != null && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName))
+                {
+                    if (from.HasWeapon(QinggangSword.ClassName) || from.HasWeapon(Saber.ClassName))
+                        armor_ignore = true;
+                    else if (ai.HasSkill("anjian", from) && !RoomLogic.InMyAttackRange(room, to, from))
+                        armor_ignore = true;
+                }
+
+                if (!armor_ignore)
+                {
+                    if (ai.HasArmorEffect(to, SilverLion.ClassName)) return false; ;
+                    if (damage.Nature != DamageStruct.DamageNature.Normal && ai.HasArmorEffect(to, PeaceSpell.ClassName)) return false;
+                    if (damage.Damage >= to.Hp && ai.HasArmorEffect(to, BreastPlate.ClassName)) return false;
+                }
+
+                return true;
+            }
+            return false;
         }
     }
 

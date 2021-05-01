@@ -32,6 +32,8 @@ namespace SanguoshaServer.AI
                 new ZhuilieAI(),
                 new PianchongAI(),
                 new ZunweiAI(),
+                new YizhengCSAI(),
+                new LiluAI(),
 
                 new TunanAI(),
                 new ManyiAI(),
@@ -74,6 +76,7 @@ namespace SanguoshaServer.AI
                 new TuxinAI(),
                 new LiangyingClassicAI(),
                 new ShishouAI(),
+                new YixiangSPAI(),
             };
 
             use_cards = new List<UseCard>
@@ -772,6 +775,111 @@ namespace SanguoshaServer.AI
         }
 
         public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 9;
+    }
+
+    public class LiluAI : SkillEvent
+    {
+        public LiluAI() : base("lilu") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (player.MaxHp - player.HandcardNum >= 3 || player.MaxHp - player.HandcardNum >= 1 && ai.FriendNoSelf.Count > 0 && player.HandcardNum + 1 > player.GetMark(Name))
+                return true;
+            return false;
+        }
+
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
+        {
+            Room room = ai.Room;
+            CardUseStruct use = new CardUseStruct(new WrappedCard(LiluCard.ClassName), player, new List<Player>());
+            List<int> ids = player.GetCards("h");
+            ai.SortByUseValue(ref ids, false);
+            if (ai.FriendNoSelf.Count > 0)
+            {
+                KeyValuePair<Player, int> valuePair = ai.GetCardNeedPlayer(ids);
+                if (player.HandcardNum > player.GetMark(Name))
+                {
+                    if (valuePair.Key != null && valuePair.Value >= 0)
+                    {
+                        use.To.Add(valuePair.Key);
+                        use.Card.AddSubCard(valuePair.Value);
+                        ids.Remove(valuePair.Value);
+                    }
+                    else
+                        use.To.Add(ai.FriendNoSelf[0]);
+
+                    while (use.Card.SubCards.Count <= player.GetMark(Name))
+                    {
+                        use.Card.AddSubCard(ids[0]);
+                        ids.RemoveAt(0);
+                    }
+                }
+                else
+                {
+                    if (valuePair.Key != null && valuePair.Value >= 0)
+                    {
+                        use.To.Add(valuePair.Key);
+                        use.Card.AddSubCard(valuePair.Value);
+                    }
+                    else
+                    {
+                        use.To.Add(ai.FriendNoSelf[0]);
+                        use.Card.AddSubCard(ids[0]);
+                    }
+                }
+            }
+            else
+            {
+                use.To.Add(room.GetOtherPlayers(player)[0]);
+                use.Card.AddSubCard(ids[0]);
+            }
+
+            return use;
+        }
+    }
+
+    public class YizhengCSAI : SkillEvent
+    {
+        public YizhengCSAI() : base("yizheng_cs")
+        {
+            key = new List<string> { "playerChosen:yizheng_cs" };
+        }
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (ai.Self == player) return;
+            if (data is string choice)
+            {
+                string[] choices = choice.Split(':');
+                if (choices[1] == Name)
+                {
+                    Room room = ai.Room;
+                    Player target = room.FindPlayer(choices[2]);
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        {
+            if (damage.From != null && damage.From.ContainsTag("yizheng_from") && damage.From.GetTag("yizheng_from") is string from_name)
+            {
+                Room room = ai.Room;
+                Player from = room.FindPlayer(from_name);
+                if (from != null && damage.From.MaxHp < from.MaxHp)
+                    damage.Damage++;
+
+            }
+        }
+
+        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        {
+            foreach (Player p in targets)
+                if (ai.IsFriend(p) && p.MaxHp < player.MaxHp)
+                    return new List<Player> { p };
+
+            return new List<Player>();
+        }
     }
 
     public class TunanAI : SkillEvent
@@ -2769,6 +2877,48 @@ namespace SanguoshaServer.AI
             }
 
             return score;
+        }
+    }
+
+    public class YixiangSPAI : SkillEvent
+    {
+        public YixiangSPAI() : base("yixiang_sp") { }
+        public override void DamageEffect(TrustedAI ai, ref DamageStruct damage, DamageStruct.DamageStep step)
+        {
+            if (damage.From != null && damage.From.Phase == PlayerPhase.Play && ai.HasSkill(Name, damage.To) && damage.Card != null)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(damage.Card.Name);
+                if (!(fcard is SkillCard))
+                {
+                    Room room = ai.Room;
+                    if (room.GetRoomState().GetCurrentCardUsePattern() == "..")
+                    {
+                        if (damage.From.GetMark(Name) == 0)
+                            damage.Damage--;
+                    }
+                    else if (damage.Card.HasFlag("yixiang_first"))
+                        damage.Damage--;
+                }
+            }
+        }
+
+        public override bool IsCardEffect(TrustedAI ai, WrappedCard card, Player from, Player to)
+        {
+            if (from.Phase == PlayerPhase.Play && ai.HasSkill(Name, to))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(card.Name);
+                if (!(fcard is DelayedTrick) && WrappedCard.IsBlack(card.Suit) && !(fcard is SkillCard))
+                {
+                    Room room = ai.Room;
+                    if (room.GetRoomState().GetCurrentCardUsePattern() == "..")
+                    {
+                        return from.GetMark(Name) != 1;
+                    }
+                    else
+                        return !card.HasFlag("yixiang_second");
+                }
+            }
+            return true;
         }
     }
 }
