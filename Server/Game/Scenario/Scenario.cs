@@ -268,7 +268,6 @@ namespace SanguoshaServer.Scenario
                         while (player.Alive && string.IsNullOrEmpty(room.PreWinner))
                         {
                             room.Activate(player, out CardUseStruct card_use, add_index);
-                            room.GetRoomState().SetCurrentCardUsePattern(string.Empty);
                             if (card_use.Card != null)
                                 add_index = room.UseCard(card_use);
                             else
