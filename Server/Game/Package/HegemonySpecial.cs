@@ -297,14 +297,18 @@ namespace SanguoshaServer.Package
                     if (card.Suit == use.Card.Suit && card.Number == use.Card.Number)
                     {
                         ids.Add(id);
-
-                        break;
                     }
                 }
-                room.MoveCardTo(room.GetCard(ids[0]), player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_TURNOVER, player.Name, Name, null), false);
-                Thread.Sleep(500);
-                CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GOTBACK, player.Name, Name, string.Empty);
-                room.ObtainCard(player, ref ids, reason, true);
+                if (ids.Count > 0)
+                {
+                    foreach (int id in ids)
+                    {
+                        room.MoveCardTo(room.GetCard(id), player, Place.PlaceTable, new CardMoveReason(MoveReason.S_REASON_TURNOVER, player.Name, Name, null), false);
+                        Thread.Sleep(200);
+                    }
+                    CardMoveReason reason = new CardMoveReason(MoveReason.S_REASON_GOTBACK, player.Name, Name, string.Empty);
+                    room.ObtainCard(player, ref ids, reason, true);
+                }
             }
             return false;
         }
