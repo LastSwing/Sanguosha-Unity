@@ -3758,6 +3758,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.EventPhaseChanging);
             skill_type = SkillType.Alter;
+            view_as_skill = new MiewuVS();
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
