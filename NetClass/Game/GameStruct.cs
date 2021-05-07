@@ -282,6 +282,7 @@ namespace CommonClass.Game
         }
         public void AddTo(Player player)
         {
+            if (To == null) To = new List<string>();
             if (!To.Contains(player.Name))
                 To.Add(player.Name);
         }

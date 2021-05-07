@@ -27,7 +27,6 @@ namespace SanguoshaServer.Package
                 new Yizhi(),
                 new Tianfu(),
                 new Shengxi(),
-                new ShengxiClear(),
                 new Shoucheng(),
                 new Shangyi(),
                 new Niaoxiang(),
@@ -55,7 +54,6 @@ namespace SanguoshaServer.Package
             };
             related_skills = new Dictionary<string, List<string>> {
                 { "tuntian", new List<string>{"#tuntian-gotofield", "#tuntian-clear" } },
-                { "shengxi", new List<string>{ "#shengxi-clear" } },
                 { "qianhuan", new List<string>{ "#qianhuan-clear" } },
                 { "zhangwu", new List<string>{ "#zhangwu-draw" } },
                 { "qiluan", new List<string>{ "#qiluan" } }
@@ -614,17 +612,20 @@ namespace SanguoshaServer.Package
     {
         public Shengxi() : base("shengxi")
         {
-            events = new List<TriggerEvent> { TriggerEvent.DamageDone, TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.DamageDone, TriggerEvent.EventPhaseEnd, TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging };
             frequency = Frequency.Frequent;
             skill_type = SkillType.Replenish;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && !damage.From.HasFlag("ShengxiDamageInPlayPhase"))
+            if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && !damage.From.HasFlag("ShengxiDamageInPlayPhase")
+                && damage.From.Phase != PlayerPhase.NotActive)
             {
                 damage.From.SetFlags("ShengxiDamageInPlayPhase");
             }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Discard && player.HasFlag("ShengxiDamageInPlayPhase"))
+                player.SetFlags("-ShengxiDamageInPlayPhase");
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -647,27 +648,10 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.DrawCards(player, 2, Name);
-
             return false;
         }
     }
-    public class ShengxiClear : TriggerSkill
-    {
-        public ShengxiClear() : base("#shengxi-clear")
-        {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
-        }
-        public override int Priority => -1;
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Discard && player.HasFlag("ShengxiDamageInPlayPhase"))
-                player.SetFlags("-ShengxiDamageInPlayPhase");
-        }
-        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
-        {
-            return new TriggerStruct();
-        }
-    }
+
     public class Shoucheng : TriggerSkill
     {
         public Shoucheng() : base("shoucheng")

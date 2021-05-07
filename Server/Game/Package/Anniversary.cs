@@ -2249,13 +2249,23 @@ namespace SanguoshaServer.Package
     {
         public Lilu() : base("lilu")
         {
-            events.Add(TriggerEvent.EventPhaseStart);
+            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.EventPhaseStart };
             view_as_skill = new LiluVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct info && info.Info == Name)
+            {
+                player.SetMark(Name, 0);
+                room.RemovePlayerStringMark(player, Name);
+            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Draw && player.HandcardNum < player.MaxHp)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && triggerEvent == TriggerEvent.EventPhaseStart
+                && player.Phase == PlayerPhase.Draw && player.HandcardNum < player.MaxHp)
                 return new TriggerStruct(Name, player);
             return new TriggerStruct();
         }
@@ -2286,8 +2296,9 @@ namespace SanguoshaServer.Package
                     room.ObtainCard(target, ref cards, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "lilu", string.Empty), false);
                     if (player.Alive)
                     {
-                        int old = player.GetMark("lilu");
-                        player.SetMark("lilu", cards.Count);
+                        int old = player.GetMark(Name);
+                        player.SetMark(Name, cards.Count);
+                        room.SetPlayerStringMark(player, Name, player.GetMark(Name).ToString());
                         if (old > 0 && cards.Count > old)
                         {
                             player.MaxHp++;
@@ -2356,6 +2367,7 @@ namespace SanguoshaServer.Package
             {
                 int old = player.GetMark("lilu");
                 player.SetMark("lilu", cards.Count);
+                room.SetPlayerStringMark(player, "lilu", player.GetMark("lilu").ToString());
                 if (old > 0 && cards.Count > old)
                 {
                     player.MaxHp++;

@@ -15,6 +15,9 @@ namespace SanguoshaServer.Package
         {
             skills = new List<Skill>
             {
+                new Daoshu(),
+                new Weicheng(),
+
                 new Tunchu(),
                 new TunchuAdd(),
                 new TunchuProhibit(),
@@ -23,13 +26,12 @@ namespace SanguoshaServer.Package
                 new Chengshang(),
 
                 new Dujin(),
-                new Weicheng(),
                 new Zhente(),
                 new Zhiwei(),
 
-                new Daoshu(),
                 new Yuanyu(),
                 new Guishu(),
+                new WukuHegemony(),
             };
             skill_cards = new List<FunctionCard>
             {
@@ -647,6 +649,49 @@ namespace SanguoshaServer.Package
                 return true;
             data = damage;
 
+            return false;
+        }
+    }
+
+    public class WukuHegemony : TriggerSkill
+    {
+        public WukuHegemony() : base("wuku_hegemony")
+        {
+            events.Add(TriggerEvent.CardUsed);
+            frequency = Frequency.Compulsory;
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (data is CardUseStruct use)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is EquipCard)
+                {
+                    foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                        if (!RoomLogic.WillBeFriendWith(room, p, player) && p.GetMark("wuku") < 2)
+                            triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (RoomLogic.PlayerHasShownSkill(room, ask_who, this) || room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
+            ask_who.AddMark("wuku");
+            room.SetPlayerStringMark(ask_who, Name, ask_who.GetMark(Name).ToString());
             return false;
         }
     }
