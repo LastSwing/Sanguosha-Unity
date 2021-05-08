@@ -691,7 +691,7 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(ask_who, Name);
             ask_who.AddMark("wuku");
-            room.SetPlayerStringMark(ask_who, Name, ask_who.GetMark(Name).ToString());
+            room.SetPlayerStringMark(ask_who, "wuku", ask_who.GetMark("wuku").ToString());
             return false;
         }
     }

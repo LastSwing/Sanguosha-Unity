@@ -3791,6 +3791,7 @@ namespace SanguoshaServer.Package
             {
                 string pattern = room.GetRoomState().GetCurrentCardUsePattern(player);
                 List<string> names = GetGuhuoCards(room, "bt");
+                names.Remove(HegNullification.ClassName);
                 foreach (string name in names)
                 {
                     WrappedCard card = new WrappedCard(name);
@@ -3862,9 +3863,11 @@ namespace SanguoshaServer.Package
             WrappedCard guhuo = new WrappedCard(use.Card.UserString);
             guhuo.AddSubCard(use.Card);
             guhuo = RoomLogic.ParseUseCard(room, guhuo);
-            player.AddMark("miewu", -1);
-            if (player.GetMark("miewu") == 0)
-                room.RemovePlayerStringMark(player, "miewu");
+            player.SetMark("wuku", player.GetMark("wuku") - 1);
+            if (player.GetMark("wuku") == 0)
+                room.RemovePlayerStringMark(player, "wuku");
+            else
+                room.SetPlayerStringMark(player, "wuku", player.GetMark("wuku").ToString());
             room.DrawCards(player, 1, "miewu");
             return guhuo;
         }
@@ -3876,9 +3879,11 @@ namespace SanguoshaServer.Package
             guhuo.Skill = guhuo.ShowSkill = "miewu";
             guhuo.AddSubCard(card);
             guhuo = RoomLogic.ParseUseCard(room, guhuo);
-            player.AddMark("miewu", -1);
-            if (player.GetMark("miewu") == 0)
-                room.RemovePlayerStringMark(player, "miewu");
+            player.SetMark("wuku", player.GetMark("wuku") - 1);
+            if (player.GetMark("wuku") == 0)
+                room.RemovePlayerStringMark(player, "wuku");
+            else
+                room.SetPlayerStringMark(player, "wuku", player.GetMark("wuku").ToString());
             room.DrawCards(player, 1, "miewu");
             return guhuo;
         }
