@@ -401,6 +401,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
+            if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE) return false;
             int slash_targets = 1 + (card.ExtraTarget ? Engine.CorrectCardTarget(room, TargetModSkill.ModType.ExtraMaxTarget, Self, card) : 0);
 
             Player specific_target = null;
@@ -462,6 +463,11 @@ namespace SanguoshaServer.Package
         public override bool IsAvailable(Room room, Player player, WrappedCard card)
         {
             return IsAvailable(room, player, card);
+        }
+
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            return room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_RESPONSE ? targets.Count == 0 : targets.Count > 0;
         }
 
         public static bool IsAvailable(Room room, Player player, WrappedCard slash = null, bool considerSpecificAssignee = true)
