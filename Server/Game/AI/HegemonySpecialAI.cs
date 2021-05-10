@@ -13,16 +13,19 @@ namespace SanguoshaServer.AI
         {
             events = new List<SkillEvent>
             {
+                new WeichengAI(),
+                new DaoshuAI(),
+                
                 new TunchuAI(),
                 new ShuliangAI(),
                 new QiaoAI(),
                 new ChengshangAI(),
 
-                new DujinAI(),
                 new GuishuAI(),
                 new YuanyuAI(),
-                new WeichengAI(),
-                new DaoshuAI(),
+                new WukuHegemonyAI(),
+
+                new DujinAI(),
                 new ZhiweiAI(),
                 new ZhenteAI(),
             };
@@ -31,6 +34,135 @@ namespace SanguoshaServer.AI
                 new GuishuCardAI(),
                 new DaoshuCardAI(),
             };
+        }
+    }
+
+
+    public class WeichengAI : SkillEvent
+    {
+        public WeichengAI() : base("weicheng") { }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+    }
+
+    public class DaoshuAI : SkillEvent
+    {
+        public DaoshuAI() : base("daoshu")
+        {
+        }
+        private readonly List<string> suits = new List<string> { "spade", "heart", "club", "diamond" };
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (ai.WillShowForAttack() && !player.HasFlag(Name))
+            {
+                WrappedCard card = new WrappedCard(DaoshuCard.ClassName)
+                {
+                    Skill = Name,
+                    ShowSkill = Name
+                };
+
+                return new List<WrappedCard> { card };
+            }
+
+            return new List<WrappedCard>();
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            Player target = null;
+            Room room = ai.Room;
+            foreach (Player p in room.GetOtherPlayers(player))
+            {
+                if (p.HasFlag("daoshu_target"))
+                {
+                    target = p;
+                    break;
+                }
+            }
+
+            List<int> ids = ai.GetKnownCards(target);
+            List<string> suits = new List<string>(this.suits);
+            if (ids.Count > 0)
+            {
+                Dictionary<string, int> pairs = new Dictionary<string, int>();
+                foreach (string suit in suits)
+                    pairs[suit] = 0;
+                foreach (int id in ids)
+                {
+                    string suit = WrappedCard.GetSuitString(Engine.GetRealCard(id).Suit);
+                    pairs[suit]++;
+                }
+
+                suits.Sort((x, y) => { return pairs[x] > pairs[y] ? -1 : 1; });
+                return suits[0];
+            }
+            else
+            {
+                Shuffle.shuffle(ref suits);
+                return suits[0];
+            }
+        }
+
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
+        {
+            List<int> ids = new List<int>();
+            Room room = ai.Room;
+            foreach (int id in player.GetCards("h"))
+            {
+                if (Engine.MatchExpPattern(room, pattern, player, room.GetCard(id)))
+                    ids.Add(id);
+            }
+            ai.SortByUseValue(ref ids, false);
+            return new List<int> { ids[0] };
+        }
+    }
+
+    public class DaoshuCardAI : UseCard
+    {
+        public DaoshuCardAI() : base(DaoshuCard.ClassName)
+        {
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            Room room = ai.Room;
+            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
+            {
+                if (ai is SmartAI && ai.Self != player)
+                {
+                    if (!player.HasShownOneGeneral())
+                    {
+                        string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
+                        ai.UpdatePlayerIntention(player, role, 100);
+                    }
+                    foreach (Player p in use.To)
+                        ai.UpdatePlayerRelation(player, p, false);
+                }
+                else if (ai is StupidAI)
+                {
+                    foreach (Player p in use.To)
+                        if (ai.GetPlayerTendency(p) != "unknown")
+                            ai.UpdatePlayerRelation(player, p, false);
+                }
+            }
+        }
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
+        {
+            return 5;
+        }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            List<Player> targets = ai.GetEnemies(player);
+            ai.SortByDefense(ref targets, false);
+            foreach (Player p in targets)
+            {
+                if (!p.IsKongcheng())
+                {
+                    use.Card = card;
+                    use.To.Add(p);
+                    return;
+                }
+            }
         }
     }
 
@@ -134,34 +266,6 @@ namespace SanguoshaServer.AI
     {
         public ChengshangAI() : base("chengshang") { }
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
-    }
-
-    public class DujinAI : SkillEvent
-    {
-        public DujinAI() : base("dujin") { }
-
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
-        {
-            return ai.WillShowForAttack();
-        }
-        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
-        {
-            if (!isUse && place == Player.Place.PlaceEquip)
-            {
-                return 4;
-            }
-
-            if (isUse && card.IsVirtualCard())
-            {
-                foreach (int id in card.SubCards)
-                {
-                    if (ai.Room.GetCardPlace(id) == Player.Place.PlaceEquip)
-                        return -3;
-                }
-            }
-
-            return 0;
-        }
     }
 
     public class GuishuAI : SkillEvent
@@ -277,134 +381,38 @@ namespace SanguoshaServer.AI
         }
     }
 
-    public class WeichengAI : SkillEvent
+    public class WukuHegemonyAI : SkillEvent
     {
-        public WeichengAI() : base("weicheng") { }
+        public WukuHegemonyAI() : base("wuku_hegemony") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+    }
+
+
+    public class DujinAI : SkillEvent
+    {
+        public DujinAI() : base("dujin") { }
 
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            return true;
+            return ai.WillShowForAttack();
         }
-    }
-
-    public class DaoshuAI : SkillEvent
-    {
-        public DaoshuAI() : base("daoshu")
+        public override double CardValue(TrustedAI ai, Player player, WrappedCard card, bool isUse, Player.Place place)
         {
-        }
-        private readonly List<string> suits = new List<string> { "spade", "heart", "club", "diamond" };
-        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
-        {
-            if (ai.WillShowForAttack() && !player.HasFlag(Name))
+            if (!isUse && place == Player.Place.PlaceEquip)
             {
-                WrappedCard card = new WrappedCard(DaoshuCard.ClassName)
-                {
-                    Skill = Name,
-                    ShowSkill = Name
-                };
-
-                return new List<WrappedCard> { card };
+                return 4;
             }
 
-            return new List<WrappedCard>();
-        }
-
-        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
-        {
-            Player target = null;
-            Room room = ai.Room;
-            foreach (Player p in room.GetOtherPlayers(player))
+            if (isUse && card.IsVirtualCard())
             {
-                if (p.HasFlag("daoshu_target"))
+                foreach (int id in card.SubCards)
                 {
-                    target = p;
-                    break;
+                    if (ai.Room.GetCardPlace(id) == Player.Place.PlaceEquip)
+                        return -3;
                 }
             }
 
-            List<int> ids = ai.GetKnownCards(target);
-            List<string> suits = new List<string>(this.suits);
-            if (ids.Count > 0)
-            {
-                Dictionary<string, int> pairs = new Dictionary<string, int>();
-                foreach (string suit in suits)
-                    pairs[suit] = 0;
-                foreach (int id in ids)
-                {
-                    string suit = WrappedCard.GetSuitString(Engine.GetRealCard(id).Suit);
-                    pairs[suit]++;
-                }
-
-                suits.Sort((x, y) => { return pairs[x] > pairs[y] ? -1: 1; });
-                return suits[0];
-            }
-            else
-            {
-                Shuffle.shuffle(ref suits);
-                return suits[0];
-            }
-        }
-
-        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
-        {
-            List<int> ids = new List<int>();
-            Room room = ai.Room;
-            foreach (int id in player.GetCards("h"))
-            {
-                if (Engine.MatchExpPattern(room, pattern, player, room.GetCard(id)))
-                    ids.Add(id);
-            }
-            ai.SortByUseValue(ref ids, false);
-            return new List<int> { ids[0] };
-        }
-    }
-
-    public class DaoshuCardAI : UseCard
-    {
-        public DaoshuCardAI() : base(DaoshuCard.ClassName)
-        {
-        }
-
-        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
-        {
-            Room room = ai.Room;
-            if (triggerEvent == TriggerEvent.CardTargetAnnounced && data is CardUseStruct use)
-            {
-                if (ai is SmartAI && ai.Self != player)
-                {
-                    if (!player.HasShownOneGeneral())
-                    {
-                        string role = (Scenario.Hegemony.WillbeRole(room, player) != "careerist" ? player.Kingdom : "careerist");
-                        ai.UpdatePlayerIntention(player, role, 100);
-                    }
-                    foreach (Player p in use.To)
-                        ai.UpdatePlayerRelation(player, p, false);
-                }
-                else if (ai is StupidAI)
-                {
-                    foreach (Player p in use.To)
-                        if (ai.GetPlayerTendency(p) != "unknown")
-                            ai.UpdatePlayerRelation(player, p, false);
-                }
-            }
-        }
-        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card)
-        {
-            return 5;
-        }
-        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
-        {
-            List<Player> targets = ai.GetEnemies(player);
-            ai.SortByDefense(ref targets, false);
-            foreach (Player p in targets)
-            {
-                if (!p.IsKongcheng())
-                {
-                    use.Card = card;
-                    use.To.Add(p);
-                    return;
-                }
-            }
+            return 0;
         }
     }
 
@@ -419,7 +427,6 @@ namespace SanguoshaServer.AI
             return new List<Player>();
         }
     }
-
     public class ZhenteAI : SkillEvent
     {
         public ZhenteAI() : base("zhente") { }

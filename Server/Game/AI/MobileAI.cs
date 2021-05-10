@@ -23,6 +23,8 @@ namespace SanguoshaServer.AI
                 new WanlanAI(),
                 new QiaiMobileAI(),
                 new ShanxiWCAI(),
+                new WanweiClassicAI(),
+                new YuejianClassicAI(),
 
                 new KuangcaiAI(),
                 new YixiangAI(),
@@ -39,9 +41,12 @@ namespace SanguoshaServer.AI
                 new ZhilueAI(),
                 new DuoyiAI(),
                 new JianzhanAI(),
+                new MiewuAI(),
 
                 new WuyuanAI(),
                 new ShamengAI(),
+                new ShengxiClassicAI(),
+                new JianyuAI(),
 
                 new FenyinAI(),
                 new FubiAI(),
@@ -58,6 +63,7 @@ namespace SanguoshaServer.AI
                 new JianzhanCardAI(),
                 new ShamengCardAI(),
                 new QiaiCardAI(),
+                new JianyuCardAI(),
             };
         }
     }
@@ -454,6 +460,60 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class WanweiClassicAI : SkillEvent
+    {
+        public WanweiClassicAI() : base("wanwei_classic")
+        {
+            key = new List<string> { "skillInvoke:wanwei_classic" };
+        }
+
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && player != ai.Self)
+            {
+                List<string> strs = new List<string>(str.Split(':'));
+                if (strs[1] == Name && strs[2] == "yes")
+                {
+                    Room room = ai.Room;
+                    Player target = null;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.HasFlag(Name))
+                        {
+                            target = p;
+                            break;
+                        }
+                    }
+
+                    if (player != target && ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            return data is Player target && ai.IsFriend(target);
+        }
+        
+    }
+
+    public class YuejianClassicAI : SkillEvent
+    {
+        public YuejianClassicAI() : base("yuejian_classic") { }
+        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        {
+            if (ai.GetKnownCardsNums(Analeptic.ClassName, "h", player) + ai.GetKnownCardsNums(Peach.ClassName, "h", player) == 0)
+            {
+                List<int> cards = player.GetCards("he");
+                if (cards.Count >= 2)
+                {
+                    ai.SortByKeepValue(ref cards, false);
+                    return new List<int> { cards[0], cards[1] };
+                }
+            }
+            return new List<int>();
+        }
+    }
 
     public class YixiangAI : SkillEvent
     {
@@ -843,6 +903,51 @@ namespace SanguoshaServer.AI
 
             return use;
         }
+    }
+
+    public class ShengxiClassicAI : SkillEvent
+    {
+        public ShengxiClassicAI() : base("shengxi_classic") { }
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
+    }
+
+    public class JianyuAI : SkillEvent
+    {
+        public JianyuAI() : base("jianyu") { }
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            if (player.GetMark(Name) == 0)
+            {
+                return new List<WrappedCard> { new WrappedCard(JianyuCard.ClassName) { Skill = Name } };
+            }
+            return null;
+        }
+    }
+
+    public class JianyuCardAI : UseCard
+    {
+        public JianyuCardAI() : base(JianyuCard.ClassName) { }
+        public override void Use(TrustedAI ai, Player player, ref CardUseStruct use, WrappedCard card)
+        {
+            Room room = ai.Room;
+            List<Player> friends = ai.GetFriends(player), enemies = ai.GetEnemies(player);
+            if (enemies.Count == 0)
+            {
+                enemies = room.GetOtherPlayers(player);
+                enemies.RemoveAll(t => friends.Contains(t));
+            }
+
+            if (friends.Count > 0 && enemies.Count > 0)
+            {
+                ai.SortByDefense(ref friends, false);
+                ai.SortByHandcards(ref enemies);
+                use.Card = card;
+                use.To.Add(friends[0]);
+                use.To.Add(enemies[0]);
+            }
+        }
+
+        public override double UsePriorityAdjust(TrustedAI ai, Player player, List<Player> targets, WrappedCard card) => 8;
     }
 
     public class RangjieAI : SkillEvent
@@ -1370,6 +1475,161 @@ namespace SanguoshaServer.AI
         }
     }
 
+    public class MiewuAI : SkillEvent
+    {
+        public MiewuAI() : base("miewu") { }
+
+        public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (!player.HasFlag(Name) && player.GetMark("wuku") > 0)
+            {
+                Room room = ai.Room;
+                List<int> ids = player.GetCards("he");
+                if (ids.Count > 0)
+                {
+                    List<double> values = ai.SortByKeepValue(ref ids, false);
+                    int sub;
+                    if (values[0] < 0) sub = ids[0];
+                    else
+                    {
+                        ai.SortByUseValue(ref ids, false);
+                        sub = ids[0];
+                    }
+
+                    WrappedCard huomo = new WrappedCard(MiewuCard.ClassName) { Skill = Name };
+                    huomo.AddSubCard(sub);
+
+                    foreach (string card_name in MiewuVS.GetGuhuoCards(room, "bt"))
+                    {
+                        WrappedCard slash = new WrappedCard(card_name) { Skill = Name };
+                        slash.AddSubCard(sub);
+                        huomo.UserString = card_name;
+                        slash.UserString = RoomLogic.CardToString(room, huomo);
+
+                        result.Add(slash);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public override List<WrappedCard> GetViewAsCards(TrustedAI ai, string pattern, Player player)
+        {
+            List<int> ids = player.GetCards("he");
+            Room room = ai.Room;
+            List<WrappedCard> result = new List<WrappedCard>();
+            if (!player.HasFlag(Name) && player.GetMark("wuku") > 0)
+            {
+                if (ids.Count > 0)
+                {
+                    if (pattern == Slash.ClassName)
+                    {
+                        List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
+                        if (values[0] < 0)
+                            sub = ids[0];
+                        else
+                        {
+                            ai.SortByUseValue(ref ids, false);
+                            sub = ids[0];
+                        }
+
+                        WrappedCard huomo = new WrappedCard(MiewuCard.ClassName) { Skill = Name };
+                        huomo.AddSubCard(sub);
+
+                        WrappedCard slash = new WrappedCard(Slash.ClassName) { Skill = Name };
+                        slash.AddSubCard(sub);
+                        huomo.UserString = Slash.ClassName;
+                        slash.UserString = RoomLogic.CardToString(room, huomo);
+                        result.Add(slash);
+
+                        WrappedCard fslash = new WrappedCard(FireSlash.ClassName) { Skill = Name };
+                        fslash.AddSubCard(sub);
+                        huomo.UserString = FireSlash.ClassName;
+                        fslash.UserString = RoomLogic.CardToString(room, huomo);
+                        result.Add(fslash);
+
+                        WrappedCard tslash = new WrappedCard(ThunderSlash.ClassName) { Skill = Name };
+                        tslash.AddSubCard(sub);
+                        huomo.UserString = ThunderSlash.ClassName;
+                        tslash.UserString = RoomLogic.CardToString(room, huomo);
+                        result.Add(tslash);
+                    }
+                    else if (pattern == Analeptic.ClassName)
+                    {
+                        int sub;
+                        List<double> values = ai.SortByKeepValue(ref ids, false);
+                        if (values[0] < 0)
+                            sub = ids[0];
+                        else
+                        {
+                            ai.SortByUseValue(ref ids, false);
+                            sub = ids[0];
+                        }
+
+                        WrappedCard huomo = new WrappedCard(MiewuCard.ClassName) { Skill = Name };
+                        huomo.AddSubCard(sub);
+
+                        WrappedCard slash = new WrappedCard(Analeptic.ClassName) { Skill = Name };
+                        slash.AddSubCard(sub);
+                        huomo.UserString = Analeptic.ClassName;
+                        slash.UserString = RoomLogic.CardToString(room, huomo);
+
+                        result.Add(slash);
+                    }
+                    else if (pattern == Peach.ClassName)
+                    {
+                        List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
+                        if (values[0] < 0)
+                            sub = ids[0];
+                        else
+                        {
+                            ai.SortByUseValue(ref ids, false);
+                            sub = ids[0];
+                        }
+
+                        WrappedCard huomo = new WrappedCard(MiewuCard.ClassName) { Skill = Name };
+                        huomo.AddSubCard(sub);
+
+                        WrappedCard slash = new WrappedCard(Peach.ClassName) { Skill = Name };
+                        slash.AddSubCard(sub);
+                        huomo.UserString = Peach.ClassName;
+                        slash.UserString = RoomLogic.CardToString(room, huomo);
+
+                        result.Add(slash);
+                    }
+                    else if (pattern == Jink.ClassName)
+                    {
+                        List<double> values = ai.SortByKeepValue(ref ids, false);
+                        int sub;
+                        if (values[0] < 0)
+                            sub = ids[0];
+                        else
+                        {
+                            ai.SortByUseValue(ref ids, false);
+                            sub = ids[0];
+                        }
+
+                        WrappedCard huomo = new WrappedCard(MiewuCard.ClassName) { Skill = Name };
+                        huomo.AddSubCard(sub);
+
+                        WrappedCard slash = new WrappedCard(Jink.ClassName) { Skill = Name };
+                        slash.AddSubCard(sub);
+                        huomo.UserString = Jink.ClassName;
+                        slash.UserString = RoomLogic.CardToString(room, huomo);
+
+                        result.Add(slash);
+                    }
+                }
+            }
+
+            return result;
+        }
+    }
+
 
     public class FenyinAI : SkillEvent
     {
@@ -1397,14 +1657,48 @@ namespace SanguoshaServer.AI
 
     public class FubiAI : SkillEvent
     {
-        public FubiAI() : base("fubi") { }
+        public FubiAI() : base("fubi") { key = new List<string> { "skillChoice:fubi" }; }
 
+        public override void OnEvent(TrustedAI ai, TriggerEvent triggerEvent, Player player, object data)
+        {
+            if (triggerEvent == TriggerEvent.ChoiceMade && data is string str && ai.Self != player)
+            {
+                string[] strs = str.Split(':');
+                if (strs[1] == Name && strs[2] != "cancel")
+                {
+                    Player target = null;
+                    Room room = ai.Room;
+                    foreach (Player p in room.GetAlivePlayers())
+                    {
+                        if (p.HasFlag(Name))
+                        {
+                            target = p;
+                            break;
+                        }
+                    }
+
+                    if (ai.GetPlayerTendency(target) != "unknown")
+                        ai.UpdatePlayerRelation(player, target, true);
+                }
+            }
+        }
         public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
         {
             foreach (Player p in targets)
                 if (ai.IsFriend(p)) return new List<Player> { p };
 
             return new List<Player>();
+        }
+
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            if (data is Player target && ai.IsFriend(target))
+            {
+                if (ai.GetOverflow(target) > 3) return "max";
+                return "extra";
+            }
+
+            return "cancel";
         }
     }
 

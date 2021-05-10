@@ -1416,7 +1416,10 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player dyer, ref object data, Player player, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, dyer, info.SkillPosition))
+            dyer.SetFlags(Name);
+            bool invoke = room.AskForSkillInvoke(player, Name, dyer, info.SkillPosition);
+            dyer.SetFlags("-wanwei_classic");
+            if (invoke)
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 player.SetMark(Name, room.Round);
