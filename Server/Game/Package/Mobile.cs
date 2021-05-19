@@ -5234,7 +5234,7 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room)) return new TriggerStruct(Name, player);
+            if (triggerEvent == TriggerEvent.GameStart && base.Triggerable(player, room)) return new TriggerStruct(Name, player);
             return new TriggerStruct();
         }
 
