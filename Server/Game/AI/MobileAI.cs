@@ -1666,17 +1666,8 @@ namespace SanguoshaServer.AI
                 string[] strs = str.Split(':');
                 if (strs[1] == Name && strs[2] != "cancel")
                 {
-                    Player target = null;
                     Room room = ai.Room;
-                    foreach (Player p in room.GetAlivePlayers())
-                    {
-                        if (p.HasFlag(Name))
-                        {
-                            target = p;
-                            break;
-                        }
-                    }
-
+                    Player target = room.Current;
                     if (ai.GetPlayerTendency(target) != "unknown")
                         ai.UpdatePlayerRelation(player, target, true);
                 }
