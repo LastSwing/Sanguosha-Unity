@@ -6113,7 +6113,7 @@ namespace SanguoshaServer.AI
 
             return new List<Player>();
         }
-
+        /*
         public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
         {
             Room room = ai.Room;
@@ -6144,7 +6144,7 @@ namespace SanguoshaServer.AI
 
             return "slash";
         }
-
+        */
         public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
@@ -7921,6 +7921,20 @@ namespace SanguoshaServer.AI
                     ids.Add(id);
 
             return ids;
+        }
+
+        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
+        {
+            if (player.GetPile("chun").Count == 0)
+            {
+                int count = 0;
+                foreach (int id in player.GetCards("h"))
+                    if (ai.Room.GetCard(id).Name.Contains(Slash.ClassName))
+                        count++;
+
+                if (count > 1) return false;
+            }
+            return true;
         }
     }
 

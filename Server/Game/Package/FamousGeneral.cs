@@ -2691,30 +2691,10 @@ namespace SanguoshaServer.Package
     {
         public Zhongyong() : base("zhongyong")
         {
-            //events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.CardResponded };
             events = new List<TriggerEvent> { TriggerEvent.CardFinished };
             skill_type = SkillType.Replenish;
         }
-        /*
-        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Use && resp.Data is SlashEffectStruct effect && resp.Who == effect.From
-                && base.Triggerable(effect.From, room) && resp.Card.Name == Jink.ClassName && resp.Card.SubCards.Count > 0)
-            {
-                string str = string.Format("{0}_{1}", Name, RoomLogic.CardToString(room, effect.Slash));
-                if (effect.From.ContainsTag(str) && effect.From.GetTag(str) is List<int> ids)
-                {
-                    ids.AddRange(resp.Card.SubCards);
-                    effect.From.SetTag(str, ids);
-                }
-                else
-                {
-                    List<int> subs = new List<int>(resp.Card.SubCards);
-                    effect.From.SetTag(str, subs);
-                }
-            }
-        }
-        */
+
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (data is CardUseStruct use && use.Card.Name == Jink.ClassName && use.RespondData != null && use.RespondData.Card != null && use.RespondData.Card.Name.Contains(Slash.ClassName)
@@ -2825,7 +2805,7 @@ namespace SanguoshaServer.Package
             if (data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName))
             {
                 string str = string.Format("{0}_{1}", Name, RoomLogic.CardToString(room, use.Card));
-                List<int> slash = new List<int>(), jink = new List<int>();
+                List<int> slash = new List<int>();
 
                 List<int> ids = room.GetSubCards(use.Card);
                 if (ids.Count > 0 && ids.SequenceEqual(use.Card.SubCards))
@@ -2853,67 +2833,53 @@ namespace SanguoshaServer.Package
                             break;
                         }
                     }
-                    if (check) jink.AddRange(jinks);
+                    if (check) slash.AddRange(jinks);
                 }
 
-                List<string> choics = new List<string>();
-                if (slash.Count > 0) choics.Add("slash");
-                if (jink.Count > 0) choics.Add("jink");
-
-                bool red = false;
-                string choice = room.AskForChoice(player, Name, string.Join("+", choics), new List<string> { "@zhongyong-to:" + target.Name }, target);
                 player.RemoveTag(str);
-                if (choice == "slash")
+                if (slash.Count > 0)
                 {
+                    bool red = false;
+                    bool black = false;
                     foreach (int id in slash)
                     {
                         if (WrappedCard.IsRed(room.GetCard(id).Suit))
-                        {
                             red = true;
-                            break;
-                        }
+                        else
+                            black = true;
                     }
 
                     room.ObtainCard(target, ref slash, new CardMoveReason(MoveReason.S_REASON_RECYCLE, player.Name, target.Name, Name, string.Empty));
-                }
-                else
-                {
-                    foreach (int id in jink)
+                    if (target.Alive && red && player.Alive)
                     {
-                        if (WrappedCard.IsRed(room.GetCard(id).Suit))
+                        List<Player> targets = new List<Player>();
+                        foreach (Player p in room.GetOtherPlayers(player))
                         {
-                            red = true;
-                            break;
+                            if (p != target && RoomLogic.InMyAttackRange(room, player, p))
+                                targets.Add(p);
                         }
-                    }
 
-                    room.ObtainCard(target, ref jink, new CardMoveReason(MoveReason.S_REASON_RECYCLE, player.Name, target.Name, Name, string.Empty));
-                }
-
-                if (target.Alive && red && player.Alive)
-                {
-                    List<Player> targets = new List<Player>();
-                    foreach (Player p in room.GetOtherPlayers(player))
-                    {
-                        if (p != target && RoomLogic.InMyAttackRange(room, player, p))
-                            targets.Add(p);
-                    }
-
-                    if (targets.Count > 0)
-                    {
-                        target.SetFlags("slashTargetFix");
-                        foreach (Player p in targets)
-                            p.SetFlags("SlashAssignee");
-
-                        WrappedCard used = room.AskForUseCard(target, "Slash:zhongyong", "@zhongyong-slash:" + player.Name, null, -1, HandlingMethod.MethodUse, false);
-                        if (used == null)
+                        if (targets.Count > 0)
                         {
-                            target.SetFlags("-slashTargetFix");
+                            target.SetFlags("slashTargetFix");
                             foreach (Player p in targets)
-                                p.SetFlags("-SlashAssignee");
+                                p.SetFlags("SlashAssignee");
+
+                            WrappedCard used = room.AskForUseCard(target, "Slash:zhongyong", "@zhongyong-slash:" + player.Name, null, -1, HandlingMethod.MethodUse, false);
+                            if (used == null)
+                            {
+                                target.SetFlags("-slashTargetFix");
+                                foreach (Player p in targets)
+                                    p.SetFlags("-SlashAssignee");
+                            }
                         }
                     }
+
+                    if (target.Alive && black)
+                        room.DrawCards(target, new DrawCardStruct(1, player, Name));
                 }
+
+                
             }
 
             return false;
@@ -11267,17 +11233,48 @@ namespace SanguoshaServer.Package
     {
         public Chunlao() : base("chunlao")
         {
-            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseEnd, TriggerEvent.CardFinished, TriggerEvent.CardUsed, TriggerEvent.EventPhaseChanging };
             view_as_skill = new ChunlaoVS();
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && use.From != null && use.From.Alive && use.From.Phase != PlayerPhase.NotActive)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is SkillCard))
+                {
+                    player.AddMark(Name);
+                    if (player.GetMark(Name) == 1 && use.Card.Name.Contains(Slash.ClassName) && use.Card.SubCards.Count > 0)
+                        use.Card.SetFlags(Name);
+                }
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.GetMark(Name) > 0)
+                player.SetMark(Name, 0);
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && base.Triggerable(player, room) && player.Phase == PlayerPhase.Finish
+            if (triggerEvent == TriggerEvent.EventPhaseEnd && base.Triggerable(player, room) && player.Phase == PlayerPhase.Play
                 && !player.IsKongcheng() && player.GetPile("chun").Count == 0)
                 return new TriggerStruct(Name, player);
-            else if (triggerEvent == TriggerEvent.AskForPeaches && data is DyingStruct dying && dying.Who.Alive && base.Triggerable(player, room) && player.GetPile("chun").Count > 0)
-                return new TriggerStruct(Name, player);
+            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && base.Triggerable(player, room) && use.Card.Name.Contains(Slash.ClassName) && use.Card.HasFlag(Name))
+            {
+                List<int> jinks = room.GetSubCards(use.Card);
+                if (jinks.Count > 0 && jinks.SequenceEqual(use.Card.SubCards))
+                {
+                    bool check = true;
+                    foreach (int id in jinks)
+                    {
+                        if (room.GetCardPlace(id) != Place.DiscardPile)
+                        {
+                            check = false;
+                            break;
+                        }
+                    }
+                    if (check)
+                        return new TriggerStruct(Name, player);
+                }
+            }
 
             return new TriggerStruct();
         }
@@ -11295,6 +11292,13 @@ namespace SanguoshaServer.Package
                     room.AddToPile(player, "chun", ids);
                     return info;
                 }
+            }
+            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && room.AskForSkillInvoke(player, Name, "@chunlao-put:::" + use.Card.Name, info.SkillPosition))
+            {
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                room.AddToPile(player, "chun", use.Card.SubCards);
+                return info;
             }
 
             return new TriggerStruct();

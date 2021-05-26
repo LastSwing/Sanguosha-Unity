@@ -2299,7 +2299,7 @@ namespace SanguoshaServer.Package
                         int old = player.GetMark(Name);
                         player.SetMark(Name, cards.Count);
                         room.SetPlayerStringMark(player, Name, player.GetMark(Name).ToString());
-                        if (old > 0 && cards.Count > old)
+                        if (cards.Count > old)
                         {
                             player.MaxHp++;
                             room.BroadcastProperty(player, "MaxHp");
@@ -2368,7 +2368,7 @@ namespace SanguoshaServer.Package
                 int old = player.GetMark("lilu");
                 player.SetMark("lilu", cards.Count);
                 room.SetPlayerStringMark(player, "lilu", player.GetMark("lilu").ToString());
-                if (old > 0 && cards.Count > old)
+                if (cards.Count > old)
                 {
                     player.MaxHp++;
                     room.BroadcastProperty(player, "MaxHp");
