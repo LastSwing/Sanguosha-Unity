@@ -56,6 +56,8 @@ namespace SanguoshaServer.Package
                 new Lilu(),
                 new YizhengCS(),
                 new YizhengCSEffect(),
+                new Liedan(),
+                new Zhuangdan(),
 
                 new Tunan(),
                 new TunanTag(),
@@ -2498,6 +2500,137 @@ namespace SanguoshaServer.Package
                 data = recover;
             }
 
+            return false;
+        }
+    }
+
+    public class Liedan : TriggerSkill
+    {
+        public Liedan() : base("liedan")
+        {
+            frequency = Frequency.Compulsory;
+            events.Add(TriggerEvent.EventPhaseStart);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (player.Alive && player.Phase == PlayerPhase.Start)
+            {
+                List<Player> xhj = RoomLogic.FindPlayersBySkillName(room, Name);
+                foreach (Player p in xhj)
+                    if (!p.HasFlag("zhuangdan") && (p != player || player.GetMark(Name) >= 5))
+                        triggers.Add(new TriggerStruct(Name, p));
+            }
+            return triggers;
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, ask_who, Name, info.SkillPosition);
+            if (player == ask_who)
+            {
+                room.BroadcastSkillInvoke(Name, "male", 2, gsk.General, gsk.SkinId);
+                player.Hp = 0;
+                room.BroadcastProperty(player, "Hp");
+                room.KillPlayer(player, new DamageStruct());
+            }
+            else
+            {
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
+                int count = 0;
+                if (ask_who.HandcardNum > player.HandcardNum)
+                    count++;
+                if (ask_who.Hp > player.Hp)
+                    count++;
+                if (ask_who.GetEquips().Count > player.GetEquips().Count)
+                    count++;
+
+                if (count > 0) room.DrawCards(ask_who, count, Name);
+                if (ask_who.Alive && count == 3)
+                {
+                    ask_who.MaxHp++;
+                    room.BroadcastProperty(ask_who, "MaxHp");
+
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "$GainMaxHp",
+                        From = ask_who.Name,
+                        Arg = "1"
+                    };
+                    room.SendLog(log);
+
+                    room.RoomThread.Trigger(TriggerEvent.MaxHpChanged, room, ask_who);
+                }
+                else if (ask_who.Alive && count == 0)
+                {
+                    room.LoseHp(ask_who);
+                    if (ask_who.Alive)
+                    {
+                        ask_who.AddMark(Name);
+                        room.SetPlayerStringMark(ask_who, Name, ask_who.GetMark(Name).ToString());
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public class Zhuangdan : TriggerSkill
+    {
+        public Zhuangdan() :base("zhuangdan")
+        {
+            events.Add(TriggerEvent.EventPhaseChanging);
+            frequency = Frequency.Compulsory;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.HasFlag(Name))
+                room.RemovePlayerStringMark(player, Name);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            {
+                int max = 0;
+                Player max_p = null;
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.HandcardNum > max)
+                    {
+                        max_p = p;
+                        max = p.HandcardNum;
+                    }
+                }
+
+                if (max_p != null)
+                {
+                    foreach (Player p in room.GetOtherPlayers(max_p))
+                    {
+                        if (p.HandcardNum == max)
+                        {
+                            max_p = null;
+                            break;
+                        }
+                    }
+                }
+
+                if (max_p != null && max_p != player && base.Triggerable(max_p, room))
+                    return new TriggerStruct(Name, max_p);
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
+            room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+            ask_who.SetFlags(Name);
+            room.SetPlayerStringMark(ask_who, Name, string.Empty);
             return false;
         }
     }
