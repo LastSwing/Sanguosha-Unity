@@ -33,7 +33,6 @@ namespace SanguoshaServer.AI
                 new BuyiAI(),
                 new KeshouAI(),
                 new ZhuweiAI(),
-                new ZhuweiMaxAI(),
                 new HuibianAI(),
                 new ZongyuAI(),
                 new JiananAI(),
@@ -1399,7 +1398,7 @@ namespace SanguoshaServer.AI
             if (damage.Damage <= player.Hp) bad += 4;
 
             List<int> ids = new List<int>();
-            foreach (int id in player.GetCards("he"))
+            foreach (int id in player.GetCards("h"))
                 if (RoomLogic.CanDiscard(room, player, player, id))
                     ids.Add(id);
 
@@ -1410,17 +1409,16 @@ namespace SanguoshaServer.AI
                 {
                     double value = ai.GetKeepValue(ids[i], player);
                     if (ai.IsCard(ids[i], Peach.ClassName, player) || (damage.Damage >= player.Hp && ai.IsCard(ids[i], Analeptic.ClassName, player))) continue;
-                    bool include = ai.HasSkill(TrustedAI.LoseEquipSkill) && room.GetCardPlace(ids[i]) == Player.Place.PlaceEquip;
                     for (int j = i + 1; j < ids.Count; j++)
                     {
 
                         if (WrappedCard.IsBlack(room.GetCard(ids[i]).Suit) == WrappedCard.IsBlack(room.GetCard(ids[j]).Suit)
                             && !(ai.IsCard(ids[j], Peach.ClassName, player) || (damage.Damage >= player.Hp && ai.IsCard(ids[j], Analeptic.ClassName, player))))
                         {
-                            value += ai.GetKeepValue(ids[i], player, room.GetCardPlace(ids[i]), include);
+                            value += ai.GetKeepValue(ids[i], player, room.GetCardPlace(ids[i]));
                             if (value < bad)
                             {
-                                use.Card = new WrappedCard("KeshouCard");
+                                use.Card = new WrappedCard(KeshouCard.ClassName);
                                 use.Card.AddSubCard(ids[i]);
                                 use.Card.AddSubCard(ids[j]);
                                 return use;
@@ -1438,25 +1436,19 @@ namespace SanguoshaServer.AI
     {
         public ZhuweiAI() : base("zhuwei") { }
 
-        public override bool OnSkillInvoke(TrustedAI ai, Player player, object data) => true;
-    }
-
-    public class ZhuweiMaxAI : SkillEvent
-    {
-        public ZhuweiMaxAI() : base("zhuwei_max") { }
-
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
-            if (data is string prompt)
+            if (data is string prompt && prompt.Contains("@zhuwei:"))
             {
                 string target_name = prompt.Split(':')[1];
                 Player target = ai.Room.FindPlayer(target_name);
                 return target != null && ai.IsFriend(target);
             }
 
-            return false;
+            return true;
         }
     }
+
 
     public class HuibianAI : SkillEvent
     {

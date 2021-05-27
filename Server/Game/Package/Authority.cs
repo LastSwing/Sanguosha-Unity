@@ -2704,7 +2704,7 @@ namespace SanguoshaServer.Package
 
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
-            if (selected.Count > 1) return false;
+            if (selected.Count > 1 || room.GetCardPlace(to_select.Id) != Place.PlaceHand) return false;
             if (selected.Count == 1)
                 return WrappedCard.IsBlack(selected[0].Suit) == WrappedCard.IsBlack(to_select.Suit);
 
@@ -2756,14 +2756,15 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.FinishJudge && data is JudgeStruct judge
                 && room.GetCardPlace(judge.Card.GetEffectiveId()) == Place.PlaceJudge && base.Triggerable(player, room)
-                && (judge.Card.Name.Contains(Slash.ClassName) || judge.Card.Name == Duel.ClassName))
+                && (judge.Card.Name.Contains(Slash.ClassName) || judge.Card.Name == Duel.ClassName || judge.Card.Name == ArcheryAttack.ClassName || judge.Card.Name == SavageAssault.ClassName
+                || judge.Card.Name == FireAttack.ClassName || judge.Card.Name == Drowning.ClassName || judge.Card.Name == BurningCamps.ClassName))
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            if (data is JudgeStruct judge && room.AskForSkillInvoke(player, Name, "@zhuwei-get:::" + judge.Card.Name, info.SkillPosition))
             {
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
@@ -2777,7 +2778,7 @@ namespace SanguoshaServer.Package
                 room.ObtainCard(player, judge.Card);
 
                 Player target = null;
-                if (room.Current != null && room.Current != player && room.AskForSkillInvoke(player, "zhuwei_max", "@zhuwei:" + room.Current.Name, info.SkillPosition))
+                if (room.Current != null && room.Current != player && room.AskForSkillInvoke(player, Name, "@zhuwei:" + room.Current.Name, info.SkillPosition))
                 {
                     target = room.Current;
                 }
@@ -2794,8 +2795,7 @@ namespace SanguoshaServer.Package
 
                     target.AddMark("zhuwei_slash");
                     room.SetPlayerStringMark(target, Name, target.GetMark("zhuwei_slash").ToString());
-                    //if (target == player)
-                        target.AddMark("zhuwei_max");
+                    target.AddMark("zhuwei_max");
                 }
             }
             return false;
