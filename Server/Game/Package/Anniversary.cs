@@ -2519,7 +2519,7 @@ namespace SanguoshaServer.Package
             {
                 List<Player> xhj = RoomLogic.FindPlayersBySkillName(room, Name);
                 foreach (Player p in xhj)
-                    if (!p.HasFlag("zhuangdan") && (p != player || player.GetMark(Name) >= 5))
+                    if (p.GetMark("zhuangdan") == 0 && (p != player || player.GetMark(Name) >= 5))
                         triggers.Add(new TriggerStruct(Name, p));
             }
             return triggers;
@@ -2582,19 +2582,27 @@ namespace SanguoshaServer.Package
     {
         public Zhuangdan() :base("zhuangdan")
         {
-            events.Add(TriggerEvent.EventPhaseChanging);
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseChanging, TriggerEvent.EventLoseSkill };
             frequency = Frequency.Compulsory;
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.HasFlag(Name))
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.GetMark(Name) > 0)
+            {
+                player.SetMark(Name, 0);
                 room.RemovePlayerStringMark(player, Name);
+            }
+            else if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct info && info.Info == Name)
+            {
+                player.SetMark(Name, 0);
+                room.RemovePlayerStringMark(player, Name);
+            }
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
             {
                 int max = 0;
                 Player max_p = null;
@@ -2619,7 +2627,7 @@ namespace SanguoshaServer.Package
                     }
                 }
 
-                if (max_p != null && max_p != player && base.Triggerable(max_p, room))
+                if (max_p != null && max_p != player && max_p.GetMark(Name) == 0 && base.Triggerable(max_p, room))
                     return new TriggerStruct(Name, max_p);
             }
             return new TriggerStruct();
@@ -2629,7 +2637,7 @@ namespace SanguoshaServer.Package
         {
             room.SendCompulsoryTriggerLog(ask_who, Name);
             room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
-            ask_who.SetFlags(Name);
+            ask_who.AddMark(Name);
             room.SetPlayerStringMark(ask_who, Name, string.Empty);
             return false;
         }
