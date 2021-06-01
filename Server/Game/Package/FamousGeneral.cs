@@ -1805,7 +1805,7 @@ namespace SanguoshaServer.Package
     }
 
     public class JujianCard:SkillCard
-{
+    {
         public static string ClassName = "JujianCard";
         public JujianCard() : base(ClassName)
         {
@@ -1828,7 +1828,7 @@ namespace SanguoshaServer.Package
             string choice = room.AskForChoice(target, "jujian", string.Join("+", choicelist));
 
             if (choice == "draw")
-                room.DrawCards(target, new DrawCardStruct(2, player, Name));
+                room.DrawCards(target, new DrawCardStruct(2, player, "jujian"));
             else if (choice == "recover")
             {
                 RecoverStruct recover = new RecoverStruct

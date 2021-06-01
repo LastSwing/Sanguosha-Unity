@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using static CommonClass.Game.CardUseStruct;
 using static CommonClass.Game.Player;
+using static SanguoshaServer.Package.FunctionCard;
 
 namespace SanguoshaServer.Package
 {
@@ -24,6 +25,7 @@ namespace SanguoshaServer.Package
                 new Shuliang(),
                 new Qiao(),
                 new Chengshang(),
+                new JujianHegemony(),
 
                 new Yuanyu(),
                 new Guishu(),
@@ -38,6 +40,7 @@ namespace SanguoshaServer.Package
             {
                 new GuishuCard(),
                 new DaoshuCard(),
+                new JujianHCard(),
             };
             related_skills = new Dictionary<string, List<string>>
             {
@@ -458,6 +461,88 @@ namespace SanguoshaServer.Package
         }
     }
 
+    //xushu
+    public class JujianHCard : SkillCard
+    {
+        public static string ClassName = "JujianHCard";
+        public JujianHCard() : base(ClassName)
+        {
+        }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && RoomLogic.IsFriendWith(room, to_select, Self);
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From, target = card_use.To[0];
+
+            List<string> choicelist = new List<string> { "draw" };
+            if (target.IsWounded())
+                choicelist.Add("recover");
+            string choice = room.AskForChoice(target, "jujian_hegemony", string.Join("+", choicelist));
+
+            if (choice == "draw")
+                room.DrawCards(target, new DrawCardStruct(2, player, "jujian_hegemony"));
+            else if (choice == "recover")
+            {
+                RecoverStruct recover = new RecoverStruct
+                {
+                    Recover = 1,
+                    Who = player
+                };
+                room.Recover(target, recover, true);
+            }
+
+            if (player.Alive && player.GetMark("jujian_hegemony") == 0 && target.Alive && RoomLogic.CanTransform(target) && room.AskForSkillInvoke(target, "transform"))
+            {
+                player.SetMark("jujian_hegemony", 1);
+                room.TransformDeputyGeneral(target);
+            }
+        }
+    }
+
+    public class JujianHVS : OneCardViewAsSkill
+    {
+        public JujianHVS() : base("jujian_hegemony")
+        {
+            filter_pattern = "^BasicCard!";
+            response_pattern = "@@jujian_hegemony";
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard jujianCard = new WrappedCard(JujianHCard.ClassName) { Skill = Name, ShowSkill = Name };
+            jujianCard.AddSubCard(card);
+            return jujianCard;
+        }
+    }
+
+    public class JujianHegemony : PhaseChangeSkill
+    {
+        public JujianHegemony() : base("jujian_hegemony")
+        {
+            view_as_skill = new JujianHVS();
+            relate_to_place = "deputy";
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player.Phase == PlayerPhase.Finish && base.Triggerable(player, room))
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.AskForUseCard(player, "@@jujian_hegemony", "@jujian", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
+            return new TriggerStruct();
+        }
+
+        public override bool OnPhaseChange(Room room, Player player, TriggerStruct info)
+        {
+            return false;
+        }
+    }
 
     //himiko
     public class Guishu : TriggerSkill

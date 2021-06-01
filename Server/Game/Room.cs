@@ -1492,7 +1492,6 @@ namespace SanguoshaServer.Game
         public void TransformDeputyGeneral(Player player, int count = 3)
         {
             if (!RoomLogic.CanTransform(player) || count <= 0) return;
-
             ShowGeneral(player, false);
 
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
@@ -1506,6 +1505,14 @@ namespace SanguoshaServer.Game
             Thread.Sleep(1000);
 
             Shuffle.shuffle(ref available);
+
+            //手杀举荐技能耦合
+            foreach (Player p in GetAllPlayers())
+            {
+                if (RoomLogic.PlayerHasShownSkill(this, p, "jujian_hegemony") && RoomLogic.IsFriendWith(this, p, player))
+                    count += 2;
+            }
+
             List<string> generals = new List<string>();
             for (int i = 0; i < Math.Min(count, available.Count); i++)
                 generals.Add(available[i]);
