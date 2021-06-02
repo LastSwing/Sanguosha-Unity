@@ -2,6 +2,7 @@
 using CommonClass.Game;
 using CommonClassLibrary;
 using SanguoshaServer.Game;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using static CommonClass.Game.CardUseStruct;
@@ -18,6 +19,9 @@ namespace SanguoshaServer.Package
             {
                 new Daoshu(),
                 new Weicheng(),
+                new Quanjin(),
+                new Zaoyun(),
+                new ZaoyunDistance(),
 
                 new Tunchu(),
                 new TunchuAdd(),
@@ -45,11 +49,14 @@ namespace SanguoshaServer.Package
                 new GuishuCard(),
                 new DaoshuCard(),
                 new JujianHCard(),
+                new QuanjinCard(),
+                new ZaoyunCard(),
             };
             related_skills = new Dictionary<string, List<string>>
             {
                 { "tunchu", new List<string> { "#tunchu-add", "#tunchu-prohibit" } },
                 { "zhidao_hegemony", new List<string> { "#zhidao_hegemony", "#zhidao-distance" } },
+                { "zaoyun", new List<string> { "#zaoyun" } },
             };
         }
     }
@@ -192,6 +199,167 @@ namespace SanguoshaServer.Package
                     }
                 }
             }
+        }
+    }
+
+    //dongzhao
+    public class Quanjin : TriggerSkill
+    {
+        public Quanjin() : base("quanjin")
+        {
+            view_as_skill = new QuanjinVS();
+            skill_type = SkillType.Wizzard;
+            events = new List<TriggerEvent> { TriggerEvent.Damaged };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (player.Alive) player.SetFlags(Name);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+    public class QuanjinVS : OneCardViewAsSkill
+    {
+        public QuanjinVS() : base("quanjin") { filter_pattern = "."; }
+
+        public override bool IsEnabledAtPlay(Room room, Player player)
+        {
+            return !player.HasUsed(QuanjinCard.ClassName) && !player.IsKongcheng();
+        }
+        public override WrappedCard ViewAs(Room room, WrappedCard card, Player player)
+        {
+            WrappedCard jieyue = new WrappedCard(QuanjinCard.ClassName) { Skill = Name, ShowSkill = Name };
+            jieyue.AddSubCard(card);
+            return jieyue;
+        }
+    }
+
+    public class QuanjinCard : SkillCard
+    {
+        public static string ClassName = "QuanjinCard";
+        public QuanjinCard() : base(ClassName) { will_throw = false; }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return to_select != Self && targets.Count == 0 && to_select.HasFlag(Name);
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            Player target = card_use.To[0];
+
+            List<int> ids = new List<int>(card_use.Card.SubCards);
+            room.ObtainCard(target, ref ids, new CardMoveReason(MoveReason.S_REASON_GIVE, player.Name, target.Name, "quanjin", string.Empty), false);
+
+            if (player.Alive && target.Alive)
+            {
+                target.SetFlags("imperialorder_target");        //这个flag表明该玩家为敕令的固定目标，且会自动在ViewAsSkill生成随机敕令牌后清除
+                player.SetTag("order_reason", "quanjin");
+                WrappedCard card = room.AskForUseCard(player, "@@imperialorder!", "@quanjin-target:" + target.Name, null, -1, HandlingMethod.MethodUse);
+                if (card == null)
+                {
+                    string card_name = player.ContainsTag("imperialorder_select") ? ((string)player.GetTag("imperialorder_select")).Split('+')[0] : string.Empty;
+                    if (string.IsNullOrEmpty(card_name))
+                        card = ImperialOrderVS.GetImperialOrders(room, player)[0];
+                    else
+                        card = new WrappedCard(card_name);
+
+                    CardUseStruct use = new CardUseStruct(card, player, target);
+                    room.UseCard(use);
+                }
+                player.RemoveTag("imperialorder_select");
+
+                if (!player.ContainsTag("ImperialOrder") || !(bool)player.GetTag("ImperialOrder"))
+                {
+                    if (player.Alive && player.HandcardNum < 5)
+                    {
+                        int max = 0;
+                        foreach (Player p in room.GetAlivePlayers())
+                        {
+                            if (p.HandcardNum > max) max = p.HandcardNum;
+                        }
+                        if (player.HandcardNum < max)
+                        {
+                            max = Math.Min(5, max + 1);
+                            int count = max - player.HandcardNum;
+                            room.DrawCards(player, count, "quanjin");
+                        }
+                    }
+                }
+                else if (player.Alive)
+                    room.DrawCards(player, 1, Name);
+            }
+        }
+    }
+
+    public class Zaoyun : ViewAsSkill
+    {
+        public Zaoyun() : base("zaoyun")
+        {
+            skill_type = SkillType.Attack;
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player) => !player.HasUsed(ZaoyunCard.ClassName);
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            return RoomLogic.CanDiscard(room, player, player, to_select.Id) && room.GetCardPlace(to_select.Id) == Place.PlaceHand;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count < 0)
+            {
+                WrappedCard zy = new WrappedCard(ZaoyunCard.ClassName) { Skill = Name, ShowSkill = Name };
+                zy.AddSubCards(cards);
+                return zy;
+            }
+            return null;
+        }
+    }
+
+    public class ZaoyunCard : SkillCard
+    {
+        public static string ClassName = "ZaoyunCard";
+        public ZaoyunCard() : base(ClassName)
+        {
+            will_throw = true;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            if (targets.Count == 0 && to_select != Self && RoomLogic.WillBeFriendWith(room, Self, to_select))
+            {
+                int distance = RoomLogic.DistanceTo(room, Self, to_select);
+                return distance > 1 && distance - 1 == card.SubCards.Count;
+            }
+            return false;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From, target = card_use.To[0];
+            player.SetFlags("zaoyun_from");
+            target.SetFlags("zaoyun");
+            room.Damage(new DamageStruct("zaoyun", player, target));
+        }
+    }
+
+    public class ZaoyunDistance : DistanceSkill
+    {
+        public ZaoyunDistance() : base("#zaoyun")
+        {
+        }
+        public override int GetFixed(Room room, Player from, Player to)
+        {
+            if (from.HasFlag("zaoyun_from") && to.HasFlag("zaoyun"))
+                return 1;
+            else
+                return 0;
         }
     }
 
@@ -475,7 +643,7 @@ namespace SanguoshaServer.Package
         }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return targets.Count == 0 && RoomLogic.IsFriendWith(room, to_select, Self);
+            return targets.Count == 0 && RoomLogic.WillBeFriendWith(room, to_select, Self);
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -806,8 +974,9 @@ namespace SanguoshaServer.Package
                 {
                     room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                     room.SetTag(Name, target);
-                    return info;
                 }
+                else
+                    return new TriggerStruct();
             }
 
             return info;
@@ -857,7 +1026,7 @@ namespace SanguoshaServer.Package
         public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
         {
             if (from != null && Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeSkill && from.HasFlag("zhidao_hegemony") && from.Phase != PlayerPhase.NotActive)
-                return from != to && to.HasFlag("zhidao_hegemony");
+                return from != to && to != null && !to.HasFlag("zhidao_hegemony");
 
             return false;
         }
@@ -898,8 +1067,8 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.To.Count == 1 && base.Triggerable(use.To[0], room) && use.From != null && use.From.Alive
-                && WrappedCard.IsRed(use.Card.Suit))
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.To.Count == 1 && base.Triggerable(use.To[0], room) && use.Card.Name != Jink.ClassName
+                && use.From != null && use.From.Alive && WrappedCard.IsRed(use.Card.Suit))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is BasicCard || (fcard is TrickCard && !(fcard is DelayedTrick)))

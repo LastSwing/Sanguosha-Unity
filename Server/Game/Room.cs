@@ -7445,15 +7445,14 @@ namespace SanguoshaServer.Game
             Thread.Sleep(300);
             NotifyMoveFocus(player, CommandType.S_COMMAND_RESPONSE_CARD);
 
-            const string rx_pattern = @"([_A-Za-z]+!?):(\w+)";
-            Match result = Regex.Match(_pattern, rx_pattern);
+            string[] result = _pattern.Split(':');
 
-            string pattern = result.Success && result.Length > 0 ? result.Groups[1].ToString() : _pattern;
+            string pattern = result[0];
             _m_roomState.SetCurrentCardUsePattern(pattern);
             _m_roomState.SetCurrentCardUseReason(CardUseStruct.CardUseReason.CARD_USE_REASON_RESPONSE_USE);
             _m_roomState.SetCurrentCardResponsePrompt(prompt);
-            if (result.Success && result.Length > 0)
-                _m_roomState.SetCurrentResponseSkill(result.Groups[2].ToString());
+            if (result.Length > 1)
+                _m_roomState.SetCurrentResponseSkill(result[1].ToString());
             else
                 _m_roomState.SetCurrentResponseSkill(null);
 

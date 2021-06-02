@@ -5131,6 +5131,7 @@ namespace SanguoshaServer.Package
         public override void Use(Room room, CardUseStruct card_use)
         {
             Player player = card_use.From, target = card_use.To[0];
+            room.TurnOver(player);
             target.AddMark("cunsi_classic");
             room.SetPlayerStringMark(target, "cunsi_classic", target.GetMark("cunsi_classic").ToString());
             List<int> get = new List<int>();
@@ -5858,7 +5859,7 @@ namespace SanguoshaServer.Package
                 if (fcard is Slash && WrappedCard.IsRed(use.Card.Suit) || fcard is Duel)
                 {
                     foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
-                        if (!p.IsKongcheng()) triggers.Add(new TriggerStruct(Name, p));
+                        if (!p.IsKongcheng() && p != use.To[0]) triggers.Add(new TriggerStruct(Name, p));
                 }
             }
 
@@ -5871,12 +5872,16 @@ namespace SanguoshaServer.Package
             {
                 ask_who.SetFlags("slashTargetFix");
                 use.To[0].SetFlags("SlashAssignee");
+                ask_who.SetFlags("duelTargetFix");
+                use.To[0].SetFlags("DuelAssignee");
 
                 WrappedCard used = room.AskForUseCard(ask_who, "Slash|.|.|hand#Duel|.|.|hand:heji", "@heji:" + use.To[0].Name, null, -1, HandlingMethod.MethodUse, false);
                 if (used == null)
                 {
                     ask_who.SetFlags("-slashTargetFix");
                     use.To[0].SetFlags("-SlashAssignee");
+                    ask_who.SetFlags("-duelTargetFix");
+                    use.To[0].SetFlags("-DuelAssignee");
                 }
             }
 

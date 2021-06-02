@@ -1136,6 +1136,19 @@ namespace SanguoshaServer.Package
             return base.TargetFilter(room, targets, to_select, Self, card);
         }
 
+        public override void OnUse(Room room, CardUseStruct use)
+        {
+            Player player = use.From;
+            if (player.HasFlag("duelTargetFix"))
+            {
+                player.SetFlags("-duelTargetFix");
+                foreach (Player target in room.GetAlivePlayers())
+                    if (target.HasFlag("DuelAssignee"))
+                        target.SetFlags("-DuelAssignee");
+            }
+            base.OnUse(room, use);
+        }
+
         public override void OnEffect(Room room, CardEffectStruct effect)
         {
             Player first = effect.To;
