@@ -1072,7 +1072,11 @@ namespace SanguoshaServer.Package
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 if (fcard is BasicCard || (fcard is TrickCard && !(fcard is DelayedTrick)))
-                    return new TriggerStruct(Name, use.To[0]);
+                {
+                    WrappedCard card = new WrappedCard(use.Card.Name);
+                    if (fcard.IsAvailable(room, use.From, card) && (fcard.TargetFixed(card) || RoomLogic.IsProhibited(room, use.From, use.To[0], card) == null))
+                        return new TriggerStruct(Name, use.To[0]);
+                }
             }
             else if (triggerEvent == TriggerEvent.DamageInflicted && base.Triggerable(player, room) && player.GetMark(Name) == 1)
                 return new TriggerStruct(Name, player);
@@ -1102,8 +1106,9 @@ namespace SanguoshaServer.Package
             }
             else if (data is CardUseStruct use)
             {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 WrappedCard card = new WrappedCard(use.Card.Name);
-                room.UseCard(new CardUseStruct(card, use.From, ask_who));
+                room.UseCard(new CardUseStruct(card, use.From, fcard.TargetFixed(card) ? null : ask_who));
             }
             return false;
         }

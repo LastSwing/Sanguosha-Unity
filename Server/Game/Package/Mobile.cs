@@ -38,6 +38,8 @@ namespace SanguoshaServer.Package
                 new WanweiClassic(),
                 new YuejianClassic(),
                 new YuejianClassicMax(),
+                new YinjuSP(),
+                new ChijieSP(),
 
                 new Zhaohuo(),
                 new Yixiang(),
@@ -130,6 +132,7 @@ namespace SanguoshaServer.Package
                 new WanweiCCard(),
                 new MiewuCard(),
                 new CunsiCCard(),
+                new YinjuSPCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -1505,6 +1508,117 @@ namespace SanguoshaServer.Package
         }
         public override int GetFixed(Room room, Player target) => RoomLogic.PlayerHasSkill(room, target, "yuejian_classic") ? target.MaxHp : -1;
     }
+
+    public class YinjuSPVS : ZeroCardViewAsSkill
+    {
+        public YinjuSPVS() : base("yinju_sp") {}
+        public override bool IsEnabledAtPlay(Room room, Player player) => !player.HasUsed(YinjuSPCard.ClassName);
+        public override WrappedCard ViewAs(Room room, Player player)
+        {
+            return new WrappedCard(YinjuSPCard.ClassName) { Skill = Name };
+        }
+    }
+
+    public class YinjuSPCard : SkillCard
+    {
+        public static string ClassName = "YinjuSPCard";
+        public YinjuSPCard() : base(ClassName) { }
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && to_select != Self;
+        }
+        public override void OnEffect(Room room, CardEffectStruct effect)
+        {
+            bool use_slash = false;
+            if (RoomLogic.CanSlash(room, effect.To, effect.From))
+                use_slash = room.AskForUseSlashTo(effect.To, effect.From, "@yinju_sp-slash:" + effect.From.Name, null) != null;
+            if (!use_slash)
+            {
+                effect.To.AddMark("yinju_sp");
+                room.SetPlayerStringMark(effect.To, "yinju_sp", string.Empty);
+            }
+        }
+    }
+
+    public class YinjuSP : TriggerSkill
+    {
+        public YinjuSP() : base("yinju_sp")
+        {
+            skill_type = SkillType.Wizzard;
+            events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
+            view_as_skill = new YinjuSPVS();
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (player.Phase == PlayerPhase.Start && player.GetMark(Name) > 0)
+            {
+                player.SetMark(Name, 0);
+                room.RemovePlayerStringMark(player, Name);
+                room.SkipPhase(player, PlayerPhase.Play);
+                room.SkipPhase(player, PlayerPhase.Discard);
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            return new List<TriggerStruct>();
+        }
+    }
+
+    public class ChijieSP : TriggerSkill
+    {
+        public ChijieSP() : base("chijie_sp")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.TargetConfirming };
+            skill_type = SkillType.Defense;
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is CardUseStruct use && base.Triggerable(player, room) && use.From != null && use.To.Count == 1 && use.From != use.To[0])
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is SkillCard))
+                    return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(ask_who, Name, data, info.SkillPosition))
+            {
+                room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use)
+            {
+                JudgeStruct judge = new JudgeStruct
+                {
+                    Pattern = ".|.|7~",
+                    Good = true,
+                    Reason = Name,
+                    Who = player
+                };
+
+                room.Judge(ref judge);
+
+                if (judge.IsEffected())
+                {
+                    room.CancelTarget(ref use, player); // Room::cancelTarget(use, player);
+                    data = use;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
 
     public class Zhaohuo : TriggerSkill
     {
