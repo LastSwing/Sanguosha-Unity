@@ -30,6 +30,10 @@ namespace SanguoshaServer.Package
                 new Yuanyu(),
                 new Guishu(),
                 new WukuHegemony(),
+                new ZhidaoHegemony(),
+                new ZhidaoHegemonyPro(),
+                new ZhidaoDistance(),
+                new JiliYbhHegemony(),
 
                 new Dujin(),
                 new Zhente(),
@@ -45,6 +49,7 @@ namespace SanguoshaServer.Package
             related_skills = new Dictionary<string, List<string>>
             {
                 { "tunchu", new List<string> { "#tunchu-add", "#tunchu-prohibit" } },
+                { "zhidao_hegemony", new List<string> { "#zhidao_hegemony", "#zhidao-distance" } },
             };
         }
     }
@@ -756,6 +761,181 @@ namespace SanguoshaServer.Package
             room.SendCompulsoryTriggerLog(ask_who, Name);
             ask_who.AddMark("wuku");
             room.SetPlayerStringMark(ask_who, "wuku", ask_who.GetMark("wuku").ToString());
+            return false;
+        }
+    }
+
+    //yanbaihu
+    public class ZhidaoHegemony : TriggerSkill
+    {
+        public ZhidaoHegemony() : base("zhidao_hegemony")
+        {
+            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.EventPhaseChanging, TriggerEvent.EventPhaseStart };
+            frequency = Frequency.Compulsory;
+            skill_type = SkillType.Attack;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.Damage && player.Phase == PlayerPhase.Play && data is DamageStruct damage && damage.To.HasFlag(Name))
+                player.AddMark(Name);
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play && player.GetMark(Name) > 0)
+                player.SetMark(Name, 0);
+
+        }
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && player.GetMark(Name) == 1 && damage.To.Alive && !damage.To.IsAllNude()
+                 && damage.To.HasFlag(Name) && base.Triggerable(player, room) && RoomLogic.CanGetCard(room, player, damage.To, "hej") && damage.To != player)
+            {
+                return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Play && base.Triggerable(player, room))
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.EventPhaseStart)
+            {
+                bool option = !RoomLogic.PlayerHasShownSkill(room, player, Name);
+                string prompt = option ? "@zhidao-hegemony" : "@zhidao-hegemony2";
+                Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, prompt, option, true, info.SkillPosition);
+                if (target != null)
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.SetTag(Name, target);
+                    return info;
+                }
+            }
+
+            return info;
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is DamageStruct damage)
+            {
+                Player target = damage.To;
+                room.SendCompulsoryTriggerLog(player, Name);
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, target.Name);
+                List<int> ids = new List<int>();
+                if (!target.IsKongcheng() && RoomLogic.CanGetCard(room, player, target, "h"))
+                {
+                    int id = room.AskForCardChosen(player, target, "h", Name, false, HandlingMethod.MethodGet);
+                    ids.Add(id);
+                }
+                if (target.HasEquip() && RoomLogic.CanGetCard(room, player, target, "e"))
+                {
+                    int id = room.AskForCardChosen(player, target, "e", Name, false, HandlingMethod.MethodGet);
+                    ids.Add(id);
+                }
+                if (target.JudgingArea.Count > 0 && RoomLogic.CanGetCard(room, player, target, "j"))
+                {
+                    int id = room.AskForCardChosen(player, target, "j", Name, false, HandlingMethod.MethodGet);
+                    ids.Add(id);
+                }
+                if (ids.Count > 0)
+                    room.ObtainCard(player, ref ids, new CardMoveReason(MoveReason.S_REASON_EXTRACTION, player.Name, target.Name, Name, string.Empty), false);
+
+            }
+            else if (room.GetTag(Name) is Player target)
+            {
+                room.RemoveTag(Name);
+                player.SetFlags(Name);
+                target.SetFlags(Name);
+            }
+            return false;
+        }
+    }
+
+    public class ZhidaoHegemonyPro : ProhibitSkill
+    {
+        public ZhidaoHegemonyPro() : base("#zhidao_hegemony") { }
+
+        public override bool IsProhibited(Room room, Player from, Player to, WrappedCard card, List<Player> others = null)
+        {
+            if (from != null && Engine.GetFunctionCard(card.Name).TypeID != CardType.TypeSkill && from.HasFlag("zhidao_hegemony") && from.Phase != PlayerPhase.NotActive)
+                return from != to && to.HasFlag("zhidao_hegemony");
+
+            return false;
+        }
+    }
+
+    public class ZhidaoDistance : DistanceSkill
+    {
+        public ZhidaoDistance() : base("#zhidao-distance")
+        {
+        }
+        public override int GetFixed(Room room, Player from, Player to)
+        {
+            if (from.HasFlag("zhidao_hegemony") && from.Phase != PlayerPhase.NotActive && to.HasFlag("zhidao_hegemony"))
+                return 1;
+            else
+                return 0;
+        }
+    }
+
+    public class JiliYbhHegemony : TriggerSkill
+    {
+        public JiliYbhHegemony() : base("jili_ybh_hegemony")
+        {
+            frequency = Frequency.Compulsory;
+            skill_type = SkillType.Wizzard;
+            events = new List<TriggerEvent> { TriggerEvent.DamageInflicted, TriggerEvent.CardFinished, TriggerEvent.Damaged, TriggerEvent.EventPhaseChanging };
+            relate_to_place = "deputy";
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.Damaged && player.Alive)
+                player.AddMark(Name);
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.GetMark(Name) > 0) p.SetMark(Name, 0);
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.To.Count == 1 && base.Triggerable(use.To[0], room) && use.From != null && use.From.Alive
+                && WrappedCard.IsRed(use.Card.Suit))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is BasicCard || (fcard is TrickCard && !(fcard is DelayedTrick)))
+                    return new TriggerStruct(Name, use.To[0]);
+            }
+            else if (triggerEvent == TriggerEvent.DamageInflicted && base.Triggerable(player, room) && player.GetMark(Name) == 1)
+                return new TriggerStruct(Name, player);
+
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (triggerEvent == TriggerEvent.DamageInflicted && (RoomLogic.PlayerHasShownSkill(room, player, Name) || room.AskForSkillInvoke(player, Name, "@jili-remove", info.SkillPosition)))
+                return info;
+            else if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use
+                && (RoomLogic.PlayerHasShownSkill(room, ask_who, Name) || room.AskForSkillInvoke(ask_who, Name, string.Format("@jili-use:{0}::{1}", use.From.Name, use.Card.Name), info.SkillPosition)))
+                return info;
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            room.SendCompulsoryTriggerLog(ask_who, Name);
+            room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
+            if (triggerEvent == TriggerEvent.DamageInflicted)
+            {
+                room.RemoveGeneral(ask_who, false);
+                return true;
+            }
+            else if (data is CardUseStruct use)
+            {
+                WrappedCard card = new WrappedCard(use.Card.Name);
+                room.UseCard(new CardUseStruct(card, use.From, ask_who));
+            }
             return false;
         }
     }

@@ -105,6 +105,8 @@ namespace SanguoshaServer.Package
                 new FubiExta(),
                 new Zuici(),
                 new Qinzheng(),
+                new Heji(),
+                new HejiTag(),
             };
 
             skill_cards = new List<FunctionCard>
@@ -151,6 +153,7 @@ namespace SanguoshaServer.Package
                 { "shanxi_wc", new List<string> { "#shanxi_wc" } },
                 { "yuejian_classic", new List<string> { "#yuejian_classic" } },
                 { "cunsi_classic", new List<string> { "#cunsi_classic" } },
+                { "heji", new List<string> { "#heji" } },
             };
         }
     }
@@ -5808,6 +5811,89 @@ namespace SanguoshaServer.Package
                     room.ObtainCard(player, ref ids, reason, true);
                 }
             }
+        }
+    }
+
+    public class Heji : TriggerSkill
+    {
+        public Heji() : base("heji")
+        {
+            skill_type = SkillType.Attack;
+            events = new List<TriggerEvent> { TriggerEvent.CardFinished, TriggerEvent.CardUsedAnnounced };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Pattern == "Slash|.|.|hand#Duel|.|.|hand:heji")
+            {
+                room.ShowSkill(player, Name, string.Empty);
+                room.NotifySkillInvoked(player, Name);
+                room.BroadcastSkillInvoke(Name, player);
+
+                if (!use.Card.IsVirtualCard())
+                {
+                    List<int> get = new List<int>();
+                    foreach (int id in room.DrawPile)
+                    {
+                        WrappedCard card = room.GetCard(id);
+                        if (WrappedCard.IsRed(card.Suit))
+                        {
+                            get.Add(id);
+                            break;
+                        }
+                    }
+
+                    if (get.Count > 0)
+                        room.ObtainCard(player, ref get, new CardMoveReason(MoveReason.S_REASON_GOTCARD, player.Name, Name, string.Empty));
+                }
+            }
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.CardFinished && data is CardUseStruct use && use.To.Count == 1 && use.To[0].Alive)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (fcard is Slash && WrappedCard.IsRed(use.Card.Suit) || fcard is Duel)
+                {
+                    foreach (Player p in RoomLogic.FindPlayersBySkillName(room, Name))
+                        if (!p.IsKongcheng()) triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use && ask_who.Alive && use.To[0].Alive)
+            {
+                ask_who.SetFlags("slashTargetFix");
+                use.To[0].SetFlags("SlashAssignee");
+
+                WrappedCard used = room.AskForUseCard(ask_who, "Slash|.|.|hand#Duel|.|.|hand:heji", "@heji:" + use.To[0].Name, null, -1, HandlingMethod.MethodUse, false);
+                if (used == null)
+                {
+                    ask_who.SetFlags("-slashTargetFix");
+                    use.To[0].SetFlags("-SlashAssignee");
+                }
+            }
+
+            return new TriggerStruct();
+        }
+    }
+
+    public class HejiTag : TargetModSkill
+    {
+        public HejiTag() : base("#heji", false) { }
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseStruct.CardUseReason reason, string pattern)
+        {
+            if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && to.HasFlag("SlashAssignee")
+                && (room.GetRoomState().GetCurrentResponseSkill() == "heji" || pattern == "Slash|.|.|hand#Duel|.|.|hand:heji"))
+                return true;
+
+            return false;
         }
     }
 }
