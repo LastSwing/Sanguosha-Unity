@@ -189,6 +189,7 @@
     <Compile Include="Game\Scenario\Classic.cs" />
     <Compile Include="Game\Scenario\GuanduWarfare.cs" />
     <Compile Include="Game\Scenario\Hegemony.cs" />
+    <Compile Include="Game\Scenario\HegemonyChaos.cs" />
     <Compile Include="Game\Scenario\Scenario.cs" />
     <Compile Include="Game\Skills.cs" />
     <Compile Include="LogHelper.cs" />

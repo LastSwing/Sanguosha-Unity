@@ -692,9 +692,9 @@ namespace SanguoshaServer.Game
                     result.General = position == "head" ? player.ActualGeneral1 : player.ActualGeneral2;
                     result.SkinId = position == "head" ? player.HeadSkinId : player.DeputySkinId;
                 }
-                else if (skill.Attached_lord_skill && GetLord(room, Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom) != null)
+                else if (skill.Attached_lord_skill && GetLord(room, General.GetKingdom(Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom[0])) != null)
                 {
-                    Player lord = GetLord(room, Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom);
+                    Player lord = GetLord(room, General.GetKingdom(Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode).Kingdom[0]));
                     result.General = lord.ActualGeneral1;
                     result.SkinId = lord.HeadSkinId;
                 }
@@ -731,7 +731,7 @@ namespace SanguoshaServer.Game
             foreach (Player p in players)
             {
                 General g = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode);
-                if (g.IsLord() && g.Kingdom == kingdom)
+                if (g.IsLord() && General.GetKingdom(g.Kingdom[0]) == kingdom)
                     return p;
             }
 

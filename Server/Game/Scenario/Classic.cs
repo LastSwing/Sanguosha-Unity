@@ -157,7 +157,7 @@ namespace SanguoshaServer.Scenario
             lord.ActualGeneral1 = lord_general;
             General lord_gen = Engine.GetGeneral(lord_general, room.Setting.GameMode);
             lord.PlayerGender = lord_gen.GeneralGender;
-            lord.Kingdom = lord_gen.Kingdom;
+            lord.Kingdom = General.GetKingdom(lord_gen.Kingdom[0]);
             lord.General1Showed = true;
             room.BroadcastProperty(lord, "General1");
             room.BroadcastProperty(lord, "PlayerGender");
@@ -252,7 +252,7 @@ namespace SanguoshaServer.Scenario
                     
                     player.General1 = generalName;
                     player.ActualGeneral1 = generalName;
-                    player.Kingdom = Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom;
+                    player.Kingdom = General.GetKingdom(Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0]);
                     player.General1Showed = true;
                 }
 
@@ -379,7 +379,7 @@ namespace SanguoshaServer.Scenario
 
             player.General1 = generalName;
             player.ActualGeneral1 = generalName;
-            player.Kingdom = Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom;
+            player.Kingdom = General.GetKingdom(Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0]);
             player.General1Showed = true;
             room.NotifyProperty(room.GetClient(player), player, "General1");
             room.NotifyProperty(room.GetClient(player), player, "Kingdom");

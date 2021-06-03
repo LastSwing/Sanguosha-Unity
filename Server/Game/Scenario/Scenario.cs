@@ -37,6 +37,7 @@ namespace SanguoshaServer.Scenario
         {
         }
         public List<Skill> Skills => skills;
+        public virtual List<Skill> GetGameRuleSkills() => skills;
         public abstract bool IsFriendWith(Room room, Player player, Player other);
         public abstract bool WillBeFriendWith(Room room, Player player, Player other, string show_skill = null);
         public abstract TrustedAI GetAI(Room room, Player player);

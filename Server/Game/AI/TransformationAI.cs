@@ -693,8 +693,8 @@ namespace SanguoshaServer.AI
             bool slash = !player.HasFlag("yigui_Slash");
             foreach (string general in (List<string>)player.GetTag("spirit"))
             {
-                string kingdom = Engine.GetGeneral(general, room.Setting.GameMode).Kingdom;
-                if (kingdom != "qun" && slash)
+                General.KingdomENUM kingdom = Engine.GetGeneral(general, room.Setting.GameMode).Kingdom[0];
+                if (kingdom != General.KingdomENUM.Qun && slash)
                 {
                     WrappedCard _Slash = new WrappedCard(Slash.ClassName)
                     {
@@ -704,7 +704,7 @@ namespace SanguoshaServer.AI
                     result.Add(_Slash);
                     slash = false;
                 }
-                if (kingdom == "qun")
+                if (kingdom == General.KingdomENUM.Qun)
                 {
                     int count = 0;
                     foreach (Player p in ai.GetFriends(player))
@@ -804,8 +804,8 @@ namespace SanguoshaServer.AI
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
-                    string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
-                    if (kingdom != "qun")
+                    General.KingdomENUM kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom[0];
+                    if (kingdom != General.KingdomENUM.Qun)
                     {
                         WrappedCard slash = new WrappedCard(Slash.ClassName)
                         {
@@ -844,8 +844,8 @@ namespace SanguoshaServer.AI
             {
                 foreach (string general in (List<string>)player.GetTag("spirit"))
                 {
-                    string kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom;
-                    if (kingdom == "qun")
+                    General.KingdomENUM kingdom = Engine.GetGeneral(general, ai.Room.Setting.GameMode).Kingdom[0];
+                    if (kingdom == General.KingdomENUM.Qun)
                     {
                         WrappedCard card = new WrappedCard(Analeptic.ClassName)
                         {

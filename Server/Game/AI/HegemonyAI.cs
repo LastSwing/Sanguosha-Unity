@@ -850,7 +850,7 @@ namespace SanguoshaServer.AI
 
                 if (IsKnown(self, p, "h") && Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).IsLord())
                 {    //find lord
-                    string kingdom = Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom;
+                    string kingdom = General.GetKingdom(Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom[0]);
                     lords[kingdom] = p;
                     id_tendency[p] = kingdom;
                 }
@@ -983,7 +983,7 @@ namespace SanguoshaServer.AI
 
             if (!self.HasShownOneGeneral() && id_tendency[self] != "careerist")
             {                // show general when lack of pit
-                string kingdom = Engine.GetGeneral(self.ActualGeneral1, room.Setting.GameMode).Kingdom;
+                string kingdom = General.GetKingdom(Engine.GetGeneral(self.ActualGeneral1, room.Setting.GameMode).Kingdom[0]);
                 List<Player> others = new List<Player>();
                 bool friends = false;                                                           // find shown friends
                 foreach (Player p in room.GetOtherPlayers(self))

@@ -74,7 +74,7 @@ namespace SanguoshaServer.AI
                     if (lord.General1 == "liubei" && p.General1 == "xizhicai") player_intention[p]["loyalist"] += 10;
 
                     General general = Engine.GetGeneral(p.General1, room.Setting.GameMode);
-                    if (general.Kingdom == "god" && p.Kingdom != lord.Kingdom)
+                    if (general.Kingdom[0] == General.KingdomENUM.TobeDicede && p.Kingdom != lord.Kingdom)
                         player_intention[p]["rebel"] += 20;                         //神将国籍与主公不同偏反
                 }
                 if (HasSkill(MasochismSkill, lord) && p.General1 == "zhangchunhua")             //主公卖血用春哥的明反

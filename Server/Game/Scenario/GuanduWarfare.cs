@@ -35,7 +35,7 @@ namespace SanguoshaServer.Scenario
 
                     General lord_gen = Engine.GetGeneral(lord.General1, room.Setting.GameMode);
                     lord.PlayerGender = lord_gen.GeneralGender;
-                    lord.Kingdom = lord_gen.Kingdom;
+                    lord.Kingdom = General.GetKingdom(lord_gen.Kingdom[0]);
                     lord.General1Showed = true;
                     room.BroadcastProperty(lord, "General1");
                     room.BroadcastProperty(lord, "PlayerGender");
@@ -67,7 +67,7 @@ namespace SanguoshaServer.Scenario
             foreach (string general in generals)
             {
                 General gen = Engine.GetGeneral(general, room.Setting.GameMode);
-                if (gen.Kingdom == "wei")
+                if (gen.Kingdom[0] == General.KingdomENUM.Wei)
                     cools.Add(general);
                 else
                     warms.Add(general);
@@ -154,8 +154,8 @@ namespace SanguoshaServer.Scenario
                         generalName = reply[0];
 
                     if (!success || (!options[player].Contains(generalName) && room.GetClient(player).UserRight < 3)
-                        || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "wei")
-                        || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "qun"))
+                        || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0] != General.KingdomENUM.Wei)
+                        || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0] != General.KingdomENUM.Qun))
                     {
                         if (player.Status == "bot")
                         {
@@ -171,7 +171,7 @@ namespace SanguoshaServer.Scenario
                     }
                     player.General1 = generalName;
                     player.ActualGeneral1 = generalName;
-                    player.Kingdom = Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom;
+                    player.Kingdom = General.GetKingdom(Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0]);
                     player.General1Showed = true;
                 }
 
@@ -217,15 +217,15 @@ namespace SanguoshaServer.Scenario
                 generalName = reply[0];
 
             if (!success || (!options.Contains(generalName) && room.GetClient(player).UserRight < 3)
-                || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "wei")
-                || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom != "qun"))
+                || (player.Camp == Game3v3Camp.S_CAMP_COOL && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0] != General.KingdomENUM.Wei)
+                || (player.Camp == Game3v3Camp.S_CAMP_WARM && Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0] != General.KingdomENUM.Qun))
             {
                 generalName = options[0];
             }
 
             player.General1 = generalName;
             player.ActualGeneral1 = generalName;
-            player.Kingdom = Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom;
+            player.Kingdom = General.GetKingdom(Engine.GetGeneral(generalName, room.Setting.GameMode).Kingdom[0]);
             player.General1Showed = true;
             room.BroadcastProperty(player, "General1");
             room.BroadcastProperty(player, "Kingdom");

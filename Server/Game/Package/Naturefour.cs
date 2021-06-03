@@ -1582,9 +1582,9 @@ namespace SanguoshaServer.Package
 
 
                 General real_general = Engine.GetGeneral(zuoci.General1, room.Setting.GameMode);
-                if (zuoci.Kingdom != real_general.Kingdom)
+                if (General.GetKingdom(zuoci) != real_general.Kingdom[0])
                 {
-                    zuoci.Kingdom = real_general.Kingdom;
+                    zuoci.Kingdom = General.GetKingdom(real_general.Kingdom[0]);
                     room.BroadcastProperty(zuoci, "Kingdom");
                 }
                 if (zuoci.PlayerGender != real_general.GeneralGender)
@@ -1688,16 +1688,16 @@ namespace SanguoshaServer.Package
                     if (g != null)
                     {
                         player.PlayerGender = g.GeneralGender;
-                        player.Kingdom = g.Kingdom;
+                        player.Kingdom = General.GetKingdom(g.Kingdom[0]);
                         room.BroadcastProperty(player, "PlayerGender");
                         room.BroadcastProperty(player, "Kingdom");
-
+                        
                         List<string> args = new List<string>
-                    {
-                        GameEventType.S_GAME_EVENT_HUASHEN.ToString(),
-                        player.Name,
-                        general
-                    };
+                        {
+                            GameEventType.S_GAME_EVENT_HUASHEN.ToString(),
+                            player.Name,
+                            general
+                        };
                         room.DoBroadcastNotify(CommandType.S_COMMAND_LOG_EVENT, args);
 
                         player.SetTag("huashen_general", general);

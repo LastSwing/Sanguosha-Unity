@@ -10679,7 +10679,7 @@ namespace SanguoshaServer.Package
 
             List<string> available = new List<string>();
             foreach (string name in room.Generals)
-                if (!name.StartsWith("lord_") && !room.UsedGeneral.Contains(name) && Engine.GetGeneral(name, room.Setting.GameMode).Kingdom == player.Kingdom)
+                if (!name.StartsWith("lord_") && !room.UsedGeneral.Contains(name) && Engine.GetGeneral(name, room.Setting.GameMode).Kingdom.Contains(General.GetKingdom(player)))
                     available.Add(name);
 
             if (available.Count > 0)

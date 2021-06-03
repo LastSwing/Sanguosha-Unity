@@ -1497,7 +1497,7 @@ namespace SanguoshaServer.Game
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
             List<string> available = new List<string>();
             foreach (string name in Generals)
-                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom == player.Kingdom)
+                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(General.GetKingdom(player)))
                     available.Add(name);
             if (available.Count == 0) return;
 

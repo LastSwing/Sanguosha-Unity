@@ -60,7 +60,7 @@ namespace SanguoshaServer.Game
         public void Start()
         {
             AddTriggerSkill(game_rule);
-            foreach (Skill skill in room.Scenario.Skills)
+            foreach (Skill skill in room.Scenario.GetGameRuleSkills())
                 if (skill is TriggerSkill tri)
                     AddTriggerSkill(tri);
 

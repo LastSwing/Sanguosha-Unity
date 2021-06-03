@@ -184,7 +184,7 @@ namespace SanguoshaServer.Extensions
 
             if (triggerEvent == TriggerEvent.Death && data is DeathStruct death && death.Damage.From != null && player.GetRoleEnum() == Player.PlayerRole.Lord)
             {
-                if (player.Kingdom == Engine.GetGeneral(death.Damage.From.ActualGeneral1, room.Setting.GameMode).Kingdom)
+                if (General.GetKingdom(player) == Engine.GetGeneral(death.Damage.From.ActualGeneral1, room.Setting.GameMode).Kingdom[0])
                     death.Damage.From.SetMark("Coup", 1);
             }
             else if (triggerEvent == TriggerEvent.GameFinished && data is string winners)
