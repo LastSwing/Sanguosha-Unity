@@ -970,7 +970,7 @@ namespace SanguoshaServer.Scenario
             if (role == PlayerRole.Loyalist)
             {
                 General lord_general = Engine.GetGeneral(lord.General1, "Classic");
-                if (lord_general.IsLord() && lord_general.Kingdom == general.Kingdom)                           //正规主公，忠臣应尽量选国籍相同的武将
+                if (lord_general.IsLord() && lord_general.Kingdom[0] == general.Kingdom[0])                           //正规主公，忠臣应尽量选国籍相同的武将
                 {
                     value += 1;
                     if (lord.General1 == "yuanshu" || lord.General1 == "sunliang") value += 0.5;                //袁术孙亮主公还有额外0.5加成

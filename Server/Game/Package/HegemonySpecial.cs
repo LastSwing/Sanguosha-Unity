@@ -365,11 +365,11 @@ namespace SanguoshaServer.Package
 
     //lifeng
     public class Tunchu : DrawCardsSkill
-{
-    public Tunchu() : base("tunchu")
     {
-        skill_type = SkillType.Replenish;
-    }
+        public Tunchu() : base("tunchu")
+        {
+            skill_type = SkillType.Replenish;
+        }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
@@ -399,12 +399,17 @@ namespace SanguoshaServer.Package
     {
         public TunchuAdd() : base("#tunchu-add")
         {
-            events.Add(TriggerEvent.AfterDrawNCards);
+            events = new List<TriggerEvent> { TriggerEvent.EventLoseSkill, TriggerEvent.AfterDrawNCards };
             frequency = Frequency.Compulsory;
+        }
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.EventLoseSkill && data is InfoStruct info && info.Info == "tunchu")
+                room.ClearOnePrivatePile(player, "commissariat");
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (player != null && player.Alive && player.HasFlag("tunchu"))
+            if (triggerEvent == TriggerEvent.AfterDrawNCards && player != null && player.Alive && player.HasFlag("tunchu"))
             {
                 if (player.IsKongcheng())
                 {

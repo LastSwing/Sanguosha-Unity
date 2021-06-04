@@ -5939,7 +5939,8 @@ namespace SanguoshaServer.Package
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Pattern == "Slash|.|.|hand#Duel|.|.|hand:heji")
+            //if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Pattern == "Slash|.|.|hand#Duel|.|.|hand:heji")
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && use.Pattern == "Slash#Duel:heji")
             {
                 room.ShowSkill(player, Name, string.Empty);
                 room.NotifySkillInvoked(player, Name);
@@ -5989,7 +5990,8 @@ namespace SanguoshaServer.Package
                 ask_who.SetFlags("duelTargetFix");
                 use.To[0].SetFlags("DuelAssignee");
 
-                WrappedCard used = room.AskForUseCard(ask_who, "Slash|.|.|hand#Duel|.|.|hand:heji", "@heji:" + use.To[0].Name, null, -1, HandlingMethod.MethodUse, false);
+                WrappedCard used = room.AskForUseCard(ask_who, "Slash#Duel:heji", "@heji:" + use.To[0].Name, null, -1, HandlingMethod.MethodUse, false);
+                //WrappedCard used = room.AskForUseCard(ask_who, "Slash|.|.|hand#Duel|.|.|hand:heji", "@heji:" + use.To[0].Name, null, -1, HandlingMethod.MethodUse, false);
                 if (used == null)
                 {
                     ask_who.SetFlags("-slashTargetFix");
@@ -6006,10 +6008,11 @@ namespace SanguoshaServer.Package
     public class HejiTag : TargetModSkill
     {
         public HejiTag() : base("#heji", false) { }
-        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseStruct.CardUseReason reason, string pattern)
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
         {
             if (reason == CardUseReason.CARD_USE_REASON_RESPONSE_USE && to.HasFlag("SlashAssignee")
-                && (room.GetRoomState().GetCurrentResponseSkill() == "heji" || pattern == "Slash|.|.|hand#Duel|.|.|hand:heji"))
+                //&& (room.GetRoomState().GetCurrentResponseSkill() == "heji" || pattern == "Slash|.|.|hand#Duel|.|.|hand:heji"))
+                && (room.GetRoomState().GetCurrentResponseSkill() == "heji" || pattern == "Slash#Duel:heji"))
                 return true;
 
             return false;

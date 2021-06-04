@@ -823,8 +823,8 @@ namespace SanguoshaServer.Scenario
                         }
                         if (!p.HasShownOneGeneral() && !p2.HasShownOneGeneral())
                         {
-                            if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom
-                            != Engine.GetGeneral(p2.ActualGeneral1, room.Setting.GameMode).Kingdom)
+                            if (Engine.GetGeneral(p.ActualGeneral1, room.Setting.GameMode).Kingdom[0]
+                            != Engine.GetGeneral(p2.ActualGeneral1, room.Setting.GameMode).Kingdom[0])
                             {
                                 has_diff_kingdoms = true;
                                 break;  // if neither shown and not friend, hehe.

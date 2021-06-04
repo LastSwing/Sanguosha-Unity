@@ -1022,7 +1022,7 @@ namespace SanguoshaServer.Package
         {
             List<string> available = new List<string>();
             foreach (string name in room.Generals)
-                if (!room.UsedGeneral.Contains(name))
+                if (!room.UsedGeneral.Contains(name) && Engine.GetGeneral(name, room.Setting.GameMode).Kingdom.Count == 1)
                     available.Add(name);
             List<string> result = new List<string>();
             Shuffle.shuffle(ref available);
@@ -1242,7 +1242,8 @@ namespace SanguoshaServer.Package
                 if (general == null)
                     room.Debug("化身卡出错 " + card.UserString);
 
-                return general != null && general.Kingdom != Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom;
+                return general != null && (to.General1Showed && Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0])
+                    || to.General2Showed && Engine.GetGeneral(to.ActualGeneral2, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0]));
             }
 
             return false;

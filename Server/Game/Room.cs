@@ -1496,9 +1496,58 @@ namespace SanguoshaServer.Game
 
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
             List<string> available = new List<string>();
-            foreach (string name in Generals)
-                if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(General.GetKingdom(player)))
-                    available.Add(name);
+
+            if (Setting.GameMode == "Hegemony")
+            {
+                foreach (string name in Generals)
+                    if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(General.GetKingdom(player)))
+                        available.Add(name);
+            }
+            else
+            {
+                if (!player.ActualGeneral2.Contains("sujiang"))
+                {
+                    General g = Engine.GetGeneral(player.ActualGeneral2, Setting.GameMode);
+                    foreach (string name in Generals)
+                    {
+                        if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name))
+                        {
+                            foreach (General.KingdomENUM kingdom in g.Kingdom)
+                            {
+                                if (Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(kingdom))
+                                {
+                                    available.Add(name);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (!player.ActualGeneral1.Contains("sujiang"))
+                {
+                    General g = Engine.GetGeneral(player.ActualGeneral2, Setting.GameMode);
+                    foreach (string name in Generals)
+                    {
+                        if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name))
+                        {
+                            foreach (General.KingdomENUM kingdom in g.Kingdom)
+                            {
+                                if (Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(kingdom))
+                                {
+                                    available.Add(name);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (string name in Generals)
+                        if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name))
+                            available.Add(name);
+                }
+            }
             if (available.Count == 0) return;
 
             RemoveGeneral(player, false);
@@ -4911,7 +4960,8 @@ namespace SanguoshaServer.Game
                         }
                     }
                     General lord_general = Engine.GetGeneral(lord, Setting.GameMode);
-                    if (check && lord_general != null)
+                    if (check && lord_general != null && (Setting.GameMode != "HegemonyChaos"
+                        || (p.GetRoleEnum() != PlayerRole.Careerist && General.GetKingdom(p) == lord_general.Kingdom[0])))
                         lords.Add(p);
                 }
             }
@@ -8420,19 +8470,24 @@ namespace SanguoshaServer.Game
                 {
                     List<string> heros = generals;
                     bool good = false;
-                    foreach (string name1 in heros)
+                    if (assign_kingdom)
                     {
-                        foreach (string name2 in heros)
+                        foreach (string name1 in heros)
                         {
-                            if (name1 != name2 && Engine.GetGeneral(name1, Setting.GameMode).Kingdom == Engine.GetGeneral(name2, Setting.GameMode).Kingdom)
+                            foreach (string name2 in heros)
                             {
-                                default_choice = name1 + "+" + name2;
-                                good = true;
-                                break;
+                                if (name1 != name2 && Engine.GetGeneral(name1, Setting.GameMode).Kingdom[0] == Engine.GetGeneral(name2, Setting.GameMode).Kingdom[0])
+                                {
+                                    default_choice = name1 + "+" + name2;
+                                    good = true;
+                                    break;
+                                }
                             }
+                            if (good) break;
                         }
-                        if (good) break;
                     }
+                    else
+                        default_choice = generals[0] + "+" + generals[1];
                 }
             }
 
