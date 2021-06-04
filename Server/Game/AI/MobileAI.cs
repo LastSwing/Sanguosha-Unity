@@ -1330,31 +1330,43 @@ namespace SanguoshaServer.AI
 
         public override List<WrappedCard> GetTurnUse(TrustedAI ai, Player player)
         {
-            List<Player> enemies = ai.GetEnemies(player);
-            if (player.GetMark("@duoyi") > 0 && enemies.Count > 0)
+            if (!player.HasUsed(DuoyiCard.ClassName) && !player.IsNude())
             {
                 Room room = ai.Room;
-                ai.SortByHp(ref enemies, false);
-                foreach (Player p in enemies)
+                List<int> ids = player.GetCards("he");
+                int id = -1;
+                List<double> values = ai.SortByKeepValue(ref ids, false);
+                if (values[0] < 0)
+                    id = ids[0];
+                else
                 {
-                    if (p.Hp <= 1 && p.GetEquips().Count >= 2 || p.GetEquips().Count >= 3)
+                    values = ai.SortByUseValue(ref ids, false);
+                    if (values[0] < 3)
+                        id = ids[0];
+                }
+                if (id >= 0)
+                {
+                    foreach (Player p in ai.FriendNoSelf)
                     {
-                        List<int> ids = new List<int>();
-                        foreach (int id in player.GetCards("h"))
-                            if (RoomLogic.CanDiscard(room, player, player, id))
-                                ids.Add(id);
-
-                        if (ids.Count >= 2)
+                        if (ai.HasSkill(TrustedAI.LoseEquipSkill, p))
                         {
-                            List<double> values = ai.SortByUseValue(ref ids, false);
-                            if (values[0] + values[1] < 5)
-                            {
-                                WrappedCard dy = new WrappedCard(DuoyiCard.ClassName) { Skill = Name };
-                                dy.AddSubCard(ids[0]);
-                                dy.AddSubCard(ids[1]);
-                                ai.Target[Name] = p;
-                                return new List<WrappedCard> { dy };
-                            }
+                            WrappedCard dy = new WrappedCard(DuoyiCard.ClassName) { Skill = Name };
+                            dy.AddSubCard(id);
+                            ai.Target[Name] = p;
+                            return new List<WrappedCard> { dy };
+                        }
+                    }
+
+                    List<Player> enemies = ai.GetEnemies(player);
+                    ai.SortByDefense(ref enemies, false);
+                    foreach (Player p in enemies)
+                    {
+                        if (!ai.HasSkill(TrustedAI.LoseEquipSkill, p))
+                        {
+                            WrappedCard dy = new WrappedCard(DuoyiCard.ClassName) { Skill = Name };
+                            dy.AddSubCard(id);
+                            ai.Target[Name] = p;
+                            return new List<WrappedCard> { dy };
                         }
                     }
                 }
@@ -1374,7 +1386,7 @@ namespace SanguoshaServer.AI
             {
                 Player target = use.To[0];
                 if (ai.GetPlayerTendency(target) != "unknown")
-                    ai.UpdatePlayerRelation(player, target, false);
+                    ai.UpdatePlayerRelation(player, target, ai.HasSkill(TrustedAI.LoseEquipSkill, target));
             }
         }
 

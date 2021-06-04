@@ -1282,6 +1282,7 @@ namespace SanguoshaServer.AI
             if (player.Phase == PlayerPhase.Play) return false;
             if (player.IsSkipped(PlayerPhase.Play) || (room.Current != player && !player.FaceUp)) return true;
             if (player.HasFlag("willSkipPlayPhase")) return true;
+            if (player.GetMark("yinju_sp") > 0) return true;
 
             if (RoomLogic.PlayerContainsTrick(room, player, Indulgence.ClassName))
             {
