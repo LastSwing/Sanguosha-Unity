@@ -253,6 +253,8 @@ namespace SanguoshaServer.Package
                 new Shanxi(),
                 new Bizheng(),
                 new Yidian(),
+                new Weiyi(),
+                new Jinzhi(),
             };
 
             skill_cards = new List<FunctionCard>
@@ -295,6 +297,7 @@ namespace SanguoshaServer.Package
                 new LianzhuCard(),
                 new LiushiCard(),
                 new YoulongCard(),
+                new JinzhiCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -13903,6 +13906,221 @@ namespace SanguoshaServer.Package
             data = use;
 
             return false;
+        }
+    }
+
+    public class Weiyi : TriggerSkill
+    {
+        public Weiyi() : base("weiyi")
+        {
+            skill_type = SkillType.Wizzard;
+            events.Add(TriggerEvent.Damaged);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> triggers = new List<TriggerStruct>();
+            if (player.Alive)
+            {
+                List<Player> ps = RoomLogic.FindPlayersBySkillName(room, Name);
+                foreach (Player p in ps)
+                {
+                    if (p.GetMark(string.Format("{0}_{1}", Name, player.Name)) == 0)
+                        triggers.Add(new TriggerStruct(Name, p));
+                }
+            }
+            return triggers;
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(ask_who, Name, player, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, player.Name);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                return info;
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            ask_who.SetMark(string.Format("{0}_{1}", Name, player.Name), 1);
+            List<string> choices = new List<string>();
+            if (player.Hp >= ask_who.Hp) choices.Add("losehp");
+            if (player.Hp <= ask_who.Hp) choices.Add("recover");
+            string choice = room.AskForChoice(ask_who, Name, string.Join("+", choices), null, player);
+            if (choice == "losehp")
+                room.LoseHp(player);
+            else
+                room.Recover(player, 1);
+
+            return false;
+        }
+    }
+
+    public class Jinzhi : ViewAsSkill
+    {
+        public Jinzhi() : base("jinzhi")
+        {
+        }
+
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            int count = player.GetMark(Name) + 1;
+            return selected.Count < count && RoomLogic.CanDiscard(room, player, player, to_select.Id);
+        }
+
+        public override bool IsEnabledAtPlay(Room room, Player player) => !player.IsNude();
+
+        public override bool IsEnabledAtResponse(Room room, Player player, string pattern)
+        {
+            bool invoke = false;
+            if (!player.IsNude())
+            {
+                foreach (WrappedCard card in GetGuhuo(room, player))
+                {
+                    if (Engine.MatchExpPattern(room, pattern, player, card))
+                    {
+                        invoke = true;
+                        break;
+                    }
+                }
+            }
+            return invoke;
+        }
+
+        public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            int count = player.GetMark(Name) + 1;
+            if (cards.Count == count)
+            {
+                foreach (WrappedCard card in GetGuhuo(room, player))
+                {
+                    card.AddSubCards(cards);
+                    result.Add(card);
+                }
+            }
+
+            return result;
+        }
+
+        private List<WrappedCard> GetGuhuo(Room room, Player player)
+        {
+            List<WrappedCard> result = new List<WrappedCard>();
+            List<string> guhuo = GetGuhuoCards(room, "b");
+
+            foreach (string card_name in guhuo)
+            {
+                WrappedCard wrapped = new WrappedCard(card_name);
+                result.Add(wrapped);
+            }
+
+            return result;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count == 1 && cards[0].IsVirtualCard())
+            {
+                string pattern = room.GetRoomState().GetCurrentCardUsePattern();
+                pattern = Engine.GetPattern(pattern).GetPatternString();
+                if (room.GetRoomState().GetCurrentCardUseReason() == CardUseReason.CARD_USE_REASON_PLAY || Engine.MatchExpPattern(room, pattern, player, cards[0]))
+                {
+                    WrappedCard hm = new WrappedCard(JinzhiCard.ClassName)
+                    {
+                        UserString = cards[0].Name
+                    };
+                    hm.AddSubCard(cards[0]);
+                    return hm;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public class JinzhiCard : SkillCard
+    {
+        public static string ClassName = "JinzhiCard";
+        public JinzhiCard() : base(ClassName)
+        {
+            will_throw = true;
+            handling_method = HandlingMethod.MethodDiscard;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            WrappedCard wrapped = new WrappedCard(card.UserString);
+            FunctionCard fcard = Engine.GetFunctionCard(card.UserString);
+            return fcard.TargetFilter(room, targets, to_select, Self, wrapped);
+        }
+
+        public override bool TargetsFeasible(Room room, List<Player> targets, Player Self, WrappedCard card)
+        {
+            WrappedCard wrapped = new WrappedCard(card.UserString);
+            FunctionCard fcard = Engine.GetFunctionCard(card.UserString);
+            return fcard.TargetsFeasible(room, targets, Self, wrapped);
+        }
+
+        public override WrappedCard Validate(Room room, CardUseStruct use)
+        {
+            Player player = use.From;
+            player.AddMark("jinzhi");
+            room.BroadcastSkillInvoke("jinzhi", player, use.Card.SkillPosition);
+            room.NotifySkillInvoked(player, "jinzhi");
+            List<int> ids = new List<int>(use.Card.SubCards);
+            room.ThrowCard(ref ids, player, null, "jinzhi");
+            bool same = true;
+            bool red = WrappedCard.IsRed(room.GetCard(ids[0]).Suit);
+            for (int i = 1; i < ids.Count; i++)
+            {
+                if (red != WrappedCard.IsRed(room.GetCard(ids[i]).Suit))
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            room.DrawCards(player, 1, "jinzhi");
+
+            if (same)
+            {
+                WrappedCard wrapped = new WrappedCard(use.Card.UserString) { Skill = "_jinzhi" };
+                return wrapped;
+            }
+            else
+                return null;
+        }
+
+        public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
+        {
+            player.AddMark("jinzhi");
+            room.BroadcastSkillInvoke("jinzhi", player, card.SkillPosition);
+            room.NotifySkillInvoked(player, "jinzhi");
+            List<int> ids = new List<int>(card.SubCards);
+            room.ThrowCard(ref ids, player, null, "jinzhi");
+            bool same = true;
+            bool red = WrappedCard.IsRed(room.GetCard(ids[0]).Suit);
+            for (int i = 1; i < ids.Count; i++)
+            {
+                if (red != WrappedCard.IsRed(room.GetCard(ids[i]).Suit))
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            room.DrawCards(player, 1, "jinzhi");
+
+            if (same)
+            {
+                WrappedCard wrapped = new WrappedCard(card.UserString) { Skill = "_jinzhi" };
+                return wrapped;
+            }
+            else
+                return null;
         }
     }
 }
