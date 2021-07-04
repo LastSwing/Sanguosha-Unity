@@ -694,7 +694,7 @@ namespace SanguoshaServer.Game
             DataRow[] rows = general_skills.Select(string.Format("general = '{0}' and mode = '{1}'", name, mode));
             if (rows.Length > 0)
             {
-                if (mode == "Hegemony")
+                if (mode.Contains("Hegemony"))
                 {
                     List<string> result = new List<string>();
                     foreach (string skill_name in rows[0]["skill_names"].ToString().Split(','))

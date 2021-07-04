@@ -14340,7 +14340,7 @@ namespace SanguoshaServer.Package
 
     public class FenxunJXCard : SkillCard
     {
-        public static string ClassName = "FenxunCard";
+        public static string ClassName = "FenxunJXCard";
         public FenxunJXCard() : base(ClassName)
         {
         }

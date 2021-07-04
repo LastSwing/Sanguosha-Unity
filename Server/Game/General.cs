@@ -58,10 +58,10 @@ namespace SanguoshaServer.Game
         public int GetMaxHpHead() => DoubleMaxHp + Head_max_hp_adjusted_value;
         public int GetMaxHpDeputy() => DoubleMaxHp + Deputy_max_hp_adjusted_value;
 
-        public bool CompanionWith(string name)
+        public bool CompanionWith(string name, string mode)
         {
-            General other = Engine.GetGeneral(name, "Hegemony");
-            if (other == null || !Engine.GetMode("Hegemony").GeneralPackage.Contains(Package)) return false;
+            General other = Engine.GetGeneral(name, mode);
+            if (other == null || !Engine.GetMode(mode).GeneralPackage.Contains(Package)) return false;
             
             return lord || other.lord || (Kingdom.Count == 1 && other.Kingdom.Count == 1
                 && Kingdom[0] == other.Kingdom[0] && (Companions.Contains(name) || other.Companions.Contains(Name)));

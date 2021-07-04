@@ -2365,7 +2365,7 @@ namespace SanguoshaServer.Package
         {
             if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
             {
-                if (room.Setting.GameMode == "Hegemony")
+                if (room.Setting.GameMode.Contains("Hegemony"))
                 {
                     Player lord = RoomLogic.GetLord(room, player.Kingdom);
                     if (lord != null && RoomLogic.PlayerHasShownSkill(room, lord, "jiahe"))

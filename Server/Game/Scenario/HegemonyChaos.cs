@@ -228,7 +228,7 @@ namespace SanguoshaServer.Scenario
                 General general1 = Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode);
                 General general2 = Engine.GetGeneral(player.ActualGeneral2, room.Setting.GameMode);
 
-                if (general1.CompanionWith(player.ActualGeneral2))
+                if (general1.CompanionWith(player.ActualGeneral2, Name))
                     player.AddMark("CompanionEffect");
 
                 int max_hp = general1.GetMaxHpHead() + general2.GetMaxHpDeputy();
@@ -519,8 +519,8 @@ namespace SanguoshaServer.Scenario
                     success = false;
                 else
                 {
-                    General general1 = Engine.GetGeneral(generals[0], "Hegemony");
-                    General general2 = Engine.GetGeneral(generals[1], "Hegemony");
+                    General general1 = Engine.GetGeneral(generals[0], Name);
+                    General general2 = Engine.GetGeneral(generals[1], Name);
                     if (general1 == null || general1.Hidden || general2 == null || general2.Hidden
                         || !room.Setting.GeneralPackage.Contains(general1.Package)
                         || !room.Setting.GeneralPackage.Contains(general2.Package)

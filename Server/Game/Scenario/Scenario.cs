@@ -125,7 +125,7 @@ namespace SanguoshaServer.Scenario
                 else
                     _player.Kingdom = "god";
 
-                if (room.Setting.GameMode == "Hegemony" && player.HasShownOneGeneral() || player.RoleShown)
+                if (room.Setting.GameMode.Contains("Hegemony") && player.HasShownOneGeneral() || player.RoleShown)
                     _player.Role = player.Role;
 
                 foreach (string mark in player.Marks.Keys)

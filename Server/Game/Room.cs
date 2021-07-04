@@ -1497,7 +1497,7 @@ namespace SanguoshaServer.Game
             List<string> names = new List<string> { player.ActualGeneral1, player.ActualGeneral2 };
             List<string> available = new List<string>();
 
-            if (Setting.GameMode == "Hegemony")
+            if (Setting.GameMode.Contains("Hegemony"))
             {
                 foreach (string name in Generals)
                     if (!name.StartsWith("lord_") && !UsedGeneral.Contains(name) && Engine.GetGeneral(name, Setting.GameMode).Kingdom.Contains(General.GetKingdom(player)))
@@ -1569,7 +1569,7 @@ namespace SanguoshaServer.Game
             string general_name = AskForGeneral(player, generals, null, true, "transform", null, true, true);
             HandleUsedGeneral(general_name);
             
-            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, Setting.GameMode, false))
             {
                 Skill skill = Engine.GetSkill(skill_name);
                 if (!Skills.Contains(skill_name))
@@ -1592,7 +1592,7 @@ namespace SanguoshaServer.Game
                 AddPlayerSkill(player, skill_name, false);
             }
 
-            foreach (string skill in Engine.GetGeneralRelatedSkills(general_name, "Hegemony"))
+            foreach (string skill in Engine.GetGeneralRelatedSkills(general_name, Setting.GameMode))
             {
                 if (!Skills.Contains(skill))
                 {
@@ -1626,7 +1626,7 @@ namespace SanguoshaServer.Game
             //    player.SetSkillsPreshowed("d");
             NotifyPlayerPreshow(player, "d");
 
-            foreach (string skill_name in Engine.GetGeneralSkills(general_name, "Hegemony", false))
+            foreach (string skill_name in Engine.GetGeneralSkills(general_name, Setting.GameMode, false))
             {
                 Skill skill = Engine.GetSkill(skill_name);
                 if (skill.SkillFrequency == Frequency.Limited && !string.IsNullOrEmpty(skill.LimitMark))
@@ -6451,7 +6451,7 @@ namespace SanguoshaServer.Game
             player.FaceUp = !player.FaceUp;
             BroadcastProperty(player, "FaceUp");
 
-            if (Setting.GameMode == "Hegemony")
+            if (Setting.GameMode.Contains("Hegemony"))
             {
                 LogMessage log = new LogMessage
                 {
@@ -10331,7 +10331,7 @@ namespace SanguoshaServer.Game
             }
 
             //进入鏖战模式判断
-            if (AliveCount() <= Players.Count / 2 && Setting.GameMode == "Hegemony" && !BloodBattle)
+            if (AliveCount() <= Players.Count / 2 && Setting.GameMode.Contains("Hegemony") && !BloodBattle)
             {
                 bool check = true;
                 foreach (Player p in GetAlivePlayers())

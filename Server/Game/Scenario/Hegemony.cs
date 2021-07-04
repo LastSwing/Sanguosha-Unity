@@ -151,7 +151,7 @@ namespace SanguoshaServer.Scenario
                 General general1 = Engine.GetGeneral(player.ActualGeneral1, room.Setting.GameMode);
                 General general2 = Engine.GetGeneral(player.ActualGeneral2, room.Setting.GameMode);
 
-                if (general1.CompanionWith(player.ActualGeneral2))
+                if (general1.CompanionWith(player.ActualGeneral2, Name))
                     player.AddMark("CompanionEffect");
 
                 int max_hp = general1.GetMaxHpHead() + general2.GetMaxHpDeputy();
@@ -644,7 +644,7 @@ namespace SanguoshaServer.Scenario
                             v += 5;
                     }
 
-                    if (general1.CompanionWith(second)) v += 3;
+                    if (general1.CompanionWith(second, "Hegemony")) v += 3;
 
                     if (general1.IsFemale()) {
                         if (general1.Kingdom[0] == General.KingdomENUM.Wu && !general1.HasSkill("jieying", "Hegemony", true))
