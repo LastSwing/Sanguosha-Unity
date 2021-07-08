@@ -1190,7 +1190,7 @@ namespace SanguoshaServer.AI
     public class JigongAI : SkillEvent
     {
         public JigongAI() : base("jigong") { }
-
+        /*
         public override bool OnSkillInvoke(TrustedAI ai, Player player, object data)
         {
             if (player.HandcardNum <= 1) return true;
@@ -1203,6 +1203,20 @@ namespace SanguoshaServer.AI
                     return true;
 
             return false;                        
+        }
+        */
+        public override string OnChoice(TrustedAI ai, Player player, string choice, object data)
+        {
+            if (player.HandcardNum <= 1) return "3";
+            Room room = ai.Room;
+            if (ai.GetEnemies(player).Count > 1 && ai.GetKnownCardsNums(SavageAssault.ClassName, "he", player) + ai.GetKnownCardsNums(ArcheryAttack.ClassName, "he", player) > 0)
+                return "3";
+
+            foreach (Player enemy in ai.GetEnemies(player))
+                if (ai.IsWeak(enemy) && RoomLogic.CanSlash(room, player, enemy))
+                    return "3";
+
+            return "cancel";
         }
     }
 

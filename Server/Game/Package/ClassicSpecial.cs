@@ -172,6 +172,8 @@ namespace SanguoshaServer.Package
                 new LiushiMax(),
                 new LiushiTar(),
                 new Zhanwan(),
+                new Wangong(),
+                new WangongTar(),
 
                 new Shenxian(),
                 new Qiangwu(),
@@ -350,6 +352,7 @@ namespace SanguoshaServer.Package
                 { "zhiqu", new List<string>{ "#zhiqu" } },
                 { "liushi", new List<string>{ "#liushi", "#liushi-max" } },
                 { "fenxun_jx", new List<string>{ "#fenxun_jx" } },
+                { "wangong", new List<string>{ "#wangong" } },
             };
         }
     }
@@ -9444,6 +9447,85 @@ namespace SanguoshaServer.Package
             ask_who.SetMark(Name, 0);
             return false;
         }
+    }
+
+    public class Wangong : TriggerSkill
+    {
+        public Wangong() : base("wangong")
+        {
+            frequency = Frequency.Compulsory;
+            skill_type = SkillType.Attack;
+            events = new List<TriggerEvent> { TriggerEvent.PreCardUsed, TriggerEvent.CardUsed };
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && base.Triggerable(player, room))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is SkillCard))
+                    return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.PreCardUsed && data is CardUseStruct _use && player.GetMark(Name) > 0)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(_use.Card.Name);
+                if (fcard is Slash)
+                    return new TriggerStruct(Name, player);
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use)
+            {
+                if (triggerEvent == TriggerEvent.PreCardUsed)
+                {
+                    LogMessage log = new LogMessage
+                    {
+                        Type = "#damage-add",
+                        From = player.Name,
+                        Arg = use.Card.Name,
+                        Arg2 = "1"
+                    };
+                    room.SendLog(log);
+
+                    use.ExDamage += 1;
+                    data = use;
+                    
+                    player.SetMark(Name, 0);
+                    room.RemovePlayerStringMark(player, Name);
+                }
+                else
+                {
+                    FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                    if (fcard is BasicCard)
+                    {
+                        room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                        room.SendCompulsoryTriggerLog(player, Name);
+                        player.SetMark(Name, 1);
+                        room.SetPlayerStringMark(player, Name, string.Empty);
+                    }
+                    else
+                    {
+                        player.SetMark(Name, 0);
+                        room.RemovePlayerStringMark(player, Name);
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public class WangongTar : TargetModSkill
+    {
+        public WangongTar() : base("#wangong", false) { }
+
+        public override bool IgnoreCount(Room room, Player from, WrappedCard card) => from.GetMark("wangong") > 0;
+
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern) => from.GetMark("wangong") > 0;
     }
 
     public class Qiangwu : TriggerSkill

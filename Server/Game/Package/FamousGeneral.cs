@@ -2369,7 +2369,7 @@ namespace SanguoshaServer.Package
         public Shizhi() : base("shizhi")
         {
             events = new List<TriggerEvent> { TriggerEvent.FinishRetrial, TriggerEvent.CardUsedAnnounced, TriggerEvent.CardResponded,
-                TriggerEvent.HpChanged, TriggerEvent.EventAcquireSkill, TriggerEvent.EventLoseSkill };
+                TriggerEvent.HpChanged, TriggerEvent.EventAcquireSkill, TriggerEvent.EventLoseSkill, TriggerEvent.Damage };
             frequency = Frequency.Compulsory;
             view_as_skill = new ShizhiFilter();
             skill_type = SkillType.Alter;
@@ -2409,6 +2409,12 @@ namespace SanguoshaServer.Package
                 return new TriggerStruct(Name, player);
             else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && resp.Card.Name == Slash.ClassName && resp.Card.Skill == Name)
                 return new TriggerStruct(Name, player);
+            else if (triggerEvent == TriggerEvent.Damage && data is DamageStruct damage && damage.Card != null && damage.Card.Name.Contains(Slash.ClassName)
+                && base.Triggerable(player, room) && player.IsWounded())
+            {
+                if (!damage.Card.IsVirtualCard() && Engine.GetRealCard(damage.Card.GetEffectiveId()).Name == Jink.ClassName)
+                    return new TriggerStruct(Name, player);
+            }
 
             return new TriggerStruct();
         }
@@ -2418,16 +2424,25 @@ namespace SanguoshaServer.Package
                 return info;
             else if (triggerEvent == TriggerEvent.CardUsedAnnounced || triggerEvent == TriggerEvent.CardResponded)
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            else if (triggerEvent == TriggerEvent.Damage)
+                return info;
 
             return new TriggerStruct();
         }
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            JudgeStruct judge = (JudgeStruct)data;
-            List<int> cards = new List<int> { judge.Card.GetEffectiveId() };
-            room.FilterCards(player, cards, true);
-            room.UpdateJudgeResult(ref judge);
-            data = judge;
+            if (triggerEvent == TriggerEvent.Damage)
+            {
+                room.Recover(player);
+            }
+            else
+            {
+                JudgeStruct judge = (JudgeStruct)data;
+                List<int> cards = new List<int> { judge.Card.GetEffectiveId() };
+                room.FilterCards(player, cards, true);
+                room.UpdateJudgeResult(ref judge);
+                data = judge;
+            }
             return false;
         }
         public override void GetEffectIndex(Room room, Player player, WrappedCard card, ref int index, ref string skill_name, ref string general_name, ref int skin_id)
@@ -3808,7 +3823,7 @@ namespace SanguoshaServer.Package
     {
         public Jigong() : base("jigong")
         {
-            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging };
+            events = new List<TriggerEvent> { TriggerEvent.Damage, TriggerEvent.EventPhaseStart, TriggerEvent.EventPhaseChanging, TriggerEvent.EventPhaseEnd };
             skill_type = SkillType.Replenish;
         }
 
@@ -3823,7 +3838,13 @@ namespace SanguoshaServer.Package
                 && change.To == PlayerPhase.NotActive)
             {
                 player.SetMark("damage_point_play_phase", 0);
+                player.SetMark("jigong_draw", 0);
                 room.RemovePlayerStringMark(player, Name);
+            }
+            else if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Alive && player.Phase == PlayerPhase.Play && player.GetMark("damage_point_play_phase") >= player.GetMark("jigong_draw")
+                && player.IsWounded())
+            {
+                room.Recover(player);
             }
         }
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -3834,8 +3855,10 @@ namespace SanguoshaServer.Package
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            string choice = room.AskForChoice(player, Name, "3+2+1+cancel", new List<string> { "@jigong" });
+            if (choice != "cancel")
             {
+                player.SetMark("jigong_draw", int.Parse(choice));
                 room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
                 return info;
             }
@@ -3848,7 +3871,7 @@ namespace SanguoshaServer.Package
             player.SetMark("damage_point_play_phase", 0);
             room.SetPlayerStringMark(player, Name, "0");
             player.SetFlags(Name);
-            room.DrawCards(player, 2, Name);
+            room.DrawCards(player, player.GetMark("jigong_draw"), Name);
 
             return false;
         }
@@ -6688,20 +6711,20 @@ namespace SanguoshaServer.Package
     {
         public Jiangchi() : base("jiangchi")
         {
-            events.Add(TriggerEvent.EventPhaseEnd);
+            events.Add(TriggerEvent.EventPhaseStart);
             skill_type = SkillType.Replenish;
         }
         
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Draw)
+            if (base.Triggerable(player, room) && player.Phase == PlayerPhase.Play)
                 return new TriggerStruct(Name, player);
 
             return new TriggerStruct();
         }
         public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            string choice = room.AskForChoice(player, Name, "more+less+cancel");
+            string choice = room.AskForChoice(player, Name, "more2+more+less+cancel");
 
             if (choice != "cancel")
             {
@@ -6716,11 +6739,15 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             string choice = player.GetTag(Name).ToString();
-            if (choice == "more")
+            if (choice == "more2")
             {
                 RoomLogic.SetPlayerCardLimitation(player, Name, "use,response", Slash.ClassName, true);
-                room.DrawCards(player, 1, Name);
+                room.DrawCards(player, 2, Name);
                 player.SetFlags("jiangchi_keep");
+            }
+            else if (choice == "more")
+            {
+                room.DrawCards(player, 1, Name);
             }
             else if (room.AskForDiscard(player, Name, 1, 1, false, true, "@jiangchi-discard", false, info.SkillPosition))
             {

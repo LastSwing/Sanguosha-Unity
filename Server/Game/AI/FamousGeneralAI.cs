@@ -1035,9 +1035,9 @@ namespace SanguoshaServer.AI
             if (count > 1)
                 return "less";
             else if (count == 0 || player.Hp > player.HandcardNum)
-                return "more";
+                return "more2";
 
-            return "cancel";
+            return "more";
         }
     }
 
