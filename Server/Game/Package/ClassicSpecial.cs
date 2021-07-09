@@ -9455,7 +9455,7 @@ namespace SanguoshaServer.Package
         {
             frequency = Frequency.Compulsory;
             skill_type = SkillType.Attack;
-            events = new List<TriggerEvent> { TriggerEvent.PreCardUsed, TriggerEvent.CardUsed };
+            events = new List<TriggerEvent> { TriggerEvent.PreCardUsed, TriggerEvent.CardUsed, TriggerEvent.CardResponded };
         }
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
@@ -9463,7 +9463,13 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.CardUsed && data is CardUseStruct use && base.Triggerable(player, room))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (!(fcard is SkillCard))
+                if ((!(fcard is SkillCard) && player.GetMark(Name) > 0) || (fcard is BasicCard && player.GetMark(Name) == 0))
+                    return new TriggerStruct(Name, player);
+            }
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp && base.Triggerable(player, room) && resp.Use)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(resp.Card.Name);
+                if ((!(fcard is SkillCard) && player.GetMark(Name) > 0) || (fcard is BasicCard && player.GetMark(Name) == 0))
                     return new TriggerStruct(Name, player);
             }
             else if (triggerEvent == TriggerEvent.PreCardUsed && data is CardUseStruct _use && player.GetMark(Name) > 0)
@@ -9493,7 +9499,7 @@ namespace SanguoshaServer.Package
 
                     use.ExDamage += 1;
                     data = use;
-                    
+
                     player.SetMark(Name, 0);
                     room.RemovePlayerStringMark(player, Name);
                 }
@@ -9512,6 +9518,22 @@ namespace SanguoshaServer.Package
                         player.SetMark(Name, 0);
                         room.RemovePlayerStringMark(player, Name);
                     }
+                }
+            }
+            else if (triggerEvent == TriggerEvent.CardResponded && data is CardResponseStruct resp)
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(resp.Card.Name);
+                if (fcard is BasicCard)
+                {
+                    room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                    room.SendCompulsoryTriggerLog(player, Name);
+                    player.SetMark(Name, 1);
+                    room.SetPlayerStringMark(player, Name, string.Empty);
+                }
+                else
+                {
+                    player.SetMark(Name, 0);
+                    room.RemovePlayerStringMark(player, Name);
                 }
             }
 
@@ -14036,7 +14058,7 @@ namespace SanguoshaServer.Package
             List<string> choices = new List<string>();
             if (player.Hp >= ask_who.Hp) choices.Add("losehp");
             if (player.Hp <= ask_who.Hp) choices.Add("recover");
-            string choice = room.AskForChoice(ask_who, Name, string.Join("+", choices), null, player);
+            string choice = room.AskForChoice(ask_who, Name, string.Join("+", choices), new List<string> { "@to-player:" + player.Name }, player);
             if (choice == "losehp")
                 room.LoseHp(player);
             else
@@ -14360,7 +14382,7 @@ namespace SanguoshaServer.Package
 
     public class FenxunJXEffect : TriggerSkill
     {
-        public FenxunJXEffect() : base("#fengxun_jx")
+        public FenxunJXEffect() : base("#fenxun_jx")
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart, TriggerEvent.DamageDone, TriggerEvent.EventPhaseChanging };
         }
@@ -14369,15 +14391,15 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && damage.From.HasFlag("FenxunInvoker") && damage.To.HasFlag("FenxunTarget"))
             {
-                damage.From.AddMark(string.Format("{0}_{1}", Name, damage.To.Name));
+                damage.From.AddMark(string.Format("{0}_{1}", "fenxun_jx", damage.To.Name));
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.ContainsTag(Name)
-                && player.GetTag(Name) is List<string> targets)
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive && player.ContainsTag("fenxun_jx")
+                && player.GetTag("fenxun_jx") is List<string> targets)
             {
-                player.RemoveTag(Name);
+                player.RemoveTag("fenxun_jx");
                 foreach (string target_name in targets)
                 {
-                    player.SetMark((string.Format("{0}_{1}", Name, target_name)), 0);
+                    player.SetMark((string.Format("{0}_{1}", "fenxun_jx", target_name)), 0);
                 }
             }
 
@@ -14385,12 +14407,12 @@ namespace SanguoshaServer.Package
 
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
-            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Finish && player.ContainsTag(Name) && player.Alive
-                && !player.IsNude() && player.GetTag(Name) is List<string> targets)
+            if (triggerEvent == TriggerEvent.EventPhaseStart && player.Phase == PlayerPhase.Finish && player.ContainsTag("fenxun_jx") && player.Alive
+                && !player.IsNude() && player.GetTag("fenxun_jx") is List<string> targets)
             {
                 foreach (string target_name in targets)
                 {
-                    if (player.GetMark(string.Format("{0}_{1}", Name, target_name)) == 0 && !player.IsNude())
+                    if (player.GetMark(string.Format("{0}_{1}", "fenxun_jx", target_name)) == 0 && !player.IsNude())
                         return new TriggerStruct(Name, player);
                 }
             }
@@ -14399,11 +14421,11 @@ namespace SanguoshaServer.Package
 
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
-            if (player.GetTag(Name) is List<string> targets)
+            if (player.GetTag("fenxun_jx") is List<string> targets)
             {
                 foreach (string target_name in targets)
                 {
-                    if (player.Alive && player.GetMark(string.Format("{0}_{1}", Name, target_name)) == 0 && !player.IsNude())
+                    if (player.Alive && player.GetMark(string.Format("{0}_{1}", "fenxun_jx", target_name)) == 0 && !player.IsNude())
                         room.AskForDiscard(player, Name, 1, 1, false, true, "@fenxun_jx:" + target_name, false, info.SkillPosition);
                 }
             }

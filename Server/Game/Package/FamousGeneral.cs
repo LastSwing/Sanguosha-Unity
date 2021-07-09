@@ -3841,8 +3841,8 @@ namespace SanguoshaServer.Package
                 player.SetMark("jigong_draw", 0);
                 room.RemovePlayerStringMark(player, Name);
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Alive && player.Phase == PlayerPhase.Play && player.GetMark("damage_point_play_phase") >= player.GetMark("jigong_draw")
-                && player.IsWounded())
+            else if (triggerEvent == TriggerEvent.EventPhaseEnd && player.Alive && player.Phase == PlayerPhase.Play && player.HasFlag(Name) && player.GetMark("jigong_draw") > 0
+                && player.GetMark("damage_point_play_phase") >= player.GetMark("jigong_draw") && player.IsWounded())
             {
                 room.Recover(player);
             }

@@ -6298,6 +6298,8 @@ namespace SanguoshaServer.Package
                         if (!skip && room.ContainsTag(Name))
                             skip = true;
                     }
+                    else
+                        break;
                 }
                 if (target.Alive) target.SetFlags("-mouni");
                 if (skip && player.Alive) room.SkipPhase(player, PlayerPhase.Play, true);
@@ -6333,7 +6335,7 @@ namespace SanguoshaServer.Package
 
             WrappedCard card = room.AskForUseCard(player, "@@zongfan", "@zongfan", null, -1, HandlingMethod.MethodNone, false, info.SkillPosition);
             if (player.Alive)
-                room.HandleAcquireDetachSkills(player, "-mouni|zhangu", true);
+                room.HandleAcquireDetachSkills(player, "-mouni|zhangu", false);
 
             return false;
         }
@@ -6342,6 +6344,7 @@ namespace SanguoshaServer.Package
     public class ZongfanVS : ViewAsSkill
     {
         public ZongfanVS() : base("zongfan") { response_pattern = "@@zongfan"; }
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player) => true;
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
             if (cards.Count > 0)
