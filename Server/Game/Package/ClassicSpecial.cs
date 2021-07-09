@@ -14046,16 +14046,21 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Jinzhi : ViewAsSkill
+    public class JinzhiVS : ViewAsSkill
     {
-        public Jinzhi() : base("jinzhi")
+        public JinzhiVS() : base("jinzhi")
         {
         }
 
         public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
         {
             int count = player.GetMark(Name) + 1;
-            return selected.Count < count && RoomLogic.CanDiscard(room, player, player, to_select.Id);
+            if (selected.Count < count && RoomLogic.CanDiscard(room, player, player, to_select.Id))
+            {
+                if (selected.Count > 0 && WrappedCard.IsRed(to_select.Suit) != WrappedCard.IsRed(selected[0].Suit)) return false;
+                return true;
+            }
+            return false;
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player) => !player.IsNude();
@@ -14128,6 +14133,24 @@ namespace SanguoshaServer.Package
         }
     }
 
+    public class Jinzhi : TriggerSkill
+    {
+        public Jinzhi() : base("jinzhi")
+        {
+            skill_type = SkillType.Wizzard;
+            view_as_skill = new JinzhiVS();
+            events.Add(TriggerEvent.RoundStart);
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            foreach (Player p in room.GetAlivePlayers())
+                if (p.GetMark(Name) > 0) p.SetMark(Name, 0);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
     public class JinzhiCard : SkillCard
     {
         public static string ClassName = "JinzhiCard";
@@ -14159,26 +14182,10 @@ namespace SanguoshaServer.Package
             room.NotifySkillInvoked(player, "jinzhi");
             List<int> ids = new List<int>(use.Card.SubCards);
             room.ThrowCard(ref ids, player, null, "jinzhi");
-            bool same = true;
-            bool red = WrappedCard.IsRed(room.GetCard(ids[0]).Suit);
-            for (int i = 1; i < ids.Count; i++)
-            {
-                if (red != WrappedCard.IsRed(room.GetCard(ids[i]).Suit))
-                {
-                    same = false;
-                    break;
-                }
-            }
-
             room.DrawCards(player, 1, "jinzhi");
 
-            if (same)
-            {
-                WrappedCard wrapped = new WrappedCard(use.Card.UserString) { Skill = "_jinzhi" };
-                return wrapped;
-            }
-            else
-                return null;
+            WrappedCard wrapped = new WrappedCard(use.Card.UserString) { Skill = "_jinzhi" };
+            return wrapped;
         }
 
         public override WrappedCard ValidateInResponse(Room room, Player player, WrappedCard card)
@@ -14188,26 +14195,11 @@ namespace SanguoshaServer.Package
             room.NotifySkillInvoked(player, "jinzhi");
             List<int> ids = new List<int>(card.SubCards);
             room.ThrowCard(ref ids, player, null, "jinzhi");
-            bool same = true;
-            bool red = WrappedCard.IsRed(room.GetCard(ids[0]).Suit);
-            for (int i = 1; i < ids.Count; i++)
-            {
-                if (red != WrappedCard.IsRed(room.GetCard(ids[i]).Suit))
-                {
-                    same = false;
-                    break;
-                }
-            }
 
             room.DrawCards(player, 1, "jinzhi");
 
-            if (same)
-            {
-                WrappedCard wrapped = new WrappedCard(card.UserString) { Skill = "_jinzhi" };
-                return wrapped;
-            }
-            else
-                return null;
+            WrappedCard wrapped = new WrappedCard(card.UserString) { Skill = "_jinzhi" };
+            return wrapped;
         }
     }
 
