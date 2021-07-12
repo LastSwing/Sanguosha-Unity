@@ -38,6 +38,10 @@ namespace SanguoshaServer.Package
                 new ZhidaoHegemonyPro(),
                 new ZhidaoDistance(),
                 new JiliYbhHegemony(),
+                new KuangcaiHegemony(),
+                new KuangcaiHegemonyMax(),
+                new KuangcaiHegemonyTar(),
+                new ShejianHegemony(),
 
                 new Dujin(),
                 new Zhente(),
@@ -57,6 +61,7 @@ namespace SanguoshaServer.Package
                 { "tunchu", new List<string> { "#tunchu-add", "#tunchu-prohibit" } },
                 { "zhidao_hegemony", new List<string> { "#zhidao_hegemony", "#zhidao-distance" } },
                 { "zaoyun", new List<string> { "#zaoyun" } },
+                { "kuangcai_hegemony", new List<string> { "#kuangcai_hegemony", "#kuangcai_hegemony-max" } },
             };
         }
     }
@@ -1115,6 +1120,102 @@ namespace SanguoshaServer.Package
                 WrappedCard card = new WrappedCard(use.Card.Name);
                 room.UseCard(new CardUseStruct(card, use.From, fcard.TargetFixed(card) ? null : ask_who));
             }
+            return false;
+        }
+    }
+
+    public class KuangcaiHegemony : TriggerSkill
+    {
+        public KuangcaiHegemony() : base("kuangcai_hegemony")
+        {
+            frequency = Frequency.Compulsory;
+            events = new List<TriggerEvent> { TriggerEvent.DamageDone, TriggerEvent.CardUsedAnnounced };
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.Phase != PlayerPhase.NotActive && !player.HasFlag(Name))
+                player.SetFlags("kuangcai_use");
+            else if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From.Phase != PlayerPhase.NotActive)
+                damage.From.SetFlags(Name);
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    //miheng
+    public class KuangcaiHegemonyTar : TargetModSkill
+    {
+        public KuangcaiHegemonyTar() : base("#kuangcai_hegemony", true)
+        {
+            pattern = ".";
+        }
+
+        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
+        {
+            if (to != null && RoomLogic.PlayerHasShownSkill(room, from, "kuangcai_hegemony") && from.Phase != PlayerPhase.NotActive)
+                return true;
+
+            return false;
+        }
+
+        public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
+        {
+            if (to != null && RoomLogic.PlayerHasShownSkill(room, from, "kuangcai_hegemony") && from.Phase != PlayerPhase.NotActive)
+                return true;
+
+            return false;
+        }
+    }
+
+    public class KuangcaiHegemonyMax : MaxCardsSkill
+    {
+        public KuangcaiHegemonyMax() : base("#kuangcai_hegemony-max") { }
+        public override int GetExtra(Room room, Player target)
+        {
+            return RoomLogic.PlayerHasShownSkill(room, target, "kuangcai_hegemony") && !target.HasFlag("kuangcai_hegemony") && target.HasFlag("kuangcai_use") ? -1 : 0;
+        }
+    }
+
+    public class ShejianHegemony : TriggerSkill
+    {
+        public ShejianHegemony() : base("shejian_hegemony")
+        {
+            events.Add(TriggerEvent.TargetConfirmed);
+            skill_type = SkillType.Attack;
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (data is CardUseStruct use && use.To.Count == 1 && base.Triggerable(player, room) && !player.IsKongcheng() && use.From != null && use.From.Alive
+                && use.From != player && RoomLogic.CanDiscard(room, player, player, "h"))
+            {
+                FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
+                if (!(fcard is SkillCard))
+                    return new TriggerStruct(Name, player);
+            }
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use && room.AskForSkillInvoke(player, Name, "@shejian_hegemony:" + use.From.Name, info.SkillPosition))
+            {
+                room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, player.Name, use.From.Name);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+
+                List<int> ids = room.ForceToDiscard(player, player.GetCards("h"), player.GetCardCount(false), true);
+                room.ThrowCard(ref ids, new CardMoveReason(MoveReason.S_REASON_THROW, player.Name, Name, string.Empty), player, null, Name);
+                return info;
+            }
+
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (data is CardUseStruct use && use.From.Alive)
+                room.Damage(new DamageStruct(Name, player, use.From));
             return false;
         }
     }
