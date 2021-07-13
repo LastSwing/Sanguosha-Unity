@@ -309,11 +309,29 @@ namespace SanguoshaServer.Package
         }
     }
 
-    public class Zaoyun : ViewAsSkill
+    public class Zaoyun : TriggerSkill
     {
         public Zaoyun() : base("zaoyun")
         {
+            view_as_skill = new ZaoyunVS();
+            events.Add(TriggerEvent.EventPhaseChanging);
             skill_type = SkillType.Attack;
+        }
+
+        public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            if (data is PhaseChangeStruct change && change.To == PlayerPhase.NotActive)
+                foreach (Player p in room.GetAlivePlayers())
+                    if (p.HasFlag(Name)) p.SetFlags("-zaoyun");
+        }
+
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data) => new List<TriggerStruct>();
+    }
+
+    public class ZaoyunVS : ViewAsSkill
+    {
+        public ZaoyunVS() : base("zaoyun")
+        {
         }
 
         public override bool IsEnabledAtPlay(Room room, Player player) => !player.HasUsed(ZaoyunCard.ClassName);
