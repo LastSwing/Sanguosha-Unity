@@ -214,12 +214,20 @@ namespace SanguoshaServer.Package
         {
             view_as_skill = new QuanjinVS();
             skill_type = SkillType.Wizzard;
-            events = new List<TriggerEvent> { TriggerEvent.Damaged };
+            events = new List<TriggerEvent> { TriggerEvent.Damaged, TriggerEvent.EventPhaseChanging };
         }
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
-            if (player.Alive) player.SetFlags(Name);
+            if (triggerEvent == TriggerEvent.Damaged && player.Alive && room.Current != null && room.Current.Phase == PlayerPhase.Play)
+                player.SetFlags(Name);
+            else if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.From == PlayerPhase.Play)
+            {
+                foreach (Player p in room.GetAlivePlayers())
+                {
+                    if (p.HasFlag(Name)) p.SetFlags("-quanjin");
+                }
+            }
         }
 
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
@@ -249,7 +257,7 @@ namespace SanguoshaServer.Package
         public QuanjinCard() : base(ClassName) { will_throw = false; }
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            return to_select != Self && targets.Count == 0 && to_select.HasFlag(Name);
+            return to_select != Self && targets.Count == 0 && to_select.HasFlag("quanjin");
         }
 
         public override void Use(Room room, CardUseStruct card_use)
@@ -337,7 +345,7 @@ namespace SanguoshaServer.Package
 
         public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
         {
-            if (targets.Count == 0 && to_select != Self && RoomLogic.WillBeFriendWith(room, Self, to_select))
+            if (targets.Count == 0 && to_select != Self && !RoomLogic.WillBeFriendWith(room, Self, to_select))
             {
                 int distance = RoomLogic.DistanceTo(room, Self, to_select);
                 return distance > 1 && distance - 1 == card.SubCards.Count;

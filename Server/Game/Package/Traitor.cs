@@ -12,7 +12,7 @@ namespace SanguoshaServer.Package
 {
     public class Traitor : GeneralPackage
     {
-        public Traitor() : base("Traitro")
+        public Traitor() : base("Traitor")
         {
             skills = new List<Skill>
             {
