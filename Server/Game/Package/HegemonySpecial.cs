@@ -325,7 +325,7 @@ namespace SanguoshaServer.Package
 
         public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
         {
-            if (cards.Count < 0)
+            if (cards.Count > 0)
             {
                 WrappedCard zy = new WrappedCard(ZaoyunCard.ClassName) { Skill = Name, ShowSkill = Name };
                 zy.AddSubCards(cards);
