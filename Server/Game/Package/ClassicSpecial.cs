@@ -3986,7 +3986,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseEnd };
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (player != null && player.Phase == PlayerPhase.Discard && player.ContainsTag("WeidiToGet"))
@@ -9985,7 +9985,7 @@ namespace SanguoshaServer.Package
             priority = new Dictionary<TriggerEvent, double>
             {
                 { TriggerEvent.TargetChosen, 3 },
-                { TriggerEvent.CardUsedAnnounced, -1 },
+                { TriggerEvent.CardUsedAnnounced, 0 },
                 { TriggerEvent.EventPhaseChanging, 3 },
             };
         }

@@ -54,9 +54,10 @@ namespace SanguoshaServer.Package
                 new WendaoCard(),
                 new HongfaCard(),
             };
-            related_skills = new Dictionary<string, List<string>> {
-                { "hengjiang", new List<string>{"#hengjiang-draw", "#hengjiang-fail"} },
-                {  "hunshang", new List<string>{ "#hunshang"} },
+            related_skills = new Dictionary<string, List<string>>
+            {
+                { "hengjiang", new List<string>{ "#hengjiang-draw", "#hengjiang-fail", "#hengjiang-maxcard" } },
+                { "hunshang", new List<string>{ "#hunshang"} },
                 { "hongfa", new List<string>{ "#hongfa-clear" } }
             };
         }
@@ -239,13 +240,10 @@ namespace SanguoshaServer.Package
             if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
             {
                 List<Player> zangbas = new List<Player>();
-                foreach (Player p in room.GetAllPlayers())
-                {
+                foreach (Player p in room.GetAlivePlayers())
                     if (p.GetMark("HengjiangInvoke") > 0)
-                    {
                         zangbas.Add(p);
-                    }
-                }
+
                 if (zangbas.Count > 0 && player.GetMark("@hengjiang") > 0 && !player.HasFlag("HengjiangDiscarded"))
                 {
                     LogMessage log = new LogMessage
@@ -260,14 +258,10 @@ namespace SanguoshaServer.Package
                     room.SendLog(log);
                 }
             }
-        }
-        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
-        {
-            List<TriggerStruct> skill_list = new List<TriggerStruct>();
-            if (triggerEvent == TriggerEvent.TurnStart && player != null)
+            else if (triggerEvent == TriggerEvent.TurnStart && player != null)
             {
                 room.SetPlayerMark(player, "@hengjiang", 0);
-                foreach (Player p in room.GetAllPlayers())
+                foreach (Player p in room.GetAlivePlayers())
                     if (p.GetMark("HengjiangInvoke") > 0)
                         room.SetPlayerMark(p, "HengjiangInvoke", 0);
             }
@@ -276,16 +270,17 @@ namespace SanguoshaServer.Package
             {
                 move.From.SetFlags("HengjiangDiscarded");
             }
-            else if (triggerEvent == TriggerEvent.EventPhaseChanging && player != null && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
+        }
+        public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
+        {
+            List<TriggerStruct> skill_list = new List<TriggerStruct>();
+            if (triggerEvent == TriggerEvent.EventPhaseChanging && data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
             {
                 List<Player> zangbas = new List<Player>();
-                foreach (Player p in room.GetAllPlayers())
-                {
+                foreach (Player p in room.GetAlivePlayers())
                     if (p.GetMark("HengjiangInvoke") > 0)
-                    {
                         zangbas.Add(p);
-                    }
-                }
+
                 if (zangbas.Count > 0 && player.GetMark("@hengjiang") > 0 && !player.HasFlag("HengjiangDiscarded"))
                     foreach (Player zangba in zangbas)
                         skill_list.Add(new TriggerStruct(Name, zangba));
@@ -295,7 +290,6 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             room.SetPlayerMark(ask_who, "HengjiangInvoke", 0);
-            room.SetPlayerMark(player, "@hengjiang", 0);
             room.DrawCards(ask_who, 1, "hengjiang");
             return false;
         }
@@ -306,7 +300,8 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.EventPhaseChanging);
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
+
         public override List<TriggerStruct> Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (data is PhaseChangeStruct change && change.To == Player.PlayerPhase.NotActive)
@@ -316,9 +311,9 @@ namespace SanguoshaServer.Package
                     player.SetFlags("-HengjiangDiscarded");
                     room.SetPlayerMark(player, "@hengjiang", 0);
                 }
-                foreach (Player p in room.GetAllPlayers())
+                foreach (Player p in room.GetAlivePlayers())
                     if (p.GetMark("HengjiangInvoke") > 0)
-                        room.SetPlayerMark(p, "HengjiangInvoke", 0);
+                        p.SetMark("HengjiangInvoke", 0);
             }
             return new List<TriggerStruct>();
         }

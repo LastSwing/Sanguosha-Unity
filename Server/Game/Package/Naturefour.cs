@@ -1386,7 +1386,7 @@ namespace SanguoshaServer.Package
                 { TriggerEvent.GameStart, 3 },
                 { TriggerEvent.EventPhaseStart, 3 },
                 { TriggerEvent.EventLoseSkill, 3 },
-                { TriggerEvent.Death, -1 },
+                { TriggerEvent.Death, 0 },
             };
         }
 

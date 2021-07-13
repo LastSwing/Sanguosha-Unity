@@ -2945,7 +2945,7 @@ namespace SanguoshaServer.Package
             global = true;
             view_as_skill = new MegatamaVS();
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
         public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
         {
             if (player != null && player.GetMark("@megatama") > 0 && RoomLogic.GetMaxCards(room, player) < player.HandcardNum

@@ -4928,7 +4928,7 @@ namespace SanguoshaServer.Package
         {
             events = new List<TriggerEvent> { TriggerEvent.TargetChosen };
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             if (data is CardUseStruct use && use.Card.Name.Contains(Slash.ClassName))

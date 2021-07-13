@@ -4895,7 +4895,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardsMoveOneTime);
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
@@ -10794,7 +10794,7 @@ namespace SanguoshaServer.Package
             events.Add(TriggerEvent.EventPhaseEnd);
         }
 
-        public override int Priority => -2;
+        public override int Priority => 0;
 
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
@@ -12010,7 +12010,7 @@ namespace SanguoshaServer.Package
         {
             events.Add(TriggerEvent.CardsMoveOneTime);
         }
-        public override int Priority => -1;
+        public override int Priority => 0;
         public override void Record(TriggerEvent triggerEvent, Room room, Player player, ref object data)
         {
             CardsMoveOneTimeStruct move = (CardsMoveOneTimeStruct)data;
