@@ -1126,7 +1126,7 @@ namespace SanguoshaServer.Package
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
                 WrappedCard card = new WrappedCard(use.Card.Name);
-                room.UseCard(new CardUseStruct(card, use.From, fcard.TargetFixed(card) ? null : ask_who));
+                room.UseCard(new CardUseStruct(card, use.From, fcard.TargetFixed(card) ? new List<Player>() : new List<Player> { ask_who }));
             }
             return false;
         }
