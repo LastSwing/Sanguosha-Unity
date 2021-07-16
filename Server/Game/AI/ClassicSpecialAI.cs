@@ -7778,11 +7778,11 @@ namespace SanguoshaServer.AI
             return new List<int>();
         }
 
-        public override List<Player> OnPlayerChosen(TrustedAI ai, Player player, List<Player> targets, int min, int max)
+        public override CardUseStruct OnResponding(TrustedAI ai, Player player, string pattern, string prompt, object data)
         {
             Room room = ai.Room;
             List<ScoreStruct> scores = new List<ScoreStruct>();
-            foreach (Player p in targets)
+            foreach (Player p in ai.GetEnemies(player))
             {
                 DamageStruct damage = new DamageStruct(Name, player, p, p.IsMale() ? 2 : 1);
                 ScoreStruct score = ai.GetDamageScore(damage);
@@ -7791,7 +7791,35 @@ namespace SanguoshaServer.AI
             }
 
             scores.Sort((x, y) => { return x.Score > y.Score ? -1 : 1; });
-            return scores[0].Players;
+            if (scores[0].Score + scores[0].Players[0].GetEquips().Count * 1.5 >= 8)
+            {
+                List<int> ids = player.GetPile(Name);
+                List<int> discard = new List<int>();
+                if (ids.Count >= 3)
+                {
+                    for (int i = 0; i < 3; i++)
+                        discard.Add(ids[i]);
+                }
+                else
+                {
+                     ids = player.GetCards("h");
+                    ai.SortByKeepValue(ref ids, false);
+                    foreach (int id in ids)
+                    {
+                        if (RoomLogic.CanDiscard(room, player, player, id))
+                            discard.Add(id);
+
+                        if (discard.Count >= 2)
+                            break;
+                    }
+                }
+
+                WrappedCard xw = new WrappedCard(XingwuCard.ClassName) { Skill = Name, Mute = true };
+                xw.AddSubCards(discard);
+                return new CardUseStruct(xw, player, scores[0].Players[0]);
+            }
+
+            return new CardUseStruct();
         }
     }
 

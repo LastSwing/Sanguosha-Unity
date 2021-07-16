@@ -304,6 +304,7 @@ namespace SanguoshaServer.Package
                 new YoulongCard(),
                 new JinzhiCard(),
                 new FenxunJXCard(),
+                new XingwuCard(),
             };
 
             related_skills = new Dictionary<string, List<string>>
@@ -1491,7 +1492,7 @@ namespace SanguoshaServer.Package
         public override List<WrappedCard> GetGuhuoCards(Room room, List<WrappedCard> cards, Player Self)
         {
             if (cards.Count == 0)
-                return new List<WrappedCard> { new WrappedCard(Slash.ClassName) { Skill = "_shanjia" } };
+                return new List<WrappedCard> { new WrappedCard(Slash.ClassName) { Skill = "_shanjia", DistanceLimited = false } };
 
             return new List<WrappedCard>();
         }
@@ -1518,11 +1519,12 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardsMoveOneTime && data is CardsMoveOneTimeStruct move)
             {
-                if (move.From != null && move.From_places.Contains(Place.PlaceEquip) && move.From.GetMark(Name) < 3)
+                if (move.From != null && ((move.From_places.Contains(Place.PlaceEquip) && move.To_place != Place.PlaceHand)
+                    || (move.From_places.Contains(Place.PlaceHand) && move.To_place != Place.PlaceEquip)) && move.From.GetMark(Name) < 3)
                 {
                     int count = move.From.GetMark(Name);
                     foreach (Place place in move.From_places)
-                        if (place == Place.PlaceEquip)
+                        if (place == Place.PlaceEquip || place == Place.PlaceHand)
                             count++;
 
                     count = Math.Min(3, count);
@@ -12924,6 +12926,7 @@ namespace SanguoshaServer.Package
         public Xingwu() : base("xingwu")
         {
             events = new List<TriggerEvent> { TriggerEvent.EventPhaseStart };
+            view_as_skill = new XingwuVS();
         }
         
 
@@ -12941,7 +12944,8 @@ namespace SanguoshaServer.Package
             if (ids.Count > 0)
             {
                 room.NotifySkillInvoked(player, Name);
-                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+                GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, Name, info.SkillPosition);
+                room.BroadcastSkillInvoke(Name, "male", 1, gsk.General, gsk.SkinId);
                 room.AddToPile(player, Name, ids);
                 return info;
             }
@@ -12952,37 +12956,87 @@ namespace SanguoshaServer.Package
         public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
         {
             List<WrappedCard.CardSuit> suits = new List<WrappedCard.CardSuit>();
-            List<int> ids = player.GetPile(Name), discard = new List<int>();
-            foreach (int id in ids)
-            {
-                WrappedCard card = room.GetCard(id);
-                if (!suits.Contains(card.Suit))
-                {
-                    suits.Add(card.Suit);
-                    discard.Add(id);
-                }
-            }
+            List<int> ids = player.GetPile(Name);
 
-            if (discard.Count >= 3)
-            {
-                room.ThrowCard(ref discard, player);
-                Player target = room.AskForPlayerChosen(player, room.GetOtherPlayers(player), Name, "@xingwu-target", false, true, info.SkillPosition);
-                if (!target.IsAllNude())
-                {
-                    List<int> all = new List<int>();
-                    foreach (int id in target.GetCards("e"))
-                        if (RoomLogic.CanDiscard(room, player, target, id))
-                            all.Add(id);
-
-                    if (all.Count > 0)
-                        room.ThrowCard(ref all, target, player);
-                }
-
-                if (player.Alive && target.Alive)
-                    room.Damage(new DamageStruct(Name, player, target, target.IsMale() ? 2 : 1));
-            }
+            if (ids.Count >= 3 || player.GetCardCount(false) >= 2)
+                room.AskForUseCard(player, "@@xingwu", "@xingwu-target", null, -1, HandlingMethod.MethodUse, true, info.SkillPosition);
 
             return false;
+        }
+    }
+
+    public class XingwuVS : ViewAsSkill
+    {
+        public XingwuVS() : base("xingwu")
+        {
+            response_pattern = "@@xingwu";
+            expand_pile = Name;
+        }
+        public override bool ViewFilter(Room room, List<WrappedCard> selected, WrappedCard to_select, Player player)
+        {
+            if (selected.Count == 0)
+                return room.GetCardPlace(to_select.Id) == Place.PlaceHand && RoomLogic.CanDiscard(room, player, player, to_select.Id)
+                    || player.GetPile(Name).Contains(to_select.Id);
+            else if (selected.Count > 0)
+            {
+                return room.GetCardPlace(selected[0].Id) == room.GetCardPlace(to_select.Id)
+                    && ((room.GetCardPlace(to_select.Id) == Place.PlaceHand && selected.Count < 2 && RoomLogic.CanDiscard(room, player, player, to_select.Id))
+                    || (player.GetPile(Name).Contains(to_select.Id) && selected.Count < 3));
+            }
+            else
+                return false;
+        }
+
+        public override WrappedCard ViewAs(Room room, List<WrappedCard> cards, Player player)
+        {
+            if (cards.Count > 0)
+            {
+                if ((room.GetCardPlace(cards[0].Id) == Place.PlaceHand && cards.Count == 2) || room.GetCardPlace(cards[0].Id) != Place.PlaceHand && cards.Count == 3)
+                {
+                    WrappedCard xw = new WrappedCard(XingwuCard.ClassName) { Skill = Name, Mute = true };
+                    xw.AddSubCards(cards);
+                    return xw;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public class XingwuCard : SkillCard
+    {
+        public static string ClassName = "XingwuCard";
+        public XingwuCard() : base(ClassName)
+        {
+            will_throw = true;
+        }
+
+        public override bool TargetFilter(Room room, List<Player> targets, Player to_select, Player Self, WrappedCard card)
+        {
+            return targets.Count == 0 && Self != to_select;
+        }
+
+        public override void Use(Room room, CardUseStruct card_use)
+        {
+            Player player = card_use.From;
+            Player target = card_use.To[0];
+            if (card_use.Card.SubCards.Count == 2) room.TurnOver(player);
+            GeneralSkin gsk = RoomLogic.GetGeneralSkin(room, player, "xingwu", card_use.Card.SkillPosition);
+            room.BroadcastSkillInvoke("xingwu", "male", 1, gsk.General, gsk.SkinId);
+
+            if (target.Alive && player.Alive)
+            {
+                List<int> all = new List<int>();
+                foreach (int id in target.GetCards("e"))
+                    if (RoomLogic.CanDiscard(room, player, target, id))
+                        all.Add(id);
+
+                if (all.Count > 0)
+                    room.ThrowCard(ref all, target, player);
+            }
+
+            if (player.Alive && target.Alive)
+                room.Damage(new DamageStruct(Name, player, target, target.IsMale() ? 2 : 1));
         }
     }
 
