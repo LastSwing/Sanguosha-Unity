@@ -4960,8 +4960,7 @@ namespace SanguoshaServer.Game
                         }
                     }
                     General lord_general = Engine.GetGeneral(lord, Setting.GameMode);
-                    if (check && lord_general != null && (Setting.GameMode != "HegemonyChaos"
-                        || (p.GetRoleEnum() != PlayerRole.Careerist && General.GetKingdom(p) == lord_general.Kingdom[0])))
+                    if (check && lord_general != null && p.GetRoleEnum() != PlayerRole.Careerist && General.GetKingdom(p) == lord_general.Kingdom[0])
                         lords.Add(p);
                 }
             }

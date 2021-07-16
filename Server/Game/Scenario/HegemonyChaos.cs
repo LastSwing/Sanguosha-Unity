@@ -100,12 +100,7 @@ namespace SanguoshaServer.Scenario
                 if (!string.IsNullOrEmpty(player.General1))
                 {
                     string name = player.General1;
-                    player.Kingdom = "god";
-                    string role = Engine.GetMappedRole(player.Kingdom);
-                    if (string.IsNullOrEmpty(role))
-                        role = General.GetKingdom(Engine.GetGeneral(player.General1, room.Setting.GameMode).Kingdom[0]);
                     names.Add(name);
-                    player.Role = role;
                     player.General1 = "anjiang";
                     room.BroadcastProperty(player, "General1");
                     room.NotifyProperty(room.GetClient(player), player, "ActualGeneral1");
@@ -209,7 +204,7 @@ namespace SanguoshaServer.Scenario
 
                 if (answer != "careerist")
                 {
-                    player.Kingdom = answer;
+                    player.Kingdom = player.Role = answer;
                     room.NotifyProperty(room.GetClient(player), player, "Kingdom");
                 }
                 else

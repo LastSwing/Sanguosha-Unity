@@ -1156,15 +1156,15 @@ namespace SanguoshaServer.Package
     {
         public KuangcaiHegemonyTar() : base("#kuangcai_hegemony", true)
         {
-            pattern = ".";
+            pattern = "BasicCard#TrickCard";
         }
 
-        public override bool CheckSpecificAssignee(Room room, Player from, Player to, WrappedCard card, string pattern)
+        public override int GetResidueNum(Room room, Player from, WrappedCard card)
         {
-            if (to != null && RoomLogic.PlayerHasShownSkill(room, from, "kuangcai_hegemony") && from.Phase != PlayerPhase.NotActive)
-                return true;
-
-            return false;
+            if (RoomLogic.PlayerHasShownSkill(room, from, "kuangcai_hegemony"))
+                return 1000;
+            else
+                return 0;
         }
 
         public override bool GetDistanceLimit(Room room, Player from, Player to, WrappedCard card, CardUseReason reason, string pattern)
@@ -1199,7 +1199,7 @@ namespace SanguoshaServer.Package
                 && use.From != player && RoomLogic.CanDiscard(room, player, player, "h"))
             {
                 FunctionCard fcard = Engine.GetFunctionCard(use.Card.Name);
-                if (!(fcard is SkillCard))
+                if (fcard is BasicCard || fcard is TrickCard)
                     return new TriggerStruct(Name, player);
             }
             return new TriggerStruct();
