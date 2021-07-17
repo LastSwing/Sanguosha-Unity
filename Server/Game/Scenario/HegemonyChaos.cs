@@ -209,6 +209,7 @@ namespace SanguoshaServer.Scenario
                 }
                 else
                 {
+                    player.Kingdom = "god";
                     player.Role = answer;
                     room.NotifyProperty(room.GetClient(player), player, "Role");
                 }
