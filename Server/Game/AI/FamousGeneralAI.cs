@@ -101,6 +101,7 @@ namespace SanguoshaServer.AI
                 new HuishengAI(),
                 new QiaoshuiAI(),
                 new ZongshiJYAI(),
+                new LongyinAI(),
 
                 new AnxuAI(),
                 new ZhuiyiAI(),
@@ -5819,11 +5820,15 @@ namespace SanguoshaServer.AI
         {
         }
 
-        public override List<int> OnDiscard(TrustedAI ai, Player player, List<int> ids, int min, int max, bool option)
+        public override List<int> OnExchange(TrustedAI ai, Player player, string pattern, int min, int max, string pile)
         {
             Room room = ai.Room;
             if (room.GetTag("longyin_data") is CardUseStruct use && ai.IsFriend(use.From) && use.From.Alive)
             {
+                List<int> ids = new List<int>();
+                foreach (int id in player.GetCards("he"))
+                    if (RoomLogic.CanDiscard(room, player, player, id)) ids.Add(id);
+
                 if (ids.Count > 0)
                 {
                     bool red = WrappedCard.IsRed(use.Card.Suit);

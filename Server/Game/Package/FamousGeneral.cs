@@ -39,6 +39,7 @@ namespace SanguoshaServer.Package
                 new FulinMax(),
                 new Fuhun(),
                 new Longyin(),
+                new Jiezhong(),
                 new Wuyan(),
                 new Jujian(),
                 new Benxi(),
@@ -1713,15 +1714,18 @@ namespace SanguoshaServer.Package
             if (data is CardUseStruct use)
             {
                 room.SetTag("longyin_data", data);
-                bool invoke = room.AskForDiscard(ask_who, Name, 1, 1, true, true, "@longyin:" + use.From.Name, true, info.SkillPosition);
-                room.RemoveTag("longyin_data");
-
-                if (invoke)
+                List<int> ids = room.AskForExchange(ask_who, Name, 1, 0, "@longyin:" + use.From.Name, string.Empty, "..!", info.SkillPosition);
+                if (ids.Count == 1)
                 {
+                    room.RemoveTag("longyin_data");
+
+                    ask_who.SetMark(Name, room.GetCard(ids[0]).Number);
+                    room.ThrowCard(ids[0], ask_who, null, Name);
                     room.DoAnimate(AnimateType.S_ANIMATE_INDICATE, ask_who.Name, use.From.Name);
                     room.BroadcastSkillInvoke(Name, ask_who, info.SkillPosition);
                     return info;
                 }
+                room.RemoveTag("longyin_data");
             }
 
             return new TriggerStruct();
@@ -1740,8 +1744,47 @@ namespace SanguoshaServer.Package
 
                 if (WrappedCard.IsRed(use.Card.Suit) && ask_who.Alive)
                     room.DrawCards(ask_who, 1, Name);
+
+                if (ask_who.Alive && ask_who.GetMark(Name) == use.Card.Number && RoomLogic.PlayerHasSkill(room, ask_who, "jiezhong") && ask_who.GetMark("@jiezhong") == 0)
+                    room.SetPlayerMark(ask_who, "@jiezhong", 1);
             }
 
+            return false;
+        }
+    }
+
+    public class Jiezhong : TriggerSkill
+    {
+        public Jiezhong() : base("jiezhong")
+        {
+            events.Add(TriggerEvent.EventPhaseStart);
+            skill_type = SkillType.Replenish;
+            frequency = Frequency.Limited;
+            limit_mark = "@jiezhong";
+        }
+
+        public override TriggerStruct Triggerable(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who)
+        {
+            if (player.Phase == PlayerPhase.Play && base.Triggerable(player, room) && player.GetMark(limit_mark) > 0 && player.HandcardNum < player.MaxHp)
+                return new TriggerStruct(Name, player);
+            return new TriggerStruct();
+        }
+
+        public override TriggerStruct Cost(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            if (room.AskForSkillInvoke(player, Name, data, info.SkillPosition))
+            {
+                room.SetPlayerMark(player, limit_mark, 0);
+                room.DoSuperLightbox(player, info.SkillPosition, Name);
+                room.BroadcastSkillInvoke(Name, player, info.SkillPosition);
+            }
+            return new TriggerStruct();
+        }
+
+        public override bool Effect(TriggerEvent triggerEvent, Room room, Player player, ref object data, Player ask_who, TriggerStruct info)
+        {
+            int count = player.MaxHp - player.HandcardNum;
+            room.DrawCards(player, count, Name);
             return false;
         }
     }
