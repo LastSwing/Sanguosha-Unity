@@ -1144,7 +1144,7 @@ namespace SanguoshaServer.Package
         {
             if (triggerEvent == TriggerEvent.CardUsedAnnounced && data is CardUseStruct use && player.Phase != PlayerPhase.NotActive && !player.HasFlag(Name))
                 player.SetFlags("kuangcai_use");
-            else if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From.Phase != PlayerPhase.NotActive)
+            else if (triggerEvent == TriggerEvent.DamageDone && data is DamageStruct damage && damage.From != null && damage.From.Phase != PlayerPhase.NotActive)
                 damage.From.SetFlags(Name);
         }
 
