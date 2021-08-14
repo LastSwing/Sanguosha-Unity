@@ -1242,9 +1242,9 @@ namespace SanguoshaServer.Package
                 if (general == null)
                     room.Debug("化身卡出错 " + card.UserString);
 
-                if ((!to.General1Showed || !Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0]))
-                    && (!to.General2Showed || Engine.GetGeneral(to.ActualGeneral2, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0])))
-                    return true;
+                bool g1 = to.General1Showed && Engine.GetGeneral(to.ActualGeneral1, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0]);
+                bool g2 = to.General2Showed && Engine.GetGeneral(to.ActualGeneral2, room.Setting.GameMode).Kingdom.Contains(general.Kingdom[0]);
+                if (!g1 && !g2) return true;
             }
 
             return false;
